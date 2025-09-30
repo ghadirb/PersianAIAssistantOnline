@@ -11,15 +11,18 @@ workflows:
       - name: Set up local.properties
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Set up Gradle wrapper
+        script: |
+          gradle wrapper --gradle-version 8.2
       - name: Grant execute permission
         script: |
           chmod +x gradlew
       - name: Get dependencies
         script: |
-          ./gradlew dependencies
+          ./gradlew dependencies --no-daemon
       - name: Build Android Debug APK
         script: |
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --no-daemon
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
