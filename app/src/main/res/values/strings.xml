@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">دستیار هوش مصنوعی</string>
+    <string name="app_name_english">Persian AI Assistant</string>
+    
+    <!-- Main Activity -->
+    <string name="hint_message_input">پیام خود را بنویسید...</string>
+    <string name="send">ارسال</string>
+    <string name="voice_input">ورودی صوتی</string>
+    <string name="attach_file">پیوست فایل</string>
+    
+    <!-- Menu -->
+    <string name="menu_select_model">انتخاب مدل</string>
+    <string name="menu_refresh_keys">به‌روزرسانی کلیدها</string>
+    <string name="menu_clear_chat">پاک کردن چت</string>
+    <string name="menu_settings">تنظیمات</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">تنظیمات</string>
+    <string name="api_keys_section">کلیدهای API</string>
+    <string name="system_prompt_section">دستور سیستم</string>
+    <string name="background_service">سرویس پس‌زمینه</string>
+    <string name="backup_section">پشتیبان‌گیری</string>
+    
+    <!-- Messages -->
+    <string name="loading">در حال بارگذاری...</string>
+    <string name="error">خطا</string>
+    <string name="success">موفق</string>
+    <string name="no_internet">اتصال به اینترنت برقرار نیست</string>
+    <string name="permission_required">مجوز مورد نیاز است</string>
+</resources>
