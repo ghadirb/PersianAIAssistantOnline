@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'kotlin-kapt'
 }
 
 android {
@@ -64,10 +63,10 @@ dependencies {
     // JSON
     implementation 'com.google.code.gson:gson:2.10.1'
     
-    // Database
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    kapt 'androidx.room:room-compiler:2.6.1'
+    // Database - Temporarily disabled for initial build
+    // Will be re-added with KSP in next version
+    // implementation 'androidx.room:room-runtime:2.6.1'
+    // implementation 'androidx.room:room-ktx:2.6.1'
     
     // Google Services (simplified)
     implementation 'com.google.android.gms:play-services-auth:20.7.0'

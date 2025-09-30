@@ -1,13 +1,15 @@
 package com.persianai.assistant.database
 
 import android.content.Context
-import androidx.room.*
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 
 /**
  * پایگاه داده Room برای ذخیره تاریخچه چت
+ * TEMPORARILY DISABLED - Will be re-enabled with KSP in v1.1
  */
+
+/*
 @Database(entities = [ChatMessageEntity::class], version = 1, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class ChatDatabase : RoomDatabase() {
@@ -32,9 +34,6 @@ abstract class ChatDatabase : RoomDatabase() {
     }
 }
 
-/**
- * Entity برای ذخیره پیام‌ها
- */
 @Entity(tableName = "messages")
 data class ChatMessageEntity(
     @PrimaryKey(autoGenerate = true)
@@ -56,9 +55,6 @@ data class ChatMessageEntity(
     val isError: Boolean = false
 )
 
-/**
- * DAO برای عملیات دیتابیس
- */
 @Dao
 interface ChatDao {
     
@@ -78,9 +74,6 @@ interface ChatDao {
     suspend fun getMessageCount(): Int
 }
 
-/**
- * Type Converters
- */
 class Converters {
     @TypeConverter
     fun fromMessageRole(role: MessageRole): String {
@@ -92,3 +85,4 @@ class Converters {
         return MessageRole.valueOf(value)
     }
 }
+*/

@@ -18,7 +18,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
-import com.persianai.assistant.database.ChatDatabase
+// import com.persianai.assistant.database.ChatDatabase // Temporarily disabled
 import com.persianai.assistant.databinding.ActivityMainBinding
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var chatAdapter: ChatAdapter
     private lateinit var prefsManager: PreferencesManager
-    private lateinit var database: ChatDatabase
+    // private lateinit var database: ChatDatabase // Temporarily disabled
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
     private val messages = mutableListOf<ChatMessage>()
@@ -54,11 +54,11 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.title = "دستیار هوش مصنوعی"
 
         prefsManager = PreferencesManager(this)
-        database = ChatDatabase.getDatabase(this)
+        // database = ChatDatabase.getDatabase(this) // Temporarily disabled
         
         setupRecyclerView()
         setupAIClient()
-        loadMessages()
+        // loadMessages() // Temporarily disabled - messages stored in memory only
         setupListeners()
         updateModelDisplay()
     }
@@ -128,11 +128,11 @@ class MainActivity : AppCompatActivity() {
                 
                 addMessage(response)
                 
-                // ذخیره در دیتابیس
-                withContext(Dispatchers.IO) {
-                    database.chatDao().insertMessage(userMessage)
-                    database.chatDao().insertMessage(response)
-                }
+                // ذخیره در دیتابیس - Temporarily disabled
+                // withContext(Dispatchers.IO) {
+                //     database.chatDao().insertMessage(userMessage)
+                //     database.chatDao().insertMessage(response)
+                // }
                 
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
@@ -154,6 +154,8 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView.smoothScrollToPosition(messages.size - 1)
     }
 
+    // Temporarily disabled - will be re-enabled with KSP
+    /*
     private fun loadMessages() {
         lifecycleScope.launch {
             val savedMessages = withContext(Dispatchers.IO) {
@@ -166,6 +168,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    */
 
     private fun checkAudioPermissionAndRecord() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -268,14 +271,14 @@ class MainActivity : AppCompatActivity() {
             .setTitle("پاک کردن چت")
             .setMessage("آیا مطمئن هستید که می‌خواهید تمام پیام‌ها را پاک کنید؟")
             .setPositiveButton("بله") { _, _ ->
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        database.chatDao().deleteAllMessages()
-                    }
+                // lifecycleScope.launch {
+                //     withContext(Dispatchers.IO) {
+                //         database.chatDao().deleteAllMessages()
+                //     }
                     messages.clear()
                     chatAdapter.notifyDataSetChanged()
                     Toast.makeText(this@MainActivity, "چت پاک شد", Toast.LENGTH_SHORT).show()
-                }
+                // }
             }
             .setNegativeButton("خیر", null)
             .show()
