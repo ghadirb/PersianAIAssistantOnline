@@ -11,9 +11,10 @@ workflows:
       - name: Set up local.properties
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
-      - name: Set up Gradle wrapper
+      - name: Download Gradle wrapper jar
         script: |
-          gradle wrapper --gradle-version 8.2
+          mkdir -p gradle/wrapper
+          curl -L https://raw.githubusercontent.com/gradle/gradle/v8.2.1/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
       - name: Grant execute permission
         script: |
           chmod +x gradlew
