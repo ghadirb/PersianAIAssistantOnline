@@ -1,13 +1,9 @@
 workflows:
   android-workflow:
-    name: Android Build
+    name: Android Build (Debug)
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
-      android_signing:
-        - keystore_reference
-      groups:
-        - google_play
       vars:
         PACKAGE_NAME: "com.persianai.assistant"
       java: 17
@@ -15,12 +11,15 @@ workflows:
       - name: Set up local.properties
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Grant execute permission
+        script: |
+          chmod +x gradlew
       - name: Get dependencies
         script: |
           ./gradlew dependencies
-      - name: Build Android release
+      - name: Build Android Debug APK
         script: |
-          ./gradlew assembleRelease
+          ./gradlew assembleDebug --stacktrace
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
@@ -33,4 +32,5 @@ workflows:
       scripts:
         - name: Success notification
           script: |
-            echo "Build completed successfully!"
+            echo "✅ Debug APK build completed successfully!"
+            echo "📦 APK location: app/build/outputs/apk/debug/app-debug.apk"
