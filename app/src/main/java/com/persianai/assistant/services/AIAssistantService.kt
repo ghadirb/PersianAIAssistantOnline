@@ -43,10 +43,13 @@ class AIAssistantService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_MIN  // کمترین اهمیت = بدون صدا، بدون نمایش
             ).apply {
-                description = "نمایش وضعیت سرویس دستیار هوش مصنوعی"
+                description = "سرویس دستیار هوش مصنوعی"
                 setShowBadge(false)
+                enableLights(false)
+                enableVibration(false)
+                setSound(null, null)
             }
 
             val notificationManager = getSystemService(NotificationManager::class.java)
@@ -64,12 +67,14 @@ class AIAssistantService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("دستیار هوش مصنوعی")
-            .setContentText("در حال اجرا در پس‌زمینه")
+            .setContentTitle("")  // بدون عنوان
+            .setContentText("")   // بدون متن
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN)  // کمترین اولویت
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)  // مخفی
+            .setSilent(true)  // بدون صدا
             .build()
     }
 

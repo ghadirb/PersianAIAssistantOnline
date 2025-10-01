@@ -45,9 +45,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
     private lateinit var prefsManager: PreferencesManager
     private lateinit var messageStorage: MessageStorage
+    private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
     private val messages = mutableListOf<ChatMessage>()
+    private var currentConversation: com.persianai.assistant.models.Conversation? = null
     private var mediaRecorder: MediaRecorder? = null
     private var audioFilePath: String? = null
     private var isRecording = false
@@ -79,6 +81,7 @@ class MainActivity : AppCompatActivity() {
 
             prefsManager = PreferencesManager(this)
             messageStorage = MessageStorage(this)
+            conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
             
             android.util.Log.d("MainActivity", "Managers initialized")
             
@@ -408,11 +411,8 @@ class MainActivity : AppCompatActivity() {
                 )
                 addMessage(finalMessage)
                 
-                // ذخیره پیام‌ها
-                withContext(Dispatchers.IO) {
-                    messageStorage.saveMessage(userMessage)
-                    messageStorage.saveMessage(finalMessage)
-                }
+                // ذخیره چت
+                saveCurrentConversation()
                 
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
@@ -506,13 +506,45 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadMessages() {
         lifecycleScope.launch {
-            val savedMessages = withContext(Dispatchers.IO) {
-                messageStorage.getAllMessages()
+            // بررسی اینکه آیا چت قبلی وجود دارد
+            val conversationId = conversationStorage.getCurrentConversationId()
+            
+            if (conversationId != null) {
+                // بارگذاری چت قبلی
+                currentConversation = conversationStorage.getConversation(conversationId)
+                currentConversation?.messages?.let {
+                    messages.addAll(it)
+                    chatAdapter.notifyDataSetChanged()
+                    if (messages.isNotEmpty()) {
+                        binding.recyclerView.scrollToPosition(messages.size - 1)
+                    }
+                }
+            } else {
+                // شروع چت جدید
+                startNewConversation()
             }
-            messages.addAll(savedMessages)
-            chatAdapter.notifyDataSetChanged()
-            if (messages.isNotEmpty()) {
-                binding.recyclerView.scrollToPosition(messages.size - 1)
+        }
+    }
+    
+    private fun startNewConversation() {
+        currentConversation = com.persianai.assistant.models.Conversation()
+        conversationStorage.setCurrentConversationId(currentConversation!!.id)
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+    }
+    
+    private fun saveCurrentConversation() {
+        lifecycleScope.launch {
+            currentConversation?.let { conversation ->
+                conversation.messages.clear()
+                conversation.messages.addAll(messages)
+                
+                // تولید عنوان خودکار اگر هنوز "چت جدید" است
+                if (conversation.title == "چت جدید" && messages.isNotEmpty()) {
+                    conversation.title = conversation.generateTitle()
+                }
+                
+                conversationStorage.saveConversation(conversation)
             }
         }
     }
@@ -738,6 +770,25 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_new_chat -> {
+                // ذخیره چت فعلی
+                if (messages.isNotEmpty()) {
+                    saveCurrentConversation()
+                }
+                // شروع چت جدید
+                conversationStorage.clearCurrentConversationId()
+                startNewConversation()
+                Toast.makeText(this, "چت جدید شروع شد", Toast.LENGTH_SHORT).show()
+                true
+            }
+            R.id.action_conversations -> {
+                // ذخیره چت فعلی
+                if (messages.isNotEmpty()) {
+                    saveCurrentConversation()
+                }
+                startActivity(Intent(this, ConversationsActivity::class.java))
+                true
+            }
             R.id.action_select_model -> {
                 showModelSelector()
                 true

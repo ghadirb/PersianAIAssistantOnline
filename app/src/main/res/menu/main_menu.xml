@@ -3,16 +3,28 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     
     <item
+        android:id="@+id/action_new_chat"
+        android:title="چت جدید"
+        android:icon="@android:drawable/ic_input_add"
+        app:showAsAction="ifRoom" />
+    
+    <item
+        android:id="@+id/action_conversations"
+        android:title="تاریخچه چت‌ها"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        app:showAsAction="ifRoom" />
+    
+    <item
         android:id="@+id/action_select_model"
         android:title="@string/menu_select_model"
         android:icon="@drawable/ic_model"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="never" />
     
     <item
         android:id="@+id/action_reminders"
         android:title="یادآوری‌ها"
         android:icon="@drawable/ic_notification"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="never" />
     
     <item
         android:id="@+id/action_refresh_keys"

@@ -64,6 +64,12 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
+        <!-- Conversations Activity -->
+        <activity
+            android:name=".activities.ConversationsActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity" />
+
         <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"
