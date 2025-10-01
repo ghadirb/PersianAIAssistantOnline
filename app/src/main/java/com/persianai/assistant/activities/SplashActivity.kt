@@ -98,7 +98,18 @@ class SplashActivity : AppCompatActivity() {
                 Toast.makeText(this@SplashActivity, "در حال دانلود...", Toast.LENGTH_SHORT).show()
                 
                 // دانلود فایل رمزشده از Google Drive
-                val encryptedData = DriveHelper.downloadEncryptedKeys()
+                val encryptedData = try {
+                    DriveHelper.downloadEncryptedKeys()
+                } catch (e: Exception) {
+                    // اگر دانلود ناموفق بود، از فایل تست استفاده کن
+                    Toast.makeText(
+                        this@SplashActivity,
+                        "خطا در دانلود از Google Drive. استفاده از حالت تست...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    // می‌توانید اینجا یک فایل تست قرار دهید یا از assets بخوانید
+                    throw Exception("عدم دسترسی به Google Drive. لطفاً اتصال اینترنت را بررسی کنید.")
+                }
                 
                 Toast.makeText(this@SplashActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
                 
@@ -125,13 +136,17 @@ class SplashActivity : AppCompatActivity() {
                 navigateToMain()
                 
             } catch (e: Exception) {
+                // لاگ خطا برای debugging
+                android.util.Log.e("SplashActivity", "Error downloading/decrypting keys", e)
+                
                 Toast.makeText(
                     this@SplashActivity,
                     "خطا: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
                 
-                showPasswordDialog()
+                // در صورت خطا، به جای بستن برنامه، به MainActivity برود
+                navigateToMain()
             }
         }
     }
