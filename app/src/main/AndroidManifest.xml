@@ -70,6 +70,12 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
+        <!-- Connected Apps Activity -->
+        <activity
+            android:name=".activities.ConnectedAppsActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.SettingsActivity" />
+
         <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"

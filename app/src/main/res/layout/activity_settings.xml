@@ -28,6 +28,46 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Connected Apps Section -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📱 برنامه‌های متصل"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="مدیریت برنامه‌هایی که دستیار به آن‌ها دسترسی دارد"
+                        android:layout_marginTop="8dp"
+                        android:alpha="0.7" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/manageAppsButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="مدیریت برنامه‌ها"
+                        android:layout_marginTop="16dp"
+                        style="@style/Widget.Material3.Button" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- API Keys Section -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

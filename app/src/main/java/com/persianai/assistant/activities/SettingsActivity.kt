@@ -55,6 +55,11 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        // دکمه مدیریت برنامه‌های متصل
+        binding.manageAppsButton.setOnClickListener {
+            startActivity(Intent(this, ConnectedAppsActivity::class.java))
+        }
+        
         // دکمه به‌روزرسانی کلیدها
         binding.refreshKeysButton.setOnClickListener {
             showPasswordDialogForRefresh()
