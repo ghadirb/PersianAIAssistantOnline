@@ -51,6 +51,10 @@ class MainActivity : AppCompatActivity() {
     private var mediaRecorder: MediaRecorder? = null
     private var audioFilePath: String? = null
     private var isRecording = false
+    private var recordingStartTime: Long = 0
+    private var recordingTimer: android.os.CountDownTimer? = null
+    private var initialY = 0f
+    private val swipeThreshold = 200f // پیکسل برای لغو
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -297,18 +301,32 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        // دکمه صوت به صورت Push-to-Talk (نگه دار و صحبت کن)
+        // دکمه صوت به صورت Push-to-Talk (نگه دار و صحبت کن) با قابلیت Swipe-to-cancel
         binding.voiceButton.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     // شروع ضبط
+                    initialY = event.rawY
                     checkAudioPermissionAndStartRecording()
                     v.alpha = 0.5f
                     true
                 }
+                MotionEvent.ACTION_MOVE -> {
+                    // بررسی Swipe به بالا
+                    val deltaY = initialY - event.rawY
+                    if (deltaY > swipeThreshold && isRecording) {
+                        // لغو ضبط
+                        cancelRecording()
+                        v.alpha = 1.0f
+                        Toast.makeText(this, "ضبط لغو شد", Toast.LENGTH_SHORT).show()
+                    }
+                    true
+                }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    // پایان ضبط
-                    stopRecordingAndProcess()
+                    // پایان ضبط (اگر لغو نشده)
+                    if (isRecording) {
+                        stopRecordingAndProcess()
+                    }
                     v.alpha = 1.0f
                     true
                 }
@@ -356,35 +374,42 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // بررسی درخواست‌های سیستمی (یادآوری، مسیریابی و...)
-                val systemResponse = SystemIntegrationHelper.handleSmartRequest(this@MainActivity, text)
+                // ارسال به AI برای تحلیل هوشمند
+                val enhancedPrompt = """
+                    شما یک دستیار هوشمند فارسی هستید که می‌توانید:
+                    1. یادآوری تنظیم کنید (با فرمت JSON)
+                    2. مسیریابی فارسی انجام دهید
+                    3. محاسبات انجام دهید
+                    4. تماس، پیامک، ایمیل ارسال کنید
+                    5. به سوالات پاسخ دهید
+                    
+                    اگر درخواست یادآوری بود، پاسخ را با این فرمت بدهید:
+                    REMINDER:{"time":"HH:mm","message":"متن یادآوری"}
+                    
+                    اگر درخواست مسیریابی بود، پاسخ را با این فرمت بدهید:
+                    NAVIGATION:{"destination":"مقصد","voice":true}
+                    
+                    اگر محاسبه ریاضی بود، جواب را محاسبه کنید.
+                    
+                    درخواست کاربر: $text
+                """.trimIndent()
                 
-                // اگر پاسخ از سیستم بود، فقط آن را نمایش بده
-                if (systemResponse != text && 
-                    (systemResponse.contains("در حال") || systemResponse.contains("لطفاً") || systemResponse.contains("می‌توانم"))) {
-                    val systemMessage = ChatMessage(
-                        role = MessageRole.ASSISTANT,
-                        content = systemResponse,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    addMessage(systemMessage)
-                    
-                    withContext(Dispatchers.IO) {
-                        messageStorage.saveMessage(userMessage)
-                        messageStorage.saveMessage(systemMessage)
-                    }
-                } else {
-                    // درخواست عادی - ارسال به AI
-                    val systemPrompt = prefsManager.getSystemPrompt()
-                    val response = aiClient!!.sendMessage(currentModel, messages, systemPrompt)
-                    
-                    addMessage(response)
-                    
-                    // ذخیره پیام‌ها
-                    withContext(Dispatchers.IO) {
-                        messageStorage.saveMessage(userMessage)
-                        messageStorage.saveMessage(response)
-                    }
+                val response = aiClient!!.sendMessage(currentModel, messages, enhancedPrompt)
+                
+                // پردازش پاسخ AI
+                val processedResponse = processAIResponse(response.content)
+                
+                val finalMessage = ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = processedResponse,
+                    timestamp = System.currentTimeMillis()
+                )
+                addMessage(finalMessage)
+                
+                // ذخیره پیام‌ها
+                withContext(Dispatchers.IO) {
+                    messageStorage.saveMessage(userMessage)
+                    messageStorage.saveMessage(finalMessage)
                 }
                 
             } catch (e: Exception) {
@@ -405,6 +430,55 @@ class MainActivity : AppCompatActivity() {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
         binding.recyclerView.smoothScrollToPosition(messages.size - 1)
+    }
+    
+    private suspend fun processAIResponse(response: String): String {
+        return withContext(Dispatchers.Main) {
+            when {
+                // یادآوری
+                response.contains("REMINDER:") -> {
+                    try {
+                        val jsonStr = response.substringAfter("REMINDER:").substringBefore("\n").trim()
+                        val json = org.json.JSONObject(jsonStr)
+                        val time = json.getString("time")
+                        val message = json.getString("message")
+                        
+                        // استخراج ساعت و دقیقه
+                        val parts = time.split(":")
+                        val hour = parts[0].toInt()
+                        val minute = parts[1].toInt()
+                        
+                        SystemIntegrationHelper.setReminder(this@MainActivity, message, hour, minute)
+                        
+                        "✅ یادآوری تنظیم شد:\n⏰ ساعت $time\n📝 $message"
+                    } catch (e: Exception) {
+                        response.replace("REMINDER:", "")
+                    }
+                }
+                
+                // مسیریابی
+                response.contains("NAVIGATION:") -> {
+                    try {
+                        val jsonStr = response.substringAfter("NAVIGATION:").substringBefore("\n").trim()
+                        val json = org.json.JSONObject(jsonStr)
+                        val destination = json.getString("destination")
+                        val withVoice = json.optBoolean("voice", false)
+                        
+                        SystemIntegrationHelper.openNavigation(this@MainActivity, destination, withVoice)
+                        
+                        if (withVoice) {
+                            "🗺️ در حال باز کردن مسیریابی فارسی به:\n📍 $destination\n🔊 با راهنمای صوتی فارسی"
+                        } else {
+                            "🗺️ در حال باز کردن مسیریابی به:\n📍 $destination"
+                        }
+                    } catch (e: Exception) {
+                        response.replace("NAVIGATION:", "")
+                    }
+                }
+                
+                else -> response
+            }
+        }
     }
 
     private fun loadMessages() {
@@ -456,10 +530,53 @@ class MainActivity : AppCompatActivity() {
             }
             
             isRecording = true
-            Toast.makeText(this, "در حال ضبط... (دست خود را نگه دارید)", Toast.LENGTH_SHORT).show()
+            recordingStartTime = System.currentTimeMillis()
+            
+            // نمایش نشانگر ضبط
+            binding.recordingIndicator.visibility = android.view.View.VISIBLE
+            
+            // شروع تایمر
+            startRecordingTimer()
+            
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در شروع ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
             android.util.Log.e("MainActivity", "Recording error", e)
+        }
+    }
+    
+    private fun startRecordingTimer() {
+        recordingTimer = object : android.os.CountDownTimer(60000, 100) {
+            override fun onTick(millisUntilFinished: Long) {
+                val elapsed = System.currentTimeMillis() - recordingStartTime
+                val seconds = (elapsed / 1000).toInt()
+                val millis = ((elapsed % 1000) / 100).toInt()
+                binding.recordingTime.text = String.format("%d:%01d", seconds, millis)
+            }
+            
+            override fun onFinish() {}
+        }.start()
+    }
+    
+    private fun cancelRecording() {
+        if (!isRecording) return
+        
+        try {
+            recordingTimer?.cancel()
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+            isRecording = false
+            
+            // حذف فایل صوتی
+            audioFilePath?.let { File(it).delete() }
+            
+            // مخفی کردن نشانگر
+            binding.recordingIndicator.visibility = android.view.View.GONE
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Cancel recording error", e)
         }
     }
     
@@ -467,12 +584,16 @@ class MainActivity : AppCompatActivity() {
         if (!isRecording) return
         
         try {
+            recordingTimer?.cancel()
             mediaRecorder?.apply {
                 stop()
                 release()
             }
             mediaRecorder = null
             isRecording = false
+            
+            // مخفی کردن نشانگر
+            binding.recordingIndicator.visibility = android.view.View.GONE
             
             // استفاده از Speech Recognition برای تبدیل صوت به متن
             startVoiceRecognition()
