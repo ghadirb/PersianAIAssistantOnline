@@ -21,9 +21,12 @@ workflows:
       - name: Get dependencies
         script: |
           ./gradlew dependencies --no-daemon
+      - name: Clean build directory
+        script: |
+          ./gradlew clean --no-daemon
       - name: Build Android Debug APK
         script: |
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleDebug --stacktrace --info --no-daemon 2>&1 | tee build.log
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
