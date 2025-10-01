@@ -22,6 +22,10 @@ class PreferencesManager(context: Context) {
         private const val KEY_SYSTEM_PROMPT = "system_prompt"
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
+        
+        const val DEFAULT_SYSTEM_PROMPT = """شما یک دستیار هوش مصنوعی فارسی‌زبان، دوستانه و مفید هستید.
+به سوالات کاربر با دقت پاسخ دهید و در صورت نیاز اطلاعات تکمیلی بخواهید.
+همیشه مودب، حرفه‌ای و قابل اعتماد باشید."""
     }
 
     fun saveAPIKeys(keys: List<APIKey>) {
@@ -78,11 +82,5 @@ class PreferencesManager(context: Context) {
 
     fun isServiceEnabled(): Boolean {
         return prefs.getBoolean(KEY_SERVICE_ENABLED, false)
-    }
-
-    companion object {
-        const val DEFAULT_SYSTEM_PROMPT = """شما یک دستیار هوش مصنوعی فارسی‌زبان، دوستانه و مفید هستید.
-به سوالات کاربر با دقت پاسخ دهید و در صورت نیاز اطلاعات تکمیلی بخواهید.
-همیشه مودب، حرفه‌ای و قابل اعتماد باشید."""
     }
 }
