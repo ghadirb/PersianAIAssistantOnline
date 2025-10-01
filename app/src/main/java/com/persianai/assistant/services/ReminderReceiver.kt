@@ -107,8 +107,16 @@ class ReminderReceiver : BroadcastReceiver() {
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
+        // صدای پیش‌فرض
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        
         // ایجاد کانال (برای اندروید 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                .build()
+            
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "یادآوری‌ها",
@@ -116,7 +124,10 @@ class ReminderReceiver : BroadcastReceiver() {
             ).apply {
                 description = "هشدارهای یادآوری"
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
                 enableLights(true)
+                lightColor = android.graphics.Color.RED
+                setSound(defaultSoundUri, audioAttributes)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -147,22 +158,23 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        // صدای پیش‌فرض
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        
         // ساخت نوتیفیکیشن با Action Buttons
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("⏰ یادآوری")
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(donePendingIntent)
             .addAction(0, "✅ انجام شد", donePendingIntent)
             .addAction(0, "⏰ بعداً", snoozePendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(donePendingIntent, true)
             .build()
         
         notificationManager.notify(reminderId, notification)
