@@ -16,7 +16,7 @@ object EncryptionHelper {
     private const val ALGORITHM = "AES/GCM/NoPadding"
     private const val KEY_ALGORITHM = "AES"
     private const val SECRET_KEY_FACTORY_ALGORITHM = "PBKDF2WithHmacSHA256"
-    private const val ITERATIONS = 200000
+    private const val ITERATIONS = 20000  // Must match Python script (20,000 not 200,000)
     private const val KEY_LENGTH = 256
     private const val GCM_TAG_LENGTH = 128
     private const val SALT_LENGTH = 16
