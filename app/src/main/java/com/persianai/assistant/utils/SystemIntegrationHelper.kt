@@ -39,8 +39,14 @@ object SystemIntegrationHelper {
     /**
      * باز کردن مسیریابی در Google Maps
      */
-    fun openNavigation(context: Context, destination: String): Boolean {
+    fun openNavigation(context: Context, destination: String, withPersianVoice: Boolean = false): Boolean {
         return try {
+            // اگر مسیریابی صوتی فارسی درخواست شده
+            if (withPersianVoice) {
+                val navigationHelper = PersianNavigationHelper(context)
+                navigationHelper.speak("در حال باز کردن مسیریابی به $destination")
+            }
+            
             val gmmIntentUri = Uri.parse("google.navigation:q=$destination")
             val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
                 setPackage("com.google.android.apps.maps")
@@ -63,6 +69,14 @@ object SystemIntegrationHelper {
                 false
             }
         }
+    }
+    
+    /**
+     * مسیریابی با صوت فارسی کامل
+     */
+    suspend fun startPersianVoiceNavigation(context: Context, destination: String): String {
+        val navigationHelper = PersianNavigationHelper(context)
+        return navigationHelper.startPersianNavigation("موقعیت فعلی", destination)
     }
 
     /**
@@ -242,16 +256,38 @@ object SystemIntegrationHelper {
     }
 
     private fun extractAndNavigate(context: Context, request: String): String {
+        val lowerRequest = request.lowercase()
+        val withPersianVoice = lowerRequest.contains("صوت فارسی") || 
+                               lowerRequest.contains("صوتی") ||
+                               lowerRequest.contains("راهنمای صوتی")
+        
         val destination = request
             .replace(Regex("مسیر(یابی)?\\s*(به)?", RegexOption.IGNORE_CASE), "")
             .replace(Regex("راهنما(ی)?\\s*مسیر", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("با\\s*صوت\\s*فارسی", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("صوت(ی)?", RegexOption.IGNORE_CASE), "")
             .replace("از", "")
             .trim()
 
-        return if (destination.isNotEmpty() && openNavigation(context, destination)) {
-            "در حال باز کردن مسیریابی به $destination در Google Maps..."
+        return if (destination.isNotEmpty()) {
+            if (openNavigation(context, destination, withPersianVoice)) {
+                if (withPersianVoice) {
+                    "در حال باز کردن مسیریابی به $destination با راهنمای صوتی فارسی..."
+                } else {
+                    "در حال باز کردن مسیریابی به $destination در Google Maps..."
+                }
+            } else {
+                "خطا در باز کردن مسیریابی"
+            }
         } else {
-            "لطفاً مقصد را مشخص کنید. مثال: 'مسیریابی به تهران'"
+            """
+            لطفاً مقصد را مشخص کنید.
+            
+            مثال‌ها:
+            • 'مسیریابی به تهران'
+            • 'مسیریابی به تهران با صوت فارسی'
+            • 'راهنمای صوتی مسیر به مشهد'
+            """.trimIndent()
         }
     }
 
