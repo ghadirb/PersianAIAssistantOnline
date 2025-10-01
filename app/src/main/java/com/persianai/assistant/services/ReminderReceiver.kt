@@ -153,8 +153,8 @@ class ReminderReceiver : BroadcastReceiver() {
             .setSound(defaultSoundUri)
             .setVibrate(longArrayOf(0, 500, 200, 500))
             .setContentIntent(donePendingIntent)
-            .addAction(R.drawable.ic_check, "✅ انجام شد", donePendingIntent)
-            .addAction(R.drawable.ic_snooze, "⏰ بعداً", snoozePendingIntent)
+            .addAction(0, "✅ انجام شد", donePendingIntent)
+            .addAction(0, "⏰ بعداً", snoozePendingIntent)
             .build()
         
         notificationManager.notify(reminderId, notification)

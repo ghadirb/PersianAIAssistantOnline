@@ -5,9 +5,9 @@ package com.persianai.assistant.models
  */
 data class ConnectedApp(
     val id: String,
-    val name: String,           // نام فارسی برنامه
-    val packageName: String,    // Package name اندروید
-    val keywords: List<String>, // کلمات کلیدی برای تشخیص
+    var name: String,           // نام فارسی برنامه
+    var packageName: String,    // Package name اندروید
+    var keywords: List<String>, // کلمات کلیدی برای تشخیص
     var isEnabled: Boolean = true
 ) {
     companion object {
