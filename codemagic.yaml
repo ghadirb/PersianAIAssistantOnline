@@ -26,9 +26,16 @@ workflows:
           ./gradlew clean --no-daemon
       - name: Build Android Debug APK
         script: |
-          ./gradlew assembleDebug --stacktrace --info --no-daemon 2>&1 | tee build.log
+          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
+      - name: Verify APK exists
+        script: |
+          echo "Checking for APK files..."
+          ls -la app/build/outputs/apk/debug/ || echo "Debug directory not found"
+          find app/build/outputs -name "*.apk" -type f || echo "No APK files found"
     artifacts:
       - app/build/outputs/**/*.apk
+      - app/build/outputs/apk/debug/*.apk
+      - build.log
     publishing:
       email:
         recipients:
