@@ -27,9 +27,14 @@ import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.MessageStorage
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
+import com.persianai.assistant.utils.SystemIntegrationHelper
+import com.persianai.assistant.services.AIAssistantService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.view.MotionEvent
+import android.media.MediaRecorder
+import java.io.File
 
 /**
  * صفحه اصلی چت
@@ -43,6 +48,9 @@ class MainActivity : AppCompatActivity() {
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
     private val messages = mutableListOf<ChatMessage>()
+    private var mediaRecorder: MediaRecorder? = null
+    private var audioFilePath: String? = null
+    private var isRecording = false
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -86,6 +94,9 @@ class MainActivity : AppCompatActivity() {
             
             // نمایش پیام خوش‌آمدگویی در اولین اجرا
             showFirstRunDialogIfNeeded()
+            
+            // شروع سرویس پس‌زمینه
+            startBackgroundService()
             
             android.util.Log.d("MainActivity", "onCreate completed successfully")
         } catch (e: Exception) {
@@ -286,12 +297,36 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        binding.voiceButton.setOnClickListener {
-            checkAudioPermissionAndRecord()
+        // دکمه صوت به صورت Push-to-Talk (نگه دار و صحبت کن)
+        binding.voiceButton.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // شروع ضبط
+                    checkAudioPermissionAndStartRecording()
+                    v.alpha = 0.5f
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // پایان ضبط
+                    stopRecordingAndProcess()
+                    v.alpha = 1.0f
+                    true
+                }
+                else -> false
+            }
         }
 
         binding.attachButton.setOnClickListener {
             showAttachmentOptions()
+        }
+    }
+    
+    private fun startBackgroundService() {
+        val serviceIntent = Intent(this, AIAssistantService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
         }
     }
 
@@ -321,15 +356,35 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val systemPrompt = prefsManager.getSystemPrompt()
-                val response = aiClient!!.sendMessage(currentModel, messages, systemPrompt)
+                // بررسی درخواست‌های سیستمی (یادآوری، مسیریابی و...)
+                val systemResponse = SystemIntegrationHelper.handleSmartRequest(this@MainActivity, text)
                 
-                addMessage(response)
-                
-                // ذخیره پیام‌ها
-                withContext(Dispatchers.IO) {
-                    messageStorage.saveMessage(userMessage)
-                    messageStorage.saveMessage(response)
+                // اگر پاسخ از سیستم بود، فقط آن را نمایش بده
+                if (systemResponse != text && 
+                    (systemResponse.contains("در حال") || systemResponse.contains("لطفاً") || systemResponse.contains("می‌توانم"))) {
+                    val systemMessage = ChatMessage(
+                        role = MessageRole.ASSISTANT,
+                        content = systemResponse,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    addMessage(systemMessage)
+                    
+                    withContext(Dispatchers.IO) {
+                        messageStorage.saveMessage(userMessage)
+                        messageStorage.saveMessage(systemMessage)
+                    }
+                } else {
+                    // درخواست عادی - ارسال به AI
+                    val systemPrompt = prefsManager.getSystemPrompt()
+                    val response = aiClient!!.sendMessage(currentModel, messages, systemPrompt)
+                    
+                    addMessage(response)
+                    
+                    // ذخیره پیام‌ها
+                    withContext(Dispatchers.IO) {
+                        messageStorage.saveMessage(userMessage)
+                        messageStorage.saveMessage(response)
+                    }
                 }
                 
             } catch (e: Exception) {
@@ -365,7 +420,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkAudioPermissionAndRecord() {
+    private fun checkAudioPermissionAndStartRecording() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
@@ -374,7 +429,57 @@ class MainActivity : AppCompatActivity() {
                 REQUEST_RECORD_AUDIO
             )
         } else {
+            startRecording()
+        }
+    }
+
+    private fun startRecording() {
+        if (isRecording) return
+        
+        try {
+            val outputDir = cacheDir
+            val outputFile = File.createTempFile("audio_", ".3gp", outputDir)
+            audioFilePath = outputFile.absolutePath
+            
+            mediaRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                MediaRecorder(this)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                setOutputFile(audioFilePath)
+                prepare()
+                start()
+            }
+            
+            isRecording = true
+            Toast.makeText(this, "در حال ضبط... (دست خود را نگه دارید)", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در شروع ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
+            android.util.Log.e("MainActivity", "Recording error", e)
+        }
+    }
+    
+    private fun stopRecordingAndProcess() {
+        if (!isRecording) return
+        
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+            isRecording = false
+            
+            // استفاده از Speech Recognition برای تبدیل صوت به متن
             startVoiceRecognition()
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
+            android.util.Log.e("MainActivity", "Stop recording error", e)
         }
     }
 
