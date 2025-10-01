@@ -443,7 +443,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateModelDisplay() {
-        supportActionBar?.subtitle = "مدل: ${currentModel.displayName}"
+        supportActionBar?.apply {
+            title = "دستیار هوش مصنوعی"
+            subtitle = "${currentModel.displayName}"
+        }
     }
 
     private fun refreshAPIKeys() {

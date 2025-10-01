@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * کلاینت اصلی برای ارتباط با APIهای هوش مصنوعی
+ * با قابلیت خودکار تعویض کلید در صورت خطا
  */
 class AIClient(private val apiKeys: List<APIKey>) {
 
@@ -24,9 +25,12 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
     private val gson = Gson()
     private val mediaType = "application/json; charset=utf-8".toMediaType()
+    
+    // ردیابی کلیدهای ناموفق
+    private val failedKeys = mutableSetOf<String>()
 
     /**
-     * ارسال پیام به مدل هوش مصنوعی
+     * ارسال پیام به مدل هوش مصنوعی با قابلیت تعویض خودکار کلید
      */
     suspend fun sendMessage(
         model: AIModel,
@@ -34,14 +38,36 @@ class AIClient(private val apiKeys: List<APIKey>) {
         systemPrompt: String? = null
     ): ChatMessage = withContext(Dispatchers.IO) {
         
-        val activeKey = apiKeys.firstOrNull { 
-            it.provider == model.provider && it.isActive 
-        } ?: throw IllegalStateException("کلید API برای ${model.provider} یافت نشد")
-
-        when (model.provider) {
-            AIProvider.OPENAI, AIProvider.OPENROUTER -> sendToOpenAI(model, messages, systemPrompt, activeKey)
-            AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, activeKey)
+        // دریافت تمام کلیدهای فعال برای این provider
+        val availableKeys = apiKeys.filter { 
+            it.provider == model.provider && it.isActive && !failedKeys.contains(it.key)
         }
+        
+        if (availableKeys.isEmpty()) {
+            throw IllegalStateException("هیچ کلید فعالی برای ${model.provider.name} یافت نشد")
+        }
+
+        // تلاش با کلیدهای مختلف تا موفق شویم
+        var lastError: Exception? = null
+        for (apiKey in availableKeys) {
+            try {
+                return@withContext when (model.provider) {
+                    AIProvider.OPENAI, AIProvider.OPENROUTER -> sendToOpenAI(model, messages, systemPrompt, apiKey)
+                    AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
+                }
+            } catch (e: Exception) {
+                lastError = e
+                // اگر خطای 401 (Unauthorized) یا 400 بود، این کلید را علامت‌گذاری کن
+                if (e.message?.contains("401") == true || e.message?.contains("400") == true) {
+                    failedKeys.add(apiKey.key)
+                }
+                // ادامه به کلید بعدی
+                continue
+            }
+        }
+        
+        // اگر همه کلیدها ناموفق بودند
+        throw lastError ?: Exception("خطای نامشخص در ارسال پیام")
     }
 
     /**
