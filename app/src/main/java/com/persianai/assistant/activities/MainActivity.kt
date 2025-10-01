@@ -386,7 +386,7 @@ class MainActivity : AppCompatActivity() {
                     5. به سوالات پاسخ دهید
                     
                     اگر درخواست یادآوری بود، پاسخ را با این فرمت بدهید:
-                    REMINDER:{"time":"HH:mm","message":"متن یادآوری"}
+                    REMINDER:{"time":"HH:mm","message":"متن یادآوری","alarm":true/false,"repeat":"daily/none"}
                     
                     اگر درخواست مسیریابی بود، پاسخ را با این فرمت بدهید:
                     NAVIGATION:{"destination":"مقصد","voice":true}
@@ -444,18 +444,36 @@ class MainActivity : AppCompatActivity() {
                         val json = org.json.JSONObject(jsonStr)
                         val time = json.getString("time")
                         val message = json.getString("message")
+                        val useAlarm = json.optBoolean("alarm", false)
+                        val repeat = json.optString("repeat", "none")
                         
                         // استخراج ساعت و دقیقه
                         val parts = time.split(":")
                         val hour = parts[0].toInt()
                         val minute = parts[1].toInt()
                         
-                        SystemIntegrationHelper.setReminder(this@MainActivity, message, hour, minute)
+                        // محاسبه repeatInterval
+                        val repeatInterval = when (repeat.lowercase()) {
+                            "daily", "روزانه", "هر روز" -> android.app.AlarmManager.INTERVAL_DAY
+                            else -> 0L
+                        }
+                        
+                        SystemIntegrationHelper.setReminder(
+                            this@MainActivity, 
+                            message, 
+                            hour, 
+                            minute,
+                            useAlarm,
+                            repeatInterval
+                        )
                         
                         // ذخیره در لیست یادآوری‌ها
                         RemindersActivity.addReminder(this@MainActivity, time, message)
                         
-                        "✅ یادآوری تنظیم شد:\n⏰ ساعت $time\n📝 $message\n\n💡 برای مشاهده لیست یادآوری‌ها، از منو استفاده کنید."
+                        val alarmType = if (useAlarm) "🔔 آلارم" else "📱 نوتیفیکیشن"
+                        val repeatText = if (repeatInterval > 0) "🔁 روزانه" else "یکبار"
+                        
+                        "✅ یادآوری تنظیم شد:\n⏰ ساعت $time\n📝 $message\n$alarmType | $repeatText\n\n💡 برای مشاهده لیست یادآوری‌ها، از منو استفاده کنید."
                     } catch (e: Exception) {
                         response.replace("REMINDER:", "")
                     }

@@ -57,6 +57,13 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
+        <!-- Alarm Activity -->
+        <activity
+            android:name=".activities.AlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
         <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"

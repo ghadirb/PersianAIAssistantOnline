@@ -20,7 +20,14 @@ object SystemIntegrationHelper {
     /**
      * تنظیم یادآوری با AlarmManager
      */
-    fun setReminder(context: Context, message: String, hour: Int, minute: Int): Boolean {
+    fun setReminder(
+        context: Context, 
+        message: String, 
+        hour: Int, 
+        minute: Int,
+        useAlarm: Boolean = false,
+        repeatInterval: Long = 0 // 0 = یکبار، AlarmManager.INTERVAL_DAY = روزانه
+    ): Boolean {
         return try {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             
@@ -40,6 +47,7 @@ object SystemIntegrationHelper {
             val intent = Intent(context, com.persianai.assistant.services.ReminderReceiver::class.java).apply {
                 putExtra("message", message)
                 putExtra("reminder_id", System.currentTimeMillis().toInt())
+                putExtra("use_alarm", useAlarm)
             }
             
             val pendingIntent = PendingIntent.getBroadcast(
@@ -50,18 +58,29 @@ object SystemIntegrationHelper {
             )
             
             // تنظیم Alarm
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
+            if (repeatInterval > 0) {
+                // یادآوری تکرارشونده
+                alarmManager.setRepeating(
                     AlarmManager.RTC_WAKEUP,
                     calendar.timeInMillis,
+                    repeatInterval,
                     pendingIntent
                 )
             } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    pendingIntent
-                )
+                // یکبار
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        calendar.timeInMillis,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        calendar.timeInMillis,
+                        pendingIntent
+                    )
+                }
             }
             
             true
@@ -193,6 +212,84 @@ object SystemIntegrationHelper {
             }
             context.startActivity(intent)
             true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    /**
+     * ارسال پیام در تلگرام
+     */
+    fun sendTelegram(context: Context, phoneNumber: String, message: String): Boolean {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://t.me/$phoneNumber")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            // اگر تلگرام نصب نبود
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("tg://resolve?phone=$phoneNumber")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(fallbackIntent)
+                true
+            } catch (e2: Exception) {
+                false
+            }
+        }
+    }
+    
+    /**
+     * ارسال پیام در واتساپ
+     */
+    fun sendWhatsApp(context: Context, phoneNumber: String, message: String): Boolean {
+        return try {
+            val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://wa.me/$cleanNumber?text=${Uri.encode(message)}")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    /**
+     * باز کردن برنامه خاص
+     */
+    fun openApp(context: Context, appName: String): Boolean {
+        val packageName = when (appName.lowercase()) {
+            "تلگرام", "telegram" -> "org.telegram.messenger"
+            "واتساپ", "whatsapp" -> "com.whatsapp"
+            "روبیکا", "rubika" -> "ir.resaneh1.iptv"
+            "ایتا", "eitaa" -> "ir.eitaa.messenger"
+            "نشان", "neshan" -> "com.neshantadbir.neshan"
+            "اینستاگرام", "instagram" -> "com.instagram.android"
+            "توییتر", "twitter", "x" -> "com.twitter.android"
+            else -> return false
+        }
+        
+        return try {
+            val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+            if (intent != null) {
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                context.startActivity(intent)
+                true
+            } else {
+                // برنامه نصب نیست، به مارکت هدایت کن
+                val marketIntent = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("market://details?id=$packageName")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(marketIntent)
+                false
+            }
         } catch (e: Exception) {
             false
         }
