@@ -47,6 +47,12 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
+        <!-- Reminders Activity -->
+        <activity
+            android:name=".activities.RemindersActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity" />
+
         <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"

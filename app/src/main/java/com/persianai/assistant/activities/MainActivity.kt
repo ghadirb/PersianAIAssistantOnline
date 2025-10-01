@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private var mediaRecorder: MediaRecorder? = null
     private var audioFilePath: String? = null
     private var isRecording = false
+    private var recordingCancelled = false
     private var recordingStartTime: Long = 0
     private var recordingTimer: android.os.CountDownTimer? = null
     private var initialY = 0f
@@ -307,6 +308,7 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     // شروع ضبط
                     initialY = event.rawY
+                    recordingCancelled = false
                     checkAudioPermissionAndStartRecording()
                     v.alpha = 0.5f
                     true
@@ -314,18 +316,22 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_MOVE -> {
                     // بررسی Swipe به بالا
                     val deltaY = initialY - event.rawY
-                    if (deltaY > swipeThreshold && isRecording) {
+                    if (deltaY > swipeThreshold && isRecording && !recordingCancelled) {
                         // لغو ضبط
+                        recordingCancelled = true
                         cancelRecording()
                         v.alpha = 1.0f
-                        Toast.makeText(this, "ضبط لغو شد", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
                     }
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    // پایان ضبط (اگر لغو نشده)
-                    if (isRecording) {
+                    // پایان ضبط (فقط اگر لغو نشده)
+                    if (isRecording && !recordingCancelled) {
                         stopRecordingAndProcess()
+                    } else if (recordingCancelled) {
+                        // اگر لغو شده، فقط reset کن
+                        recordingCancelled = false
                     }
                     v.alpha = 1.0f
                     true
@@ -450,7 +456,10 @@ class MainActivity : AppCompatActivity() {
                         
                         SystemIntegrationHelper.setReminder(this@MainActivity, message, hour, minute)
                         
-                        "✅ یادآوری تنظیم شد:\n⏰ ساعت $time\n📝 $message"
+                        // ذخیره در لیست یادآوری‌ها
+                        RemindersActivity.addReminder(this@MainActivity, time, message)
+                        
+                        "✅ یادآوری تنظیم شد:\n⏰ ساعت $time\n📝 $message\n\n💡 برای مشاهده لیست یادآوری‌ها، از منو استفاده کنید."
                     } catch (e: Exception) {
                         response.replace("REMINDER:", "")
                     }
@@ -719,12 +728,16 @@ class MainActivity : AppCompatActivity() {
                 showModelSelector()
                 true
             }
-            R.id.action_refresh_keys -> {
-                refreshAPIKeys()
+            R.id.action_reminders -> {
+                startActivity(Intent(this, RemindersActivity::class.java))
                 true
             }
             R.id.action_clear_chat -> {
                 clearChat()
+                true
+            }
+            R.id.action_refresh_keys -> {
+                refreshAPIKeys()
                 true
             }
             R.id.action_settings -> {
