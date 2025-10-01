@@ -18,20 +18,55 @@ import java.util.Calendar
 object SystemIntegrationHelper {
 
     /**
-     * تنظیم یادآوری/هشدار
+     * تنظیم یادآوری با AlarmManager
      */
     fun setReminder(context: Context, message: String, hour: Int, minute: Int): Boolean {
         return try {
-            val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
-                putExtra(AlarmClock.EXTRA_MESSAGE, message)
-                putExtra(AlarmClock.EXTRA_HOUR, hour)
-                putExtra(AlarmClock.EXTRA_MINUTES, minute)
-                putExtra(AlarmClock.EXTRA_SKIP_UI, false)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            
+            // محاسبه زمان یادآوری
+            val calendar = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                
+                // اگر زمان گذشته، برای فردا تنظیم کن
+                if (timeInMillis < System.currentTimeMillis()) {
+                    add(Calendar.DAY_OF_YEAR, 1)
+                }
             }
-            context.startActivity(intent)
+            
+            // ساخت Intent برای ReminderReceiver
+            val intent = Intent(context, com.persianai.assistant.services.ReminderReceiver::class.java).apply {
+                putExtra("message", message)
+                putExtra("reminder_id", System.currentTimeMillis().toInt())
+            }
+            
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                System.currentTimeMillis().toInt(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // تنظیم Alarm
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            }
+            
             true
         } catch (e: Exception) {
+            android.util.Log.e("SystemIntegration", "Error setting reminder", e)
             false
         }
     }

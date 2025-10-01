@@ -302,42 +302,38 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        // دکمه صوت به صورت Push-to-Talk (نگه دار و صحبت کن) با قابلیت Swipe-to-cancel
+        // دکمه صوت: کشیدن به بالا برای شروع ضبط
         binding.voiceButton.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    // شروع ضبط
                     initialY = event.rawY
-                    recordingCancelled = false
-                    checkAudioPermissionAndStartRecording()
                     v.alpha = 0.5f
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    // بررسی Swipe به بالا
                     val deltaY = initialY - event.rawY
-                    if (deltaY > swipeThreshold && isRecording && !recordingCancelled) {
-                        // لغو ضبط
-                        recordingCancelled = true
-                        cancelRecording()
-                        v.alpha = 1.0f
-                        Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
+                    if (deltaY > swipeThreshold && !isRecording) {
+                        // شروع ضبط با کشیدن به بالا
+                        checkAudioPermissionAndStartRecording()
                     }
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    // پایان ضبط (فقط اگر لغو نشده)
-                    if (isRecording && !recordingCancelled) {
-                        stopRecordingAndProcess()
-                    } else if (recordingCancelled) {
-                        // اگر لغو شده، فقط reset کن
-                        recordingCancelled = false
-                    }
                     v.alpha = 1.0f
                     true
                 }
                 else -> false
             }
+        }
+        
+        // دکمه‌های لغو و ارسال ضبط
+        binding.cancelRecordingButton.setOnClickListener {
+            cancelRecording()
+            Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
+        }
+        
+        binding.sendRecordingButton.setOnClickListener {
+            stopRecordingAndProcess()
         }
 
         binding.attachButton.setOnClickListener {
