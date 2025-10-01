@@ -24,15 +24,21 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
 
-        // بررسی اینکه آیا قبلاً کلیدها بارگذاری شده‌اند یا نه
-        val prefsManager = PreferencesManager(this)
-        
-        if (prefsManager.hasAPIKeys()) {
-            // اگر کلیدها موجود هستند، مستقیم به صفحه اصلی برویم
+        try {
+            // بررسی اینکه آیا قبلاً کلیدها بارگذاری شده‌اند یا نه
+            val prefsManager = PreferencesManager(this)
+            
+            if (prefsManager.hasAPIKeys()) {
+                // اگر کلیدها موجود هستند، مستقیم به صفحه اصلی برویم
+                navigateToMain()
+            } else {
+                // نمایش دیالوگ توضیحات و دریافت رمز
+                showWelcomeDialog()
+            }
+        } catch (e: Exception) {
+            // در صورت هر خطایی، به MainActivity برو
+            android.util.Log.e("SplashActivity", "Error in onCreate", e)
             navigateToMain()
-        } else {
-            // نمایش دیالوگ توضیحات و دریافت رمز
-            showWelcomeDialog()
         }
     }
 
@@ -55,12 +61,16 @@ class SplashActivity : AppCompatActivity() {
             showPasswordDialog()
         }
         
-        builder.setNegativeButton("بعداً") { _, _ ->
+        builder.setNegativeButton("رد شدن") { _, _ ->
             // اجازه استفاده بدون کلید API (محدود)
+            Toast.makeText(this, "می‌توانید بعداً از تنظیمات کلید اضافه کنید", Toast.LENGTH_LONG).show()
             navigateToMain()
         }
         
-        builder.setCancelable(false)
+        builder.setCancelable(true)
+        builder.setOnCancelListener {
+            navigateToMain()
+        }
         builder.show()
     }
 
