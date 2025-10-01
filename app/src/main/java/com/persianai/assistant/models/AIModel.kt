@@ -1,5 +1,7 @@
 package com.persianai.assistant.models
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * مدل‌های هوش مصنوعی پشتیبانی شده
  */
@@ -91,6 +93,7 @@ data class ChatRequest(
     val model: String,
     val messages: List<Map<String, String>>,
     val temperature: Double = 0.7,
+    @SerializedName("max_tokens")
     val maxTokens: Int = 4096,
     val stream: Boolean = false
 )
