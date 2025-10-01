@@ -62,6 +62,36 @@ class MainActivity : AppCompatActivity() {
         loadMessages()
         setupListeners()
         updateModelDisplay()
+        
+        // نمایش پیام خوش‌آمدگویی در اولین اجرا
+        showFirstRunDialogIfNeeded()
+    }
+    
+    private fun showFirstRunDialogIfNeeded() {
+        val prefs = getSharedPreferences("app_state", MODE_PRIVATE)
+        val isFirstRun = prefs.getBoolean("is_first_run", true)
+        
+        if (isFirstRun) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("🤖 خوش آمدید!")
+                .setMessage("""
+                    به دستیار هوش مصنوعی فارسی خوش آمدید!
+                    
+                    برای استفاده از این برنامه:
+                    • از منوی بالا → تنظیمات → کلیدهای API را اضافه کنید
+                    • یا از حالت آزمایشی استفاده کنید
+                    
+                    امکانات:
+                    ✅ چت با مدل‌های GPT-4o و Claude
+                    ✅ تشخیص صوت فارسی
+                    ✅ ذخیره تاریخچه گفتگوها
+                """.trimIndent())
+                .setPositiveButton("متوجه شدم") { _, _ ->
+                    prefs.edit().putBoolean("is_first_run", false).apply()
+                }
+                .setCancelable(true)
+                .show()
+        }
     }
 
     private fun setupRecyclerView() {

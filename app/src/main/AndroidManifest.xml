@@ -24,22 +24,22 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
-        <!-- Splash Activity -->
+        <!-- Main Activity - Direct Launch -->
         <activity
-            android:name=".activities.SplashActivity"
+            android:name=".activities.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.PersianAIAssistant.Splash">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Main Activity -->
+        <!-- Splash Activity - Disabled temporarily -->
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".activities.SplashActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:theme="@style/Theme.PersianAIAssistant.Splash" />
 
         <!-- Settings Activity -->
         <activity
