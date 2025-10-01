@@ -25,6 +25,8 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.MessageStorage
+import com.persianai.assistant.utils.DriveHelper
+import com.persianai.assistant.utils.EncryptionHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,27 +107,158 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("app_state", MODE_PRIVATE)
         val isFirstRun = prefs.getBoolean("is_first_run", true)
         
-        if (isFirstRun) {
+        if (isFirstRun && !prefsManager.hasAPIKeys()) {
             MaterialAlertDialogBuilder(this)
                 .setTitle("🤖 خوش آمدید!")
                 .setMessage("""
                     به دستیار هوش مصنوعی فارسی خوش آمدید!
                     
-                    برای استفاده از این برنامه:
-                    • از منوی بالا → تنظیمات → کلیدهای API را اضافه کنید
-                    • یا از حالت آزمایشی استفاده کنید
+                    این برنامه نیاز به کلیدهای API دارد:
                     
-                    امکانات:
                     ✅ چت با مدل‌های GPT-4o و Claude
                     ✅ تشخیص صوت فارسی
                     ✅ ذخیره تاریخچه گفتگوها
+                    ✅ پشتیبان‌گیری رمزنگاری شده
+                    
+                    برای شروع، رمز عبور کلیدهای API را وارد کنید:
                 """.trimIndent())
-                .setPositiveButton("متوجه شدم") { _, _ ->
+                .setPositiveButton("ورود رمز") { _, _ ->
                     prefs.edit().putBoolean("is_first_run", false).apply()
+                    showPasswordDialog()
                 }
-                .setCancelable(true)
+                .setNegativeButton("بعداً") { _, _ ->
+                    prefs.edit().putBoolean("is_first_run", false).apply()
+                    Toast.makeText(this, "می‌توانید بعداً از تنظیمات کلید اضافه کنید", Toast.LENGTH_LONG).show()
+                }
+                .setCancelable(false)
                 .show()
         }
+    }
+    
+    private fun showPasswordDialog() {
+        val input = com.google.android.material.textfield.TextInputEditText(this)
+        input.hint = "رمز عبور"
+        input.inputType = android.text.InputType.TYPE_CLASS_TEXT or 
+                          android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+
+        val container = android.widget.FrameLayout(this)
+        val params = android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        params.leftMargin = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
+        params.rightMargin = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
+        input.layoutParams = params
+        container.addView(input)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("ورود رمز عبور")
+            .setMessage("لطفاً رمز عبور کلیدهای API را وارد کنید (پیش‌فرض: 12345)")
+            .setView(container)
+            .setPositiveButton("تأیید") { _, _ ->
+                val password = input.text.toString()
+                if (password.isNotEmpty()) {
+                    downloadAndDecryptKeys(password)
+                } else {
+                    Toast.makeText(this, "رمز عبور نمی‌تواند خالی باشد", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("انصراف", null)
+            .setCancelable(false)
+            .show()
+    }
+    
+    private fun downloadAndDecryptKeys(password: String) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@MainActivity, "در حال دانلود...", Toast.LENGTH_SHORT).show()
+                
+                // دانلود فایل رمزشده از Google Drive
+                val encryptedData = try {
+                    withContext(Dispatchers.IO) {
+                        DriveHelper.downloadEncryptedKeys()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "خطا در دانلود: ${e.message}\nلطفاً اتصال اینترنت را بررسی کنید.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+                
+                Toast.makeText(this@MainActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
+                
+                // رمزگشایی
+                val decryptedData = withContext(Dispatchers.IO) {
+                    EncryptionHelper.decrypt(encryptedData, password)
+                }
+                
+                // پردازش کلیدها
+                val apiKeys = parseAPIKeys(decryptedData)
+                
+                if (apiKeys.isEmpty()) {
+                    throw Exception("هیچ کلید معتبری یافت نشد")
+                }
+                
+                // ذخیره کلیدها
+                prefsManager.saveAPIKeys(apiKeys)
+                
+                Toast.makeText(
+                    this@MainActivity,
+                    "کلیدها با موفقیت بارگذاری شدند (${apiKeys.size} کلید)",
+                    Toast.LENGTH_LONG
+                ).show()
+                
+                // راه‌اندازی مجدد AI Client
+                setupAIClient()
+                
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Error downloading/decrypting keys", e)
+                
+                Toast.makeText(
+                    this@MainActivity,
+                    "خطا: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    
+    private fun parseAPIKeys(data: String): List<com.persianai.assistant.models.APIKey> {
+        val keys = mutableListOf<com.persianai.assistant.models.APIKey>()
+        
+        data.lines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
+            
+            // فرمت: provider:key یا فقط key
+            val parts = trimmed.split(":", limit = 2)
+            
+            if (parts.size == 2) {
+                val provider = when (parts[0].lowercase()) {
+                    "openai" -> com.persianai.assistant.models.AIProvider.OPENAI
+                    "anthropic", "claude" -> com.persianai.assistant.models.AIProvider.ANTHROPIC
+                    "openrouter" -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    else -> null
+                }
+                
+                if (provider != null) {
+                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), true))
+                }
+            } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
+                // تشخیص نوع کلید از روی prefix
+                val provider = when {
+                    trimmed.startsWith("sk-proj-") -> com.persianai.assistant.models.AIProvider.OPENAI
+                    trimmed.startsWith("sk-or-") -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
+                    else -> com.persianai.assistant.models.AIProvider.OPENAI
+                }
+                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, true))
+            }
+        }
+        
+        return keys
     }
 
     private fun setupRecyclerView() {
