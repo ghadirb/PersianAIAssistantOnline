@@ -243,8 +243,9 @@ object SystemIntegrationHelper {
 
     private fun extractAndNavigate(context: Context, request: String): String {
         val destination = request
-            .replace(Regex("مسیر(یابی)?\\s*(به)?"), "", RegexOption.IGNORE_CASE)
-            .replace(Regex("راهنما(ی)?\\s*مسیر"), "", RegexOption.IGNORE_CASE)
+            .replace(Regex("مسیر(یابی)?\\s*(به)?", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("راهنما(ی)?\\s*مسیر", RegexOption.IGNORE_CASE), "")
+            .replace("از", "")
             .trim()
 
         return if (destination.isNotEmpty() && openNavigation(context, destination)) {
@@ -278,8 +279,8 @@ object SystemIntegrationHelper {
 
     private fun extractAndSearch(context: Context, request: String): String {
         val query = request
-            .replace(Regex("جستجو(ی)?"), "", RegexOption.IGNORE_CASE)
-            .replace("search", "", RegexOption.IGNORE_CASE)
+            .replace(Regex("جستجو(ی)?", RegexOption.IGNORE_CASE), "")
+            .replace("search", "", ignoreCase = true)
             .trim()
 
         return if (query.isNotEmpty() && searchWeb(context, query)) {
