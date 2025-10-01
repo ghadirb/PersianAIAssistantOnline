@@ -48,23 +48,57 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = "دستیار هوش مصنوعی"
-
-        prefsManager = PreferencesManager(this)
-        messageStorage = MessageStorage(this)
         
-        setupRecyclerView()
-        setupAIClient()
-        loadMessages()
-        setupListeners()
-        updateModelDisplay()
-        
-        // نمایش پیام خوش‌آمدگویی در اولین اجرا
-        showFirstRunDialogIfNeeded()
+        try {
+            android.util.Log.d("MainActivity", "onCreate started")
+            
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            
+            android.util.Log.d("MainActivity", "Layout inflated")
+
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.title = "دستیار هوش مصنوعی"
+            
+            android.util.Log.d("MainActivity", "Toolbar set")
+
+            prefsManager = PreferencesManager(this)
+            messageStorage = MessageStorage(this)
+            
+            android.util.Log.d("MainActivity", "Managers initialized")
+            
+            setupRecyclerView()
+            android.util.Log.d("MainActivity", "RecyclerView setup")
+            
+            setupAIClient()
+            android.util.Log.d("MainActivity", "AIClient setup")
+            
+            loadMessages()
+            android.util.Log.d("MainActivity", "Messages loaded")
+            
+            setupListeners()
+            android.util.Log.d("MainActivity", "Listeners setup")
+            
+            updateModelDisplay()
+            android.util.Log.d("MainActivity", "Model display updated")
+            
+            // نمایش پیام خوش‌آمدگویی در اولین اجرا
+            showFirstRunDialogIfNeeded()
+            
+            android.util.Log.d("MainActivity", "onCreate completed successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "FATAL ERROR in onCreate", e)
+            
+            // نمایش خطا به کاربر
+            Toast.makeText(
+                this,
+                "خطای شروع برنامه: ${e.message}\n\nلطفاً برنامه را حذف و دوباره نصب کنید.",
+                Toast.LENGTH_LONG
+            ).show()
+            
+            // بستن برنامه
+            finish()
+        }
     }
     
     private fun showFirstRunDialogIfNeeded() {
