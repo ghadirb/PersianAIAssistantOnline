@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
+        private const val NOTIFICATION_PERMISSION_CODE = 1002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +106,9 @@ class MainActivity : AppCompatActivity() {
             
             // شروع سرویس پس‌زمینه
             startBackgroundService()
+            
+            // درخواست permission نوتیفیکیشن برای Android 13+
+            requestNotificationPermission()
             
             android.util.Log.d("MainActivity", "onCreate completed successfully")
         } catch (e: Exception) {
@@ -350,6 +354,22 @@ class MainActivity : AppCompatActivity() {
             startForegroundService(serviceIntent)
         } else {
             startService(serviceIntent)
+        }
+    }
+    
+    private fun requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIFICATION_PERMISSION_CODE
+                )
+            }
         }
     }
 

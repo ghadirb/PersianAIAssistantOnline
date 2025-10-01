@@ -31,6 +31,26 @@ object SystemIntegrationHelper {
         return try {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             
+            // بررسی permission برای Android 12+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                if (!alarmManager.canScheduleExactAlarms()) {
+                    // هدایت به تنظیمات
+                    val intent = android.content.Intent(
+                        android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                        android.net.Uri.parse("package:${context.packageName}")
+                    )
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(intent)
+                    
+                    android.widget.Toast.makeText(
+                        context,
+                        "لطفاً اجازه تنظیم یادآوری دقیق را فعال کنید",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return false
+                }
+            }
+            
             // محاسبه زمان یادآوری
             val calendar = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, hour)
@@ -66,6 +86,7 @@ object SystemIntegrationHelper {
                     repeatInterval,
                     pendingIntent
                 )
+                android.util.Log.d("SystemIntegration", "Repeating alarm set for: ${calendar.time}")
             } else {
                 // یکبار
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -81,7 +102,14 @@ object SystemIntegrationHelper {
                         pendingIntent
                     )
                 }
+                android.util.Log.d("SystemIntegration", "Exact alarm set for: ${calendar.time}")
             }
+            
+            android.widget.Toast.makeText(
+                context,
+                "✅ یادآوری تنظیم شد برای ساعت $hour:${minute.toString().padStart(2, '0')}",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
             
             true
         } catch (e: Exception) {

@@ -18,21 +18,27 @@ import com.persianai.assistant.activities.MainActivity
 class ReminderReceiver : BroadcastReceiver() {
     
     override fun onReceive(context: Context, intent: Intent) {
+        android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
+        
         when (intent.action) {
             "MARK_AS_DONE" -> {
                 val message = intent.getStringExtra("message") ?: ""
                 val reminderId = intent.getIntExtra("reminder_id", 0)
+                android.util.Log.d("ReminderReceiver", "Mark as done: $message")
                 markAsDone(context, message, reminderId)
             }
             "SNOOZE_REMINDER" -> {
                 val message = intent.getStringExtra("message") ?: ""
                 val reminderId = intent.getIntExtra("reminder_id", 0)
+                android.util.Log.d("ReminderReceiver", "Snooze reminder: $message")
                 snoozeReminder(context, message)
             }
             else -> {
                 val message = intent.getStringExtra("message") ?: "یادآوری"
                 val reminderId = intent.getIntExtra("reminder_id", 0)
                 val useAlarm = intent.getBooleanExtra("use_alarm", false)
+                
+                android.util.Log.d("ReminderReceiver", "Reminder triggered: $message (useAlarm: $useAlarm)")
                 
                 if (useAlarm) {
                     // نمایش آلارم تمام صفحه
@@ -97,6 +103,8 @@ class ReminderReceiver : BroadcastReceiver() {
     }
     
     private fun showNotification(context: Context, message: String, reminderId: Int) {
+        android.util.Log.d("ReminderReceiver", "showNotification called for: $message")
+        
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
         // ایجاد کانال (برای اندروید 8+)
@@ -158,6 +166,7 @@ class ReminderReceiver : BroadcastReceiver() {
             .build()
         
         notificationManager.notify(reminderId, notification)
+        android.util.Log.d("ReminderReceiver", "Notification posted with ID: $reminderId")
     }
     
     companion object {
