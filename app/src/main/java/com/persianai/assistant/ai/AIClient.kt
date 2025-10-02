@@ -106,7 +106,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         val requestBody = ChatRequest(
             model = model.modelId,
             messages = messageList,
-            temperature = 0.7,
+            temperature = 0.1,  // خیلی پایین برای دقت JSON
             maxTokens = 4096
         )
 
@@ -206,11 +206,42 @@ class AIClient(private val apiKeys: List<APIKey>) {
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
         val openAIKey = apiKeys.firstOrNull { 
             it.provider == AIProvider.OPENAI && it.isActive 
-        } ?: throw IllegalStateException("کلید OpenAI یافت نشد")
+        } ?: throw IllegalStateException("کلید OpenAI یافت نشد برای Whisper")
 
-        // TODO: پیاده‌سازی کامل Whisper API
-        // نیاز به آپلود فایل صوتی دارد
-        
-        throw NotImplementedError("تبدیل صوت به متن در نسخه بعدی اضافه می‌شود")
+        val file = java.io.File(audioFilePath)
+        if (!file.exists()) {
+            throw IllegalArgumentException("فایل صوتی یافت نشد")
+        }
+
+        val requestBody = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                okhttp3.RequestBody.Companion.create(
+                    "audio/mpeg".toMediaType(),
+                    file
+                )
+            )
+            .addFormDataPart("model", "whisper-1")
+            .addFormDataPart("language", "fa")
+            .build()
+
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/audio/transcriptions")
+            .addHeader("Authorization", "Bearer ${openAIKey.key}")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string()
+            
+            if (!response.isSuccessful) {
+                throw Exception("خطای Whisper API: ${response.code} - $responseBody")
+            }
+
+            val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
+            jsonResponse.get("text")?.asString ?: throw Exception("متن خالی از Whisper")
+        }
     }
 }

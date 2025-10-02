@@ -774,13 +774,46 @@ class MainActivity : AppCompatActivity() {
             // مخفی کردن نشانگر
             binding.recordingIndicator.visibility = android.view.View.GONE
             
-            // تبدیل صوت به متن با Google Speech Recognition
-            Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_SHORT).show()
-            startSpeechToText()
+            // تبدیل صوت به متن با Whisper API
+            Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
+            transcribeAndSendAudio()
             
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
             android.util.Log.e("MainActivity", "Stop recording error", e)
+        }
+    }
+    
+    private fun transcribeAndSendAudio() {
+        val filePath = audioFilePath ?: return
+        
+        lifecycleScope.launch {
+            try {
+                binding.progressBar.visibility = android.view.View.VISIBLE
+                
+                // تبدیل صوت به متن با Whisper
+                val transcribedText = aiClient?.transcribeAudio(filePath)
+                
+                if (transcribedText.isNullOrEmpty()) {
+                    Toast.makeText(this@MainActivity, "⚠️ متنی شناسایی نشد", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                
+                android.util.Log.d("MainActivity", "Whisper transcribed: $transcribedText")
+                
+                // نمایش متن در input
+                binding.messageInput.setText(transcribedText)
+                Toast.makeText(this@MainActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
+                
+                // ارسال خودکار
+                sendMessage()
+                
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Transcription error", e)
+                Toast.makeText(this@MainActivity, "❌ خطا در تبدیل: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.progressBar.visibility = android.view.View.GONE
+            }
         }
     }
     
