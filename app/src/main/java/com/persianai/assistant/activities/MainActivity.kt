@@ -310,45 +310,60 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        // راهنمای دکمه صوت
-        binding.voiceButton.setOnLongClickListener {
-            Toast.makeText(this, "🎤 برای ضبط صدا، دکمه را به سمت بالا بکشید", Toast.LENGTH_LONG).show()
-            true
-        }
-        
-        // دکمه صوت: کشیدن به بالا برای شروع ضبط
+        // دکمه صوت مثل تلگرام: نگه دارید = ضبط، رها کنید = ارسال
         binding.voiceButton.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    // شروع ضبط با فشار دادن دکمه
+                    v.alpha = 0.7f
                     initialY = event.rawY
-                    v.alpha = 0.5f
-                    // نمایش راهنما در اولین استفاده
-                    if (!isRecording) {
-                        binding.messageInput.hint = "🎤 دکمه را به بالا بکشید..."
-                    }
+                    checkAudioPermissionAndStartRecording()
+                    binding.messageInput.hint = "🎤 در حال ضبط... برای لغو به چپ بکشید"
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val deltaY = initialY - event.rawY
-                    if (deltaY > swipeThreshold && !isRecording) {
-                        // شروع ضبط با کشیدن به بالا
-                        checkAudioPermissionAndStartRecording()
-                        binding.messageInput.hint = "پیام خود را بنویسید..."
+                    // اگر به چپ کشید، لغو ضبط
+                    val deltaX = event.rawX - initialY
+                    if (deltaX < -swipeThreshold && isRecording) {
+                        v.alpha = 0.3f
+                        binding.messageInput.hint = "⬅️ رها کنید برای لغو"
+                    } else {
+                        v.alpha = 0.7f
+                        binding.messageInput.hint = "🎤 در حال ضبط..."
                     }
                     true
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                MotionEvent.ACTION_UP -> {
                     v.alpha = 1.0f
-                    if (!isRecording) {
-                        binding.messageInput.hint = "پیام خود را بنویسید..."
+                    
+                    if (isRecording) {
+                        // اگر به چپ کشیده، لغو کن
+                        val deltaX = event.rawX - initialY
+                        if (deltaX < -swipeThreshold) {
+                            cancelRecording()
+                            Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // وگرنه ضبط رو تمام کن و ارسال کن
+                            stopRecordingAndProcess()
+                        }
                     }
+                    
+                    binding.messageInput.hint = "پیام خود را بنویسید..."
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    v.alpha = 1.0f
+                    if (isRecording) {
+                        cancelRecording()
+                    }
+                    binding.messageInput.hint = "پیام خود را بنویسید..."
                     true
                 }
                 else -> false
             }
         }
         
-        // دکمه‌های لغو و ارسال ضبط
+        // دکمه‌های لغو و ارسال ضبط (برای امکان دستی)
         binding.cancelRecordingButton.setOnClickListener {
             cancelRecording()
             Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()

@@ -47,6 +47,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupListeners() {
         // دکمه مدیریت برنامه‌های متصل
         binding.manageAppsButton.setOnClickListener {
+            val intent = Intent(this, ConnectedAppsActivity::class.java)
+            startActivity(intent)
         }
         
         // دکمه به‌روزرسانی کلیدها
