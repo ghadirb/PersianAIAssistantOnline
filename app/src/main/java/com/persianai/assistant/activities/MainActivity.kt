@@ -310,12 +310,22 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
+        // راهنمای دکمه صوت
+        binding.voiceButton.setOnLongClickListener {
+            Toast.makeText(this, "🎤 برای ضبط صدا، دکمه را به سمت بالا بکشید", Toast.LENGTH_LONG).show()
+            true
+        }
+        
         // دکمه صوت: کشیدن به بالا برای شروع ضبط
         binding.voiceButton.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialY = event.rawY
                     v.alpha = 0.5f
+                    // نمایش راهنما در اولین استفاده
+                    if (!isRecording) {
+                        binding.messageInput.hint = "🎤 دکمه را به بالا بکشید..."
+                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -323,11 +333,15 @@ class MainActivity : AppCompatActivity() {
                     if (deltaY > swipeThreshold && !isRecording) {
                         // شروع ضبط با کشیدن به بالا
                         checkAudioPermissionAndStartRecording()
+                        binding.messageInput.hint = "پیام خود را بنویسید..."
                     }
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.alpha = 1.0f
+                    if (!isRecording) {
+                        binding.messageInput.hint = "پیام خود را بنویسید..."
+                    }
                     true
                 }
                 else -> false
@@ -716,16 +730,50 @@ class MainActivity : AppCompatActivity() {
             // مخفی کردن نشانگر
             binding.recordingIndicator.visibility = android.view.View.GONE
             
-            // پیام خودکار: فایل ضبط شده ذخیره شد
-            Toast.makeText(this, "✅ ضبط تکمیل شد! در حال تبدیل صوت به متن...", Toast.LENGTH_SHORT).show()
-            
-            // استفاده از Speech Recognition برای تبدیل صوت به متن
-            startVoiceRecognition()
+            // استفاده از SpeechRecognizer inline
+            recognizeAudioFile()
             
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
             android.util.Log.e("MainActivity", "Stop recording error", e)
         }
+    }
+    
+    private fun recognizeAudioFile() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Toast.makeText(this, "تشخیص صوت در دستگاه شما پشتیبانی نمی‌شود", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fa-IR")
+        }
+        
+        speechRecognizer.setRecognitionListener(object : android.speech.RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) {
+                Toast.makeText(this@MainActivity, "❌ خطا در تشخیص صوت. لطفاً دوباره تلاش کنید.", Toast.LENGTH_SHORT).show()
+                speechRecognizer.destroy()
+            }
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    binding.messageInput.setText(matches[0])
+                    Toast.makeText(this@MainActivity, "✅ متن شناسایی شد", Toast.LENGTH_SHORT).show()
+                }
+                speechRecognizer.destroy()
+            }
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        
+        speechRecognizer.startListening(intent)
     }
 
     private fun startVoiceRecognition() {
