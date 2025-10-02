@@ -95,33 +95,52 @@ class ConnectedAppsActivity : AppCompatActivity() {
     }
     
     private fun showAddDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_app, null)
-        val nameInput = dialogView.findViewById<TextInputEditText>(R.id.nameInput)
-        val packageInput = dialogView.findViewById<TextInputEditText>(R.id.packageInput)
-        val keywordsInput = dialogView.findViewById<TextInputEditText>(R.id.keywordsInput)
+        // دریافت لیست برنامه‌های نصب شده
+        val pm = packageManager
+        val installedApps = pm.getInstalledApplications(0)
+            .filter { pm.getLaunchIntentForPackage(it.packageName) != null } // فقط برنامه‌های قابل اجرا
+            .sortedBy { it.loadLabel(pm).toString() }
+        
+        val appNames = installedApps.map { it.loadLabel(pm).toString() }.toTypedArray()
         
         MaterialAlertDialogBuilder(this)
-            .setTitle("افزودن برنامه جدید")
-            .setView(dialogView)
+            .setTitle("انتخاب برنامه")
+            .setItems(appNames) { _, which ->
+                val selectedApp = installedApps[which]
+                val appLabel = selectedApp.loadLabel(pm).toString()
+                val packageName = selectedApp.packageName
+                
+                // دیالوگ برای وارد کردن کلمات کلیدی
+                showKeywordsDialog(appLabel, packageName)
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
+    private fun showKeywordsDialog(appName: String, packageName: String) {
+        val input = TextInputEditText(this).apply {
+            hint = "کلمات کلیدی (با کاما جدا کنید)"
+            setText(appName)
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("کلمات کلیدی برای $appName")
+            .setView(input)
             .setPositiveButton("افزودن") { _, _ ->
-                val name = nameInput.text.toString().trim()
-                val packageName = packageInput.text.toString().trim()
-                val keywords = keywordsInput.text.toString()
+                val keywords = input.text.toString()
                     .split(",")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
                 
-                if (name.isNotEmpty() && packageName.isNotEmpty()) {
-                    val newApp = ConnectedApp(
-                        id = packageName,
-                        name = name,
-                        packageName = packageName,
-                        keywords = keywords
-                    )
-                    apps.add(newApp)
-                    saveApps()
-                    adapter.notifyItemInserted(apps.size - 1)
-                }
+                val newApp = ConnectedApp(
+                    id = packageName,
+                    name = appName,
+                    packageName = packageName,
+                    keywords = if (keywords.isEmpty()) listOf(appName) else keywords
+                )
+                apps.add(newApp)
+                saveApps()
+                adapter.notifyItemInserted(apps.size - 1)
             }
             .setNegativeButton("لغو", null)
             .show()

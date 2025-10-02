@@ -343,9 +343,8 @@ class MainActivity : AppCompatActivity() {
             stopRecordingAndProcess()
         }
 
-        binding.attachButton.setOnClickListener {
-            showAttachmentOptions()
-        }
+        // حذف دکمه attach (قابلیت آپلود فایل فعلاً غیرفعال)
+        binding.attachButton.visibility = View.GONE
     }
     
     private fun startBackgroundService() {
@@ -519,6 +518,52 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 
+                // پردازش JSON actions
+                response.contains("{\"action\":") -> {
+                    try {
+                        val jsonStr = response.substringAfter("{\"action\":").let { "{\"action\":$it" }
+                            .substringBefore("}") + "}"
+                        val json = org.json.JSONObject(jsonStr)
+                        val action = json.getString("action")
+                        
+                        when (action) {
+                            "send_telegram" -> {
+                                val phone = json.getString("phone")
+                                val message = json.getString("message")
+                                SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
+                                "✅ پیام تلگرام ارسال شد به: $phone"
+                            }
+                            "send_whatsapp" -> {
+                                val phone = json.getString("phone")
+                                val message = json.getString("message")
+                                SystemIntegrationHelper.sendWhatsApp(this@MainActivity, phone, message)
+                                "✅ پیام واتساپ ارسال شد به: $phone"
+                            }
+                            "send_rubika" -> {
+                                val phone = json.getString("phone")
+                                val message = json.getString("message")
+                                SystemIntegrationHelper.openApp(this@MainActivity, "روبیکا")
+                                "✅ روبیکا باز شد. لطفاً پیام را به $phone ارسال کنید:\n$message"
+                            }
+                            "send_eitaa" -> {
+                                val phone = json.getString("phone")
+                                val message = json.getString("message")
+                                SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
+                                "✅ ایتا باز شد. لطفاً پیام را به $phone ارسال کنید:\n$message"
+                            }
+                            "open_app" -> {
+                                val appName = json.getString("app_name")
+                                SystemIntegrationHelper.openApp(this@MainActivity, appName)
+                                "✅ برنامه $appName باز شد"
+                            }
+                            else -> response
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Error processing action", e)
+                        response
+                    }
+                }
+                
                 else -> response
             }
         }
@@ -669,6 +714,9 @@ class MainActivity : AppCompatActivity() {
             
             // مخفی کردن نشانگر
             binding.recordingIndicator.visibility = android.view.View.GONE
+            
+            // پیام خودکار: فایل ضبط شده ذخیره شد
+            Toast.makeText(this, "✅ ضبط تکمیل شد! در حال تبدیل صوت به متن...", Toast.LENGTH_SHORT).show()
             
             // استفاده از Speech Recognition برای تبدیل صوت به متن
             startVoiceRecognition()
