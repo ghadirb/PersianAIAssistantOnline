@@ -534,47 +534,72 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 // پردازش JSON actions
-                response.contains("{\"action\":") -> {
+                response.contains("\"action\"") && response.contains("{") -> {
                     try {
-                        val jsonStr = response.substringAfter("{\"action\":").let { "{\"action\":$it" }
-                            .substringBefore("}") + "}"
+                        // استخراج JSON از پاسخ
+                        val startIndex = response.indexOf("{")
+                        val endIndex = response.indexOf("}", startIndex) + 1
+                        val jsonStr = response.substring(startIndex, endIndex)
+                        
+                        android.util.Log.d("MainActivity", "JSON extracted: $jsonStr")
+                        
                         val json = org.json.JSONObject(jsonStr)
                         val action = json.getString("action")
                         
                         when (action) {
                             "send_telegram" -> {
-                                val phone = json.getString("phone")
+                                val phone = json.optString("phone", "UNKNOWN")
                                 val message = json.getString("message")
-                                SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
-                                "✅ پیام تلگرام ارسال شد به: $phone"
+                                
+                                if (phone == "UNKNOWN" || phone.isEmpty()) {
+                                    "📱 لطفاً شماره تلفن را وارد کنید تا پیام در تلگرام ارسال شود:\n💬 $message"
+                                } else {
+                                    SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
+                                    "✅ تلگرام باز شد\n💬 پیام: $message\n📞 به: $phone"
+                                }
                             }
                             "send_whatsapp" -> {
-                                val phone = json.getString("phone")
+                                val phone = json.optString("phone", "UNKNOWN")
                                 val message = json.getString("message")
-                                SystemIntegrationHelper.sendWhatsApp(this@MainActivity, phone, message)
-                                "✅ پیام واتساپ ارسال شد به: $phone"
+                                
+                                if (phone == "UNKNOWN" || phone.isEmpty()) {
+                                    "📱 لطفاً شماره تلفن را وارد کنید تا پیام در واتساپ ارسال شود:\n💬 $message"
+                                } else {
+                                    SystemIntegrationHelper.sendWhatsApp(this@MainActivity, phone, message)
+                                    "✅ واتساپ باز شد\n💬 پیام: $message\n📞 به: $phone"
+                                }
                             }
                             "send_rubika" -> {
-                                val phone = json.getString("phone")
-                                val message = json.getString("message")
+                                val message = json.optString("message", "")
                                 SystemIntegrationHelper.openApp(this@MainActivity, "روبیکا")
-                                "✅ روبیکا باز شد. لطفاً پیام را به $phone ارسال کنید:\n$message"
+                                if (message.isNotEmpty()) {
+                                    "✅ روبیکا باز شد\n💬 پیام: $message"
+                                } else {
+                                    "✅ روبیکا باز شد"
+                                }
                             }
                             "send_eitaa" -> {
-                                val phone = json.getString("phone")
-                                val message = json.getString("message")
+                                val message = json.optString("message", "")
                                 SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
-                                "✅ ایتا باز شد. لطفاً پیام را به $phone ارسال کنید:\n$message"
+                                if (message.isNotEmpty()) {
+                                    "✅ ایتا باز شد\n💬 پیام: $message"
+                                } else {
+                                    "✅ ایتا باز شد"
+                                }
                             }
                             "open_app" -> {
                                 val appName = json.getString("app_name")
                                 SystemIntegrationHelper.openApp(this@MainActivity, appName)
                                 "✅ برنامه $appName باز شد"
                             }
-                            else -> response
+                            else -> {
+                                android.util.Log.w("MainActivity", "Unknown action: $action")
+                                response
+                            }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("MainActivity", "Error processing action", e)
+                        android.util.Log.e("MainActivity", "Error processing JSON action", e)
+                        android.util.Log.e("MainActivity", "Response was: $response")
                         response
                     }
                 }
@@ -740,40 +765,8 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun recognizeAudioFile() {
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "تشخیص صوت در دستگاه شما پشتیبانی نمی‌شود", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fa-IR")
-        }
-        
-        speechRecognizer.setRecognitionListener(object : android.speech.RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onError(error: Int) {
-                Toast.makeText(this@MainActivity, "❌ خطا در تشخیص صوت. لطفاً دوباره تلاش کنید.", Toast.LENGTH_SHORT).show()
-                speechRecognizer.destroy()
-            }
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
-                    binding.messageInput.setText(matches[0])
-                    Toast.makeText(this@MainActivity, "✅ متن شناسایی شد", Toast.LENGTH_SHORT).show()
-                }
-                speechRecognizer.destroy()
-            }
-            override fun onPartialResults(partialResults: Bundle?) {}
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        
-        speechRecognizer.startListening(intent)
+        // استفاده مستقیم از Google Speech Recognition
+        startVoiceRecognition()
     }
 
     private fun startVoiceRecognition() {
