@@ -759,14 +759,82 @@ class MainActivity : AppCompatActivity() {
             // مخفی کردن نشانگر
             binding.recordingIndicator.visibility = android.view.View.GONE
             
-            // فقط یه پیام بذار که صوت ضبط شده
-            binding.messageInput.setText("🎤 پیام صوتی ضبط شد")
-            Toast.makeText(this, "✅ صوت ضبط شد. حالا پیام خود را بنویسید یا همین را ارسال کنید", Toast.LENGTH_LONG).show()
+            // تبدیل صوت به متن با Google Speech Recognition
+            Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_SHORT).show()
+            startSpeechToText()
             
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
             android.util.Log.e("MainActivity", "Stop recording error", e)
         }
+    }
+    
+    private fun startSpeechToText() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            binding.messageInput.setText("🎤 پیام صوتی")
+            Toast.makeText(this, "⚠️ تشخیص صوت در دستگاه شما پشتیبانی نمی‌شود", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fa-IR")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+        
+        speechRecognizer.setRecognitionListener(object : android.speech.RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                android.util.Log.d("MainActivity", "Speech recognition ready")
+            }
+            
+            override fun onBeginningOfSpeech() {
+                android.util.Log.d("MainActivity", "Speech started")
+            }
+            
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                android.util.Log.d("MainActivity", "Speech ended")
+            }
+            
+            override fun onError(error: Int) {
+                val errorMsg = when (error) {
+                    SpeechRecognizer.ERROR_AUDIO -> "خطای صوتی"
+                    SpeechRecognizer.ERROR_CLIENT -> "خطای کلاینت"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "عدم دسترسی"
+                    SpeechRecognizer.ERROR_NETWORK -> "خطای شبکه"
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "timeout شبکه"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "صدا شناسایی نشد"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "سیستم مشغول"
+                    SpeechRecognizer.ERROR_SERVER -> "خطای سرور"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "timeout صدا"
+                    else -> "خطای ناشناخته"
+                }
+                android.util.Log.e("MainActivity", "Speech recognition error: $errorMsg")
+                binding.messageInput.setText("🎤 پیام صوتی (خطا در تشخیص)")
+                Toast.makeText(this@MainActivity, "⚠️ $errorMsg - لطفاً دستی بنویسید", Toast.LENGTH_SHORT).show()
+                speechRecognizer.destroy()
+            }
+            
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val recognizedText = matches[0]
+                    binding.messageInput.setText(recognizedText)
+                    android.util.Log.d("MainActivity", "Recognized text: $recognizedText")
+                    Toast.makeText(this@MainActivity, "✅ متن شناسایی شد", Toast.LENGTH_SHORT).show()
+                } else {
+                    binding.messageInput.setText("🎤 پیام صوتی")
+                }
+                speechRecognizer.destroy()
+            }
+            
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        
+        speechRecognizer.startListening(recognizerIntent)
     }
 
     private fun startVoiceRecognition() {
