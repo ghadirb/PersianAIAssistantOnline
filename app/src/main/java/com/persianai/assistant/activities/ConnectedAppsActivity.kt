@@ -40,9 +40,16 @@ class ConnectedAppsActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "برنامه‌های متصل"
         
+        android.util.Log.d("ConnectedAppsActivity", "onCreate called")
+        
         setupRecyclerView()
         loadApps()
         setupFab()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        android.util.Log.d("ConnectedAppsActivity", "onResume - apps count: ${apps.size}")
     }
     
     private fun setupRecyclerView() {
