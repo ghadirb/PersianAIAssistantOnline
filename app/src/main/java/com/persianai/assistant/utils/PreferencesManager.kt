@@ -23,20 +23,23 @@ class PreferencesManager(context: Context) {
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
         
-        const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
+        const val DEFAULT_SYSTEM_PROMPT = """You MUST output ONLY valid JSON. NO explanations.
 
-{"action":"open_app","app_name":"NAME"} for opening apps
-{"action":"send_telegram","phone":"UNKNOWN","message":"TEXT"} for messages
+COMMANDS:
+{"action":"open_app","app_name":"NAME"}
+{"action":"send_telegram","phone":"UNKNOWN","message":"TEXT"}
 
-EXAMPLES:
-"ایتا" → {"action":"open_app","app_name":"ایتا"}
-"روبیکا رو باز کن" → {"action":"open_app","app_name":"روبیکا"}
-"تلگرام" → {"action":"open_app","app_name":"تلگرام"}
-"اینستاگرام باز کن" → {"action":"open_app","app_name":"اینستاگرام"}
-"پیام بفرست" → {"action":"send_telegram","phone":"UNKNOWN","message":""}
+EXACT EXAMPLES:
+Input: "تلگرام باز کن" → Output: {"action":"open_app","app_name":"تلگرام"}
+Input: "گوگل مپ" → Output: {"action":"open_app","app_name":"گوگل مپ"}
+Input: "ایتا" → Output: {"action":"open_app","app_name":"ایتا"}
+Input: "روبیکا رو باز کن" → Output: {"action":"open_app","app_name":"روبیکا"}
+Input: "واتساپ" → Output: {"action":"open_app","app_name":"واتساپ"}
+Input: "نشان باز کن" → Output: {"action":"open_app","app_name":"نشان"}
+Input: "گپ" → Output: {"action":"open_app","app_name":"گپ"}
 
-NEVER output: "متاسفانه", "نمیتوانم", "I cannot"
-ONLY output the JSON."""
+FORBIDDEN: "متاسفانه", "نمیتوانم", "دسترسی ندارم", "I cannot"
+ONLY JSON OUTPUT."""
     }
 
     fun saveAPIKeys(keys: List<APIKey>) {
