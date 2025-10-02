@@ -368,16 +368,6 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
-        
-        // دکمه‌های لغو و ارسال ضبط (برای امکان دستی)
-        binding.cancelRecordingButton.setOnClickListener {
-            cancelRecording()
-            Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
-        }
-        
-        binding.sendRecordingButton.setOnClickListener {
-            stopRecordingAndProcess()
-        }
 
         // حذف دکمه attach (قابلیت آپلود فایل فعلاً غیرفعال)
         binding.attachButton.visibility = View.GONE
@@ -730,16 +720,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun startRecordingTimer() {
-        recordingTimer = object : android.os.CountDownTimer(60000, 100) {
-            override fun onTick(millisUntilFinished: Long) {
-                val elapsed = System.currentTimeMillis() - recordingStartTime
-                val seconds = (elapsed / 1000).toInt()
-                val millis = ((elapsed % 1000) / 100).toInt()
-                binding.recordingTime.text = String.format("%d:%01d", seconds, millis)
-            }
-            
-            override fun onFinish() {}
-        }.start()
+        // Timer removed - using simple indicator instead
     }
     
     private fun cancelRecording() {
