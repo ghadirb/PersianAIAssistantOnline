@@ -789,8 +789,6 @@ class MainActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                binding.progressBar.visibility = android.view.View.VISIBLE
-                
                 // تبدیل صوت به متن با Whisper
                 val transcribedText = aiClient?.transcribeAudio(filePath)
                 
@@ -811,8 +809,6 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Transcription error", e)
                 Toast.makeText(this@MainActivity, "❌ خطا در تبدیل: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
-                binding.progressBar.visibility = android.view.View.GONE
             }
         }
     }
