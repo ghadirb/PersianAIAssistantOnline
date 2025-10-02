@@ -47,8 +47,14 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupListeners() {
         // دکمه مدیریت برنامه‌های متصل
         binding.manageAppsButton.setOnClickListener {
-            val intent = Intent(this, ConnectedAppsActivity::class.java)
-            startActivity(intent)
+            try {
+                android.util.Log.d("SettingsActivity", "Opening ConnectedAppsActivity...")
+                val intent = Intent(this, ConnectedAppsActivity::class.java)
+                startActivity(intent)
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsActivity", "Error opening ConnectedAppsActivity", e)
+                android.widget.Toast.makeText(this, "خطا: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
         
         // دکمه به‌روزرسانی کلیدها

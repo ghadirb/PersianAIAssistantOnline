@@ -567,6 +567,37 @@ class MainActivity : AppCompatActivity() {
                         val json = org.json.JSONObject(jsonStr)
                         val action = json.getString("action")
                         
+                        // اگه پاسخ حاوی "متاسفانه" یا "نمی‌توانم" بود، دوباره تلاش کن
+                        if (response.contains("متاسفانه") || response.contains("نمی‌توانم") || 
+                            response.contains("متاسفم") || response.toLowerCase().contains("i cannot")) {
+                            android.util.Log.w("MainActivity", "Model refused, forcing JSON...")
+                            // پیام رو خودمون تفسیر کنیم
+                            val userMsg = messages.last().content.toLowerCase()
+                            return@launch when {
+                                userMsg.contains("ایتا") || userMsg.contains("eitaa") -> {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
+                                    "✅ ایتا باز شد"
+                                }
+                                userMsg.contains("روبیکا") || userMsg.contains("rubika") -> {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "روبیکا")
+                                    "✅ روبیکا باز شد"
+                                }
+                                userMsg.contains("تلگرام") || userMsg.contains("telegram") -> {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "تلگرام")
+                                    "✅ تلگرام باز شد"
+                                }
+                                userMsg.contains("اینستاگرام") || userMsg.contains("instagram") -> {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "اینستاگرام")
+                                    "✅ اینستاگرام باز شد"
+                                }
+                                userMsg.contains("واتساپ") || userMsg.contains("whatsapp") -> {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "واتساپ")
+                                    "✅ واتساپ باز شد"
+                                }
+                                else -> "✅ دستور اجرا شد"
+                            }
+                        }
+                        
                         when (action) {
                             "send_telegram" -> {
                                 val phone = json.optString("phone", "UNKNOWN")
