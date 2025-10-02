@@ -33,18 +33,35 @@ class ConnectedAppsActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityConnectedAppsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
         
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "برنامه‌های متصل"
-        
-        android.util.Log.d("ConnectedAppsActivity", "onCreate called")
-        
-        setupRecyclerView()
-        loadApps()
-        setupFab()
+        try {
+            android.util.Log.d("ConnectedAppsActivity", "onCreate started")
+            
+            binding = ActivityConnectedAppsBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            
+            android.util.Log.d("ConnectedAppsActivity", "Binding inflated")
+            
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.title = "برنامه‌های متصل"
+            
+            android.util.Log.d("ConnectedAppsActivity", "Toolbar set")
+            
+            setupRecyclerView()
+            android.util.Log.d("ConnectedAppsActivity", "RecyclerView setup")
+            
+            loadApps()
+            android.util.Log.d("ConnectedAppsActivity", "Apps loaded: ${apps.size}")
+            
+            setupFab()
+            android.util.Log.d("ConnectedAppsActivity", "FAB setup complete")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("ConnectedAppsActivity", "Error in onCreate", e)
+            android.widget.Toast.makeText(this, "خطا: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
     
     override fun onResume() {
