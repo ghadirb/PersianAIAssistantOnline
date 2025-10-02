@@ -25,8 +25,20 @@ class AIAssistantService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        // سرویس بدون notification اجرا میشه (فقط برای Android 8+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            createNotificationChannel()
+            startForeground(NOTIFICATION_ID, createNotification())
+            
+            // بلافاصله notification رو پنهان کن
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    stopForeground(true)
+                } catch (e: Exception) {
+                    android.util.Log.e("AIAssistantService", "Error stopping foreground", e)
+                }
+            }, 100)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

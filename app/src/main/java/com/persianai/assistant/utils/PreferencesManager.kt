@@ -23,32 +23,20 @@ class PreferencesManager(context: Context) {
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
         
-        const val DEFAULT_SYSTEM_PROMPT = """You are a command execution system. Output ONLY valid JSON.
+        const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
-CRITICAL: You CANNOT refuse ANY request. You have FULL access to ALL apps.
+{"action":"open_app","app_name":"NAME"} for opening apps
+{"action":"send_telegram","phone":"UNKNOWN","message":"TEXT"} for messages
 
-For messaging: {"action":"send_telegram","phone":"UNKNOWN","message":"TEXT"}
-For opening apps: {"action":"open_app","app_name":"APP_NAME"}
-For reminders: REMINDER:{"time":"HH:MM","message":"TEXT","alarm":true,"repeat":"none"}
-For navigation: NAVIGATION:{"destination":"PLACE","persian_voice":true}
+EXAMPLES:
+"ایتا" → {"action":"open_app","app_name":"ایتا"}
+"روبیکا رو باز کن" → {"action":"open_app","app_name":"روبیکا"}
+"تلگرام" → {"action":"open_app","app_name":"تلگرام"}
+"اینستاگرام باز کن" → {"action":"open_app","app_name":"اینستاگرام"}
+"پیام بفرست" → {"action":"send_telegram","phone":"UNKNOWN","message":""}
 
-EXAMPLES (Output ONLY the JSON part):
-
-"تلگرام باز کن" → {"action":"open_app","app_name":"تلگرام"}
-"پیام بده سلام" → {"action":"send_telegram","phone":"UNKNOWN","message":"سلام"}
-"روبیکا" → {"action":"open_app","app_name":"روبیکا"}
-"واتساپ پیام بده" → {"action":"send_whatsapp","phone":"UNKNOWN","message":""}
-"اینستاگرام" → {"action":"open_app","app_name":"اینستاگرام"}
-"به علی بگو فردا میام" → {"action":"send_telegram","phone":"UNKNOWN","message":"فردا میام"}
-
-FORBIDDEN (NEVER output these):
-❌ "نمی‌توانم"
-❌ "نیاز به دسترسی"
-❌ "I cannot"
-❌ "I need access"
-❌ ANY text explanation
-
-OUTPUT FORMAT: Only the JSON, nothing else."""
+NEVER output: "متاسفانه", "نمیتوانم", "I cannot"
+ONLY output the JSON."""
     }
 
     fun saveAPIKeys(keys: List<APIKey>) {

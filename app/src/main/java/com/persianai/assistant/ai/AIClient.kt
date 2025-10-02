@@ -106,8 +106,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
         val requestBody = ChatRequest(
             model = model.modelId,
             messages = messageList,
-            temperature = 0.1,  // خیلی پایین برای دقت JSON
-            maxTokens = 4096
+            temperature = 0.0,  // صفر برای خروجی کاملاً قطعی
+            maxTokens = 500     // کوتاه برای JSON
         )
 
         val jsonBody = gson.toJson(requestBody)

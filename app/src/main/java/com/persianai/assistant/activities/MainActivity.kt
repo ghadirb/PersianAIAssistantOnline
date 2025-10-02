@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private var recordingCancelled = false
     private var recordingStartTime: Long = 0
     private var recordingTimer: android.os.CountDownTimer? = null
+    private var initialX = 0f
     private var initialY = 0f
     private val swipeThreshold = 200f // پیکسل برای لغو
 
@@ -316,14 +317,16 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     // شروع ضبط با فشار دادن دکمه
                     v.alpha = 0.7f
+                    initialX = event.rawX
                     initialY = event.rawY
                     checkAudioPermissionAndStartRecording()
                     binding.messageInput.hint = "🎤 در حال ضبط... برای لغو به چپ بکشید"
+                    android.util.Log.d("MainActivity", "Voice recording started")
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     // اگر به چپ کشید، لغو ضبط
-                    val deltaX = event.rawX - initialY
+                    val deltaX = event.rawX - initialX
                     if (deltaX < -swipeThreshold && isRecording) {
                         v.alpha = 0.3f
                         binding.messageInput.hint = "⬅️ رها کنید برای لغو"
@@ -338,12 +341,15 @@ class MainActivity : AppCompatActivity() {
                     
                     if (isRecording) {
                         // اگر به چپ کشیده، لغو کن
-                        val deltaX = event.rawX - initialY
+                        val deltaX = event.rawX - initialX
+                        android.util.Log.d("MainActivity", "ACTION_UP: deltaX=$deltaX, threshold=$swipeThreshold")
+                        
                         if (deltaX < -swipeThreshold) {
                             cancelRecording()
                             Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
                         } else {
                             // وگرنه ضبط رو تمام کن و ارسال کن
+                            android.util.Log.d("MainActivity", "Sending recorded audio...")
                             stopRecordingAndProcess()
                         }
                     }
