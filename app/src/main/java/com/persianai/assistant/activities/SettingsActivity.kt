@@ -29,19 +29,32 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.title = "تنظیمات"
 
         prefsManager = PreferencesManager(this)
+        
+        loadSettings()
+        setupListeners()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        loadSettings()
     }
 
     private fun loadSettings() {
         // وضعیت API Keys
         val keys = prefsManager.getAPIKeys()
-        binding.apiKeysStatus.text = "تعداد کلیدها: ${keys.size}"
+        val activeKeys = keys.filter { it.isActive }
+        binding.apiKeysStatus.text = "کلیدهای فعال: ${activeKeys.size} از ${keys.size}"
+        
+        android.util.Log.d("SettingsActivity", "Keys: total=${keys.size}, active=${activeKeys.size}")
         
         // مدل فعلی
         val currentModel = prefsManager.getSelectedModel()
         binding.currentModel.text = "مدل فعلی: ${currentModel.displayName}"
         
         // وضعیت سرویس پس‌زمینه
-        binding.backgroundServiceSwitch.isChecked = prefsManager.isServiceEnabled()
+        val serviceEnabled = prefsManager.isServiceEnabled()
+        binding.backgroundServiceSwitch.isChecked = serviceEnabled
+        android.util.Log.d("SettingsActivity", "Service enabled: $serviceEnabled")
     }
 
     private fun setupListeners() {
