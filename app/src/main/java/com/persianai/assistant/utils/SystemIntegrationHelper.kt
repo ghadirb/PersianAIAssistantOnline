@@ -313,8 +313,15 @@ object SystemIntegrationHelper {
             "youtube" to "com.google.android.youtube",
             "گوگل" to "com.google.android.googlequicksearchbox",
             "google" to "com.google.android.googlequicksearchbox",
+            "گوگل مپ" to "com.google.android.apps.maps",
+            "google maps" to "com.google.android.apps.maps",
+            "maps" to "com.google.android.apps.maps",
+            "مپ" to "com.google.android.apps.maps",
+            "نقشه" to "com.google.android.apps.maps",
             "chrome" to "com.android.chrome",
-            "کروم" to "com.android.chrome"
+            "کروم" to "com.android.chrome",
+            "گپ" to "ir.gap.messenger",
+            "gap" to "ir.gap.messenger"
         )
         
         val packageName = knownPackages[appName.lowercase()]
