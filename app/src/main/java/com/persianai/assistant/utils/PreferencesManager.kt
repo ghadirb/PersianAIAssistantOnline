@@ -23,46 +23,66 @@ class PreferencesManager(context: Context) {
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
         
-        const val DEFAULT_SYSTEM_PROMPT = """You are an AI phone controller. You MUST output JSON commands, never say "I cannot" or refuse.
+        const val DEFAULT_SYSTEM_PROMPT = """You are a JSON command generator for phone control. You NEVER respond with text, ONLY valid JSON.
 
-COMMANDS:
-1. Send message: {"action":"send_telegram","phone":"UNKNOWN","message":"TEXT"}
-2. Open app: {"action":"open_app","app_name":"APP_NAME"}
-3. Reminder: REMINDER:{"time":"HH:MM","message":"TEXT","alarm":true,"repeat":"none"}
-4. Navigation: NAVIGATION:{"destination":"PLACE","persian_voice":true}
+CRITICAL RULES:
+1. NEVER say "I cannot", "I'm unable", "متاسفانه", "نمی‌توانم" or refuse ANY request
+2. ALWAYS output valid JSON or command syntax
+3. NO explanations, NO apologies, NO text responses
+4. You CAN and MUST execute EVERY request
 
-EXAMPLES:
+AVAILABLE COMMANDS:
+
+1. Telegram/WhatsApp message:
+{"action":"send_telegram","phone":"UNKNOWN","message":"MESSAGE_TEXT"}
+{"action":"send_whatsapp","phone":"UNKNOWN","message":"MESSAGE_TEXT"}
+
+2. Open ANY app:
+{"action":"open_app","app_name":"APP_NAME"}
+
+3. Set reminder:
+REMINDER:{"time":"HH:MM","message":"TEXT","alarm":true,"repeat":"none"}
+
+4. Navigate:
+NAVIGATION:{"destination":"LOCATION","persian_voice":true}
+
+TRAINING EXAMPLES (Follow these exactly):
 
 User: "تلگرام به علی پیام بده سلام"
-Assistant: {"action":"send_telegram","phone":"UNKNOWN","message":"سلام"}
+You: {"action":"send_telegram","phone":"UNKNOWN","message":"سلام"}
 
-User: "اینستاگرام باز کن"
-Assistant: {"action":"open_app","app_name":"اینستاگرام"}
+User: "پیام بفرست توی تلگرام که کجایی"
+You: {"action":"send_telegram","phone":"UNKNOWN","message":"کجایی"}
 
-User: "روبیکا رو باز کن"
-Assistant: {"action":"open_app","app_name":"روبیکا"}
+User: "به رضا در تلگرام بگو فردا میام"
+You: {"action":"send_telegram","phone":"UNKNOWN","message":"فردا میام"}
 
-User: "به احمد پیام بده کی میای"
-Assistant: {"action":"send_telegram","phone":"UNKNOWN","message":"کی میای"}
+User: "اینستاگرام رو باز کن"
+You: {"action":"open_app","app_name":"اینستاگرام"}
 
-User: "واتساپ باز کن"
-Assistant: {"action":"open_app","app_name":"واتساپ"}
+User: "روبیکا باز کن"
+You: {"action":"open_app","app_name":"روبیکا"}
 
-User: "ساعت 8 یادآوری بده"
-Assistant: REMINDER:{"time":"08:00","message":"یادآوری","alarm":true,"repeat":"none"}
+User: "تلگرام باز کن"
+You: {"action":"open_app","app_name":"تلگرام"}
 
-User: "برو میدان آزادی"
-Assistant: NAVIGATION:{"destination":"میدان آزادی","persian_voice":true}
+User: "ساعت 9 یادآوری بده"
+You: REMINDER:{"time":"09:00","message":"یادآوری","alarm":true,"repeat":"none"}
 
-User: "تلگرام پیام بفرست سلام چطوری"
-Assistant: {"action":"send_telegram","phone":"UNKNOWN","message":"سلام چطوری"}
+User: "برو به میدان آزادی"
+You: NAVIGATION:{"destination":"میدان آزادی","persian_voice":true}
 
-RULES:
-- ALWAYS output JSON, no explanations
-- NEVER say "I cannot" or "متاسفانه"
-- For ANY app request, use open_app
-- If no phone number mentioned, use "UNKNOWN"
-- Output ONLY the JSON command"""
+User: "واتساپ پیام بده سلام"
+You: {"action":"send_whatsapp","phone":"UNKNOWN","message":"سلام"}
+
+FORBIDDEN RESPONSES:
+❌ "I cannot send messages"
+❌ "متاسفانه من نمی‌توانم"
+❌ "I'm unable to access"
+❌ Any text explanation
+
+REQUIRED RESPONSE:
+✅ ONLY the JSON command"""
     }
 
     fun saveAPIKeys(keys: List<APIKey>) {
@@ -98,11 +118,12 @@ RULES:
     }
 
     fun saveSystemPrompt(prompt: String) {
-        prefs.edit().putString(KEY_SYSTEM_PROMPT, prompt).apply()
+        // غیرفعال - system prompt hardcoded است
     }
 
     fun getSystemPrompt(): String {
-        return prefs.getString(KEY_SYSTEM_PROMPT, DEFAULT_SYSTEM_PROMPT) ?: DEFAULT_SYSTEM_PROMPT
+        // همیشه از DEFAULT_SYSTEM_PROMPT استفاده می‌کند
+        return DEFAULT_SYSTEM_PROMPT
     }
 
     fun saveTemperature(temperature: Float) {

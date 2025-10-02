@@ -29,35 +29,24 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.title = "تنظیمات"
 
         prefsManager = PreferencesManager(this)
-        
-        loadSettings()
-        setupListeners()
     }
 
     private fun loadSettings() {
-        // نمایش وضعیت کلیدها
-        val apiKeys = prefsManager.getAPIKeys()
-        binding.apiKeysStatus.text = if (apiKeys.isNotEmpty()) {
-            "تعداد کلیدها: ${apiKeys.size}"
-        } else {
-            "هیچ کلیدی تنظیم نشده"
-        }
-
-        // نمایش مدل فعلی
+        // وضعیت API Keys
+        val keys = prefsManager.getAPIKeys()
+        binding.apiKeysStatus.text = "تعداد کلیدها: ${keys.size}"
+        
+        // مدل فعلی
         val currentModel = prefsManager.getSelectedModel()
-        binding.currentModel.text = currentModel.displayName
-
-        // تنظیم سرویس پس‌زمینه
+        binding.currentModel.text = "مدل فعلی: ${currentModel.displayName}"
+        
+        // وضعیت سرویس پس‌زمینه
         binding.backgroundServiceSwitch.isChecked = prefsManager.isServiceEnabled()
-
-        // نمایش System Prompt
-        binding.systemPromptInput.setText(prefsManager.getSystemPrompt())
     }
 
     private fun setupListeners() {
         // دکمه مدیریت برنامه‌های متصل
         binding.manageAppsButton.setOnClickListener {
-            startActivity(Intent(this, ConnectedAppsActivity::class.java))
         }
         
         // دکمه به‌روزرسانی کلیدها
@@ -68,18 +57,6 @@ class SettingsActivity : AppCompatActivity() {
         // دکمه پاک کردن کلیدها
         binding.clearKeysButton.setOnClickListener {
             showClearKeysDialog()
-        }
-
-        // ذخیره System Prompt
-        binding.savePromptButton.setOnClickListener {
-            val prompt = binding.systemPromptInput.text.toString()
-            prefsManager.saveSystemPrompt(prompt)
-            Toast.makeText(this, "تنظیمات ذخیره شد", Toast.LENGTH_SHORT).show()
-        }
-
-        // بازنشانی System Prompt
-        binding.resetPromptButton.setOnClickListener {
-            binding.systemPromptInput.setText(PreferencesManager.DEFAULT_SYSTEM_PROMPT)
         }
 
         // سرویس پس‌زمینه
