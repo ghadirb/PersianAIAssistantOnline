@@ -589,8 +589,12 @@ class MainActivity : AppCompatActivity() {
                             }
                             "open_app" -> {
                                 val appName = json.getString("app_name")
-                                SystemIntegrationHelper.openApp(this@MainActivity, appName)
-                                "✅ برنامه $appName باز شد"
+                                val success = SystemIntegrationHelper.openApp(this@MainActivity, appName)
+                                if (success) {
+                                    "✅ برنامه $appName باز شد"
+                                } else {
+                                    "⚠️ برنامه $appName در گوشی شما یافت نشد"
+                                }
                             }
                             else -> {
                                 android.util.Log.w("MainActivity", "Unknown action: $action")
@@ -755,18 +759,14 @@ class MainActivity : AppCompatActivity() {
             // مخفی کردن نشانگر
             binding.recordingIndicator.visibility = android.view.View.GONE
             
-            // استفاده از SpeechRecognizer inline
-            recognizeAudioFile()
+            // فقط یه پیام بذار که صوت ضبط شده
+            binding.messageInput.setText("🎤 پیام صوتی ضبط شد")
+            Toast.makeText(this, "✅ صوت ضبط شد. حالا پیام خود را بنویسید یا همین را ارسال کنید", Toast.LENGTH_LONG).show()
             
         } catch (e: Exception) {
             Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
             android.util.Log.e("MainActivity", "Stop recording error", e)
         }
-    }
-    
-    private fun recognizeAudioFile() {
-        // استفاده مستقیم از Google Speech Recognition
-        startVoiceRecognition()
     }
 
     private fun startVoiceRecognition() {

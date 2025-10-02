@@ -292,34 +292,77 @@ object SystemIntegrationHelper {
      * باز کردن برنامه خاص
      */
     fun openApp(context: Context, appName: String): Boolean {
-        val packageName = when (appName.lowercase()) {
-            "تلگرام", "telegram" -> "org.telegram.messenger"
-            "واتساپ", "whatsapp" -> "com.whatsapp"
-            "روبیکا", "rubika" -> "ir.resaneh1.iptv"
-            "ایتا", "eitaa" -> "ir.eitaa.messenger"
-            "نشان", "neshan" -> "com.neshantadbir.neshan"
-            "اینستاگرام", "instagram" -> "com.instagram.android"
-            "توییتر", "twitter", "x" -> "com.twitter.android"
-            else -> return false
-        }
+        // لیست package name های شناخته شده
+        val knownPackages = mapOf(
+            "تلگرام" to "org.telegram.messenger",
+            "telegram" to "org.telegram.messenger",
+            "واتساپ" to "com.whatsapp",
+            "whatsapp" to "com.whatsapp",
+            "روبیکا" to "ir.resaneh1.iptv",
+            "rubika" to "ir.resaneh1.iptv",
+            "ایتا" to "ir.eitaa.messenger",
+            "eitaa" to "ir.eitaa.messenger",
+            "نشان" to "com.neshantadbir.neshan",
+            "neshan" to "com.neshantadbir.neshan",
+            "اینستاگرام" to "com.instagram.android",
+            "instagram" to "com.instagram.android",
+            "توییتر" to "com.twitter.android",
+            "twitter" to "com.twitter.android",
+            "x" to "com.twitter.android",
+            "یوتیوب" to "com.google.android.youtube",
+            "youtube" to "com.google.android.youtube",
+            "گوگل" to "com.google.android.googlequicksearchbox",
+            "google" to "com.google.android.googlequicksearchbox",
+            "chrome" to "com.android.chrome",
+            "کروم" to "com.android.chrome"
+        )
         
-        return try {
-            val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-            if (intent != null) {
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(intent)
-                true
-            } else {
-                // برنامه نصب نیست، به مارکت هدایت کن
-                val marketIntent = Intent(Intent.ACTION_VIEW).apply {
-                    data = Uri.parse("market://details?id=$packageName")
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        val packageName = knownPackages[appName.lowercase()]
+        
+        if (packageName != null) {
+            // استفاده از package name شناخته شده
+            return try {
+                val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+                if (intent != null) {
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(intent)
+                    android.util.Log.d("SystemIntegration", "Opened app: $appName ($packageName)")
+                    true
+                } else {
+                    android.util.Log.w("SystemIntegration", "App not installed: $appName")
+                    false
                 }
-                context.startActivity(marketIntent)
+            } catch (e: Exception) {
+                android.util.Log.e("SystemIntegration", "Error opening app: $appName", e)
                 false
             }
-        } catch (e: Exception) {
-            false
+        } else {
+            // جستجو در برنامه‌های نصب شده
+            return try {
+                val pm = context.packageManager
+                val installedApps = pm.getInstalledApplications(0)
+                
+                // جستجوی برنامه با نام
+                val foundApp = installedApps.find { 
+                    it.loadLabel(pm).toString().contains(appName, ignoreCase = true)
+                }
+                
+                if (foundApp != null) {
+                    val intent = pm.getLaunchIntentForPackage(foundApp.packageName)
+                    if (intent != null) {
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        context.startActivity(intent)
+                        android.util.Log.d("SystemIntegration", "Found and opened: ${foundApp.loadLabel(pm)}")
+                        return true
+                    }
+                }
+                
+                android.util.Log.w("SystemIntegration", "App not found: $appName")
+                false
+            } catch (e: Exception) {
+                android.util.Log.e("SystemIntegration", "Error searching for app: $appName", e)
+                false
+            }
         }
     }
 
