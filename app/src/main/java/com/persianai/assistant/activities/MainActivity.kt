@@ -481,6 +481,58 @@ class MainActivity : AppCompatActivity() {
     
     private suspend fun processAIResponse(response: String): String {
         return withContext(Dispatchers.Main) {
+            android.util.Log.d("MainActivity", "AI Response: $response")
+            
+            // اگه مدل refuse کرد، خودمون برنامه رو باز می‌کنیم
+            if (response.contains("متاسفانه") || response.contains("نمی‌توانم") || 
+                response.contains("متاسفم") || response.toLowerCase().contains("i cannot") ||
+                response.contains("دسترسی ندارم") || response.contains("امکان")) {
+                
+                android.util.Log.w("MainActivity", "Model refused! Trying fallback...")
+                val userMsg = messages.lastOrNull()?.content?.toLowerCase() ?: ""
+                
+                // تشخیص برنامه از پیام کاربر
+                return@withContext when {
+                    userMsg.contains("تلگرام") || userMsg.contains("telegram") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "تلگرام")
+                        "✅ تلگرام باز شد"
+                    }
+                    userMsg.contains("گوگل مپ") || userMsg.contains("google map") || userMsg.contains("مپ") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "گوگل مپ")
+                        "✅ گوگل مپ باز شد"
+                    }
+                    userMsg.contains("ایتا") || userMsg.contains("eitaa") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
+                        "✅ ایتا باز شد"
+                    }
+                    userMsg.contains("روبیکا") || userMsg.contains("rubika") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "روبیکا")
+                        "✅ روبیکا باز شد"
+                    }
+                    userMsg.contains("واتساپ") || userMsg.contains("whatsapp") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "واتساپ")
+                        "✅ واتساپ باز شد"
+                    }
+                    userMsg.contains("نشان") || userMsg.contains("neshan") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "نشان")
+                        "✅ نشان باز شد"
+                    }
+                    userMsg.contains("گپ") || userMsg.contains("gap") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "گپ")
+                        "✅ گپ باز شد"
+                    }
+                    userMsg.contains("اینستاگرام") || userMsg.contains("instagram") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "اینستاگرام")
+                        "✅ اینستاگرام باز شد"
+                    }
+                    userMsg.contains("یوتیوب") || userMsg.contains("youtube") -> {
+                        SystemIntegrationHelper.openApp(this@MainActivity, "یوتیوب")
+                        "✅ یوتیوب باز شد"
+                    }
+                    else -> "⚠️ لطفاً نام برنامه را واضح‌تر بگویید (مثل: تلگرام، گوگل مپ، ایتا)"
+                }
+            }
+            
             when {
                 // یادآوری
                 response.contains("REMINDER:") -> {
