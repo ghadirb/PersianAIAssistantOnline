@@ -171,12 +171,3 @@ class RemindersAdapter(
     override fun getItemCount() = reminders.size
 }
 
-/**
- * مدل یادآوری
- */
-data class Reminder(
-    val time: String,
-    val message: String,
-    var completed: Boolean = false,
-    val timestamp: Long = System.currentTimeMillis()
-)
