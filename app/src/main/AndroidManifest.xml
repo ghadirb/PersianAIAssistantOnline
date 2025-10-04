@@ -17,6 +17,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 
     <application
@@ -78,6 +79,12 @@
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
 
+        <!-- Accessibility Guide Activity -->
+        <activity
+            android:name=".activities.AccessibilityGuideActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.SettingsActivity" />
+
         <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"
@@ -90,6 +97,19 @@
             android:name=".services.ReminderReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- Message Automation Service (Accessibility) -->
+        <service
+            android:name=".services.MessageAutomationService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
 
         <!-- Work Manager -->
         <provider

@@ -70,6 +70,12 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         
+        // دکمه راهنمای ارسال خودکار
+        binding.accessibilityGuideButton.setOnClickListener {
+            val intent = Intent(this, AccessibilityGuideActivity::class.java)
+            startActivity(intent)
+        }
+        
         // دکمه به‌روزرسانی کلیدها
         binding.refreshKeysButton.setOnClickListener {
             showPasswordDialogForRefresh()

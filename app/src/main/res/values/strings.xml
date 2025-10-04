@@ -28,4 +28,7 @@
     <string name="success">موفق</string>
     <string name="no_internet">اتصال به اینترنت برقرار نیست</string>
     <string name="permission_required">مجوز مورد نیاز است</string>
+    
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_description">این سرویس به دستیار هوش مصنوعی اجازه می‌دهد پیام‌های شما را در برنامه‌های پیام‌رسان به صورت خودکار ارسال کند. این سرویس فقط برای ارسال پیام‌هایی که شما درخواست کرده‌اید استفاده می‌شود و هیچ داده‌ای جمع‌آوری نمی‌کند.</string>
 </resources>
