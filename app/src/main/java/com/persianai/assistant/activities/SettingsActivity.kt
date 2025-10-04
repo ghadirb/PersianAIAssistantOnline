@@ -98,6 +98,12 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        // دکمه نمایش راهنما
+        binding.showWelcomeButton.setOnClickListener {
+            val intent = Intent(this, WelcomeActivity::class.java)
+            startActivity(intent)
+        }
+        
         // دکمه تغییر حالت کار
         binding.changeModeButton.setOnClickListener {
             showChangeModeDialog()

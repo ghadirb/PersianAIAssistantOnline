@@ -32,7 +32,7 @@
             android:layout_marginTop="24dp"
             android:gravity="start"
             android:lineSpacingExtra="6dp"
-            android:text="✅ بدون نیاز به اینترنت\n\n✅ حریم خصوصی کامل - همه چیز روی گوشی شما\n\n✅ مصرف داده صفر\n\n✅ پاسخ‌های سریع\n\n⚠️ نیاز به دانلود مدل (≈100MB)"
+            android:text="✅ بدون نیاز به اینترنت\n\n✅ حریم خصوصی کامل - همه چیز روی گوشی شما\n\n✅ مصرف داده صفر\n\n✅ پاسخ‌های سریع"
             android:textColor="#424242"
             android:textSize="16sp" />
 
@@ -40,13 +40,46 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
+            android:backgroundTint="#FFF9C4">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🎯 سه نوع مدل آفلاین:"
+                    android:textColor="#F57F17"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="4dp"
+                    android:text="📱 ساده (5MB): فقط دستورات\n🧠 سبک (200MB): سوالات + محاسبات\n💪 کامل (2GB): قدرتمند مثل ChatGPT"
+                    android:textColor="#F9A825"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:backgroundTint="#F1F8E9">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="16dp"
-                android:text="💡 پیشنهاد: این حالت برای کسانی که نگران حریم خصوصی هستند یا اینترنت محدود دارند مناسب است."
+                android:text="💡 پیشنهاد: این حالت برای کسانی که نگران حریم خصوصی هستند یا اینترنت محدود دارند عالی است!"
                 android:textColor="#558B2F"
                 android:textSize="14sp" />
 
