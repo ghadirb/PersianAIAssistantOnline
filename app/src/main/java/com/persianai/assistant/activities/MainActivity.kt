@@ -614,10 +614,11 @@ class MainActivity : AppCompatActivity() {
                                 val phone = json.optString("phone", "UNKNOWN")
                                 val message = json.getString("message")
                                 
+                                SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
+                                
                                 if (phone == "UNKNOWN" || phone.isEmpty()) {
-                                    "📱 لطفاً شماره تلفن را وارد کنید تا پیام در تلگرام ارسال شود:\n💬 $message"
+                                    "✅ تلگرام باز شد\n💬 پیام: $message\n\nحالا می‌تونی مخاطب رو انتخاب کنی"
                                 } else {
-                                    SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
                                     "✅ تلگرام باز شد\n💬 پیام: $message\n📞 به: $phone"
                                 }
                             }
@@ -625,11 +626,24 @@ class MainActivity : AppCompatActivity() {
                                 val phone = json.optString("phone", "UNKNOWN")
                                 val message = json.getString("message")
                                 
+                                SystemIntegrationHelper.sendWhatsApp(this@MainActivity, phone, message)
+                                
                                 if (phone == "UNKNOWN" || phone.isEmpty()) {
-                                    "📱 لطفاً شماره تلفن را وارد کنید تا پیام در واتساپ ارسال شود:\n💬 $message"
+                                    "✅ واتساپ باز شد\n💬 پیام: $message\n\nحالا می‌تونی مخاطب رو انتخاب کنی"
                                 } else {
-                                    SystemIntegrationHelper.sendWhatsApp(this@MainActivity, phone, message)
                                     "✅ واتساپ باز شد\n💬 پیام: $message\n📞 به: $phone"
+                                }
+                            }
+                            "send_sms" -> {
+                                val phone = json.optString("phone", "UNKNOWN")
+                                val message = json.getString("message")
+                                
+                                SystemIntegrationHelper.sendSMS(this@MainActivity, phone, message)
+                                
+                                if (phone == "UNKNOWN" || phone.isEmpty()) {
+                                    "✅ پیام‌نگار باز شد\n💬 پیام: $message\n\nحالا می‌تونی شماره رو وارد کنی"
+                                } else {
+                                    "✅ پیام‌نگار باز شد\n💬 پیام: $message\n📞 به: $phone"
                                 }
                             }
                             "send_rubika" -> {

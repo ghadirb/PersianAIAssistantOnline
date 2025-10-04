@@ -23,25 +23,24 @@ class PreferencesManager(context: Context) {
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
         
-        const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT BEFORE OR AFTER.
+        const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
 ACTIONS:
-1. Open app: {"action":"open_app","app_name":"NAME"}
-2. Send Telegram: {"action":"send_telegram","phone":"NUMBER","message":"TEXT"}
-3. Send WhatsApp: {"action":"send_whatsapp","phone":"NUMBER","message":"TEXT"}
+{"action":"open_app","app_name":"NAME"}
+{"action":"send_telegram","phone":"NUMBER","message":"TEXT"}
+{"action":"send_whatsapp","phone":"NUMBER","message":"TEXT"}
+{"action":"send_sms","phone":"NUMBER","message":"TEXT"}
 
 EXAMPLES:
 "تلگرام باز کن" → {"action":"open_app","app_name":"تلگرام"}
-"گوگل مپ" → {"action":"open_app","app_name":"گوگل مپ"}
-"پیام بده به احمد سلام" → {"action":"send_telegram","phone":"UNKNOWN","message":"سلام"}
-"به علی تو تلگرام بگو برگشتم" → {"action":"send_telegram","phone":"UNKNOWN","message":"برگشتم"}
-"تو واتساپ به مامان بگو در راهم" → {"action":"send_whatsapp","phone":"UNKNOWN","message":"در راهم"}
+"پیام بده سلام" → {"action":"send_telegram","phone":"UNKNOWN","message":"سلام"}
+"به احمد بگو برگشتم" → {"action":"send_telegram","phone":"UNKNOWN","message":"برگشتم"}
+"پیامک بفرست در راهم" → {"action":"send_sms","phone":"UNKNOWN","message":"در راهم"}
+"واتساپ بفرست رسیدم" → {"action":"send_whatsapp","phone":"UNKNOWN","message":"رسیدم"}
 
-If user says "send message to X", use send_telegram or send_whatsapp.
-If no phone number mentioned, use "UNKNOWN".
-
-NEVER: "متاسفانه", "نمی‌توانم", "I cannot"
-ALWAYS OUTPUT JSON ONLY."""
+If no phone number, use "UNKNOWN".
+NEVER: "متاسفانه", "نمیتوانم"
+JSON ONLY."""
     }
 
     fun saveAPIKeys(keys: List<APIKey>) {

@@ -250,24 +250,28 @@ object SystemIntegrationHelper {
      */
     fun sendTelegram(context: Context, phoneNumber: String, message: String): Boolean {
         return try {
+            // اگر شماره نداریم، فقط با متن Share کن
+            if (phoneNumber == "UNKNOWN" || phoneNumber.isEmpty()) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    setPackage("org.telegram.messenger")
+                    putExtra(Intent.EXTRA_TEXT, message)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                return true
+            }
+            
+            // اگر شماره داری، باز کن با URL
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("https://t.me/$phoneNumber")
+                data = Uri.parse("https://t.me/$phoneNumber?text=${Uri.encode(message)}")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(intent)
             true
         } catch (e: Exception) {
-            // اگر تلگرام نصب نبود
-            try {
-                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
-                    data = Uri.parse("tg://resolve?phone=$phoneNumber")
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(fallbackIntent)
-                true
-            } catch (e2: Exception) {
-                false
-            }
+            android.util.Log.e("SystemIntegration", "Telegram send error", e)
+            false
         }
     }
     
@@ -276,6 +280,18 @@ object SystemIntegrationHelper {
      */
     fun sendWhatsApp(context: Context, phoneNumber: String, message: String): Boolean {
         return try {
+            // اگر شماره نداریم، فقط Share کن
+            if (phoneNumber == "UNKNOWN" || phoneNumber.isEmpty()) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    setPackage("com.whatsapp")
+                    putExtra(Intent.EXTRA_TEXT, message)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                return true
+            }
+            
             val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse("https://wa.me/$cleanNumber?text=${Uri.encode(message)}")
@@ -284,6 +300,36 @@ object SystemIntegrationHelper {
             context.startActivity(intent)
             true
         } catch (e: Exception) {
+            android.util.Log.e("SystemIntegration", "WhatsApp send error", e)
+            false
+        }
+    }
+    
+    /**
+     * ارسال پیام در پیام‌نگار (Android SMS)
+     */
+    fun sendSMS(context: Context, phoneNumber: String, message: String): Boolean {
+        return try {
+            if (phoneNumber == "UNKNOWN" || phoneNumber.isEmpty()) {
+                // باز کردن SMS app با متن
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("sms:")
+                    putExtra("sms_body", message)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                return true
+            }
+            
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("sms:$phoneNumber")
+                putExtra("sms_body", message)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SystemIntegration", "SMS send error", e)
             false
         }
     }
