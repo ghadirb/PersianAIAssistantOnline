@@ -399,39 +399,43 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     private fun startModelDownload() {
-        Toast.makeText(this, "در حال دانلود مدل...", Toast.LENGTH_LONG).show()
-        
-        // شبیه‌سازی دانلود موفق با lifecycleScope
-        lifecycleScope.launch {
-            try {
-                kotlinx.coroutines.delay(2000)
-                prefsManager.setOfflineModelDownloaded(true)
-                updateOfflineModelStatus()
-                Toast.makeText(this@SettingsActivity, "✅ مدل با موفقیت دانلود شد", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@SettingsActivity, "❌ خطا در دانلود: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+        val downloadManager = com.persianai.assistant.utils.ModelDownloadManager(this)
+        val progressDialog = android.app.ProgressDialog(this).apply {
+            setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL)
+            max = 100
+            show()
         }
         
-        // TODO: پیاده‌سازی واقعی دانلود مدل از سرور یا GitHub
+        lifecycleScope.launch {
+            downloadManager.downloadModel(prefsManager.getOfflineModelType()) { progress ->
+                progressDialog.progress = progress
+            }
+            progressDialog.dismiss()
+            prefsManager.setOfflineModelDownloaded(true)
+            updateOfflineModelStatus()
+            Toast.makeText(this@SettingsActivity, "✅ دانلود شد", Toast.LENGTH_SHORT).show()
+        }
     }
     
     private fun showDeleteModelDialog() {
         MaterialAlertDialogBuilder(this)
             .setTitle("حذف مدل آفلاین")
-            .setMessage("آیا مطمئن هستید که میخواهید مدل آفلاین را حذف کنید؟\n\nحجم آزاد شده: ≈100MB")
+            .setMessage("مطمئنید؟")
             .setPositiveButton("حذف") { _, _ ->
+                com.persianai.assistant.utils.ModelDownloadManager(this).deleteModel()
                 prefsManager.setOfflineModelDownloaded(false)
                 updateOfflineModelStatus()
-                Toast.makeText(this, "✅ مدل حذف شد", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "✅ حذف شد", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("انصراف", null)
+            .setNegativeButton("خیر", null)
             .show()
     }
 
     private fun showChangeModeDialog() {
         val modes = arrayOf(
-            "🌐 آنلاین - پاسخ‌های دقیق با AI پیشرفته",
+            "آنلاین - پاسخ‌های دقیق با AI پیشرفته",
+            "آفلاین - بدون نیاز به اینترنت",
+            "ترکیبی - بهترین تعادل (پیشنهادی)"
             "📱 آفلاین - بدون نیاز به اینترنت",
             "⚡ ترکیبی - بهترین تعادل (پیشنهادی)"
         )
