@@ -529,7 +529,15 @@ class MainActivity : AppCompatActivity() {
                         SystemIntegrationHelper.openApp(this@MainActivity, "یوتیوب")
                         "✅ یوتیوب باز شد"
                     }
-                    else -> "⚠️ لطفاً نام برنامه را واضح‌تر بگویید (مثل: تلگرام، گوگل مپ، ایتا)"
+                    userMsg.contains("پیام‌نگار") || userMsg.contains("پیامک") || userMsg.contains("sms") -> {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse("sms:")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                        "✅ پیام‌نگار باز شد"
+                    }
+                    else -> "⚠️ لطفاً نام برنامه را واضح‌تر بگویید (مثل: تلگرام، گوگل مپ، ایتا، پیام‌نگار)"
                 }
             }
             
@@ -654,19 +662,21 @@ class MainActivity : AppCompatActivity() {
                             }
                             "send_rubika" -> {
                                 val message = json.optString("message", "")
-                                SystemIntegrationHelper.openApp(this@MainActivity, "روبیکا")
                                 if (message.isNotEmpty()) {
-                                    "✅ روبیکا باز شد\n💬 پیام: $message"
+                                    SystemIntegrationHelper.openAppWithMessage(this@MainActivity, "روبیکا", message)
+                                    "✅ روبیکا باز شد\n💬 پیام کپی شد - Paste کنید"
                                 } else {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "روبیکا")
                                     "✅ روبیکا باز شد"
                                 }
                             }
                             "send_eitaa" -> {
                                 val message = json.optString("message", "")
-                                SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
                                 if (message.isNotEmpty()) {
-                                    "✅ ایتا باز شد\n💬 پیام: $message"
+                                    SystemIntegrationHelper.openAppWithMessage(this@MainActivity, "ایتا", message)
+                                    "✅ ایتا باز شد\n💬 پیام کپی شد - Paste کنید"
                                 } else {
+                                    SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
                                     "✅ ایتا باز شد"
                                 }
                             }

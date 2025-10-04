@@ -235,43 +235,64 @@ object SystemIntegrationHelper {
         return try {
             android.util.Log.d("SystemIntegration", "sendTelegram called: phone=$phoneNumber, message=$message")
             
-            // اگر شماره نداریم، فقط با متن Share کن
-            if (phoneNumber == "UNKNOWN" || phoneNumber.isEmpty()) {
-                try {
-                    // روش 1: مستقیم باز کردن تلگرام با share
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        setPackage("org.telegram.messenger")
-                        putExtra(Intent.EXTRA_TEXT, message)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    context.startActivity(intent)
-                    android.util.Log.d("SystemIntegration", "Telegram opened with share")
-                    return true
-                } catch (e1: Exception) {
-                    android.util.Log.e("SystemIntegration", "Share method failed, trying URL", e1)
-                    // روش 2: باز کردن با URL
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        data = Uri.parse("https://t.me/share/url?url=${Uri.encode(message)}")
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    context.startActivity(intent)
-                    return true
-                }
-            }
+            // کپی کردن متن به Clipboard
+            copyToClipboard(context, message)
             
-            // اگر شماره داری، باز کن با URL
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("https://t.me/$phoneNumber?text=${Uri.encode(message)}")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            // باز کردن تلگرام
+            val packageName = "org.telegram.messenger"
+            val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+            
+            if (intent != null) {
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                context.startActivity(intent)
+                
+                // نمایش Toast
+                android.widget.Toast.makeText(
+                    context,
+                    "📋 پیام کپی شد! در تلگرام Paste کنید",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                
+                android.util.Log.d("SystemIntegration", "Telegram opened, message copied to clipboard")
+                return true
+            } else {
+                android.util.Log.e("SystemIntegration", "Telegram not installed")
+                return false
             }
-            context.startActivity(intent)
-            android.util.Log.d("SystemIntegration", "Telegram opened with phone")
-            true
         } catch (e: Exception) {
             android.util.Log.e("SystemIntegration", "Telegram send error", e)
             false
         }
+    }
+    
+    /**
+     * کپی کردن متن به Clipboard
+     */
+    private fun copyToClipboard(context: Context, text: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("پیام", text)
+        clipboard.setPrimaryClip(clip)
+    }
+    
+    /**
+     * باز کردن برنامه + کپی پیام به Clipboard
+     */
+    fun openAppWithMessage(context: Context, appName: String, message: String): Boolean {
+        // کپی کردن پیام
+        copyToClipboard(context, message)
+        
+        // باز کردن برنامه
+        val success = openApp(context, appName)
+        
+        if (success && message.isNotEmpty()) {
+            android.widget.Toast.makeText(
+                context,
+                "📋 پیام کپی شد! در $appName Paste کنید",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+        
+        return success
     }
     
     /**
