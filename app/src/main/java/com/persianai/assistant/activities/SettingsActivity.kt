@@ -55,9 +55,27 @@ class SettingsActivity : AppCompatActivity() {
         val serviceEnabled = prefsManager.isServiceEnabled()
         binding.backgroundServiceSwitch.isChecked = serviceEnabled
         android.util.Log.d("SettingsActivity", "Service enabled: $serviceEnabled")
+        
+        // حالت کار فعلی
+        updateCurrentModeText()
+    }
+    
+    private fun updateCurrentModeText() {
+        val mode = prefsManager.getWorkingMode()
+        val modeText = when (mode) {
+            PreferencesManager.WorkingMode.ONLINE -> "آنلاین 🌐"
+            PreferencesManager.WorkingMode.OFFLINE -> "آفلاین 📱"
+            PreferencesManager.WorkingMode.HYBRID -> "ترکیبی ⚡"
+        }
+        binding.currentModeText.text = "حالت فعلی: $modeText"
     }
 
     private fun setupListeners() {
+        // دکمه تغییر حالت کار
+        binding.changeModeButton.setOnClickListener {
+            showChangeModeDialog()
+        }
+        
         // دکمه مدیریت برنامه‌های متصل
         binding.manageAppsButton.setOnClickListener {
             try {
@@ -164,6 +182,45 @@ class SettingsActivity : AppCompatActivity() {
                 Toast.makeText(this@SettingsActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showChangeModeDialog() {
+        val modes = arrayOf(
+            "🌐 آنلاین - پاسخ‌های دقیق با AI پیشرفته",
+            "📱 آفلاین - بدون نیاز به اینترنت",
+            "⚡ ترکیبی - بهترین تعادل (پیشنهادی)"
+        )
+        
+        val currentMode = prefsManager.getWorkingMode()
+        val selectedIndex = when (currentMode) {
+            PreferencesManager.WorkingMode.ONLINE -> 0
+            PreferencesManager.WorkingMode.OFFLINE -> 1
+            PreferencesManager.WorkingMode.HYBRID -> 2
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("انتخاب حالت کار")
+            .setSingleChoiceItems(modes, selectedIndex) { dialog, which ->
+                val newMode = when (which) {
+                    0 -> PreferencesManager.WorkingMode.ONLINE
+                    1 -> PreferencesManager.WorkingMode.OFFLINE
+                    else -> PreferencesManager.WorkingMode.HYBRID
+                }
+                
+                prefsManager.setWorkingMode(newMode)
+                updateCurrentModeText()
+                
+                val modeText = when (newMode) {
+                    PreferencesManager.WorkingMode.ONLINE -> "آنلاین"
+                    PreferencesManager.WorkingMode.OFFLINE -> "آفلاین"
+                    PreferencesManager.WorkingMode.HYBRID -> "ترکیبی"
+                }
+                
+                Toast.makeText(this, "✅ حالت $modeText فعال شد", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
     }
 
     private fun showAboutDialog() {
