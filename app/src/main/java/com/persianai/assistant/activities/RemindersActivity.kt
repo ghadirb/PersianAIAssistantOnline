@@ -12,16 +12,18 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityRemindersBinding
-import java.text.SimpleDateFormat
-import java.util.*
+import com.persianai.assistant.models.Reminder
+import com.persianai.assistant.storage.ReminderStorage
+import com.persianai.assistant.utils.PersianDateConverter
 
 /**
- * صفحه مدیریت یادآوری‌ها
+ * صفحه مدیریت یادآوری‌ها با تقویم شمسی
  */
 class RemindersActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityRemindersBinding
-    private lateinit var adapter: RemindersAdapter
+    private lateinit var adapter: ReminderAdapter
+    private lateinit var storage: ReminderStorage
     private val reminders = mutableListOf<Reminder>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
