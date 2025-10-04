@@ -104,6 +104,7 @@ class SettingsActivity : AppCompatActivity() {
         // دکمه نمایش راهنما
         binding.showWelcomeButton.setOnClickListener {
             val intent = Intent(this, WelcomeActivity::class.java)
+            intent.putExtra("SHOW_HELP", true)  // علامت نمایش راهنما
             startActivity(intent)
         }
         

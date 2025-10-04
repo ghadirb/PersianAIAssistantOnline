@@ -27,8 +27,11 @@ class WelcomeActivity : AppCompatActivity() {
 
         prefsManager = PreferencesManager(this)
 
-        // اگر قبلاً انتخاب شده، بپر به MainActivity
-        if (prefsManager.hasCompletedWelcome()) {
+        // چک کردن اینکه آیا فقط برای نمایش راهنما اومده
+        val isShowingHelp = intent.getBooleanExtra("SHOW_HELP", false)
+
+        // اگر قبلاً انتخاب شده و برای راهنما نیومده، بپر به MainActivity
+        if (prefsManager.hasCompletedWelcome() && !isShowingHelp) {
             goToMain()
             return
         }
@@ -68,10 +71,23 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     private fun setupContinueButton() {
+        val isShowingHelp = intent.getBooleanExtra("SHOW_HELP", false)
+        
+        if (isShowingHelp) {
+            // اگر فقط برای راهنما اومده، دکمه "بستن" باشه
+            binding.continueButton.text = "بستن"
+        }
+        
         binding.continueButton.setOnClickListener {
-            prefsManager.setWorkingMode(selectedMode)
-            prefsManager.setWelcomeCompleted(true)
-            goToMain()
+            if (isShowingHelp) {
+                // فقط بسته شدن
+                finish()
+            } else {
+                // اولین بار - ذخیره تنظیمات
+                prefsManager.setWorkingMode(selectedMode)
+                prefsManager.setWelcomeCompleted(true)
+                goToMain()
+            }
         }
     }
 
