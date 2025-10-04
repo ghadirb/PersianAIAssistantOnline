@@ -79,6 +79,10 @@ class SettingsActivity : AppCompatActivity() {
     
     private fun updateOfflineModelStatus() {
         val isDownloaded = prefsManager.isOfflineModelDownloaded()
+        val modelType = prefsManager.getOfflineModelType()
+        
+        // نمایش نوع مدل
+        binding.offlineModelType.text = "نوع: ${modelType.displayName} (${modelType.size})"
         
         if (isDownloaded) {
             binding.offlineModelStatus.text = "✅ مدل آماده است"
@@ -97,6 +101,11 @@ class SettingsActivity : AppCompatActivity() {
         // دکمه تغییر حالت کار
         binding.changeModeButton.setOnClickListener {
             showChangeModeDialog()
+        }
+        
+        // دکمه انتخاب نوع مدل
+        binding.selectModelTypeButton.setOnClickListener {
+            showSelectModelTypeDialog()
         }
         
         // دکمه دانلود مدل آفلاین
@@ -304,17 +313,75 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun showDownloadModelDialog() {
+    private fun showSelectModelTypeDialog() {
+        val modelType = prefsManager.getOfflineModelType()
+        val types = PreferencesManager.OfflineModelType.values()
+        
+        val options = types.map { 
+            "${it.displayName}\n${it.size} - ${it.description}"
+        }.toTypedArray()
+        
+        val selectedIndex = types.indexOf(modelType)
+        
         MaterialAlertDialogBuilder(this)
-            .setTitle("دانلود مدل آفلاین")
+            .setTitle("انتخاب نوع مدل آفلاین")
+            .setSingleChoiceItems(options, selectedIndex) { dialog, which ->
+                val selectedType = types[which]
+                prefsManager.setOfflineModelType(selectedType)
+                
+                // اگر مدل دانلود شده بود، باید دوباره دانلود کنه
+                if (prefsManager.isOfflineModelDownloaded()) {
+                    prefsManager.setOfflineModelDownloaded(false)
+                    Toast.makeText(
+                        this,
+                        "✅ نوع مدل تغییر کرد. لطفاً دوباره دانلود کنید.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                
+                updateOfflineModelStatus()
+                dialog.dismiss()
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
+    }
+
+    private fun showDownloadModelDialog() {
+        val modelType = prefsManager.getOfflineModelType()
+        
+        val capabilities = when (modelType) {
+            PreferencesManager.OfflineModelType.BASIC -> """
+                ✅ باز کردن برنامه‌ها
+                ✅ یادآوری و تایمر
+                ✅ دستورات ساده سیستمی
+                ❌ پاسخ به سوالات
+                ❌ محاسبات پیچیده
+            """.trimIndent()
+            
+            PreferencesManager.OfflineModelType.LITE -> """
+                ✅ همه قابلیت‌های نوع ساده
+                ✅ پاسخ به سوالات ساده
+                ✅ محاسبات و ترجمه
+                ✅ خلاصه‌سازی متن
+                ⚠️ پاسخ‌ها کوتاه‌تر از آنلاین
+            """.trimIndent()
+            
+            PreferencesManager.OfflineModelType.FULL -> """
+                ✅ تمام قابلیت‌های نوع سبک
+                ✅ پاسخ‌های دقیق و کامل
+                ✅ مکالمه طبیعی
+                ✅ تولید متن خلاقانه
+                ⚠️ نیاز به موبایل قوی (4GB+ RAM)
+                ⚠️ مصرف باتری بالاتر
+            """.trimIndent()
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("دانلود ${modelType.displayName}")
             .setMessage(
-                "مدل آفلاین امکانات زیر را بدون نیاز به اینترنت فراهم می‌کند:\n\n" +
-                "✅ باز کردن برنامه‌ها\n" +
-                "✅ یادآوری و تایمر\n" +
-                "✅ دستورات ساده سیستمی\n" +
-                "✅ حریم خصوصی کامل\n\n" +
-                "⚠️ حجم: حدود 100 مگابایت\n" +
-                "⚠️ پاسخ‌ها ساده‌تر از حالت آنلاین\n\n" +
+                "قابلیت‌ها:\n\n$capabilities\n\n" +
+                "📦 حجم: ${modelType.size}\n" +
+                "🔒 حریم خصوصی: کامل (بدون اینترنت)\n\n" +
                 "آیا میخواهید دانلود شود؟"
             )
             .setPositiveButton("دانلود") { _, _ ->

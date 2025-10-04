@@ -149,4 +149,24 @@ JSON ONLY."""
     fun isOfflineModelDownloaded(): Boolean {
         return prefs.getBoolean(KEY_OFFLINE_MODEL_DOWNLOADED, false)
     }
+    
+    // Offline Model Type
+    enum class OfflineModelType(val displayName: String, val size: String, val description: String) {
+        BASIC("ساده (پارسر)", "5 MB", "فقط دستورات ساده - بدون هوش مصنوعی"),
+        LITE("سبک (Gemini Nano)", "200 MB", "پاسخ به سوالات ساده و محاسبات"),
+        FULL("کامل (Llama 3.1)", "2 GB", "قدرتمند مثل ChatGPT - نیاز به موبایل قوی")
+    }
+    
+    fun setOfflineModelType(type: OfflineModelType) {
+        prefs.edit().putString("offline_model_type", type.name).apply()
+    }
+    
+    fun getOfflineModelType(): OfflineModelType {
+        val typeName = prefs.getString("offline_model_type", OfflineModelType.BASIC.name)
+        return try {
+            OfflineModelType.valueOf(typeName!!)
+        } catch (e: Exception) {
+            OfflineModelType.BASIC
+        }
+    }
 }

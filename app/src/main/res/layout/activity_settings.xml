@@ -158,18 +158,34 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/offlineModelType"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="برای استفاده از حالت آفلاین، نیاز به دانلود مدل (≈100MB)"
-                        android:alpha="0.7" />
+                        android:text="نوع: ساده (پارسر)"
+                        android:alpha="0.9" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="انتخاب نوع مدل آفلاین:"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/selectModelTypeButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="انتخاب نوع مدل"
+                        style="@style/Widget.Material3.Button.TonalButton" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/downloadModelButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="دانلود مدل آفلاین"
+                        android:layout_marginTop="8dp"
+                        android:text="دانلود مدل"
                         style="@style/Widget.Material3.Button" />
 
                     <com.google.android.material.button.MaterialButton
