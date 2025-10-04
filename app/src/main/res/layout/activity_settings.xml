@@ -131,13 +131,24 @@
                     android:padding="16dp">
 
                     <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="⚙️ حالت کار"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/backgroundServiceSwitch"
+                    <TextView
+                        android:id="@+id/currentModeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="حالت فعلی: ترکیبی"
+                        android:textColor="#4CAF50"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="تغییر حالت کار برنامه (آنلاین، آفلاین، ترکیبی)"
@@ -343,6 +354,43 @@
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/backgroundServiceSwitch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="16dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🔊 اعلام صوتی (TTS)"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="خواندن پاسخ‌ها با صدا"
+                                android:layout_marginTop="4dp"
+                                android:alpha="0.7"
+                                android:textSize="14sp" />
+
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/ttsSwitch"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content" />
 
