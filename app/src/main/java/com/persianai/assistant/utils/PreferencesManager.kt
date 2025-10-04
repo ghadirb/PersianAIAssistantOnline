@@ -22,6 +22,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_SYSTEM_PROMPT = "system_prompt"
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
+        private const val KEY_WORKING_MODE = "working_mode"
+        private const val KEY_WELCOME_COMPLETED = "welcome_completed"
+        private const val KEY_TTS_ENABLED = "tts_enabled"
         
         const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
@@ -98,5 +101,42 @@ JSON ONLY."""
 
     fun isServiceEnabled(): Boolean {
         return prefs.getBoolean(KEY_SERVICE_ENABLED, false)
+    }
+
+    // Working Mode
+    enum class WorkingMode {
+        ONLINE,    // فقط آنلاین با API
+        OFFLINE,   // فقط آفلاین با مدل محلی
+        HYBRID     // ترکیبی (پیشنهادی)
+    }
+
+    fun setWorkingMode(mode: WorkingMode) {
+        prefs.edit().putString(KEY_WORKING_MODE, mode.name).apply()
+    }
+
+    fun getWorkingMode(): WorkingMode {
+        val modeName = prefs.getString(KEY_WORKING_MODE, WorkingMode.HYBRID.name)
+        return try {
+            WorkingMode.valueOf(modeName!!)
+        } catch (e: Exception) {
+            WorkingMode.HYBRID
+        }
+    }
+
+    fun setWelcomeCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(KEY_WELCOME_COMPLETED, completed).apply()
+    }
+
+    fun hasCompletedWelcome(): Boolean {
+        return prefs.getBoolean(KEY_WELCOME_COMPLETED, false)
+    }
+
+    // TTS
+    fun setTTSEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_TTS_ENABLED, enabled).apply()
+    }
+
+    fun isTTSEnabled(): Boolean {
+        return prefs.getBoolean(KEY_TTS_ENABLED, true) // پیش‌فرض فعال
     }
 }
