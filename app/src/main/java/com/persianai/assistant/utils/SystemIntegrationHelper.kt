@@ -194,23 +194,6 @@ object SystemIntegrationHelper {
     }
 
     /**
-     * ارسال پیامک
-     */
-    fun sendSMS(context: Context, phoneNumber: String, message: String): Boolean {
-        return try {
-            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.parse("smsto:$phoneNumber")
-                putExtra("sms_body", message)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
      * ارسال ایمیل
      */
     fun sendEmail(context: Context, to: String, subject: String, body: String): Boolean {
