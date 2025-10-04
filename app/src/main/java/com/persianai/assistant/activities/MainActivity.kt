@@ -614,12 +614,18 @@ class MainActivity : AppCompatActivity() {
                                 val phone = json.optString("phone", "UNKNOWN")
                                 val message = json.getString("message")
                                 
-                                SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
+                                android.util.Log.d("MainActivity", "Opening Telegram with: phone=$phone, message=$message")
+                                val success = SystemIntegrationHelper.sendTelegram(this@MainActivity, phone, message)
+                                android.util.Log.d("MainActivity", "Telegram open result: $success")
                                 
-                                if (phone == "UNKNOWN" || phone.isEmpty()) {
-                                    "✅ تلگرام باز شد\n💬 پیام: $message\n\nحالا می‌تونی مخاطب رو انتخاب کنی"
+                                if (success) {
+                                    if (phone == "UNKNOWN" || phone.isEmpty()) {
+                                        "✅ تلگرام باز شد\n💬 پیام: $message\n\nحالا می‌تونی مخاطب رو انتخاب کنی"
+                                    } else {
+                                        "✅ تلگرام باز شد\n💬 پیام: $message\n📞 به: $phone"
+                                    }
                                 } else {
-                                    "✅ تلگرام باز شد\n💬 پیام: $message\n📞 به: $phone"
+                                    "❌ خطا در باز کردن تلگرام. آیا نصب است؟"
                                 }
                             }
                             "send_whatsapp" -> {

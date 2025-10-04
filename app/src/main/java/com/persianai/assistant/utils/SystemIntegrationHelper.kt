@@ -233,16 +233,31 @@ object SystemIntegrationHelper {
      */
     fun sendTelegram(context: Context, phoneNumber: String, message: String): Boolean {
         return try {
+            android.util.Log.d("SystemIntegration", "sendTelegram called: phone=$phoneNumber, message=$message")
+            
             // اگر شماره نداریم، فقط با متن Share کن
             if (phoneNumber == "UNKNOWN" || phoneNumber.isEmpty()) {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    setPackage("org.telegram.messenger")
-                    putExtra(Intent.EXTRA_TEXT, message)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                try {
+                    // روش 1: مستقیم باز کردن تلگرام با share
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        setPackage("org.telegram.messenger")
+                        putExtra(Intent.EXTRA_TEXT, message)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(intent)
+                    android.util.Log.d("SystemIntegration", "Telegram opened with share")
+                    return true
+                } catch (e1: Exception) {
+                    android.util.Log.e("SystemIntegration", "Share method failed, trying URL", e1)
+                    // روش 2: باز کردن با URL
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("https://t.me/share/url?url=${Uri.encode(message)}")
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(intent)
+                    return true
                 }
-                context.startActivity(intent)
-                return true
             }
             
             // اگر شماره داری، باز کن با URL
@@ -251,6 +266,7 @@ object SystemIntegrationHelper {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(intent)
+            android.util.Log.d("SystemIntegration", "Telegram opened with phone")
             true
         } catch (e: Exception) {
             android.util.Log.e("SystemIntegration", "Telegram send error", e)
