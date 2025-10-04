@@ -190,39 +190,25 @@ class SettingsActivity : AppCompatActivity() {
             try {
                 Toast.makeText(this@SettingsActivity, "در حال دانلود کلیدها...", Toast.LENGTH_SHORT).show()
                 
-                withContext(Dispatchers.IO) {
-                    val driveHelper = DriveHelper()
-                    val encryptedData = driveHelper.downloadAPIKeys()
-                    
-                    if (encryptedData != null) {
-                        val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
-                        val keys = parseAPIKeys(decryptedData)
-                        
-                        withContext(Dispatchers.Main) {
-                            if (keys.isNotEmpty()) {
-                                prefsManager.saveAPIKeys(keys)
-                                loadSettings()
-                                Toast.makeText(
-                                    this@SettingsActivity,
-                                    "✅ ${keys.size} کلید دانلود شد",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            } else {
-                                Toast.makeText(
-                                    this@SettingsActivity,
-                                    "❌ کلیدی پیدا نشد",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
+                val encryptedData = DriveHelper.downloadEncryptedKeys()
+                val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
+                val keys = parseAPIKeys(decryptedData)
+                
+                withContext(Dispatchers.Main) {
+                    if (keys.isNotEmpty()) {
+                        prefsManager.saveAPIKeys(keys)
+                        loadSettings()
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            "✅ ${keys.size} کلید دانلود شد",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     } else {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                this@SettingsActivity,
-                                "❌ فایل کلیدها پیدا نشد",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            "❌ کلیدی پیدا نشد",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             } catch (e: Exception) {
