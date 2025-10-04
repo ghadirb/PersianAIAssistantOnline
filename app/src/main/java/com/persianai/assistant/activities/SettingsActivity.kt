@@ -9,7 +9,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivitySettingsBinding
 import com.persianai.assistant.services.AIAssistantService
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.DriveHelper
+import com.persianai.assistant.utils.EncryptionHelper
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * صفحه تنظیمات
@@ -160,8 +164,109 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showPasswordDialogForRefresh() {
-        // Similar to SplashActivity password dialog
-        Toast.makeText(this, "قابلیت به‌روزرسانی در نسخه بعدی", Toast.LENGTH_SHORT).show()
+        val input = android.widget.EditText(this).apply {
+            hint = "رمز عبور کلیدها"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔑 بروزرسانی کلیدهای API")
+            .setMessage("لطفاً رمز عبور کلیدهای API را وارد کنید:")
+            .setView(input)
+            .setPositiveButton("دانلود") { _, _ ->
+                val password = input.text.toString()
+                if (password.isNotBlank()) {
+                    downloadAPIKeys(password)
+                } else {
+                    Toast.makeText(this, "⚠️ رمز عبور را وارد کنید", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
+    }
+    
+    private fun downloadAPIKeys(password: String) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@SettingsActivity, "در حال دانلود کلیدها...", Toast.LENGTH_SHORT).show()
+                
+                withContext(Dispatchers.IO) {
+                    val driveHelper = DriveHelper()
+                    val encryptedData = driveHelper.downloadAPIKeys()
+                    
+                    if (encryptedData != null) {
+                        val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
+                        val keys = parseAPIKeys(decryptedData)
+                        
+                        withContext(Dispatchers.Main) {
+                            if (keys.isNotEmpty()) {
+                                prefsManager.saveAPIKeys(keys)
+                                loadSettings()
+                                Toast.makeText(
+                                    this@SettingsActivity,
+                                    "✅ ${keys.size} کلید دانلود شد",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    this@SettingsActivity,
+                                    "❌ کلیدی پیدا نشد",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@SettingsActivity,
+                                "❌ فایل کلیدها پیدا نشد",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@SettingsActivity,
+                    "❌ خطا: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    
+    private fun parseAPIKeys(data: String): List<com.persianai.assistant.models.APIKey> {
+        val keys = mutableListOf<com.persianai.assistant.models.APIKey>()
+        
+        data.lines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
+            
+            val parts = trimmed.split(":", limit = 2)
+            
+            if (parts.size == 2) {
+                val provider = when (parts[0].lowercase()) {
+                    "openai" -> com.persianai.assistant.models.AIProvider.OPENAI
+                    "anthropic", "claude" -> com.persianai.assistant.models.AIProvider.ANTHROPIC
+                    "openrouter" -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    else -> null
+                }
+                
+                if (provider != null) {
+                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), true))
+                }
+            } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
+                val provider = when {
+                    trimmed.startsWith("sk-proj-") -> com.persianai.assistant.models.AIProvider.OPENAI
+                    trimmed.startsWith("sk-or-") -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
+                    else -> com.persianai.assistant.models.AIProvider.OPENAI
+                }
+                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, true))
+            }
+        }
+        
+        return keys
     }
 
     private fun showClearKeysDialog() {
@@ -234,15 +339,19 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     private fun startModelDownload() {
-        // فعلاً فقط یک شبیه‌سازی است
         Toast.makeText(this, "در حال دانلود مدل...", Toast.LENGTH_LONG).show()
         
-        // شبیه‌سازی دانلود موفق
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            prefsManager.setOfflineModelDownloaded(true)
-            updateOfflineModelStatus()
-            Toast.makeText(this, "✅ مدل با موفقیت دانلود شد", Toast.LENGTH_SHORT).show()
-        }, 2000)
+        // شبیه‌سازی دانلود موفق با lifecycleScope
+        lifecycleScope.launch {
+            try {
+                kotlinx.coroutines.delay(2000)
+                prefsManager.setOfflineModelDownloaded(true)
+                updateOfflineModelStatus()
+                Toast.makeText(this@SettingsActivity, "✅ مدل با موفقیت دانلود شد", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@SettingsActivity, "❌ خطا در دانلود: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
         
         // TODO: پیاده‌سازی واقعی دانلود مدل از سرور یا GitHub
     }
