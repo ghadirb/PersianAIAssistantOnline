@@ -58,6 +58,9 @@ class SettingsActivity : AppCompatActivity() {
         
         // حالت کار فعلی
         updateCurrentModeText()
+        
+        // وضعیت مدل آفلاین
+        updateOfflineModelStatus()
     }
     
     private fun updateCurrentModeText() {
@@ -69,11 +72,37 @@ class SettingsActivity : AppCompatActivity() {
         }
         binding.currentModeText.text = "حالت فعلی: $modeText"
     }
+    
+    private fun updateOfflineModelStatus() {
+        val isDownloaded = prefsManager.isOfflineModelDownloaded()
+        
+        if (isDownloaded) {
+            binding.offlineModelStatus.text = "✅ مدل آماده است"
+            binding.offlineModelStatus.setTextColor(getColor(android.R.color.holo_green_dark))
+            binding.downloadModelButton.visibility = android.view.View.GONE
+            binding.deleteModelButton.visibility = android.view.View.VISIBLE
+        } else {
+            binding.offlineModelStatus.text = "❌ مدل دانلود نشده"
+            binding.offlineModelStatus.setTextColor(getColor(android.R.color.holo_red_dark))
+            binding.downloadModelButton.visibility = android.view.View.VISIBLE
+            binding.deleteModelButton.visibility = android.view.View.GONE
+        }
+    }
 
     private fun setupListeners() {
         // دکمه تغییر حالت کار
         binding.changeModeButton.setOnClickListener {
             showChangeModeDialog()
+        }
+        
+        // دکمه دانلود مدل آفلاین
+        binding.downloadModelButton.setOnClickListener {
+            showDownloadModelDialog()
+        }
+        
+        // دکمه حذف مدل
+        binding.deleteModelButton.setOnClickListener {
+            showDeleteModelDialog()
         }
         
         // دکمه مدیریت برنامه‌های متصل
@@ -182,6 +211,53 @@ class SettingsActivity : AppCompatActivity() {
                 Toast.makeText(this@SettingsActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showDownloadModelDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("دانلود مدل آفلاین")
+            .setMessage(
+                "مدل آفلاین امکانات زیر را بدون نیاز به اینترنت فراهم می‌کند:\n\n" +
+                "✅ باز کردن برنامه‌ها\n" +
+                "✅ یادآوری و تایمر\n" +
+                "✅ دستورات ساده سیستمی\n" +
+                "✅ حریم خصوصی کامل\n\n" +
+                "⚠️ حجم: حدود 100 مگابایت\n" +
+                "⚠️ پاسخ‌ها ساده‌تر از حالت آنلاین\n\n" +
+                "آیا میخواهید دانلود شود؟"
+            )
+            .setPositiveButton("دانلود") { _, _ ->
+                startModelDownload()
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
+    }
+    
+    private fun startModelDownload() {
+        // فعلاً فقط یک شبیه‌سازی است
+        Toast.makeText(this, "در حال دانلود مدل...", Toast.LENGTH_LONG).show()
+        
+        // شبیه‌سازی دانلود موفق
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            prefsManager.setOfflineModelDownloaded(true)
+            updateOfflineModelStatus()
+            Toast.makeText(this, "✅ مدل با موفقیت دانلود شد", Toast.LENGTH_SHORT).show()
+        }, 2000)
+        
+        // TODO: پیاده‌سازی واقعی دانلود مدل از سرور یا GitHub
+    }
+    
+    private fun showDeleteModelDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("حذف مدل آفلاین")
+            .setMessage("آیا مطمئن هستید که میخواهید مدل آفلاین را حذف کنید؟\n\nحجم آزاد شده: ≈100MB")
+            .setPositiveButton("حذف") { _, _ ->
+                prefsManager.setOfflineModelDownloaded(false)
+                updateOfflineModelStatus()
+                Toast.makeText(this, "✅ مدل حذف شد", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
     }
 
     private fun showChangeModeDialog() {

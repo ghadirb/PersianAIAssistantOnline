@@ -25,6 +25,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_WORKING_MODE = "working_mode"
         private const val KEY_WELCOME_COMPLETED = "welcome_completed"
         private const val KEY_TTS_ENABLED = "tts_enabled"
+        private const val KEY_OFFLINE_MODEL_DOWNLOADED = "offline_model_downloaded"
         
         const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
@@ -138,5 +139,14 @@ JSON ONLY."""
 
     fun isTTSEnabled(): Boolean {
         return prefs.getBoolean(KEY_TTS_ENABLED, true) // پیش‌فرض فعال
+    }
+
+    // Offline Model
+    fun setOfflineModelDownloaded(downloaded: Boolean) {
+        prefs.edit().putBoolean(KEY_OFFLINE_MODEL_DOWNLOADED, downloaded).apply()
+    }
+
+    fun isOfflineModelDownloaded(): Boolean {
+        return prefs.getBoolean(KEY_OFFLINE_MODEL_DOWNLOADED, false)
     }
 }

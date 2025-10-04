@@ -67,6 +67,11 @@ class MainActivity : AppCompatActivity() {
         private const val NOTIFICATION_PERMISSION_CODE = 1002
     }
 
+    override fun onResume() {
+        super.onResume()
+        updateModeIndicator()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -103,6 +108,9 @@ class MainActivity : AppCompatActivity() {
             
             updateModelDisplay()
             android.util.Log.d("MainActivity", "Model display updated")
+            
+            updateModeIndicator()
+            android.util.Log.d("MainActivity", "Mode indicator updated")
             
             // نمایش پیام خوش‌آمدگویی در اولین اجرا
             showFirstRunDialogIfNeeded()
@@ -1020,6 +1028,33 @@ class MainActivity : AppCompatActivity() {
             title = "دستیار هوش مصنوعی"
             subtitle = "${currentModel.displayName}"
         }
+    }
+    
+    private fun updateModeIndicator() {
+        val mode = prefsManager.getWorkingMode()
+        val isModelDownloaded = prefsManager.isOfflineModelDownloaded()
+        
+        val (text, color) = when (mode) {
+            PreferencesManager.WorkingMode.ONLINE -> {
+                "🌐 آنلاین" to "#E3F2FD"
+            }
+            PreferencesManager.WorkingMode.OFFLINE -> {
+                if (isModelDownloaded) {
+                    "📱 آفلاین" to "#F1F8E9"
+                } else {
+                    "⚠️ آفلاین (مدل ندارد)" to "#FFEBEE"
+                }
+            }
+            PreferencesManager.WorkingMode.HYBRID -> {
+                "⚡ ترکیبی" to "#FFF3E0"
+            }
+        }
+        
+        binding.modeIndicator.text = text
+        binding.modeIndicator.setChipBackgroundColorResource(android.R.color.transparent)
+        binding.modeIndicator.chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+            android.graphics.Color.parseColor(color)
+        )
     }
 
     private fun refreshAPIKeys() {
