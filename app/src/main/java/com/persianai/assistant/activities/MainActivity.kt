@@ -414,11 +414,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (aiClient == null) {
-            Toast.makeText(this, "کلید API تنظیم نشده است", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         val userMessage = ChatMessage(
             role = MessageRole.USER,
             content = text,
@@ -433,34 +428,47 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // ارسال به AI برای تحلیل هوشمند
-                val enhancedPrompt = """
-                    شما یک دستیار هوشمند فارسی هستید که می‌توانید:
-                    1. یادآوری تنظیم کنید (با فرمت JSON)
-                    2. مسیریابی فارسی انجام دهید
-                    3. محاسبات انجام دهید
-                    4. تماس، پیامک، ایمیل ارسال کنید
-                    5. به سوالات پاسخ دهید
-                    
-                    اگر درخواست یادآوری بود، پاسخ را با این فرمت بدهید:
-                    REMINDER:{"time":"HH:mm","message":"متن یادآوری","alarm":true/false,"repeat":"daily/none"}
-                    
-                    اگر درخواست مسیریابی بود، پاسخ را با این فرمت بدهید:
-                    NAVIGATION:{"destination":"مقصد","voice":true}
-                    
-                    اگر محاسبه ریاضی بود، جواب را محاسبه کنید.
-                    
-                    درخواست کاربر: $text
-                """.trimIndent()
+                val mode = prefsManager.getWorkingMode()
+                val isModelDownloaded = prefsManager.isOfflineModelDownloaded()
                 
-                val response = aiClient!!.sendMessage(currentModel, messages, enhancedPrompt)
-                
-                // پردازش پاسخ AI
-                val processedResponse = processAIResponse(response.content)
+                val response = when (mode) {
+                    PreferencesManager.WorkingMode.OFFLINE -> {
+                        // حالت آفلاین
+                        if (isModelDownloaded) {
+                            handleOfflineRequest(text)
+                        } else {
+                            "⚠️ مدل آفلاین دانلود نشده است.\n\nلطفاً از تنظیمات، مدل را دانلود کنید یا به حالت آنلاین بروید."
+                        }
+                    }
+                    
+                    PreferencesManager.WorkingMode.ONLINE -> {
+                        // حالت آنلاین
+                        if (aiClient == null) {
+                            "❌ کلید API تنظیم نشده است.\n\nلطفاً از تنظیمات، کلیدهای API را وارد کنید."
+                        } else {
+                            handleOnlineRequest(text)
+                        }
+                    }
+                    
+                    PreferencesManager.WorkingMode.HYBRID -> {
+                        // حالت ترکیبی - اول آفلاین، بعد آنلاین
+                        val offlineParser = com.persianai.assistant.ai.OfflineIntentParser(this@MainActivity)
+                        
+                        if (isModelDownloaded && offlineParser.canHandle(text)) {
+                            // دستور ساده - از آفلاین استفاده کن
+                            handleOfflineRequest(text)
+                        } else if (aiClient != null) {
+                            // دستور پیچیده - از آنلاین استفاده کن
+                            handleOnlineRequest(text)
+                        } else {
+                            "⚠️ برای این درخواست نیاز به اتصال آنلاین است ولی کلید API تنظیم نشده.\n\nلطفاً کلیدها را از تنظیمات وارد کنید."
+                        }
+                    }
+                }
                 
                 val finalMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,
-                    content = processedResponse,
+                    content = response,
                     timestamp = System.currentTimeMillis()
                 )
                 addMessage(finalMessage)
@@ -471,7 +479,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,
-                    content = "خطا: ${e.message}",
+                    content = "❌ خطا: ${e.message}",
                     timestamp = System.currentTimeMillis(),
                     isError = true
                 )
@@ -480,6 +488,38 @@ class MainActivity : AppCompatActivity() {
                 binding.sendButton.isEnabled = true
             }
         }
+    }
+    
+    private suspend fun handleOfflineRequest(text: String): String = withContext(Dispatchers.IO) {
+        val parser = com.persianai.assistant.ai.OfflineIntentParser(this@MainActivity)
+        val intentJson = parser.parse(text)
+        
+        // اجرای intent و برگرداندن نتیجه
+        return@withContext processAIResponse(intentJson)
+    }
+    
+    private suspend fun handleOnlineRequest(text: String): String = withContext(Dispatchers.IO) {
+        val enhancedPrompt = """
+            شما یک دستیار هوشمند فارسی هستید که می‌توانید:
+            1. یادآوری تنظیم کنید (با فرمت JSON)
+            2. مسیریابی فارسی انجام دهید
+            3. محاسبات انجام دهید
+            4. تماس، پیامک، ایمیل ارسال کنید
+            5. به سوالات پاسخ دهید
+            
+            اگر درخواست یادآوری بود، پاسخ را با این فرمت بدهید:
+            REMINDER:{"time":"HH:mm","message":"متن یادآوری","alarm":true/false,"repeat":"daily/none"}
+            
+            اگر درخواست مسیریابی بود، پاسخ را با این فرمت بدهید:
+            NAVIGATION:{"destination":"مقصد","voice":true}
+            
+            اگر محاسبه ریاضی بود، جواب را محاسبه کنید.
+            
+            درخواست کاربر: $text
+        """.trimIndent()
+        
+        val response = aiClient!!.sendMessage(currentModel, messages, enhancedPrompt)
+        return@withContext processAIResponse(response.content)
     }
 
     private fun addMessage(message: ChatMessage) {
