@@ -2,7 +2,14 @@ package com.persianai.assistant.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayoutMediator
+import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityWelcomeBinding
 import com.persianai.assistant.utils.PreferencesManager
 
@@ -13,6 +20,7 @@ class WelcomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityWelcomeBinding
     private lateinit var prefsManager: PreferencesManager
+    private var selectedMode = PreferencesManager.WorkingMode.HYBRID
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,52 +36,43 @@ class WelcomeActivity : AppCompatActivity() {
         binding = ActivityWelcomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupUI()
+        setupViewPager()
+        setupContinueButton()
     }
 
-    private fun setupUI() {
-        // دکمه حالت آنلاین
-        binding.onlineModeButton.setOnClickListener {
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.ONLINE)
+    private fun setupViewPager() {
+        val layouts = listOf(
+            R.layout.page_mode_online,
+            R.layout.page_mode_offline,
+            R.layout.page_mode_hybrid
+        )
+
+        val titles = listOf("آنلاین", "آفلاین", "ترکیبی")
+
+        binding.viewPager.adapter = ModePagerAdapter(layouts)
+        binding.viewPager.setCurrentItem(2, false) // شروع از ترکیبی
+
+        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
+            tab.text = titles[position]
+        }.attach()
+
+        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                selectedMode = when (position) {
+                    0 -> PreferencesManager.WorkingMode.ONLINE
+                    1 -> PreferencesManager.WorkingMode.OFFLINE
+                    else -> PreferencesManager.WorkingMode.HYBRID
+                }
+            }
+        })
+    }
+
+    private fun setupContinueButton() {
+        binding.continueButton.setOnClickListener {
+            prefsManager.setWorkingMode(selectedMode)
             prefsManager.setWelcomeCompleted(true)
             goToMain()
         }
-
-        // دکمه حالت آفلاین
-        binding.offlineModeButton.setOnClickListener {
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
-            prefsManager.setWelcomeCompleted(true)
-            
-            // نمایش راهنما برای دانلود مدل آفلاین
-            showOfflineGuide()
-        }
-
-        // دکمه حالت ترکیبی
-        binding.hybridModeButton.setOnClickListener {
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-            prefsManager.setWelcomeCompleted(true)
-            goToMain()
-        }
-    }
-
-    private fun showOfflineGuide() {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("حالت آفلاین")
-            .setMessage(
-                "در حالت آفلاین:\n\n" +
-                "✅ نیازی به اینترنت نیست\n" +
-                "✅ حریم خصوصی کامل\n" +
-                "⚠️ پاسخ‌ها ساده‌تر هستند\n" +
-                "⚠️ نیاز به دانلود مدل (≈100MB)\n\n" +
-                "می‌توانید بعداً در تنظیمات مدل آفلاین دانلود کنید."
-            )
-            .setPositiveButton("ادامه") { _, _ ->
-                goToMain()
-            }
-            .setNegativeButton("انصراف") { _, _ ->
-                prefsManager.setWelcomeCompleted(false)
-            }
-            .show()
     }
 
     private fun goToMain() {
@@ -83,6 +82,26 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        // غیرفعال کردن دکمه بازگشت
+        // غیرفعال کردن دکمه بازگشت در صفحه Welcome
+    }
+
+    // Adapter برای ViewPager2
+    private class ModePagerAdapter(private val layouts: List<Int>) :
+        RecyclerView.Adapter<ModePagerAdapter.PageViewHolder>() {
+
+        class PageViewHolder(val view: View) : RecyclerView.ViewHolder(view)
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(viewType, parent, false)
+            return PageViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: PageViewHolder, position: Int) {
+            // هیچ بایندینگی نیاز نیست
+        }
+
+        override fun getItemCount() = layouts.size
+
+        override fun getItemViewType(position: Int) = layouts[position]
     }
 }

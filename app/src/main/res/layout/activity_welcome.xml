@@ -1,207 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white"
+    android:background="#FAFAFA"
     android:layoutDirection="rtl"
-    android:padding="24dp">
+    android:orientation="vertical">
 
-    <!-- Logo/Icon -->
-    <ImageView
-        android:id="@+id/logoImage"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="48dp"
-        android:src="@mipmap/ic_launcher"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- Title -->
-    <TextView
-        android:id="@+id/welcomeTitle"
-        android:layout_width="wrap_content"
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="دستیار هوش مصنوعی"
-        android:textColor="#1A237E"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/logoImage" />
-
-    <!-- Subtitle -->
-    <TextView
-        android:id="@+id/welcomeSubtitle"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:background="#1A237E"
         android:gravity="center"
-        android:text="همراه هوشمند شما در تمام لحظات"
-        android:textColor="#5C6BC0"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/welcomeTitle" />
+        android:orientation="vertical"
+        android:padding="32dp">
 
-    <!-- Description -->
-    <TextView
-        android:id="@+id/welcomeDescription"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:gravity="center"
-        android:lineSpacingExtra="4dp"
-        android:text="لطفاً حالت کار برنامه را انتخاب کنید:"
-        android:textColor="#424242"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/welcomeSubtitle" />
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@mipmap/ic_launcher" />
 
-    <!-- Online Mode Card -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/onlineModeCard"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/welcomeDescription">
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
+            android:layout_marginTop="16dp"
+            android:text="دستیار هوش مصنوعی"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🌐 حالت آنلاین"
-                android:textColor="#1A237E"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:lineSpacingExtra="2dp"
-                android:text="• پاسخ‌های دقیق و پیشرفته\n• نیاز به اینترنت و API Key\n• مناسب استفاده روزمره"
-                android:textColor="#616161"
-                android:textSize="14sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/onlineModeButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="انتخاب حالت آنلاین"
-                android:textSize="16sp" />
-
-        </LinearLayout>
-
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Offline Mode Card -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/offlineModeCard"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/onlineModeCard">
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
+            android:layout_marginTop="8dp"
+            android:text="یار هوشمند شما در تمام لحظات"
+            android:textColor="#BBDEFB"
+            android:textSize="14sp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="📱 حالت آفلاین"
-                android:textColor="#2E7D32"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+    </LinearLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:lineSpacingExtra="2dp"
-                android:text="• بدون نیاز به اینترنت\n• حریم خصوصی کامل\n• پاسخ‌های سریع و ساده"
-                android:textColor="#616161"
-                android:textSize="14sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/offlineModeButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="انتخاب حالت آفلاین"
-                android:textSize="16sp" />
-
-        </LinearLayout>
-
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Hybrid Mode Card -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/hybridModeCard"
-        android:layout_width="0dp"
+    <!-- Tab Layout -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/offlineModeCard">
+        android:background="#FFFFFF"
+        android:elevation="4dp"
+        app:tabGravity="fill"
+        app:tabMode="fixed"
+        app:tabSelectedTextColor="#1A237E"
+        app:tabTextColor="#757575" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
+    <!-- ViewPager -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⚡ حالت ترکیبی (پیشنهادی)"
-                android:textColor="#F57C00"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+    <!-- Continue Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/continueButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:padding="16dp"
+        android:text="ادامه"
+        android:textSize="18sp"
+        app:cornerRadius="12dp" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:lineSpacingExtra="2dp"
-                android:text="• آنلاین برای AI پیشرفته\n• آفلاین برای دستورات ساده\n• بهترین تعادل"
-                android:textColor="#616161"
-                android:textSize="14sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/hybridModeButton"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="انتخاب حالت ترکیبی"
-                android:textSize="16sp" />
-
-        </LinearLayout>
-
-    </com.google.android.material.card.MaterialCardView>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>
