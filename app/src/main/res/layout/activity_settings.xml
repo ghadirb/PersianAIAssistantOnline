@@ -131,24 +131,13 @@
                     android:padding="16dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="⚙️ حالت کار"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/currentModeText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="حالت فعلی: ترکیبی"
-                        android:textColor="#4CAF50"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/backgroundServiceSwitch"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="تغییر حالت کار برنامه (آنلاین، آفلاین، ترکیبی)"

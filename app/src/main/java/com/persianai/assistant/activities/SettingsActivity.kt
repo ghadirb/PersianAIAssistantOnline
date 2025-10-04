@@ -60,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.backgroundServiceSwitch.isChecked = serviceEnabled
         android.util.Log.d("SettingsActivity", "Service enabled: $serviceEnabled")
         
+        // وضعیت TTS
+        binding.ttsSwitch.isChecked = prefsManager.isTTSEnabled()
+        
         // حالت کار فعلی
         updateCurrentModeText()
         
@@ -146,13 +149,12 @@ class SettingsActivity : AppCompatActivity() {
         binding.refreshKeysButton.setOnClickListener {
             showPasswordDialogForRefresh()
         }
-
         // دکمه پاک کردن کلیدها
         binding.clearKeysButton.setOnClickListener {
             showClearKeysDialog()
         }
 
-        // سرویس پس‌زمینه
+        // Switch سرویس پس‌زمینه
         binding.backgroundServiceSwitch.setOnCheckedChangeListener { _, isChecked ->
             prefsManager.setServiceEnabled(isChecked)
             if (isChecked) {
@@ -161,8 +163,6 @@ class SettingsActivity : AppCompatActivity() {
                 stopBackgroundService()
             }
         }
-
-        // بک‌آپ دستی
         binding.backupButton.setOnClickListener {
             performBackup()
         }

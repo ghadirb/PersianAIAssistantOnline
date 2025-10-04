@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefsManager: PreferencesManager
     private lateinit var messageStorage: MessageStorage
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
+    private lateinit var ttsHelper: com.persianai.assistant.utils.TTSHelper
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
     private val messages = mutableListOf<ChatMessage>()
@@ -71,6 +72,11 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updateModeIndicator()
     }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        ttsHelper.shutdown()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,6 +97,10 @@ class MainActivity : AppCompatActivity() {
             prefsManager = PreferencesManager(this)
             messageStorage = MessageStorage(this)
             conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
+            
+            // راه‌اندازی TTS
+            ttsHelper = com.persianai.assistant.utils.TTSHelper(this)
+            ttsHelper.initialize()
             
             android.util.Log.d("MainActivity", "Managers initialized")
             
@@ -526,6 +536,11 @@ class MainActivity : AppCompatActivity() {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
         binding.recyclerView.smoothScrollToPosition(messages.size - 1)
+        
+        // اعلام صوتی پاسخ دستیار
+        if (message.role == MessageRole.ASSISTANT && !message.isError) {
+            ttsHelper.speak(message.content)
+        }
     }
     
     private suspend fun processAIResponse(response: String): String {
