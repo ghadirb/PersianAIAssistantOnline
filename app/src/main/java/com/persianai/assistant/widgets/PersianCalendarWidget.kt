@@ -45,6 +45,6 @@ class PersianCalendarWidget : AppWidgetProvider() {
     }
     
     private fun getWeatherText(): String {
-        return "آفتابی" // TODO: integrate weather API
+        return "${com.persianai.assistant.utils.WeatherAPI.getTemperature()} - ${com.persianai.assistant.utils.WeatherAPI.getDescription()}"
     }
 }
