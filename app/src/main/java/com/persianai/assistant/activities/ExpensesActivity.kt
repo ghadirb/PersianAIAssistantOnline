@@ -63,7 +63,7 @@ class ExpensesActivity : AppCompatActivity() {
         val totalExpense = expenseStorage.getMonthlyTotal(monthKey)
         val totalIncome = incomeStorage.getMonthlyTotal(monthKey)
         val balance = totalIncome - totalExpense
-        supportActionBar?.subtitle = "درآمد: ${formatMoney(totalIncome)} | هزینه: ${formatMoney(totalExpense)} | مانده: ${formatMoney(balance)}"
+        supportActionBar?.subtitle = "${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
     }
     
     private fun formatMoney(amount: Long): String {
@@ -112,6 +112,7 @@ class ExpensesActivity : AppCompatActivity() {
                     )
                     expenseStorage.saveExpense(expense)
                     loadExpenses()
+                    showSummaryToast()
                 }
             }
             .setNegativeButton("انصراف", null)
@@ -138,10 +139,27 @@ class ExpensesActivity : AppCompatActivity() {
                     )
                     incomeStorage.saveIncome(income)
                     loadExpenses()
+                    showSummaryToast()
                 }
             }
             .setNegativeButton("انصراف", null)
             .show()
+    }
+    
+    private fun showSummaryToast() {
+        val persianDate = PersianDateConverter.getCurrentPersianDate()
+        val monthKey = "${persianDate.year}/${persianDate.month}"
+        val totalExpense = expenseStorage.getMonthlyTotal(monthKey)
+        val totalIncome = incomeStorage.getMonthlyTotal(monthKey)
+        val balance = totalIncome - totalExpense
+        
+        val message = """
+            💰 درآمد: ${formatMoney(totalIncome)}
+            💸 هزینه: ${formatMoney(totalExpense)}
+            📈 مانده: ${formatMoney(balance)}
+        """.trimIndent()
+        
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
     
     override fun onSupportNavigateUp(): Boolean {
@@ -150,8 +168,10 @@ class ExpensesActivity : AppCompatActivity() {
     }
 }
 
-class ExpenseAdapter(private val expenses: List<Expense>) : 
-    RecyclerView.Adapter<ExpenseAdapter.ViewHolder>() {
+class ExpenseAdapter(
+    private val expenses: List<Expense>,
+    private val onItemClick: (Expense) -> Unit = {}
+) : RecyclerView.Adapter<ExpenseAdapter.ViewHolder>() {
     
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val categoryText: TextView = view.findViewById(android.R.id.text1)
@@ -167,7 +187,12 @@ class ExpenseAdapter(private val expenses: List<Expense>) :
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val expense = expenses[position]
         holder.categoryText.text = "${expense.category.emoji} ${expense.category.displayName}"
-        holder.amountText.text = "${expense.amount.toString().replace(Regex("(\\d)(?=(\\d{3})+$)"), "$1,")} تومان - ${expense.persianDate}"
+        holder.amountText.text = "${formatAmount(expense.amount)} تومان - ${expense.persianDate}"
+        holder.itemView.setOnClickListener { onItemClick(expense) }
+    }
+    
+    private fun formatAmount(amount: Long): String {
+        return amount.toString().replace(Regex("(\\d)(?=(\\d{3})+$)"), "$1,")
     }
     
     override fun getItemCount() = expenses.size
