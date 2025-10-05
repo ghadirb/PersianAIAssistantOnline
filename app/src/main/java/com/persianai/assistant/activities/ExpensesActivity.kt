@@ -58,12 +58,7 @@ class ExpensesActivity : AppCompatActivity() {
     }
     
     private fun updateSummary() {
-        val persianDate = PersianDateConverter.getCurrentPersianDate()
-        val monthKey = "${persianDate.year}/${persianDate.month}"
-        val totalExpense = expenseStorage.getMonthlyTotal(monthKey)
-        val totalIncome = incomeStorage.getMonthlyTotal(monthKey)
-        val balance = totalIncome - totalExpense
-        supportActionBar?.subtitle = "${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
+        // Subtitle removed - summary shown in toast instead
     }
     
     private fun formatMoney(amount: Long): String {
@@ -160,6 +155,21 @@ class ExpensesActivity : AppCompatActivity() {
         """.trimIndent()
         
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+    }
+    
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        menuInflater.inflate(R.menu.expenses_menu, menu)
+        return true
+    }
+    
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_show_summary -> {
+                showSummaryToast()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {
