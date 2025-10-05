@@ -19,9 +19,11 @@ import com.persianai.assistant.utils.PersianDateConverter
 class ExpensesActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityExpensesBinding
-    private lateinit var storage: ExpenseStorage
+    private lateinit var expenseStorage: ExpenseStorage
+    private lateinit var incomeStorage: com.persianai.assistant.storage.IncomeStorage
     private lateinit var adapter: ExpenseAdapter
     private val expenses = mutableListOf<Expense>()
+    private var showingExpenses = true
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,12 +34,13 @@ class ExpensesActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "💰 حسابداری شخصی"
         
-        storage = ExpenseStorage(this)
+        expenseStorage = ExpenseStorage(this)
+        incomeStorage = com.persianai.assistant.storage.IncomeStorage(this)
         setupRecyclerView()
         loadExpenses()
         
         binding.addExpenseFab.setOnClickListener {
-            showAddExpenseDialog()
+            showAddDialog()
         }
     }
     
@@ -49,8 +52,31 @@ class ExpensesActivity : AppCompatActivity() {
     
     private fun loadExpenses() {
         expenses.clear()
-        expenses.addAll(storage.getAllExpenses())
+        expenses.addAll(expenseStorage.getAllExpenses())
         adapter.notifyDataSetChanged()
+        updateSummary()
+    }
+    
+    private fun updateSummary() {
+        val persianDate = PersianDateConverter.getCurrentPersianDate()
+        val monthKey = "${persianDate.year}/${persianDate.month}"
+        val totalExpense = expenseStorage.getMonthlyTotal(monthKey)
+        val totalIncome = incomeStorage.getMonthlyTotal(monthKey)
+        val balance = totalIncome - totalExpense
+        supportActionBar?.subtitle = "درآمد: ${formatMoney(totalIncome)} | هزینه: ${formatMoney(totalExpense)} | مانده: ${formatMoney(balance)}"
+    }
+    
+    private fun formatMoney(amount: Long): String {
+        return amount.toString().replace(Regex("(\\d)(?=(\\d{3})+$)"), "$1,")
+    }
+    
+    private fun showAddDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("انتخاب کنید")
+            .setItems(arrayOf("💸 ثبت هزینه", "💰 ثبت درآمد")) { _, which ->
+                if (which == 0) showAddExpenseDialog() else showAddIncomeDialog()
+            }
+            .show()
     }
     
     private fun showAddExpenseDialog() {
@@ -84,7 +110,33 @@ class ExpensesActivity : AppCompatActivity() {
                         description = "",
                         persianDate = persianDate.toString()
                     )
-                    storage.saveExpense(expense)
+                    expenseStorage.saveExpense(expense)
+                    loadExpenses()
+                }
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
+    }
+    
+    private fun showAddIncomeDialog() {
+        val input = android.widget.EditText(this).apply {
+            hint = "مبلغ (تومان)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("💰 ثبت درآمد")
+            .setView(input)
+            .setPositiveButton("ثبت") { _, _ ->
+                val amount = input.text.toString().toLongOrNull() ?: 0
+                if (amount > 0) {
+                    val persianDate = PersianDateConverter.getCurrentPersianDate()
+                    val income = com.persianai.assistant.models.Income(
+                        amount = amount,
+                        source = "درآمد",
+                        persianDate = persianDate.toString()
+                    )
+                    incomeStorage.saveIncome(income)
                     loadExpenses()
                 }
             }
