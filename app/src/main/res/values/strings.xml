@@ -15,6 +15,9 @@
     <string name="menu_clear_chat">پاک کردن چت</string>
     <string name="menu_settings">تنظیمات</string>
     
+    <!-- Widget -->
+    <string name="widget_description">تقویم فارسی با ساعت و آب و هوا</string>
+    
     <!-- Settings -->
     <string name="settings_title">تنظیمات</string>
     <string name="api_keys_section">کلیدهای API</string>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#AA000000">
+
+    <TextClock
+        android:id="@+id/widgetClock"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:format12Hour="hh:mm"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/widgetPersianDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="تاریخ"
+        android:textSize="18sp"
+        android:gravity="center"
+        android:textColor="#E0E0E0" />
+
+    <TextView
+        android:id="@+id/widgetWeather"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🌤️ هوا"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
