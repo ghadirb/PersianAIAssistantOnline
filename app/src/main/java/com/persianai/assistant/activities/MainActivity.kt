@@ -1191,6 +1191,14 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, ExpensesActivity::class.java))
                 true
             }
+            R.id.action_weather -> {
+                startActivity(Intent(this, WeatherActivity::class.java))
+                true
+            }
+            R.id.action_calendar -> {
+                startActivity(Intent(this, CalendarActivity::class.java))
+                true
+            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true

@@ -72,6 +72,18 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
+        <!-- Weather Activity -->
+        <activity
+            android:name=".activities.WeatherActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity" />
+
+        <!-- Calendar Activity -->
+        <activity
+            android:name=".activities.CalendarActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity" />
+
         <!-- Alarm Activity -->
         <activity
             android:name=".activities.AlarmActivity"
