@@ -1187,6 +1187,10 @@ class MainActivity : AppCompatActivity() {
                 refreshAPIKeys()
                 true
             }
+            R.id.action_expenses -> {
+                startActivity(Intent(this, ExpensesActivity::class.java))
+                true
+            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true

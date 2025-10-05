@@ -66,6 +66,12 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
+        <!-- Expenses Activity -->
+        <activity
+            android:name=".activities.ExpensesActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity" />
+
         <!-- Alarm Activity -->
         <activity
             android:name=".activities.AlarmActivity"
