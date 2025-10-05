@@ -16,6 +16,10 @@ class WeatherActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
+        
+        binding.tempText.text = com.persianai.assistant.utils.WeatherAPI.getTemperature()
+        binding.descText.text = com.persianai.assistant.utils.WeatherAPI.getDescription()
+        binding.aqiText.text = "کیفیت هوا: ${com.persianai.assistant.utils.WeatherAPI.getAQI()}"
     }
     
     override fun onSupportNavigateUp(): Boolean {

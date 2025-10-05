@@ -10,12 +10,10 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/primaryColor" />
 
-    <TextView
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/eventsRecyclerView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:text="📅 تقویم فارسی با مناسبت‌ها به زودی..."
-        android:textSize="18sp"
-        android:gravity="center" />
+        android:layout_height="match_parent"
+        android:padding="8dp" />
 
 </LinearLayout>
