@@ -4,17 +4,22 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#30000000">
+    android:background="@drawable/widget_background">
 
     <TextClock
         android:id="@+id/widgetClock"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:format12Hour="hh:mm"
+        android:format24Hour="HH:mm"
         android:textSize="42sp"
         android:textStyle="bold"
         android:gravity="center"
-        android:textColor="#FFFFFF" />
+        android:textColor="#FFFFFF"
+        android:shadowColor="#000000"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4" />
 
     <TextView
         android:id="@+id/widgetPersianDate"
@@ -23,7 +28,11 @@
         android:text="تاریخ"
         android:textSize="18sp"
         android:gravity="center"
-        android:textColor="#E0E0E0" />
+        android:textColor="#FFFFFF"
+        android:shadowColor="#000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="2" />
 
     <TextView
         android:id="@+id/widgetWeather"
@@ -32,6 +41,10 @@
         android:text="🌤️ هوا"
         android:textSize="16sp"
         android:gravity="center"
-        android:textColor="#FFFFFF" />
+        android:textColor="#FFFFFF"
+        android:shadowColor="#000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="2" />
 
 </LinearLayout>
