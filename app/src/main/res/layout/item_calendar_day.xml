@@ -9,7 +9,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center"
-        android:background="@android:drawable/dialog_holo_light_frame"
+        android:background="@drawable/circle_today"
         android:visibility="gone" />
 
     <LinearLayout

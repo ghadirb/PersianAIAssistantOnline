@@ -39,7 +39,6 @@ class CalendarGridAdapter(
             todayCircle.visibility = View.VISIBLE
             dayNumber.setTextColor(context.getColor(android.R.color.white))
             dayNumber.textSize = 20f
-            todayCircle.setBackgroundColor(context.getColor(android.R.color.holo_green_dark))
         } else {
             todayCircle.visibility = View.GONE
             dayNumber.setTextColor(context.getColor(android.R.color.black))
