@@ -52,6 +52,8 @@ class PersianCalendarWidget : AppWidgetProvider() {
     }
     
     private fun getWeatherText(): String {
-        return "${com.persianai.assistant.utils.WeatherAPI.getTemperature()} - ${com.persianai.assistant.utils.WeatherAPI.getDescription()}"
+        val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+        val city = prefs.getString("selected_city", "تهران") ?: "تهران"
+        return "$city: ${com.persianai.assistant.utils.WeatherAPI.getTemperature()}"
     }
 }
