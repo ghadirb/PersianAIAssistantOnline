@@ -32,6 +32,15 @@ class CalendarGridAdapter(
         val todayCircle = view.findViewById<View>(R.id.todayCircle)
         
         val day = days[position]
+        
+        // اگر cell خالی است (day = 0)
+        if (day == 0) {
+            dayNumber.text = ""
+            todayCircle.visibility = View.GONE
+            eventIndicator.visibility = View.GONE
+            return view
+        }
+        
         dayNumber.text = day.toString()
         
         // چک کردن اگر امروز است

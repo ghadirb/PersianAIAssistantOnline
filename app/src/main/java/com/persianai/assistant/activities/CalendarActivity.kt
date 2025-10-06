@@ -64,6 +64,49 @@ class CalendarActivity : AppCompatActivity() {
         binding.currentMonthText.text = "${PersianDateConverter.getMonthName(currentMonth)} $currentYear"
     }
     
+    private fun getFirstDayOfMonth(persianYear: Int, persianMonth: Int): Int {
+        // تبدیل اولین روز ماه فارسی به میلادی
+        val persianDate = PersianDateConverter.gregorianToPersian(persianYear, persianMonth, 1)
+        
+        // پیدا کردن تاریخ میلادی معادل
+        var foundDate: java.util.Calendar? = null
+        val currentGregorian = java.util.Calendar.getInstance()
+        val testCalendar = java.util.Calendar.getInstance()
+        
+        // جستجوی تقریبی برای پیدا کردن تاریخ میلادی
+        for (year in currentGregorian.get(java.util.Calendar.YEAR)-1..currentGregorian.get(java.util.Calendar.YEAR)+1) {
+            for (month in 1..12) {
+                for (day in 1..28) {
+                    val pDate = PersianDateConverter.gregorianToPersian(year, month, day)
+                    if (pDate.year == persianYear && pDate.month == persianMonth && pDate.day == 1) {
+                        testCalendar.set(year, month - 1, day)
+                        foundDate = testCalendar
+                        break
+                    }
+                }
+                if (foundDate != null) break
+            }
+            if (foundDate != null) break
+        }
+        
+        if (foundDate != null) {
+            // Java Calendar: SUNDAY = 1, MONDAY = 2, ..., SATURDAY = 7
+            // ما می‌خواهیم: شنبه = 0, یکشنبه = 1, ..., جمعه = 6
+            val dayOfWeek = foundDate.get(java.util.Calendar.DAY_OF_WEEK)
+            return when(dayOfWeek) {
+                java.util.Calendar.SATURDAY -> 0
+                java.util.Calendar.SUNDAY -> 1
+                java.util.Calendar.MONDAY -> 2
+                java.util.Calendar.TUESDAY -> 3
+                java.util.Calendar.WEDNESDAY -> 4
+                java.util.Calendar.THURSDAY -> 5
+                java.util.Calendar.FRIDAY -> 6
+                else -> 0
+            }
+        }
+        return 0
+    }
+    
     private fun setupGrid() {
         val days = mutableListOf<Int>()
         val daysInMonth = when(currentMonth) {
@@ -72,6 +115,15 @@ class CalendarActivity : AppCompatActivity() {
             else -> 29
         }
         
+        // محاسبه روز اول ماه (شنبه = 0, یکشنبه = 1, ... جمعه = 6)
+        val firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth)
+        
+        // اضافه کردن cell های خالی برای offset
+        for (i in 0 until firstDayOfMonth) {
+            days.add(0)  // 0 means empty cell
+        }
+        
+        // اضافه کردن روزهای ماه
         for (i in 1..daysInMonth) {
             days.add(i)
         }
@@ -81,7 +133,9 @@ class CalendarActivity : AppCompatActivity() {
         
         binding.calendarGrid.setOnItemClickListener { _, _, position, _ ->
             val day = days[position]
-            showDayEvents(day)
+            if (day > 0) {  // فقط اگر روز معتبر بود
+                showDayEvents(day)
+            }
         }
         
         val today = PersianDateConverter.getCurrentPersianDate()
