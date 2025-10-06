@@ -300,8 +300,19 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 Toast.makeText(this@SettingsActivity, "در حال بک‌آپ...", Toast.LENGTH_SHORT).show()
-                // TODO: Implement Google Drive backup
-                Toast.makeText(this@SettingsActivity, "بک‌آپ در نسخه بعدی", Toast.LENGTH_SHORT).show()
+                
+                withContext(Dispatchers.IO) {
+                    val backupFile = com.persianai.assistant.utils.BackupManager.createBackup(this@SettingsActivity)
+                    
+                    withContext(Dispatchers.Main) {
+                        com.persianai.assistant.utils.BackupManager.shareBackup(this@SettingsActivity, backupFile)
+                        Toast.makeText(
+                            this@SettingsActivity, 
+                            "✅ بک‌آپ آماده است! Gmail را انتخاب کنید",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             } catch (e: Exception) {
                 Toast.makeText(this@SettingsActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -309,15 +320,41 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun performRestore() {
-        lifecycleScope.launch {
-            try {
-                Toast.makeText(this@SettingsActivity, "در حال بازیابی...", Toast.LENGTH_SHORT).show()
-                // TODO: Implement Google Drive restore
-                Toast.makeText(this@SettingsActivity, "بازیابی در نسخه بعدی", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@SettingsActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "application/json"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        startActivityForResult(Intent.createChooser(intent, "انتخاب فایل بک‌آپ"), REQUEST_CODE_RESTORE)
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_RESTORE && resultCode == RESULT_OK) {
+            data?.data?.let { uri ->
+                lifecycleScope.launch {
+                    try {
+                        val content = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        if (content != null) {
+                            val success = withContext(Dispatchers.IO) {
+                                com.persianai.assistant.utils.BackupManager.restoreBackup(this@SettingsActivity, content)
+                            }
+                            if (success) {
+                                Toast.makeText(this@SettingsActivity, "✅ بازیابی موفق!", Toast.LENGTH_SHORT).show()
+                                loadSettings()
+                            } else {
+                                Toast.makeText(this@SettingsActivity, "❌ خطا در بازیابی", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SettingsActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
+    }
+    
+    companion object {
+        private const val REQUEST_CODE_RESTORE = 1001
     }
 
     private fun showSelectModelTypeDialog() {
