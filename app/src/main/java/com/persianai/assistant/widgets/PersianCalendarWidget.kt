@@ -35,7 +35,7 @@ class PersianCalendarWidget : AppWidgetProvider() {
         val dateText = "$dayOfWeek، ${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
         
         views.setTextViewText(R.id.widgetPersianDate, dateText)
-        views.setTextViewText(R.id.widgetWeather, "🌤️ ${getWeatherText()}")
+        views.setTextViewText(R.id.widgetWeather, "🌤️ ${getWeatherText(context)}")
         
         val intent = Intent(context, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -51,7 +51,7 @@ class PersianCalendarWidget : AppWidgetProvider() {
         return days[dayIndex]
     }
     
-    private fun getWeatherText(): String {
+    private fun getWeatherText(context: Context): String {
         val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         return "$city: ${com.persianai.assistant.utils.WeatherAPI.getTemperature()}"
