@@ -28,7 +28,8 @@
                 android:id="@+id/prevMonthBtn"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="◀" />
+                android:text="◀"
+                android:textSize="24sp" />
 
             <TextView
                 android:id="@+id/currentMonthText"
@@ -44,7 +45,8 @@
                 android:id="@+id/nextMonthBtn"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="▶" />
+                android:text="▶"
+                android:textSize="24sp" />
 
         </LinearLayout>
 
