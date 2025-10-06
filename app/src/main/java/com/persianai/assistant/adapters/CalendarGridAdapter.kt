@@ -36,15 +36,11 @@ class CalendarGridAdapter(
         
         // چک کردن اگر امروز است
         val today = PersianDateConverter.getCurrentPersianDate()
-        android.util.Log.d("CalendarAdapter", "Checking day=$day, month=$month, year=$year vs today=${today.day}, ${today.month}, ${today.year}")
         if (day == today.day && month == today.month && year == today.year) {
-            android.util.Log.d("CalendarAdapter", "TODAY FOUND! Showing circle")
             todayCircle.visibility = View.VISIBLE
-            dayNumber.setTextColor(context.getColor(android.R.color.white))
-            dayNumber.textSize = 20f
+            dayNumber.textSize = 18f
         } else {
             todayCircle.visibility = View.GONE
-            dayNumber.setTextColor(context.getColor(android.R.color.black))
             dayNumber.textSize = 18f
         }
         
