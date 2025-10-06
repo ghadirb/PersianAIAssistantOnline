@@ -1,10 +1,13 @@
 package com.persianai.assistant.widgets
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.Intent
 import android.widget.RemoteViews
 import com.persianai.assistant.R
+import com.persianai.assistant.activities.MainActivity
 import com.persianai.assistant.utils.PersianDateConverter
 import java.util.*
 
@@ -34,13 +37,17 @@ class PersianCalendarWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widgetPersianDate, dateText)
         views.setTextViewText(R.id.widgetWeather, "🌤️ ${getWeatherText()}")
         
+        val intent = Intent(context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        views.setOnClickPendingIntent(R.id.widgetClock, pendingIntent)
+        
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
     
     private fun getDayOfWeek(): String {
-        val days = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
+        val days = arrayOf("یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه", "شنبه")
         val calendar = Calendar.getInstance()
-        val dayIndex = (calendar.get(Calendar.DAY_OF_WEEK) + 1) % 7
+        val dayIndex = calendar.get(Calendar.DAY_OF_WEEK) - 1
         return days[dayIndex]
     }
     

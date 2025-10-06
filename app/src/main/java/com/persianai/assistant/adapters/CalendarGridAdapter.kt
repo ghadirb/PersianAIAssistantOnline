@@ -28,6 +28,7 @@ class CalendarGridAdapter(
         
         val dayNumber = view.findViewById<TextView>(R.id.dayNumber)
         val eventIndicator = view.findViewById<View>(R.id.eventIndicator)
+        val todayCircle = view.findViewById<View>(R.id.todayCircle)
         
         val day = days[position]
         dayNumber.text = day.toString()
@@ -35,9 +36,12 @@ class CalendarGridAdapter(
         // چک کردن اگر امروز است
         val today = PersianDateConverter.getCurrentPersianDate()
         if (day == today.day && month == today.month) {
-            dayNumber.setTextColor(context.getColor(android.R.color.holo_blue_dark))
+            todayCircle.visibility = View.VISIBLE
+            dayNumber.setTextColor(context.getColor(android.R.color.white))
             dayNumber.textSize = 20f
+            todayCircle.setBackgroundColor(context.getColor(android.R.color.holo_green_dark))
         } else {
+            todayCircle.visibility = View.GONE
             dayNumber.setTextColor(context.getColor(android.R.color.black))
             dayNumber.textSize = 18f
         }
