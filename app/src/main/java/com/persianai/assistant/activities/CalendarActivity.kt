@@ -76,7 +76,7 @@ class CalendarActivity : AppCompatActivity() {
             days.add(i)
         }
         
-        val adapter = CalendarGridAdapter(this, days, currentMonth)
+        val adapter = CalendarGridAdapter(this, days, currentMonth, currentYear)
         binding.calendarGrid.adapter = adapter
         
         binding.calendarGrid.setOnItemClickListener { _, _, position, _ ->

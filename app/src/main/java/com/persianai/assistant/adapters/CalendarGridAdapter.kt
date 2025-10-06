@@ -13,7 +13,8 @@ import com.persianai.assistant.utils.PersianEvents
 class CalendarGridAdapter(
     private val context: Context,
     private val days: List<Int>,
-    private val month: Int
+    private val month: Int,
+    private val year: Int
 ) : BaseAdapter() {
 
     override fun getCount() = days.size
@@ -35,7 +36,7 @@ class CalendarGridAdapter(
         
         // چک کردن اگر امروز است
         val today = PersianDateConverter.getCurrentPersianDate()
-        if (day == today.day && month == today.month) {
+        if (day == today.day && month == today.month && year == today.year) {
             todayCircle.visibility = View.VISIBLE
             dayNumber.setTextColor(context.getColor(android.R.color.white))
             dayNumber.textSize = 20f
