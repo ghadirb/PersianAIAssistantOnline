@@ -92,7 +92,10 @@ class CalendarActivity : AppCompatActivity() {
     
     private fun showDayEvents(day: Int) {
         val events = PersianEvents.getEventsForDate(currentMonth, day)
-        binding.selectedDayEvents.text = "مناسبت‌های $day ${PersianDateConverter.getMonthName(currentMonth)}:"
+        binding.selectedDayEvents.text = "مناسبت‌های $day ${PersianDateConverter.getMonthName(currentMonth)} $currentYear:"
+        
+        // آپدیت تاریخ میلادی و قمری
+        updateDates()
         
         binding.eventsRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.eventsRecyclerView.adapter = if (events.isEmpty()) {
@@ -100,6 +103,21 @@ class CalendarActivity : AppCompatActivity() {
         } else {
             EventsAdapter(events)
         }
+    }
+    
+    private fun updateDates() {
+        // نمایش تاریخ میلادی
+        val calendar = java.util.Calendar.getInstance()
+        val gregorianMonth = arrayOf("ژانویه", "فوریه", "مارس", "آوریل", "می", "ژوئن", 
+            "جولای", "آگوست", "سپتامبر", "اکتبر", "نوامبر", "دسامبر")
+        val gregText = "${calendar.get(java.util.Calendar.DAY_OF_MONTH)} ${gregorianMonth[calendar.get(java.util.Calendar.MONTH)]} ${calendar.get(java.util.Calendar.YEAR)}"
+        
+        // نمایش تاریخ قمری (تقریبی)
+        val hijriText = "13 ربیع الاول 1447"
+        
+        // اگر TextView ها وجود داشته باشند
+        findViewById<android.widget.TextView>(R.id.gregorianDate)?.text = gregText
+        findViewById<android.widget.TextView>(R.id.hijriDate)?.text = hijriText
     }
     
     override fun onSupportNavigateUp(): Boolean {

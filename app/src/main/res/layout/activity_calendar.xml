@@ -28,8 +28,10 @@
                 android:id="@+id/prevMonthBtn"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="◀"
-                android:textSize="24sp" />
+                android:text="❮"
+                android:textSize="28sp"
+                android:textColor="@color/primaryColor"
+                style="?android:attr/buttonBarButtonStyle" />
 
             <TextView
                 android:id="@+id/currentMonthText"
@@ -45,8 +47,10 @@
                 android:id="@+id/nextMonthBtn"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="▶"
-                android:textSize="24sp" />
+                android:text="❯"
+                android:textSize="28sp"
+                android:textColor="@color/primaryColor"
+                style="?android:attr/buttonBarButtonStyle" />
 
         </LinearLayout>
 
@@ -153,6 +157,108 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1" />
+
+        <!-- اوقات شرعی و تاریخ میلادی/قمری -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#F5F5F5"
+            android:padding="12dp">
+
+            <!-- تاریخ میلادی و قمری -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+                
+                <TextView
+                    android:id="@+id/gregorianDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="6 اکتبر 2025"
+                    android:textSize="14sp"
+                    android:layout_marginEnd="16dp" />
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="|"
+                    android:textColor="#999999"
+                    android:layout_marginEnd="16dp" />
+                    
+                <TextView
+                    android:id="@+id/hijriDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="13 ربیع الاول 1447"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- اوقات شرعی -->
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="3"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:text="اذان صبح: 4:06"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:padding="4dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:text="طلوع: 5:26"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:padding="4dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:text="اذان ظهر: 11:19"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:padding="4dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:text="غروب: 17:13"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:padding="4dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:text="اذان مغرب: 17:31"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:padding="4dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:text="نیمه‌شب: 22:37"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:padding="4dp" />
+            </GridLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 
