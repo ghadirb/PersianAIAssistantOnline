@@ -189,21 +189,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🌐 OpenRouter (Multiple Models)"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="#FF6F00" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp">
-
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/openRouterKeyInput"
                             android:layout_width="match_parent"
@@ -359,7 +348,7 @@
                         android:layout_height="wrap_content"
                         android:text="در حال بررسی مدل‌های در دسترس..."
                         android:textSize="14sp"
-                        android:lineSpacing="6dp" />
+                        android:lineSpacingExtra="6dp" />
 
                 </LinearLayout>
 

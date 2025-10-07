@@ -82,7 +82,7 @@
                     android:text="با دانلود مدل‌های آفلاین می‌توانید بدون نیاز به اینترنت از قابلیت‌های هوش مصنوعی استفاده کنید."
                     android:textSize="14sp"
                     android:textColor="#666"
-                    android:lineSpacing="4dp" />
+                    android:lineSpacingExtra="4dp" />
 
             </LinearLayout>
 
