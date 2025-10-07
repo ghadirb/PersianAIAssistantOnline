@@ -102,6 +102,9 @@ class MainActivity : AppCompatActivity() {
             ttsHelper = com.persianai.assistant.utils.TTSHelper(this)
             ttsHelper.initialize()
             
+            // Initialize Default API Keys
+            DefaultApiKeys.initializeDefaultKeys(this)
+            
             android.util.Log.d("MainActivity", "Managers initialized")
             
             setupRecyclerView()

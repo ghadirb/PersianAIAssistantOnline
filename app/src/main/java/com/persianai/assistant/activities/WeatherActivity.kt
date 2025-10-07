@@ -1,8 +1,13 @@
 package com.persianai.assistant.activities
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.persianai.assistant.api.OpenWeatherAPI
 import com.persianai.assistant.databinding.ActivityWeatherBinding
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class WeatherActivity : AppCompatActivity() {
     
@@ -17,16 +22,67 @@ class WeatherActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
         
+        // دکمه رفرش
+        binding.refreshButton?.setOnClickListener {
+            loadWeather(forceFresh = true)
+        }
+        
         loadWeather()
     }
     
-    private fun loadWeather() {
+    private fun loadWeather(forceFresh: Boolean = false) {
         val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
-        binding.tempText.text = com.persianai.assistant.utils.WeatherAPI.getTemperature()
-        binding.descText.text = "$city - ${com.persianai.assistant.utils.WeatherAPI.getDescription()}"
-        binding.aqiText.text = "کیفیت هوا: ${com.persianai.assistant.utils.WeatherAPI.getAQI()}"
+        // پاک کردن کش در صورت نیاز
+        if (forceFresh) {
+            OpenWeatherAPI.clearCache()
+        }
+        
+        lifecycleScope.launch {
+            try {
+                // ابتدا سعی می‌کنیم داده واقعی بگیریم
+                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                
+                if (weather != null) {
+                    // نمایش داده‌های واقعی
+                    binding.tempText.text = "${weather.temp.roundToInt()}°C"
+                    binding.descText.text = "$city - ${weather.description}"
+                    binding.aqiText.text = "رطوبت: ${weather.humidity}% | باد: ${weather.windSpeed} m/s"
+                    binding.feelsLikeText?.text = "احساس می‌شود: ${weather.feelsLike.roundToInt()}°C"
+                    binding.minMaxText?.text = "↓ ${weather.tempMin.roundToInt()}° ↑ ${weather.tempMax.roundToInt()}°"
+                } else {
+                    // در صورت عدم دسترسی به API، از Mock Data استفاده می‌کنیم
+                    val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
+                    binding.tempText.text = "${mockWeather.temp.roundToInt()}°C"
+                    binding.descText.text = "$city - ${mockWeather.description}"
+                    binding.aqiText.text = "رطوبت: ${mockWeather.humidity}% | باد: ${mockWeather.windSpeed.roundToInt()} m/s"
+                    binding.feelsLikeText?.text = "احساس می‌شود: ${mockWeather.feelsLike.roundToInt()}°C"
+                    binding.minMaxText?.text = "↓ ${mockWeather.tempMin.roundToInt()}° ↑ ${mockWeather.tempMax.roundToInt()}°"
+                    
+                    Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
+                }
+                
+                // پیش‌بینی 7 روزه
+                loadForecast(city)
+                
+            } catch (e: Exception) {
+                Toast.makeText(this@WeatherActivity, "خطا در دریافت اطلاعات آب و هوا", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    private suspend fun loadForecast(city: String) {
+        try {
+            val forecasts = OpenWeatherAPI.getForecast(city)
+            if (forecasts.isNotEmpty()) {
+                // نمایش پیش‌بینی در RecyclerView یا ScrollView
+                // TODO: اضافه کردن RecyclerView برای نمایش پیش‌بینی
+            }
+        } catch (e: Exception) {
+            // در صورت خطا، پیش‌بینی نمایش نمی‌دهیم
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {

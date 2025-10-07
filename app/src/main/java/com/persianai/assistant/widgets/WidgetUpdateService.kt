@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.widget.RemoteViews
 import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
@@ -15,11 +16,16 @@ import com.persianai.assistant.utils.PersianDateConverter
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 /**
  * سرویس بروزرسانی خودکار ویجت‌ها
  */
 class WidgetUpdateService : Service() {
+    
+    companion object {
+        private const val TAG = "WidgetUpdateService"
+    }
     
     private val updateHandler = Handler(Looper.getMainLooper())
     private var updateRunnable: Runnable? = null
@@ -94,16 +100,56 @@ class WidgetUpdateService : Service() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar_small)
             
-            // بروزرسانی زمان
-            val timeFormat = SimpleDateFormat("HH:mm", Locale("fa", "IR"))
-            views.setTextViewText(R.id.widgetClockSmall, timeFormat.format(Date()))
+            // TextClock خودش آپدیت می‌شود، نیازی به تنظیم دستی نیست
             
             // بروزرسانی تاریخ (فقط روز و ماه)
             val persianDate = PersianDateConverter.getCurrentPersianDate()
             val shortDate = "${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month).substring(0, 3)}"
             views.setTextViewText(R.id.widgetPersianDateSmall, shortDate)
             
+            // بروزرسانی آب و هوا
+            updateWeatherSmall(context, views)
+            
             appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
+    
+    private fun updateWeatherSmall(context: Context, views: RemoteViews) {
+        val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+        val city = prefs.getString("selected_city", "تهران") ?: "تهران"
+        
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                if (weather != null) {
+                    val emoji = OpenWeatherAPI.getWeatherEmoji(weather.icon)
+                    val text = "$emoji ${weather.temp.roundToInt()}°"
+                    withContext(Dispatchers.Main) {
+                        views.setTextViewText(R.id.widgetWeatherSmall, text)
+                        val appWidgetManager = AppWidgetManager.getInstance(context)
+                        val widgetComponent = ComponentName(context, PersianCalendarWidgetSmall::class.java)
+                        val appWidgetIds = appWidgetManager.getAppWidgetIds(widgetComponent)
+                        appWidgetIds.forEach { id ->
+                            appWidgetManager.updateAppWidget(id, views)
+                        }
+                    }
+                } else {
+                    val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
+                    val emoji = OpenWeatherAPI.getWeatherEmoji(mockWeather.icon)
+                    val text = "$emoji ${mockWeather.temp.roundToInt()}°"
+                    withContext(Dispatchers.Main) {
+                        views.setTextViewText(R.id.widgetWeatherSmall, text)
+                        val appWidgetManager = AppWidgetManager.getInstance(context)
+                        val widgetComponent = ComponentName(context, PersianCalendarWidgetSmall::class.java)
+                        val appWidgetIds = appWidgetManager.getAppWidgetIds(widgetComponent)
+                        appWidgetIds.forEach { id ->
+                            appWidgetManager.updateAppWidget(id, views)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating small widget weather", e)
+            }
         }
     }
     

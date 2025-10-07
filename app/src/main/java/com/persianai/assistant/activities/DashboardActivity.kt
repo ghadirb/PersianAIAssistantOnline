@@ -12,9 +12,11 @@ import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
+import com.persianai.assistant.utils.AnimationHelper
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 class DashboardActivity : AppCompatActivity() {
     
@@ -29,10 +31,20 @@ class DashboardActivity : AppCompatActivity() {
         
         prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
         
+        // Hide all cards initially
+        hideAllCards()
+        
         setupDate()
         setupClickListeners()
         loadWeather()
         animateCards()
+    }
+    
+    private fun hideAllCards() {
+        binding.calendarCard?.alpha = 0f
+        binding.weatherCard?.alpha = 0f
+        binding.chatCard?.alpha = 0f
+        binding.aboutCard?.alpha = 0f
     }
     
     private fun setupDate() {
@@ -55,31 +67,39 @@ class DashboardActivity : AppCompatActivity() {
     }
     
     private fun setupClickListeners() {
-        // تقویم
-        binding.calendarCard.setOnClickListener {
-            startActivityWithAnimation(CalendarActivity::class.java)
+        binding.calendarCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                val intent = Intent(this, CalendarActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
         }
         
-        // آب و هوا
-        binding.weatherCard.setOnClickListener {
-            startActivityWithAnimation(WeatherSearchActivity::class.java)
+        binding.weatherCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                val intent = Intent(this, WeatherActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
         }
         
-        // چت AI
-        binding.aiChatCard.setOnClickListener {
-            startActivityWithAnimation(MainActivity::class.java)
+        (binding.chatCard ?: binding.aiChatCard)?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                val intent = Intent(this, MainActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
         }
         
-        // درباره برنامه
-        binding.aboutCard.setOnClickListener {
-            showAboutDialog()
+        binding.aboutCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showAboutDialog()
+            }, 150)
         }
-    }
-    
-    private fun startActivityWithAnimation(activityClass: Class<*>) {
-        val intent = Intent(this, activityClass)
-        startActivity(intent)
-        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
     }
     
     private fun loadWeather() {
@@ -87,23 +107,22 @@ class DashboardActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // استفاده از API واقعی
                 val weatherData = OpenWeatherAPI.getCurrentWeather(city)
                 
                 if (weatherData != null) {
-                    binding.weatherTempText.text = "${weatherData.temp.toInt()}°C"
-                    binding.weatherIcon.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
+                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°C"
+                    binding.weatherIcon?.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
                 } else {
                     // Fallback به Mock Data
                     val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                    binding.weatherTempText.text = "${mockData.temp.toInt()}°C"
-                    binding.weatherIcon.text = "☀️"
+                    binding.weatherTempText?.text = "${mockData.temp.roundToInt()}°C"
+                    binding.weatherIcon?.text = "☀️"
                 }
                 
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
-                binding.weatherTempText.text = "25°C"
-                binding.weatherIcon.text = "🌤️"
+                binding.weatherTempText?.text = "25°C"
+                binding.weatherIcon?.text = "🌤️"
             }
         }
     }
@@ -134,11 +153,19 @@ class DashboardActivity : AppCompatActivity() {
     }
     
     private fun animateCards() {
-        val fadeIn = AnimationUtils.loadAnimation(this, android.R.anim.fade_in)
+        // Staggered fade in animation for cards
+        val cards = listOfNotNull(
+            binding.calendarCard,
+            binding.weatherCard,
+            binding.chatCard ?: binding.aiChatCard,
+            binding.aboutCard
+        )
         
-        binding.calendarCard.startAnimation(fadeIn)
-        binding.weatherCard.startAnimation(fadeIn)
-        binding.aiChatCard.startAnimation(fadeIn)
-        binding.aboutCard.startAnimation(fadeIn)
+        AnimationHelper.animateListItems(cards, delayBetween = 100)
+        
+        // Add pulse animation to weather card to draw attention
+        binding.weatherCard?.postDelayed({
+            AnimationHelper.pulseAnimation(binding.weatherCard!!, scaleFactor = 1.05f, duration = 2000)
+        }, 1000)
     }
 }

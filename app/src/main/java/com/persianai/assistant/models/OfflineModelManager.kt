@@ -17,15 +17,15 @@ import kotlin.math.roundToInt
 class OfflineModelManager(private val context: Context) {
     
     companion object {
-        // لینک‌های واقعی مدل‌ها از Hugging Face
-        const val MODEL_SMALL_URL = "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_M.gguf"
-        const val MODEL_MEDIUM_URL = "https://huggingface.co/TheBloke/Llama-2-13B-chat-GGUF/resolve/main/llama-2-13b-chat.Q4_K_M.gguf"
-        const val MODEL_LARGE_URL = "https://huggingface.co/TheBloke/CodeLlama-13B-Instruct-GGUF/resolve/main/codellama-13b-instruct.Q4_K_M.gguf"
+        // لینک‌های واقعی مدل‌ها از Hugging Face - آپدیت شده
+        const val MODEL_SMALL_URL = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+        const val MODEL_MEDIUM_URL = "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+        const val MODEL_LARGE_URL = "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_M.gguf"
         
         // اندازه تقریبی مدل‌ها
-        const val MODEL_SMALL_SIZE = 3.9f // GB
-        const val MODEL_MEDIUM_SIZE = 7.4f // GB
-        const val MODEL_LARGE_SIZE = 7.9f // GB
+        const val MODEL_SMALL_SIZE = 0.6f // GB - TinyLlama
+        const val MODEL_MEDIUM_SIZE = 4.1f // GB - Mistral 7B
+        const val MODEL_LARGE_SIZE = 3.8f // GB - Llama 2 7B
     }
     
     data class ModelInfo(
@@ -38,39 +38,39 @@ class OfflineModelManager(private val context: Context) {
     
     val availableModels = listOf(
         ModelInfo(
-            name = "Llama 2 7B Chat",
+            name = "TinyLlama 1.1B",
             url = MODEL_SMALL_URL,
             size = MODEL_SMALL_SIZE,
-            description = "مدل سبک و سریع برای چت‌های روزمره",
+            description = "مدل بسیار سبک و سریع برای گوشی‌های ضعیف",
             features = listOf(
-                "پاسخ‌های سریع",
-                "مصرف RAM کم (4GB)",
-                "مناسب برای گوشی‌های متوسط",
-                "پشتیبانی از زبان فارسی (محدود)"
+                "پاسخ‌های فوق سریع",
+                "مصرف RAM بسیار کم (2GB)",
+                "مناسب برای همه گوشی‌ها",
+                "کیفیت مناسب با وجود حجم کم"
             )
         ),
         ModelInfo(
-            name = "Llama 2 13B Chat",
+            name = "Mistral 7B Instruct",
             url = MODEL_MEDIUM_URL,
             size = MODEL_MEDIUM_SIZE,
-            description = "مدل متوسط با قابلیت‌های پیشرفته",
+            description = "مدل قدرتمند و محبوب با عملکرد عالی",
             features = listOf(
-                "دقت بالا در پاسخ‌ها",
-                "مصرف RAM متوسط (8GB)",
-                "پشتیبانی بهتر از زبان فارسی",
-                "قابلیت درک متون طولانی"
+                "بهترین نسبت کیفیت به حجم",
+                "مصرف RAM متوسط (6GB)",
+                "سرعت بالا و دقت خوب",
+                "پشتیبانی چندزبانه"
             )
         ),
         ModelInfo(
-            name = "CodeLlama 13B",
+            name = "Llama 2 7B Chat",
             url = MODEL_LARGE_URL,
             size = MODEL_LARGE_SIZE,
-            description = "مدل قدرتمند برای برنامه‌نویسی",
+            description = "مدل استاندارد Meta برای چت",
             features = listOf(
-                "تخصص در کدنویسی",
-                "پشتیبانی از 20+ زبان برنامه‌نویسی",
-                "تولید و Debug کد",
-                "توضیحات فنی دقیق"
+                "محبوب‌ترین مدل چت",
+                "پشتیبانی از دستورات پیچیده",
+                "کیفیت بالا در پاسخ‌ها",
+                "آموزش دیده روی داده‌های متنوع"
             )
         )
     )
