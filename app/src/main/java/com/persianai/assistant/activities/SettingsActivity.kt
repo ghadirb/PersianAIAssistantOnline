@@ -146,6 +146,12 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
         
+        // دکمه تنظیمات ویجت
+        binding.widgetSettingsButton.setOnClickListener {
+            val intent = Intent(this, WidgetSettingsActivity::class.java)
+            startActivity(intent)
+        }
+        
         // دکمه به‌روزرسانی کلیدها
         binding.refreshKeysButton.setOnClickListener {
             showPasswordDialogForRefresh()

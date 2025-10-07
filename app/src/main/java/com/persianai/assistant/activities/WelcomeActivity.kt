@@ -1,6 +1,7 @@
 package com.persianai.assistant.activities
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +13,8 @@ import com.google.android.material.tabs.TabLayoutMediator
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityWelcomeBinding
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.PermissionManager
+import android.widget.Toast
 
 /**
  * صفحه خوش‌آمدگویی و انتخاب حالت کار
@@ -20,12 +23,14 @@ class WelcomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityWelcomeBinding
     private lateinit var prefsManager: PreferencesManager
+    private lateinit var permissionManager: PermissionManager
     private var selectedMode = PreferencesManager.WorkingMode.HYBRID
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         prefsManager = PreferencesManager(this)
+        permissionManager = PermissionManager(this)
 
         // چک کردن اینکه آیا فقط برای نمایش راهنما اومده
         val isShowingHelp = intent.getBooleanExtra("SHOW_HELP", false)
@@ -86,9 +91,53 @@ class WelcomeActivity : AppCompatActivity() {
                 // اولین بار - ذخیره تنظیمات
                 prefsManager.setWorkingMode(selectedMode)
                 prefsManager.setWelcomeCompleted(true)
-                goToMain()
+                
+                // بررسی و درخواست مجوزهای ضروری
+                checkAndRequestPermissions()
             }
         }
+    }
+    
+    private fun checkAndRequestPermissions() {
+        // اگر همه مجوزهای حیاتی رو داره، برو به صفحه بعد
+        if (permissionManager.hasCriticalPermissions()) {
+            // درخواست مجوزهای اصلی
+            if (!permissionManager.hasNotificationPermission() || !permissionManager.hasMicrophonePermission()) {
+                permissionManager.requestMainPermissions(this)
+            } else {
+                goToMain()
+            }
+        } else {
+            Toast.makeText(this, "برای ادامه نیاز به مجوزهای ضروری است", Toast.LENGTH_SHORT).show()
+            permissionManager.checkAndRequestStartupPermissions(this)
+        }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        permissionManager.handlePermissionResult(
+            requestCode,
+            permissions,
+            grantResults,
+            onGranted = {
+                // همه مجوزها داده شد
+                goToMain()
+            },
+            onDenied = { deniedPermissions ->
+                // برخی مجوزها رد شد
+                if (deniedPermissions.any { it in PermissionManager.CRITICAL_PERMISSIONS }) {
+                    Toast.makeText(this, "برنامه بدون مجوزهای ضروری نمی‌تواند کار کند", Toast.LENGTH_LONG).show()
+                } else {
+                    // مجوزهای غیر ضروری رد شدن، می‌تونیم ادامه بدیم
+                    goToMain()
+                }
+            }
+        )
     }
 
     private fun goToMain() {

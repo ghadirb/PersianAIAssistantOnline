@@ -70,6 +70,12 @@
             android:name=".activities.SettingsActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
+            
+        <!-- Widget Settings Activity -->
+        <activity
+            android:name=".activities.WidgetSettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.SettingsActivity" />
 
         <!-- Reminders Activity -->
         <activity
@@ -163,16 +169,43 @@
                 android:value="androidx.startup" />
         </provider>
 
-        <!-- Persian Calendar Widget -->
+        <!-- Persian Calendar Widget - Medium -->
         <receiver
             android:name=".widgets.PersianCalendarWidget"
-            android:exported="true">
+            android:exported="true"
+            android:label="ویجت متوسط">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_persian_calendar_info" />
+        </receiver>
+        
+        <!-- Persian Calendar Widget - Small -->
+        <receiver
+            android:name=".widgets.PersianCalendarWidgetSmall"
+            android:exported="true"
+            android:label="ویجت کوچک">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_persian_calendar_small_info" />
+        </receiver>
+        
+        <!-- Persian Calendar Widget - Large -->
+        <receiver
+            android:name=".widgets.PersianCalendarWidgetLarge"
+            android:exported="true"
+            android:label="ویجت بزرگ">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_persian_calendar_large_info" />
         </receiver>
 
         <!-- File Provider for Backup -->

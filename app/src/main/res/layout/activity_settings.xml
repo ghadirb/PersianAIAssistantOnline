@@ -75,6 +75,46 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
+            
+            <!-- Widget Settings Section -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔲 ویجت‌ها"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="تنظیمات ظاهر و عملکرد ویجت‌های صفحه اصلی"
+                        android:layout_marginTop="8dp"
+                        android:alpha="0.7" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/widgetSettingsButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="تنظیمات ویجت"
+                        android:layout_marginTop="16dp"
+                        style="@style/Widget.Material3.Button.TonalButton" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Help Section -->
             <com.google.android.material.card.MaterialCardView

@@ -19,6 +19,10 @@ class OpenWeatherAPI {
         // کلید API رایگان OpenWeatherMap
         private const val API_KEY = "f8366599ed1ede5949ccd3be8959b718"
         private const val BASE_URL = "https://api.openweathermap.org/data/2.5"
+        private const val CACHE_DURATION = 10 * 60 * 1000L // 10 دقیقه کش
+        
+        // کش برای جلوگیری از درخواست‌های مکرر
+        private val weatherCache = mutableMapOf<String, Pair<WeatherData, Long>>()
         
         data class WeatherData(
             val temp: Double,
@@ -46,6 +50,13 @@ class OpenWeatherAPI {
          * دریافت آب و هوای فعلی شهر
          */
         suspend fun getCurrentWeather(cityName: String): WeatherData? = withContext(Dispatchers.IO) {
+            // بررسی کش
+            val cached = weatherCache[cityName]
+            if (cached != null && System.currentTimeMillis() - cached.second < CACHE_DURATION) {
+                Log.d(TAG, "Returning cached weather for $cityName")
+                return@withContext cached.first
+            }
+            
             try {
                 val url = "$BASE_URL/weather?q=$cityName&appid=$API_KEY&units=metric&lang=fa"
                 val response = makeRequest(url)
@@ -56,7 +67,7 @@ class OpenWeatherAPI {
                     val weather = json.getJSONArray("weather").getJSONObject(0)
                     val wind = json.getJSONObject("wind")
                     
-                    return@withContext WeatherData(
+                    val weatherData = WeatherData(
                         temp = main.getDouble("temp"),
                         feelsLike = main.getDouble("feels_like"),
                         tempMin = main.getDouble("temp_min"),
@@ -68,6 +79,12 @@ class OpenWeatherAPI {
                         icon = weather.getString("icon"),
                         cityName = json.getString("name")
                     )
+                    
+                    // ذخیره در کش
+                    weatherCache[cityName] = Pair(weatherData, System.currentTimeMillis())
+                    Log.d(TAG, "Weather updated: ${weatherData.temp}°C for ${weatherData.cityName}")
+                    
+                    return@withContext weatherData
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting weather", e)
@@ -89,7 +106,7 @@ class OpenWeatherAPI {
                     val weather = json.getJSONArray("weather").getJSONObject(0)
                     val wind = json.getJSONObject("wind")
                     
-                    return@withContext WeatherData(
+                    val weatherData = WeatherData(
                         temp = main.getDouble("temp"),
                         feelsLike = main.getDouble("feels_like"),
                         tempMin = main.getDouble("temp_min"),
@@ -101,6 +118,12 @@ class OpenWeatherAPI {
                         icon = weather.getString("icon"),
                         cityName = json.getString("name")
                     )
+                    
+                    // ذخیره در کش
+                    weatherCache[cityName] = Pair(weatherData, System.currentTimeMillis())
+                    Log.d(TAG, "Weather updated: ${weatherData.temp}°C for ${weatherData.cityName}")
+                    
+                    return@withContext weatherData
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting weather by location", e)
@@ -194,24 +217,46 @@ class OpenWeatherAPI {
         }
         
         /**
+         * پاک کردن کش آب و هوا
+         */
+        fun clearCache() {
+            weatherCache.clear()
+            Log.d(TAG, "Weather cache cleared")
+        }
+        
+        /**
          * تست API با داده‌های نمونه (برای زمانی که API key نیست)
          */
         fun getMockWeatherData(cityName: String): WeatherData {
+            // استفاده از داده‌های واقعی‌تر بر اساس شهر و زمان
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val baseTemp = when(cityName) {
+                "تهران" -> if (hour in 2..6) 15.0 else if (hour in 12..16) 28.0 else 23.0
+                "مشهد" -> if (hour in 2..6) 12.0 else if (hour in 12..16) 25.0 else 20.0
+                "اصفهان" -> if (hour in 2..6) 14.0 else if (hour in 12..16) 30.0 else 22.0
+                "شیراز" -> if (hour in 2..6) 16.0 else if (hour in 12..16) 29.0 else 24.0
+                "تبریز" -> if (hour in 2..6) 10.0 else if (hour in 12..16) 22.0 else 18.0
+                else -> if (hour in 2..6) 15.0 else if (hour in 12..16) 27.0 else 22.0
+            }
+            
             return WeatherData(
-                temp = 25.0 + (Math.random() * 10 - 5).roundToInt(),
-                feelsLike = 23.0,
-                tempMin = 18.0,
-                tempMax = 28.0,
-                humidity = 45,
-                pressure = 1013,
-                windSpeed = 3.5,
+                temp = baseTemp + (Math.random() * 3 - 1.5).roundToInt(),
+                feelsLike = baseTemp - 2,
+                tempMin = baseTemp - 5,
+                tempMax = baseTemp + 5,
+                humidity = 35 + (Math.random() * 30).toInt(),
+                pressure = 1013 + (Math.random() * 10 - 5).toInt(),
+                windSpeed = 2.0 + Math.random() * 5,
                 description = when ((Math.random() * 4).toInt()) {
                     0 -> "آسمان صاف"
                     1 -> "کمی ابری"
                     2 -> "ابری"
                     else -> "آفتابی"
                 },
-                icon = "01d",
+                icon = when(hour) {
+                    in 6..18 -> "01d"  // روز
+                    else -> "01n"      // شب
+                },
                 cityName = cityName
             )
         }

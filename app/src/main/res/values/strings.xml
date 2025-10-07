@@ -17,6 +17,11 @@
     
     <!-- Widget -->
     <string name="widget_description">تقویم فارسی با ساعت و آب و هوا</string>
+    <string name="widget_description_small">ویجت کوچک - نمایش ساعت و تاریخ</string>
+    <string name="widget_description_large">ویجت بزرگ - نمایش کامل با دسترسی سریع</string>
+    <string name="widget_label_small">ساعت و تاریخ فارسی (کوچک)</string>
+    <string name="widget_label_medium">ساعت و تاریخ فارسی (متوسط)</string>
+    <string name="widget_label_large">دستیار هوشمند (بزرگ)</string>
     
     <!-- Settings -->
     <string name="settings_title">تنظیمات</string>
