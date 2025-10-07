@@ -3,7 +3,7 @@
     android:minWidth="250dp"
     android:minHeight="110dp"
     android:updatePeriodMillis="1800000"
-    android:previewImage="@mipmap/ic_launcher"
+    android:previewImage="@drawable/widget_preview_medium"
     android:initialLayout="@layout/widget_persian_calendar"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
