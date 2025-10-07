@@ -12,4 +12,11 @@
     <color name="userMessageText">#FFFFFF</color>
     <color name="assistantMessageBackground">#FFFFFF</color>
     <color name="assistantMessageText">#000000</color>
+    
+    <!-- Card and status colors -->
+    <color name="success_light">#E8F5E9</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="error_light">#FFEBEE</color>
+    <color name="warning_light">#FFF3E0</color>
+    <color name="info_light">#E3F2FD</color>
 </resources>

@@ -53,6 +53,10 @@ class PersianCalendarWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar)
         
+        // شروع سرویس آپدیت
+        val serviceIntent = Intent(context, WidgetUpdateService::class.java)
+        context.startService(serviceIntent)
+        
         // تاریخ فارسی
         val persianDate = PersianDateConverter.getCurrentPersianDate()
         val dayOfWeek = getDayOfWeek()
@@ -120,9 +124,16 @@ class PersianCalendarWidget : AppWidgetProvider() {
     }
     
     private fun getDayOfWeek(): String {
-        val days = arrayOf("یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه", "شنبه")
         val calendar = Calendar.getInstance()
-        val dayIndex = calendar.get(Calendar.DAY_OF_WEEK) - 1
-        return days[dayIndex]
+        return when (calendar.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.SATURDAY -> "شنبه"
+            Calendar.SUNDAY -> "یکشنبه"
+            Calendar.MONDAY -> "دوشنبه"
+            Calendar.TUESDAY -> "سه‌شنبه"
+            Calendar.WEDNESDAY -> "چهارشنبه"
+            Calendar.THURSDAY -> "پنج‌شنبه"
+            Calendar.FRIDAY -> "جمعه"
+            else -> ""
+        }
     }
 }

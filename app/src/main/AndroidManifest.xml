@@ -76,6 +76,12 @@
             android:name=".activities.WidgetSettingsActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
+            
+        <!-- Offline Models Activity -->
+        <activity
+            android:name=".activities.OfflineModelsActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.SettingsActivity" />
 
         <!-- Reminders Activity -->
         <activity
@@ -169,6 +175,12 @@
                 android:value="androidx.startup" />
         </provider>
 
+        <!-- Widget Update Service -->
+        <service
+            android:name=".widgets.WidgetUpdateService"
+            android:enabled="true"
+            android:exported="false" />
+            
         <!-- Persian Calendar Widget - Medium -->
         <receiver
             android:name=".widgets.PersianCalendarWidget"
