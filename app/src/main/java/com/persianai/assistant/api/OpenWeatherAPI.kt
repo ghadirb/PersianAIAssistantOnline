@@ -17,7 +17,7 @@ class OpenWeatherAPI {
     companion object {
         private const val TAG = "OpenWeatherAPI"
         // کلید API رایگان OpenWeatherMap
-        private const val API_KEY = "YOUR_API_KEY_HERE" // کاربر باید کلید خودش رو بذاره
+        private const val API_KEY = "f8366599ed1ede5949ccd3be8959b718"
         private const val BASE_URL = "https://api.openweathermap.org/data/2.5"
         
         data class WeatherData(

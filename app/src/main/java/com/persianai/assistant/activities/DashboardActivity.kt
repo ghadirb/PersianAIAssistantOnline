@@ -87,15 +87,23 @@ class DashboardActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // استفاده از Mock Data فعلاً
-                val weatherData = OpenWeatherAPI.getMockWeatherData(city)
+                // استفاده از API واقعی
+                val weatherData = OpenWeatherAPI.getCurrentWeather(city)
                 
-                binding.weatherTempText.text = "${weatherData.temp.toInt()}°C"
-                binding.weatherIcon.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
+                if (weatherData != null) {
+                    binding.weatherTempText.text = "${weatherData.temp.toInt()}°C"
+                    binding.weatherIcon.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
+                } else {
+                    // Fallback به Mock Data
+                    val mockData = OpenWeatherAPI.getMockWeatherData(city)
+                    binding.weatherTempText.text = "${mockData.temp.toInt()}°C"
+                    binding.weatherIcon.text = "☀️"
+                }
                 
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
                 binding.weatherTempText.text = "25°C"
+                binding.weatherIcon.text = "🌤️"
             }
         }
     }
