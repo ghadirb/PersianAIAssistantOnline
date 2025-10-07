@@ -67,6 +67,7 @@
                 android:shadowRadius="4" />
 
             <TextClock
+                android:id="@+id/widgetSecondsLarge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:format12Hour="ss"

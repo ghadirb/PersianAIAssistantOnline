@@ -115,11 +115,8 @@ class WidgetUpdateService : Service() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar_large)
             
-            // بروزرسانی زمان با ثانیه
-            val timeFormat = SimpleDateFormat("HH:mm", Locale("fa", "IR"))
-            val secondsFormat = SimpleDateFormat("ss", Locale("fa", "IR"))
-            views.setTextViewText(R.id.widgetClockLarge, timeFormat.format(Date()))
-            views.setTextViewText(R.id.widgetSecondsLarge, secondsFormat.format(Date()))
+            // TextClock ها خودشان به صورت خودکار آپدیت می‌شوند
+            // فقط نیاز به بروزرسانی تاریخ و آب و هوا داریم
             
             // بروزرسانی تاریخ کامل
             val persianDate = PersianDateConverter.getCurrentPersianDate()
