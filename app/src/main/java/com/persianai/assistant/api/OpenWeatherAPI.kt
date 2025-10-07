@@ -120,7 +120,7 @@ class OpenWeatherAPI {
                     )
                     
                     // ذخیره در کش
-                    weatherCache[cityName] = Pair(weatherData, System.currentTimeMillis())
+                    weatherCache[weatherData.cityName] = Pair(weatherData, System.currentTimeMillis())
                     Log.d(TAG, "Weather updated: ${weatherData.temp}°C for ${weatherData.cityName}")
                     
                     return@withContext weatherData
