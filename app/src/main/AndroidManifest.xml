@@ -47,6 +47,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Dashboard Activity -->
+        <activity
+            android:name=".activities.DashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PersianAIAssistant" />
+
         <!-- Main Activity -->
         <activity
             android:name=".activities.MainActivity"
