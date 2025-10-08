@@ -20,16 +20,14 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
-// import com.persianai.assistant.database.ChatDatabase // Temporarily disabled
 import com.persianai.assistant.databinding.ActivityMainBinding
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.utils.MessageStorage
-import com.persianai.assistant.utils.DriveHelper
-import com.persianai.assistant.utils.EncryptionHelper
-import com.persianai.assistant.utils.SystemIntegrationHelper
+import com.persianai.assistant.services.BackgroundService
+import com.persianai.assistant.utils.*
+import com.persianai.assistant.views.VoiceRecorderView
 import com.persianai.assistant.services.AIAssistantService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -102,8 +100,12 @@ class MainActivity : AppCompatActivity() {
             ttsHelper = com.persianai.assistant.utils.TTSHelper(this)
             ttsHelper.initialize()
             
-            // Initialize Default API Keys
-            DefaultApiKeys.initializeDefaultKeys(this)
+            // Initialize Default API Keys if available
+            try {
+                // DefaultApiKeys.initializeDefaultKeys(this)
+            } catch (e: Exception) {
+                // Ignore if DefaultApiKeys is not available
+            }
             
             android.util.Log.d("MainActivity", "Managers initialized")
             

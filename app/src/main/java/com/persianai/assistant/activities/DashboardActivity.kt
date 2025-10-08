@@ -43,7 +43,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
         binding.weatherCard?.alpha = 0f
-        binding.chatCard?.alpha = 0f
+        binding.aiChatCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
     }
     
@@ -85,7 +85,7 @@ class DashboardActivity : AppCompatActivity() {
             }, 150)
         }
         
-        (binding.chatCard ?: binding.aiChatCard)?.setOnClickListener {
+        binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
                 val intent = Intent(this, MainActivity::class.java)
@@ -157,7 +157,7 @@ class DashboardActivity : AppCompatActivity() {
         val cards = listOfNotNull(
             binding.calendarCard,
             binding.weatherCard,
-            binding.chatCard ?: binding.aiChatCard,
+            binding.aiChatCard,
             binding.aboutCard
         )
         

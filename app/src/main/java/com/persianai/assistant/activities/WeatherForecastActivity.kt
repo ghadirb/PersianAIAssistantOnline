@@ -270,7 +270,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                 
                 // رنگ پس‌زمینه برای امروز
                 if (isSameDay(forecast.date, Date())) {
-                    itemView.setBackgroundColor(itemView.context.getColor(R.color.colorAccent))
+                    itemView.setBackgroundColor(itemView.context.getColor(android.R.color.holo_blue_light))
                 }
             }
         }

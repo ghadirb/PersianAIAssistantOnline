@@ -17,7 +17,6 @@ class WeatherActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWeatherBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
@@ -49,22 +48,23 @@ class WeatherActivity : AppCompatActivity() {
                     binding.tempText.text = "${weather.temp.roundToInt()}°C"
                     binding.descText.text = "$city - ${weather.description}"
                     binding.aqiText.text = "رطوبت: ${weather.humidity}% | باد: ${weather.windSpeed} m/s"
-                    binding.feelsLikeText?.text = "احساس می‌شود: ${weather.feelsLike.roundToInt()}°C"
-                    binding.minMaxText?.text = "↓ ${weather.tempMin.roundToInt()}° ↑ ${weather.tempMax.roundToInt()}°"
+                    // Update additional fields if they exist
+                    binding.feelsLikeText?.text = "احساسی: ${weather.feelsLike.roundToInt()}°"
+                    binding.minMaxText?.text = "${weather.tempMin.roundToInt()}° / ${weather.tempMax.roundToInt()}°"
                 } else {
                     // در صورت عدم دسترسی به API، از Mock Data استفاده می‌کنیم
                     val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
                     binding.tempText.text = "${mockWeather.temp.roundToInt()}°C"
                     binding.descText.text = "$city - ${mockWeather.description}"
                     binding.aqiText.text = "رطوبت: ${mockWeather.humidity}% | باد: ${mockWeather.windSpeed.roundToInt()} m/s"
-                    binding.feelsLikeText?.text = "احساس می‌شود: ${mockWeather.feelsLike.roundToInt()}°C"
-                    binding.minMaxText?.text = "↓ ${mockWeather.tempMin.roundToInt()}° ↑ ${mockWeather.tempMax.roundToInt()}°"
+                    // Update additional fields if they exist
+                    binding.feelsLikeText?.text = "احساسی: ${mockWeather.feelsLike.roundToInt()}°"
+                    binding.minMaxText?.text = "${mockWeather.tempMin.roundToInt()}° / ${mockWeather.tempMax.roundToInt()}°"
                     
                     Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
                 }
                 
                 // پیش‌بینی 7 روزه
-                loadForecast(city)
                 
             } catch (e: Exception) {
                 Toast.makeText(this@WeatherActivity, "خطا در دریافت اطلاعات آب و هوا", Toast.LENGTH_SHORT).show()
