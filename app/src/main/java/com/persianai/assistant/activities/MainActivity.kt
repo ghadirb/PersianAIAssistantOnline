@@ -25,9 +25,7 @@ import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.services.BackgroundService
 import com.persianai.assistant.utils.*
-import com.persianai.assistant.views.VoiceRecorderView
 import com.persianai.assistant.services.AIAssistantService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
