@@ -44,6 +44,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.calendarCard?.alpha = 0f
         binding.weatherCard?.alpha = 0f
         binding.aiChatCard?.alpha = 0f
+        binding.musicCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
     }
     
@@ -91,6 +92,19 @@ class DashboardActivity : AppCompatActivity() {
                 val intent = Intent(this, MainActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
+        }
+        
+        binding.musicCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                try {
+                    val intent = Intent(this, MusicActivity::class.java)
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "موزیک پلیر در حال توسعه است", Toast.LENGTH_SHORT).show()
+                }
             }, 150)
         }
         
@@ -158,6 +172,7 @@ class DashboardActivity : AppCompatActivity() {
             binding.calendarCard,
             binding.weatherCard,
             binding.aiChatCard,
+            binding.musicCard,
             binding.aboutCard
         )
         
