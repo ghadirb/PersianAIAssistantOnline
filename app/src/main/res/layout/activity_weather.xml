@@ -278,6 +278,6 @@
             android:orientation="horizontal"
             android:padding="8dp" />
 
-    </LinearLayout>
-
-</ScrollView>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

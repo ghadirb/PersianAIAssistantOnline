@@ -12,13 +12,13 @@ import androidx.lifecycle.lifecycleScope
 import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
 import com.persianai.assistant.api.AqicnWeatherAPI
-import com.persianai.assistant.databinding.ActivityWeatherBinding
+// import حذف شد - استفاده از findViewById به جای ViewBinding
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class WeatherActivity : AppCompatActivity() {
     
-    private lateinit var binding: ActivityWeatherBinding
+    // استفاده از findViewById به جای binding
     private var currentCity = "تهران"
     private val popularCities = listOf("تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", 
         "کرمان", "ارومیه", "رشت", "زاهدان", "همدان", "کرمانشاه", "یزد", "اردبیل", "بندرعباس", 
@@ -28,22 +28,23 @@ class WeatherActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         // استفاده از layout جدید
         setContentView(R.layout.activity_weather_updated)
-        binding = ActivityWeatherBinding.bind(findViewById(android.R.id.content))
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
+        
+        // تنظیم Toolbar
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
 
         // بارگذاری شهر ذخیره شده
         val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
         currentCity = prefs.getString("selected_city", "تهران") ?: "تهران"
-        binding.cityNameText.text = currentCity
+        findViewById<android.widget.TextView>(R.id.cityNameText).text = currentCity
         
         setupSearchBar()
         setupQuickCities()
         
         // دکمه پیش‌بینی 7 روزه
-        binding.forecastButton.setOnClickListener {
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.forecastButton)?.setOnClickListener {
             try {
                 val intent = Intent(this, WeatherForecastActivity::class.java)
                 intent.putExtra("city", currentCity)
@@ -53,9 +54,15 @@ class WeatherActivity : AppCompatActivity() {
             }
         }
         
-        // دکمه refresh
-        binding.refreshButton.setOnClickListener {
-            loadWeather(forceFresh = true)
+        // دکمه پیش‌بینی ساعتی
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.hourlyButton)?.setOnClickListener {
+            val hourlyCard = findViewById<com.google.android.material.card.MaterialCardView>(R.id.hourlyCard)
+            hourlyCard.visibility = if (hourlyCard.visibility == android.view.View.VISIBLE) {
+                android.view.View.GONE
+            } else {
+                loadHourlyForecast()
+                android.view.View.VISIBLE
+            }
         }
         
         loadWeather()
@@ -63,45 +70,41 @@ class WeatherActivity : AppCompatActivity() {
     
     private fun setupSearchBar() {
         // دکمه جستجو
-        binding.searchButton.setOnClickListener {
-            searchCity()
-        }
-        
-        // جستجو با Enter
-        binding.citySearchInput.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                searchCity()
-                true
-            } else {
-                false
-            }
+        findViewById<android.widget.ImageView>(R.id.searchCityButton)?.setOnClickListener {
+            showCitySearchDialog()
         }
     }
     
-    private fun searchCity() {
-        val city = binding.citySearchInput.text?.toString()?.trim()
-        if (!city.isNullOrEmpty()) {
-            currentCity = city
-            binding.cityNameText.text = city
-            
-            // ذخیره شهر جدید
-            val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-            prefs.edit().putString("selected_city", city).apply()
-            
-            // پاک کردن input
-            binding.citySearchInput.setText("")
-            binding.citySearchInput.clearFocus()
-            
-            // مخفی کردن کیبورد
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.hideSoftInputFromWindow(binding.citySearchInput.windowToken, 0)
-            
-            // بارگذاری آب و هوا
-            loadWeather(forceFresh = true)
+    private fun showCitySearchDialog() {
+        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+        val input = android.widget.EditText(this).apply {
+            hint = "نام شهر را وارد کنید..."
+            setPadding(32, 16, 32, 16)
         }
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("🔍 جستجوی شهر")
+            .setView(input)
+            .setPositiveButton("جستجو") { _, _ ->
+                val city = input.text?.toString()?.trim()
+                if (!city.isNullOrEmpty()) {
+                    currentCity = city
+                    findViewById<android.widget.TextView>(R.id.cityNameText).text = city
+                    
+                    // ذخیره شهر جدید
+                    val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+                    prefs.edit().putString("selected_city", city).apply()
+                    
+                    // بارگذاری آب و هوا
+                    loadCurrentWeather()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun setupQuickCities() {
+        val quickCitiesLayout = findViewById<LinearLayout>(R.id.quickCitiesLayout)
         popularCities.take(10).forEach { city ->
             val button = Button(this).apply {
                 text = city
@@ -109,13 +112,14 @@ class WeatherActivity : AppCompatActivity() {
                 setPadding(32, 16, 32, 16)
                 setOnClickListener {
                     currentCity = city
-                    binding.cityNameText.text = city
+                    findViewById<android.widget.TextView>(R.id.cityNameText).text = city
                     
                     // ذخیره شهر
                     val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
                     prefs.edit().putString("selected_city", city).apply()
                     
-                    loadWeather()
+                    loadCurrentWeather()
+                    Toast.makeText(this@WeatherActivity, "شهر انتخاب شد: $city", Toast.LENGTH_SHORT).show()
                 }
             }
             
@@ -126,7 +130,7 @@ class WeatherActivity : AppCompatActivity() {
             params.setMargins(8, 0, 8, 0)
             button.layoutParams = params
             
-            binding.quickCitiesLayout.addView(button)
+            quickCitiesLayout.addView(button)
         }
     }
     private fun loadWeather(forceFresh: Boolean = false) {
@@ -150,11 +154,11 @@ class WeatherActivity : AppCompatActivity() {
                     val weatherData = OpenWeatherAPI.getCurrentWeather(currentCity)
                     // استفاده از Mock Data
                     val mockWeather = OpenWeatherAPI.getMockWeatherData(currentCity)
-                    binding.tempText.text = "${mockWeather.temp.roundToInt()}°"
-                    binding.descText.text = mockWeather.description
-                    binding.humidityText.text = "${mockWeather.humidity}%"
-                    binding.windText.text = "${mockWeather.windSpeed.roundToInt()} km/h"
-                    binding.feelsLikeText.text = "${mockWeather.feelsLike.roundToInt()}°"
+                    findViewById<android.widget.TextView>(R.id.tempText)?.text = "${mockWeather.temp.roundToInt()}°"
+                    findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = mockWeather.description
+                    findViewById<android.widget.TextView>(R.id.humidityText)?.text = "${mockWeather.humidity}%"
+                    findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${mockWeather.windSpeed.roundToInt()} km/h"
+                    findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "${mockWeather.feelsLike.roundToInt()}°"
                     
                     Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
                 }
@@ -171,7 +175,7 @@ class WeatherActivity : AppCompatActivity() {
     private fun loadHourlyForecast() {
         // ایجاد Mock Data برای پیش‌بینی ساعتی
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val hourlyLayout = binding.hourlyForecastRecycler
+        val hourlyLayout = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hourlyForecastRecycler)
         
         // اگر RecyclerView وجود نداره، از روش ساده استفاده کن
         if (hourlyLayout == null) {
@@ -280,32 +284,32 @@ class WeatherActivity : AppCompatActivity() {
     
     private fun updateUIWithAqicnData(data: AqicnWeatherAPI.WeatherData) {
         // آپدیت دما
-        binding.tempText?.text = "${data.temp.roundToInt()}°"
-        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(data.temp)
+        findViewById<android.widget.TextView>(R.id.tempText)?.text = "${data.temp.roundToInt()}°"
+        findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = AqicnWeatherAPI.getWeatherEmoji(data.temp)
         
         // آپدیت رطوبت
-        binding.humidityText?.text = "${data.humidity}%"
+        findViewById<android.widget.TextView>(R.id.humidityText)?.text = "${data.humidity}%"
         
         // آپدیت سرعت باد
-        binding.windSpeedText?.text = "${data.windSpeed.roundToInt()} km/h"
+        findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${data.windSpeed.roundToInt()} km/h"
         
         // آپدیت فشار هوا
-        binding.feelsLikeText?.text = "حس ${(data.temp + 2).roundToInt()}°"
+        findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "حس ${(data.temp + 2).roundToInt()}°"
         
         // نمایش کیفیت هوا
-        binding.aqiValueText?.text = "AQI: ${data.aqi}"
-        binding.aqiStatusText?.text = AqicnWeatherAPI.getAqiText(data.aqi)
-        binding.aqiProgressBar?.progress = data.aqi
+        findViewById<android.widget.TextView>(R.id.aqiValueText)?.text = "AQI: ${data.aqi}"
+        findViewById<android.widget.TextView>(R.id.aqiStatusText)?.text = AqicnWeatherAPI.getAqiText(data.aqi)
+        findViewById<android.widget.ProgressBar>(R.id.aqiProgressBar)?.progress = data.aqi
         
         // رنگ بندی بر اساس کیفیت هوا
         val aqiColor = android.graphics.Color.parseColor(AqicnWeatherAPI.getAqiColor(data.aqi))
-        binding.aqiProgressBar?.progressDrawable?.setColorFilter(
+        findViewById<android.widget.ProgressBar>(R.id.aqiProgressBar)?.progressDrawable?.setColorFilter(
             aqiColor,
             android.graphics.PorterDuff.Mode.SRC_IN
         )
         
         // توضیحات آب و هوا
-        binding.weatherDescText?.text = when {
+        findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = when {
             data.temp < 10 -> "سرد"
             data.temp < 20 -> "خنک"
             data.temp < 30 -> "معتدل"
