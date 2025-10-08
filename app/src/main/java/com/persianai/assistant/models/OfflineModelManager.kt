@@ -7,9 +7,12 @@ import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.*
 import kotlinx.coroutines.delay
 import org.json.JSONObject
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 /**
@@ -132,33 +135,42 @@ class OfflineModelManager(private val context: Context) {
                     delay(1000)
                 }
                 
-                // Log the URL and file info
+                // استفاده از OkHttp برای دانلود بهتر
                 android.util.Log.d("OfflineModelManager", "Downloading from: ${modelInfo.url}")
                 android.util.Log.d("OfflineModelManager", "Saving to: ${modelFile.absolutePath}")
                 
-                val url = URL(modelInfo.url)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connectTimeout = 30000  // 30 seconds
-                connection.readTimeout = 60000     // 60 seconds
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-                connection.connect()
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
+                    .writeTimeout(60, TimeUnit.SECONDS)
+                    .followRedirects(true)
+                    .followSslRedirects(true)
+                    .build()
                 
-                val responseCode = connection.responseCode
-                android.util.Log.d("OfflineModelManager", "Response code: $responseCode")
+                val request = Request.Builder()
+                    .url(modelInfo.url)
+                    .header("User-Agent", "Mozilla/5.0")
+                    .build()
                 
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw IOException("Server returned HTTP $responseCode")
+                val response = client.newCall(request).execute()
+                
+                if (!response.isSuccessful) {
+                    throw IOException("Download failed: ${response.code}")
                 }
                 
-                val fileLength = connection.contentLength
+                val body = response.body
+                if (body == null) {
+                    throw IOException("Response body is null")
+                }
+                
+                val fileLength = body.contentLength()
                 android.util.Log.d("OfflineModelManager", "File size: $fileLength bytes")
                 
-                if (fileLength < 1000000) { // Less than 1MB - suspicious
-                    throw IOException("File size too small: $fileLength bytes. Expected at least ${modelInfo.size}GB")
+                if (fileLength < 1000000 && fileLength > 0) { // Less than 1MB - suspicious
+                    throw IOException("File size too small: $fileLength bytes")
                 }
                 
-                val input = BufferedInputStream(connection.inputStream)
+                val input = BufferedInputStream(body.byteStream())
                 val output = FileOutputStream(modelFile)
                 
                 val buffer = ByteArray(8192)

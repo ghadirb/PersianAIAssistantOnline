@@ -153,28 +153,21 @@ class WeatherActivity : AppCompatActivity() {
                     binding.windText.text = "${mockWeather.windSpeed.roundToInt()} km/h"
                     binding.feelsLikeText.text = "${mockWeather.feelsLike.roundToInt()}°"
                     
-                    Toast.makeText(this, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
                 }
                 
                 // بارگذاری پیش‌بینی ساعتی
                 loadHourlyForecast()
                 
             } catch (e: Exception) {
-                Toast.makeText(this, "خطا در دریافت اطلاعات", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@WeatherActivity, "خطا در دریافت اطلاعات", Toast.LENGTH_SHORT).show()
             }
         }
     }
     
     private fun loadHourlyForecast() {
-        lifecycleScope.launch {
-            try {
-                val hourlyData = OpenWeatherAPI.getHourlyForecast(currentCity)
-                // نمایش در RecyclerView (باید اضافه شود)
-                // binding.hourlyRecyclerView.adapter = HourlyAdapter(hourlyData)
-            } catch (e: Exception) {
-                android.util.Log.e("WeatherActivity", "Error loading hourly forecast", e)
-            }
-        }
+        // TODO: پیاده‌سازی پیش‌بینی ساعتی
+        // فعلاً غیرفعال تا API مناسب اضافه شود
     }
     
     override fun onSupportNavigateUp(): Boolean {

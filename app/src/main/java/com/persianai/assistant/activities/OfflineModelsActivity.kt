@@ -1,5 +1,6 @@
 package com.persianai.assistant.activities
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -141,35 +142,49 @@ class OfflineModelsActivity : AppCompatActivity() {
         }
         
         AlertDialog.Builder(this)
-            .setTitle("دانلود ${model.name}")
+            .setTitle("راهنمای دانلود ${model.name}")
             .setMessage("""
                 حجم دانلود: ${model.size} GB
                 
-                ⚠️ توجه:
-                • از اتصال Wi-Fi استفاده کنید
-                • باتری گوشی بیش از 50% باشد
-                • برنامه را تا پایان دانلود باز نگه دارید
+                لینک دانلود:
+                ${model.url}
                 
-                آیا مطمئن هستید؟
+                روش‌های دانلود:
+                1️⃣ لینک را کپی کنید و در مرورگر باز کنید
+                2️⃣ از دانلود منیجر استفاده کنید (ADM یا IDM)
+                3️⃣ پس از دانلود، فایل را در این مسیر کپی کنید:
+                /Android/data/com.persianai.assistant/files/Download/models/
+                
+                ⚠️ نکات مهم:
+                • از اتصال Wi-Fi استفاده کنید
+                • دانلود ممکن است چند ساعت طول بکشد
             """.trimIndent())
-            .setPositiveButton("دانلود") { _, _ ->
+            .setPositiveButton("کپی لینک") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Model URL", model.url)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "✅ لینک کپی شد", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("دانلود در برنامه") { _, _ ->
+                // شروع دانلود با OkHttp
                 modelManager.downloadModel(model) { success ->
-                    if (success) {
-                        Toast.makeText(this, "✅ مدل با موفقیت دانلود شد!", Toast.LENGTH_LONG).show()
-                        loadModels()
-                    } else {
-                        Toast.makeText(this, "❌ خطا در دانلود مدل", Toast.LENGTH_LONG).show()
+                    runOnUiThread {
+                        if (success) {
+                            Toast.makeText(this, "✅ دانلود کامل شد!", Toast.LENGTH_LONG).show()
+                            loadModels()
+                        } else {
+                            Toast.makeText(this, "❌ خطا در دانلود", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
-            .setNegativeButton("انصراف", null)
+            .setNegativeButton("بستن", null)
             .show()
     }
     
     private fun showDeleteDialog(model: OfflineModelManager.ModelInfo) {
         AlertDialog.Builder(this)
             .setTitle("حذف ${model.name}")
-            .setMessage("آیا از حذف این مدل مطمئن هستید؟ ${model.size} GB فضا آزاد خواهد شد.")
             .setPositiveButton("حذف") { _, _ ->
                 if (modelManager.deleteModel(model.name)) {
                     Toast.makeText(this, "✅ مدل حذف شد", Toast.LENGTH_SHORT).show()
