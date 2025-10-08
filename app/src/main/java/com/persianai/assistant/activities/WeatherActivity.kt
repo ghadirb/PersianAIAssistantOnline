@@ -76,31 +76,58 @@ class WeatherActivity : AppCompatActivity() {
     }
     
     private fun showCitySearchDialog() {
-        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+        val allCities = popularCities + listOf(
+            "آمل", "بوشهر", "بیرجند", "چالوس", "دزفول", "رامسر", "سبزوار", "سمنان", 
+            "شهرکرد", "قزوین", "کاشان", "گرگان", "مشهد", "یاسوج"
+        ).distinct().sorted()
+        
         val input = android.widget.EditText(this).apply {
-            hint = "نام شهر را وارد کنید..."
-            setPadding(32, 16, 32, 16)
+            hint = "🔍 جستجو در ${allCities.size} شهر..."
+            setPadding(32, 24, 32, 24)
+            textSize = 16f
         }
         
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("🔍 جستجوی شهر")
-            .setView(input)
-            .setPositiveButton("جستجو") { _, _ ->
-                val city = input.text?.toString()?.trim()
-                if (!city.isNullOrEmpty()) {
-                    currentCity = city
-                    findViewById<android.widget.TextView>(R.id.cityNameText).text = city
-                    
-                    // ذخیره شهر جدید
-                    val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-                    prefs.edit().putString("selected_city", city).apply()
-                    
-                    // بارگذاری آب و هوا
-                    loadCurrentWeather()
-                }
+        val listView = android.widget.ListView(this)
+        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, allCities)
+        listView.adapter = adapter
+        
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+            addView(input)
+            addView(listView)
+        }
+        
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("🌍 انتخاب شهر")
+            .setView(layout)
+            .setNegativeButton("بستن", null)
+            .create()
+        
+        // Filter cities as user types
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                adapter.filter.filter(s)
             }
-            .setNegativeButton("لغو", null)
-            .show()
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+        
+        // Handle city selection
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val city = adapter.getItem(position) ?: return@setOnItemClickListener
+            currentCity = city
+            findViewById<android.widget.TextView>(R.id.cityNameText).text = city
+            
+            val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+            prefs.edit().putString("selected_city", city).apply()
+            
+            loadCurrentWeather()
+            dialog.dismiss()
+            Toast.makeText(this, "شهر انتخاب شد: $city", Toast.LENGTH_SHORT).show()
+        }
+        
+        dialog.show()
     }
     
     private fun setupQuickCities() {
