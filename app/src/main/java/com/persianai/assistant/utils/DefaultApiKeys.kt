@@ -13,11 +13,17 @@ object DefaultApiKeys {
     private const val ENCRYPTION_KEY = "PersianAI2024Key"  // 16 کاراکتر
     private const val ENCRYPTION_IV = "InitVector123456"    // 16 کاراکتر
     
-    // کلیدهای رمزگذاری شده - لطفاً کلیدهای خود را جایگزین کنید
+    // ⚠️ توجه: این فایل فقط برای توسعه‌دهندگان است
+    // کاربران عادی باید از تنظیمات برنامه (API Settings) کلیدهای خود را وارد کنند
+    // اگر می‌خواهید کلید پیش‌فرض برای تست قرار دهید:
+    // 1. به https://platform.openai.com/api-keys بروید و کلید بگیرید
+    // 2. کلید را در خط زیر جایگزین کنید
+    // 3. این فایل را هرگز در گیت commit نکنید!
+    
     private val ENCRYPTED_KEYS = mapOf(
-        "openai_1" to encryptKey("YOUR_OPENAI_API_KEY_HERE"),  // کلید OpenAI خود را اینجا قرار دهید
-        "aimlapi_1" to encryptKey("YOUR_AIML_API_KEY_HERE"),   // کلید AIML خود را اینجا قرار دهید
-        "openrouter_1" to encryptKey("YOUR_OPENROUTER_KEY_HERE")  // کلید OpenRouter خود را اینجا قرار دهید
+        "openai_1" to encryptKey(""),  // کلید OpenAI - خالی است، از تنظیمات برنامه استفاده کنید
+        "aimlapi_1" to encryptKey(""),   // کلید AIML - خالی است
+        "openrouter_1" to encryptKey("")  // کلید OpenRouter - خالی است
     )
     
     /**

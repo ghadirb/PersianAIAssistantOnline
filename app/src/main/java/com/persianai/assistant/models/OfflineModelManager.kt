@@ -5,6 +5,7 @@ import android.os.Environment
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.*
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.*
 import java.net.HttpURLConnection
@@ -110,14 +111,25 @@ class OfflineModelManager(private val context: Context) {
                 
                 val modelFile = File(modelDir, "${modelInfo.name.replace(" ", "_")}.gguf")
                 
+                // حجم مورد انتظار (تبدیل GB به بایت)
+                val expectedSize = (modelInfo.size * 1024 * 1024 * 1024).toLong()
+                
                 // اگر فایل وجود داره، چک کن کامل دانلود شده یا نه
-                if (modelFile.exists() && modelFile.length() > 1000000) {
+                if (modelFile.exists() && modelFile.length() >= expectedSize * 0.95) { // حداقل 95% حجم
                     withContext(Dispatchers.Main) {
                         _downloadStatus.value = "✅ مدل قبلاً دانلود شده!"
+                        _downloadProgress.value = 100f
                         _isDownloading.value = false
                         onComplete(true)
                     }
                     return@launch
+                } else if (modelFile.exists()) {
+                    // اگر فایل ناقص است، حذف کن
+                    modelFile.delete()
+                    withContext(Dispatchers.Main) {
+                        _downloadStatus.value = "🗑️ حذف فایل ناقص قبلی..."
+                    }
+                    delay(1000)
                 }
                 
                 val url = URL(modelInfo.url)

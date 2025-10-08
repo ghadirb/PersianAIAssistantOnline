@@ -1,5 +1,6 @@
 package com.persianai.assistant.activities
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,12 @@ class WeatherActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
         
+        // دکمه پیش‌بینی 7 روزه
+        binding.forecastButton.setOnClickListener {
+            val intent = Intent(this, WeatherForecastActivity::class.java)
+            startActivity(intent)
+        }
+        
         loadWeather()
     }
     
@@ -40,37 +47,29 @@ class WeatherActivity : AppCompatActivity() {
                 
                 if (weather != null) {
                     // نمایش داده‌های واقعی
-                    binding.tempText.text = "${weather.temp.roundToInt()}°C"
-                    binding.descText.text = "$city - ${weather.description}"
-                    binding.aqiText.text = "رطوبت: ${weather.humidity}% | باد: ${weather.windSpeed} m/s"
+                    binding.cityNameText.text = city
+                    binding.tempText.text = "${weather.temp.roundToInt()}°"
+                    binding.descText.text = weather.description
+                    binding.humidityText.text = "${weather.humidity}%"
+                    binding.windText.text = "${weather.windSpeed.roundToInt()} km/h"
+                    binding.feelsLikeText.text = "${weather.feelsLike.roundToInt()}°"
                 } else {
                     // در صورت عدم دسترسی به API، از Mock Data استفاده می‌کنیم
                     val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
-                    binding.tempText.text = "${mockWeather.temp.roundToInt()}°C"
-                    binding.descText.text = "$city - ${mockWeather.description}"
-                    binding.aqiText.text = "رطوبت: ${mockWeather.humidity}% | باد: ${mockWeather.windSpeed.roundToInt()} m/s"
+                    binding.cityNameText.text = city
+                    binding.tempText.text = "${mockWeather.temp.roundToInt()}°"
+                    binding.descText.text = mockWeather.description
+                    binding.humidityText.text = "${mockWeather.humidity}%"
+                    binding.windText.text = "${mockWeather.windSpeed.roundToInt()} km/h"
+                    binding.feelsLikeText.text = "${mockWeather.feelsLike.roundToInt()}°"
                     
                     Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
                 }
-                
-                // پیش‌بینی 7 روزه
                 
             } catch (e: Exception) {
                 Toast.makeText(this@WeatherActivity, "خطا در دریافت اطلاعات آب و هوا", Toast.LENGTH_SHORT).show()
                 e.printStackTrace()
             }
-        }
-    }
-    
-    private suspend fun loadForecast(city: String) {
-        try {
-            val forecasts = OpenWeatherAPI.getForecast(city)
-            if (forecasts.isNotEmpty()) {
-                // نمایش پیش‌بینی در RecyclerView یا ScrollView
-                // TODO: اضافه کردن RecyclerView برای نمایش پیش‌بینی
-            }
-        } catch (e: Exception) {
-            // در صورت خطا، پیش‌بینی نمایش نمی‌دهیم
         }
     }
     
