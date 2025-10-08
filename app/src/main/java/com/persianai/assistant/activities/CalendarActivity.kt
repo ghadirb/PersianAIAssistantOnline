@@ -43,8 +43,11 @@ class CalendarActivity : AppCompatActivity() {
     
     private fun setupCalendar() {
         try {
+            updateAllDates()
             updateMonthDisplay()
             setupGrid()
+            setupPrayerTimes()
+            setupButtons()
             
             findViewById<android.widget.ImageButton>(R.id.prevMonthButton)?.setOnClickListener {
                 currentMonth--
@@ -72,10 +75,47 @@ class CalendarActivity : AppCompatActivity() {
     
     private fun updateMonthDisplay() {
         findViewById<TextView>(R.id.currentMonthText)?.text = "${PersianDateConverter.getMonthName(currentMonth)} $currentYear"
-        
-        // تاریخ امروز
-        val persianDate = PersianDateConverter.getCurrentPersianDate()
-        findViewById<TextView>(R.id.persianDateBig)?.text = "${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
+    }
+    
+    private fun updateAllDates() {
+        try {
+            // تاریخ امروز
+            val persianDate = PersianDateConverter.getCurrentPersianDate()
+            findViewById<TextView>(R.id.persianDateBig)?.text = "${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
+            
+            // روز هفته
+            val weekDays = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
+            val calendar = java.util.Calendar.getInstance()
+            val dayOfWeek = when(calendar.get(java.util.Calendar.DAY_OF_WEEK)) {
+                java.util.Calendar.SATURDAY -> 0
+                java.util.Calendar.SUNDAY -> 1
+                java.util.Calendar.MONDAY -> 2
+                java.util.Calendar.TUESDAY -> 3
+                java.util.Calendar.WEDNESDAY -> 4
+                java.util.Calendar.THURSDAY -> 5
+                java.util.Calendar.FRIDAY -> 6
+                else -> 0
+            }
+            findViewById<TextView>(R.id.weekDayText)?.text = weekDays[dayOfWeek]
+            
+            // تاریخ میلادی
+            val gregorianFormat = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.ENGLISH)
+            findViewById<TextView>(R.id.gregorianDate)?.text = gregorianFormat.format(java.util.Date())
+            
+            // ماه و سال
+            findViewById<TextView>(R.id.monthNameText)?.text = "${PersianDateConverter.getMonthName(persianDate.month)} ماه"
+            findViewById<TextView>(R.id.yearText)?.text = "سال ${persianDate.year}"
+            
+            // مناسبت امروز
+            val events = PersianEvents.getEventsForDate(persianDate.month, persianDate.day)
+            if (events.isNotEmpty()) {
+                findViewById<TextView>(R.id.occasionText)?.text = "📌 ${events[0].title}"
+            } else {
+                findViewById<TextView>(R.id.occasionText)?.text = "📌 هیچ مناسبتی برای امروز ثبت نشده"
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarActivity", "Error updating dates", e)
+        }
     }
     
     private fun getFirstDayOfMonth(persianYear: Int, persianMonth: Int): Int {
@@ -177,19 +217,59 @@ class CalendarActivity : AppCompatActivity() {
         }
     }
     
-    private fun updateDates() {
-        // نمایش تاریخ میلادی
-        val calendar = java.util.Calendar.getInstance()
-        val gregorianMonth = arrayOf("ژانویه", "فوریه", "مارس", "آوریل", "می", "ژوئن", 
-            "جولای", "آگوست", "سپتامبر", "اکتبر", "نوامبر", "دسامبر")
-        val gregText = "${calendar.get(java.util.Calendar.DAY_OF_MONTH)} ${gregorianMonth[calendar.get(java.util.Calendar.MONTH)]} ${calendar.get(java.util.Calendar.YEAR)}"
+    private fun setupPrayerTimes() {
+        try {
+            // اوقات شرعی تهران (تقریبی)
+            findViewById<TextView>(R.id.fajrTime)?.text = "۰۴:۵۳"
+            findViewById<TextView>(R.id.sunriseTime)?.text = "۰۶:۱۷"
+            findViewById<TextView>(R.id.dhuhrTime)?.text = "۱۱:۵۹"
+            findViewById<TextView>(R.id.sunsetTime)?.text = "۱۷:۴۲"
+            findViewById<TextView>(R.id.maghribTime)?.text = "۱۸:۰۰"
+            findViewById<TextView>(R.id.midnightTime)?.text = "۲۳:۲۶"
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarActivity", "Error setting prayer times", e)
+        }
+    }
+    
+    private fun setupButtons() {
+        try {
+            // دکمه اوقات شرعی
+            findViewById<com.google.android.material.button.MaterialButton>(R.id.prayerTimesButton)?.setOnClickListener {
+                val card = findViewById<com.google.android.material.card.MaterialCardView>(R.id.prayerTimesCard)
+                if (card?.visibility == android.view.View.VISIBLE) {
+                    card.visibility = android.view.View.GONE
+                } else {
+                    card?.visibility = android.view.View.VISIBLE
+                }
+            }
+            
+            // دکمه تبدیل تاریخ
+            findViewById<com.google.android.material.button.MaterialButton>(R.id.convertButton)?.setOnClickListener {
+                showDateConverterDialog()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarActivity", "Error setting up buttons", e)
+        }
+    }
+    
+    private fun showDateConverterDialog() {
+        val persianDate = PersianDateConverter.getCurrentPersianDate()
+        val message = """
+            📅 تاریخ فارسی:
+            ${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}
+            
+            📆 تاریخ میلادی:
+            ${java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.ENGLISH).format(java.util.Date())}
+            
+            🌙 تاریخ قمری (تقریبی):
+            ۱۳ ربیع الاول ۱۴۴۷
+        """.trimIndent()
         
-        // نمایش تاریخ قمری (تقریبی)
-        val hijriText = "13 ربیع الاول 1447"
-        
-        // اگر TextView ها وجود داشته باشند
-        findViewById<android.widget.TextView>(R.id.gregorianDate)?.text = gregText
-        findViewById<android.widget.TextView>(R.id.hijriDate)?.text = hijriText
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("🔄 تبدیل تاریخ")
+            .setMessage(message)
+            .setPositiveButton("بستن", null)
+            .show()
     }
     
     override fun onSupportNavigateUp(): Boolean {
