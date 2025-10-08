@@ -131,7 +131,8 @@ class DashboardActivity : AppCompatActivity() {
                     
                     // نمایش کیفیت هوا اگر موجود است
                     val aqiText = AqicnWeatherAPI.getAqiText(aqicnData.aqi)
-                    binding.weatherDescText?.text = "AQI: ${aqicnData.aqi} - $aqiText"
+                    // نمایش AQI در لاگ (فعلاً TextView مربوطه در layout وجود ندارد)
+                    android.util.Log.d("DashboardActivity", "AQI: ${aqicnData.aqi} - $aqiText")
                 } else {
                     // اگر AQICN جواب نداد، از OpenWeatherAPI استفاده کن
                     val weatherData = OpenWeatherAPI.getCurrentWeather(city)
