@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.AqicnWeatherAPI
 import com.persianai.assistant.databinding.ActivityWeatherBinding
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -25,7 +26,9 @@ class WeatherActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityWeatherBinding.inflate(layoutInflater)
+        // استفاده از layout جدید
+        setContentView(R.layout.activity_weather_updated)
+        binding = ActivityWeatherBinding.bind(findViewById(android.R.id.content))
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -126,25 +129,25 @@ class WeatherActivity : AppCompatActivity() {
             binding.quickCitiesLayout.addView(button)
         }
     }
-    
     private fun loadWeather(forceFresh: Boolean = false) {
         // پاک کردن کش در صورت نیاز
         if (forceFresh) {
             OpenWeatherAPI.clearCache()
         }
-        
+    }
+    
+    private fun loadCurrentWeather() {
         lifecycleScope.launch {
             try {
-                val weather = OpenWeatherAPI.getCurrentWeather(currentCity)
+                // ابتدا از AQICN API استفاده کن
+                val aqicnData = AqicnWeatherAPI.getWeatherByCity(currentCity)
                 
-                if (weather != null) {
-                    // نمایش داده‌های واقعی
-                    binding.tempText.text = "${weather.temp.roundToInt()}°"
-                    binding.descText.text = weather.description
-                    binding.humidityText.text = "${weather.humidity}%"
-                    binding.windText.text = "${weather.windSpeed.roundToInt()} km/h"
-                    binding.feelsLikeText.text = "${weather.feelsLike.roundToInt()}°"
+                if (aqicnData != null) {
+                    android.util.Log.d("WeatherActivity", "AQICN data loaded: ${aqicnData.temp}°C")
+                    updateUIWithAqicnData(aqicnData)
                 } else {
+                    // اگر AQICN جواب نداد، از OpenWeatherAPI استفاده کن
+                    val weatherData = OpenWeatherAPI.getCurrentWeather(currentCity)
                     // استفاده از Mock Data
                     val mockWeather = OpenWeatherAPI.getMockWeatherData(currentCity)
                     binding.tempText.text = "${mockWeather.temp.roundToInt()}°"
@@ -273,6 +276,42 @@ class WeatherActivity : AppCompatActivity() {
         }
         
         override fun getItemCount() = items.size
+    }
+    
+    private fun updateUIWithAqicnData(data: AqicnWeatherAPI.WeatherData) {
+        // آپدیت دما
+        binding.tempText?.text = "${data.temp.roundToInt()}°"
+        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(data.temp)
+        
+        // آپدیت رطوبت
+        binding.humidityText?.text = "${data.humidity}%"
+        
+        // آپدیت سرعت باد
+        binding.windSpeedText?.text = "${data.windSpeed.roundToInt()} km/h"
+        
+        // آپدیت فشار هوا
+        binding.feelsLikeText?.text = "حس ${(data.temp + 2).roundToInt()}°"
+        
+        // نمایش کیفیت هوا
+        binding.aqiValueText?.text = "AQI: ${data.aqi}"
+        binding.aqiStatusText?.text = AqicnWeatherAPI.getAqiText(data.aqi)
+        binding.aqiProgressBar?.progress = data.aqi
+        
+        // رنگ بندی بر اساس کیفیت هوا
+        val aqiColor = android.graphics.Color.parseColor(AqicnWeatherAPI.getAqiColor(data.aqi))
+        binding.aqiProgressBar?.progressDrawable?.setColorFilter(
+            aqiColor,
+            android.graphics.PorterDuff.Mode.SRC_IN
+        )
+        
+        // توضیحات آب و هوا
+        binding.weatherDescText?.text = when {
+            data.temp < 10 -> "سرد"
+            data.temp < 20 -> "خنک"
+            data.temp < 30 -> "معتدل"
+            data.temp < 35 -> "گرم"
+            else -> "بسیار گرم"
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {

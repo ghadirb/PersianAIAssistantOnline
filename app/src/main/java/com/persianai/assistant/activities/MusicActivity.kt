@@ -33,17 +33,23 @@ class MusicActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMusicBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "🎵 پلی‌لیست هوشمند"
-        
-        musicManager = MusicPlaylistManager(this)
-        
-        setupUI()
-        checkPermissions()
+        try {
+            binding = ActivityMusicBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.title = "🎵 پلی‌لیست هوشمند"
+            
+            musicManager = MusicPlaylistManager(this)
+            
+            setupUI()
+            checkPermissions()
+        } catch (e: Exception) {
+            android.util.Log.e("MusicActivity", "Error in onCreate", e)
+            Toast.makeText(this, "خطا در بارگذاری صفحه موزیک", Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
     
     private fun setupUI() {

@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.AqicnWeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
@@ -120,38 +121,67 @@ class DashboardActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val weatherData = OpenWeatherAPI.getCurrentWeather(city)
+                // ابتدا از AQICN API استفاده کن
+                val aqicnData = AqicnWeatherAPI.getCurrentWeather()
                 
-                if (weatherData != null) {
-                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
+                if (aqicnData != null) {
+                    android.util.Log.d("DashboardActivity", "AQICN weather loaded: ${aqicnData.temp}°C")
+                    binding.weatherTempText?.text = "${aqicnData.temp.roundToInt()}°"
+                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(aqicnData.temp)
+                    
+                    // نمایش کیفیت هوا اگر موجود است
+                    val aqiText = AqicnWeatherAPI.getAqiText(aqicnData.aqi)
+                    binding.weatherDescText?.text = "AQI: ${aqicnData.aqi} - $aqiText"
                 } else {
-                    // Fallback به Mock Data
-                    val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                    binding.weatherTempText?.text = "${mockData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = mockData.icon
+                    // اگر AQICN جواب نداد، از OpenWeatherAPI استفاده کن
+                    val weatherData = OpenWeatherAPI.getCurrentWeather(city)
+                    
+                    if (weatherData != null) {
+                        binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
+                        binding.weatherIcon?.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
+                    } else {
+                        // در نهایت از داده‌های تخمینی AQICN استفاده کن
+                        val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(city)
+                        binding.weatherTempText?.text = "${estimatedData.temp.roundToInt()}°"
+                        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
+                    }
                 }
                 
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
-                binding.weatherTempText?.text = "25°"
-                binding.weatherIcon?.text = "🌤️"
+                // استفاده از داده‌های تخمینی واقعی‌تر
+                val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(city)
+                binding.weatherTempText?.text = "${estimatedData.temp.roundToInt()}°"
+                binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
             }
         }
         
         // دکمه‌های پیش‌بینی
         binding.hourlyBtn?.setOnClickListener {
-            val intent = Intent(this, WeatherActivity::class.java)
-            intent.putExtra("SHOW_HOURLY", true)
-            startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            android.util.Log.d("DashboardActivity", "Hourly button clicked")
+            try {
+                val intent = Intent(this, WeatherActivity::class.java)
+                intent.putExtra("SHOW_HOURLY", true)
+                intent.putExtra("city", city)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Error opening hourly weather", e)
+                Toast.makeText(this, "خطا در نمایش پیش‌بینی ساعتی", Toast.LENGTH_SHORT).show()
+            }
         }
         
         binding.weeklyBtn?.setOnClickListener {
-            val intent = Intent(this, WeatherForecastActivity::class.java)
-            intent.putExtra("city", city)
-            startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            android.util.Log.d("DashboardActivity", "Weekly button clicked")
+            try {
+                val intent = Intent(this, WeatherForecastActivity::class.java)
+                intent.putExtra("city", city)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Error opening weekly forecast", e)
+                Toast.makeText(this, "خطا در نمایش پیش‌بینی هفتگی", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
