@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,43 +20,53 @@ class CalendarActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // استفاده از layout یکسان با داشبورد
-        setContentView(R.layout.activity_calendar_unified)
-        
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "📅 تقویم فارسی"
-        
-        PersianEvents.loadEvents(this)
-        setupCalendar()
+        try {
+            // استفاده از layout یکسان با داشبورد
+            setContentView(R.layout.activity_calendar_unified)
+            
+            val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+            setSupportActionBar(toolbar)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.title = "📅 تقویم فارسی"
+            
+            PersianEvents.loadEvents(this)
+            setupCalendar()
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarActivity", "Error in onCreate", e)
+            Toast.makeText(this, "خطا در بارگذاری تقویم", Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
     
     private var currentYear = PersianDateConverter.getCurrentPersianDate().year
     private var currentMonth = PersianDateConverter.getCurrentPersianDate().month
     
     private fun setupCalendar() {
-        updateMonthDisplay()
-        setupGrid()
-        
-        findViewById<android.widget.ImageButton>(R.id.prevMonthButton)?.setOnClickListener {
-            currentMonth--
-            if (currentMonth < 1) {
-                currentMonth = 12
-                currentYear--
-            }
+        try {
             updateMonthDisplay()
             setupGrid()
-        }
-        
-        findViewById<android.widget.ImageButton>(R.id.nextMonthButton)?.setOnClickListener {
-            currentMonth++
-            if (currentMonth > 12) {
-                currentMonth = 1
-                currentYear++
+            
+            findViewById<android.widget.ImageButton>(R.id.prevMonthButton)?.setOnClickListener {
+                currentMonth--
+                if (currentMonth < 1) {
+                    currentMonth = 12
+                    currentYear--
+                }
+                updateMonthDisplay()
+                setupGrid()
             }
-            updateMonthDisplay()
-            setupGrid()
+            
+            findViewById<android.widget.ImageButton>(R.id.nextMonthButton)?.setOnClickListener {
+                currentMonth++
+                if (currentMonth > 12) {
+                    currentMonth = 1
+                    currentYear++
+                }
+                updateMonthDisplay()
+                setupGrid()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarActivity", "Error in setupCalendar", e)
         }
     }
     
@@ -111,6 +122,7 @@ class CalendarActivity : AppCompatActivity() {
     }
     
     private fun setupGrid() {
+        try {
         val days = mutableListOf<Int>()
         val daysInMonth = when(currentMonth) {
             in 1..6 -> 31
@@ -144,6 +156,9 @@ class CalendarActivity : AppCompatActivity() {
         val today = PersianDateConverter.getCurrentPersianDate()
         if (currentMonth == today.month && currentYear == today.year) {
             showDayEvents(today.day)
+        }
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarActivity", "Error in setupGrid", e)
         }
     }
     

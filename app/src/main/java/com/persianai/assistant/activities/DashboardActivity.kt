@@ -70,21 +70,39 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun setupClickListeners() {
         binding.calendarCard?.setOnClickListener {
-            AnimationHelper.clickAnimation(it)
-            it.postDelayed({
-                val intent = Intent(this, CalendarActivity::class.java)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            }, 150)
+            try {
+                AnimationHelper.clickAnimation(it)
+                it.postDelayed({
+                    try {
+                        val intent = Intent(this, CalendarActivity::class.java)
+                        startActivity(intent)
+                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardActivity", "Error opening calendar", e)
+                        Toast.makeText(this, "خطا در باز کردن تقویم", Toast.LENGTH_SHORT).show()
+                    }
+                }, 150)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Click error", e)
+            }
         }
         
         binding.weatherCard?.setOnClickListener {
-            AnimationHelper.clickAnimation(it)
-            it.postDelayed({
-                val intent = Intent(this, WeatherActivity::class.java)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            }, 150)
+            try {
+                AnimationHelper.clickAnimation(it)
+                it.postDelayed({
+                    try {
+                        val intent = Intent(this, WeatherActivity::class.java)
+                        startActivity(intent)
+                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardActivity", "Error opening weather", e)
+                        Toast.makeText(this, "خطا در باز کردن آب و هوا", Toast.LENGTH_SHORT).show()
+                    }
+                }, 150)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Click error", e)
+            }
         }
         
         binding.aiChatCard?.setOnClickListener {
