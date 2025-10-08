@@ -259,8 +259,17 @@ class WeatherForecastActivity : AppCompatActivity() {
             private val descText: TextView = itemView.findViewById(R.id.forecastDescription)
             
             fun bind(forecast: DailyForecast) {
-                val dateFormat = SimpleDateFormat("EEEE, d MMMM", Locale("fa", "IR"))
-                dateText.text = dateFormat.format(forecast.date)
+                try {
+                    val dateFormat = SimpleDateFormat("EEEE, d MMMM", Locale("fa"))
+                    dateText.text = dateFormat.format(forecast.date)
+                } catch (e: Exception) {
+                    // fallback to simple format
+                    val cal = Calendar.getInstance()
+                    cal.time = forecast.date
+                    val dayNames = arrayOf("یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه", "شنبه")
+                    val monthNames = arrayOf("فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند")
+                    dateText.text = "${dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]}, ${cal.get(Calendar.DAY_OF_MONTH)} ${monthNames[cal.get(Calendar.MONTH)]}"
+                }
                 
                 iconText.text = OpenWeatherAPI.getWeatherEmoji(forecast.icon)
                 

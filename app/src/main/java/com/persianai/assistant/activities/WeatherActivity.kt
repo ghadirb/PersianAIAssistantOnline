@@ -2,9 +2,13 @@ package com.persianai.assistant.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
 import com.persianai.assistant.databinding.ActivityWeatherBinding
 import kotlinx.coroutines.launch
@@ -14,6 +18,8 @@ class WeatherActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityWeatherBinding
     
+    private val cities = listOf("تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم")
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityWeatherBinding.inflate(layoutInflater)
@@ -22,13 +28,49 @@ class WeatherActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
         
+        setupCitySpinner()
+        
         // دکمه پیش‌بینی 7 روزه
         binding.forecastButton.setOnClickListener {
-            val intent = Intent(this, WeatherForecastActivity::class.java)
-            startActivity(intent)
+            try {
+                val intent = Intent(this, WeatherForecastActivity::class.java)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "خطا در باز کردن پیش‌بینی: ${e.message}", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            }
+        }
+        
+        // دکمه بروزرسانی
+        binding.refreshButton.setOnClickListener {
+            loadWeather(forceFresh = true)
         }
         
         loadWeather()
+    }
+    
+    private fun setupCitySpinner() {
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, cities)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.citySpinner.adapter = adapter
+        
+        // تنظیم شهر ذخیره شده
+        val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+        val savedCity = prefs.getString("selected_city", "تهران")
+        val position = cities.indexOf(savedCity)
+        if (position >= 0) {
+            binding.citySpinner.setSelection(position)
+        }
+        
+        binding.citySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedCity = cities[position]
+                prefs.edit().putString("selected_city", selectedCity).apply()
+                loadWeather()
+            }
+            
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
     }
     
     private fun loadWeather(forceFresh: Boolean = false) {
