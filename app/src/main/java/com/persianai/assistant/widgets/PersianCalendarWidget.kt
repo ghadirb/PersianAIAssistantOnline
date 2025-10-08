@@ -51,22 +51,27 @@ class PersianCalendarWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar)
-        
-        // خواندن تنظیمات
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        val showWeather = prefs.getBoolean("show_weather", true)
-        
-        // شروع سرویس آپدیت
-        val serviceIntent = Intent(context, WidgetUpdateService::class.java)
-        context.startService(serviceIntent)
-        
-        // تاریخ فارسی
-        val persianDate = PersianDateConverter.getCurrentPersianDate()
-        val dayOfWeek = getDayOfWeek()
-        val dateText = "$dayOfWeek، ${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
-        
-        views.setTextViewText(R.id.widgetPersianDate, dateText)
+        try {
+            val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar)
+            
+            // خواندن تنظیمات
+            val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+            val showWeather = prefs.getBoolean("show_weather", true)
+            
+            // شروع سرویس آپدیت
+            try {
+                val serviceIntent = Intent(context, WidgetUpdateService::class.java)
+                context.startService(serviceIntent)
+            } catch (e: Exception) {
+                android.util.Log.e("Widget", "Service error: ${e.message}")
+            }
+            
+            // تاریخ فارسی
+            val persianDate = PersianDateConverter.getCurrentPersianDate()
+            val dayOfWeek = getDayOfWeek()
+            val dateText = "$dayOfWeek، ${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
+            
+            views.setTextViewText(R.id.widgetPersianDate, dateText)
         
         // آب و هوا
         if (showWeather) {
@@ -90,6 +95,9 @@ class PersianCalendarWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widgetRefreshButton, refreshPendingIntent)
         
         appWidgetManager.updateAppWidget(appWidgetId, views)
+        } catch (e: Exception) {
+            android.util.Log.e("PersianCalendarWidget", "Error updating widget", e)
+        }
     }
     
     private fun updateWeather(context: Context, views: RemoteViews) {
