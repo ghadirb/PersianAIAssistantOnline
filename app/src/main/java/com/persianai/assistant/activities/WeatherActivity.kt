@@ -21,11 +21,6 @@ class WeatherActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
         
-        // دکمه رفرش
-        binding.refreshButton?.setOnClickListener {
-            loadWeather(forceFresh = true)
-        }
-        
         loadWeather()
     }
     
@@ -48,18 +43,12 @@ class WeatherActivity : AppCompatActivity() {
                     binding.tempText.text = "${weather.temp.roundToInt()}°C"
                     binding.descText.text = "$city - ${weather.description}"
                     binding.aqiText.text = "رطوبت: ${weather.humidity}% | باد: ${weather.windSpeed} m/s"
-                    // Update additional fields if they exist
-                    binding.feelsLikeText?.text = "احساسی: ${weather.feelsLike.roundToInt()}°"
-                    binding.minMaxText?.text = "${weather.tempMin.roundToInt()}° / ${weather.tempMax.roundToInt()}°"
                 } else {
                     // در صورت عدم دسترسی به API، از Mock Data استفاده می‌کنیم
                     val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
                     binding.tempText.text = "${mockWeather.temp.roundToInt()}°C"
                     binding.descText.text = "$city - ${mockWeather.description}"
                     binding.aqiText.text = "رطوبت: ${mockWeather.humidity}% | باد: ${mockWeather.windSpeed.roundToInt()} m/s"
-                    // Update additional fields if they exist
-                    binding.feelsLikeText?.text = "احساسی: ${mockWeather.feelsLike.roundToInt()}°"
-                    binding.minMaxText?.text = "${mockWeather.tempMin.roundToInt()}° / ${mockWeather.tempMax.roundToInt()}°"
                     
                     Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
                 }
