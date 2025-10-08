@@ -132,11 +132,32 @@ class OfflineModelManager(private val context: Context) {
                     delay(1000)
                 }
                 
+                // Log the URL and file info
+                android.util.Log.d("OfflineModelManager", "Downloading from: ${modelInfo.url}")
+                android.util.Log.d("OfflineModelManager", "Saving to: ${modelFile.absolutePath}")
+                
                 val url = URL(modelInfo.url)
                 val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 30000  // 30 seconds
+                connection.readTimeout = 60000     // 60 seconds
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
                 connection.connect()
                 
+                val responseCode = connection.responseCode
+                android.util.Log.d("OfflineModelManager", "Response code: $responseCode")
+                
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    throw IOException("Server returned HTTP $responseCode")
+                }
+                
                 val fileLength = connection.contentLength
+                android.util.Log.d("OfflineModelManager", "File size: $fileLength bytes")
+                
+                if (fileLength < 1000000) { // Less than 1MB - suspicious
+                    throw IOException("File size too small: $fileLength bytes. Expected at least ${modelInfo.size}GB")
+                }
+                
                 val input = BufferedInputStream(connection.inputStream)
                 val output = FileOutputStream(modelFile)
                 

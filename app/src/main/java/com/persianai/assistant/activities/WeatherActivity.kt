@@ -2,11 +2,12 @@ package com.persianai.assistant.activities
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
+import android.view.inputmethod.EditorInfo
+import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.persianai.assistant.R
 import com.persianai.assistant.api.OpenWeatherAPI
@@ -17,8 +18,10 @@ import kotlin.math.roundToInt
 class WeatherActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityWeatherBinding
-    
-    private val cities = listOf("تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم")
+    private var currentCity = "تهران"
+    private val popularCities = listOf("تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", 
+        "کرمان", "ارومیه", "رشت", "زاهدان", "همدان", "کرمانشاه", "یزد", "اردبیل", "بندرعباس", 
+        "اراک", "زنجان", "قزوین", "سنندج", "گرگان", "نیشابور", "خرم‌آباد", "ساری", "کاشان")
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,21 +30,27 @@ class WeatherActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🌤️ آب و هوا"
+
+        // بارگذاری شهر ذخیره شده
+        val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+        currentCity = prefs.getString("selected_city", "تهران") ?: "تهران"
+        binding.cityNameText.text = currentCity
         
-        setupCitySpinner()
+        setupSearchBar()
+        setupQuickCities()
         
         // دکمه پیش‌بینی 7 روزه
         binding.forecastButton.setOnClickListener {
             try {
                 val intent = Intent(this, WeatherForecastActivity::class.java)
+                intent.putExtra("city", currentCity)
                 startActivity(intent)
             } catch (e: Exception) {
-                Toast.makeText(this, "خطا در باز کردن پیش‌بینی: ${e.message}", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
+                Toast.makeText(this, "خطا در باز کردن پیش‌بینی", Toast.LENGTH_SHORT).show()
             }
         }
         
-        // دکمه بروزرسانی
+        // دکمه refresh
         binding.refreshButton.setOnClickListener {
             loadWeather(forceFresh = true)
         }
@@ -49,34 +58,76 @@ class WeatherActivity : AppCompatActivity() {
         loadWeather()
     }
     
-    private fun setupCitySpinner() {
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, cities)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.citySpinner.adapter = adapter
-        
-        // تنظیم شهر ذخیره شده
-        val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-        val savedCity = prefs.getString("selected_city", "تهران")
-        val position = cities.indexOf(savedCity)
-        if (position >= 0) {
-            binding.citySpinner.setSelection(position)
+    private fun setupSearchBar() {
+        // دکمه جستجو
+        binding.searchButton.setOnClickListener {
+            searchCity()
         }
         
-        binding.citySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val selectedCity = cities[position]
-                prefs.edit().putString("selected_city", selectedCity).apply()
-                loadWeather()
+        // جستجو با Enter
+        binding.citySearchInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                searchCity()
+                true
+            } else {
+                false
+            }
+        }
+    }
+    
+    private fun searchCity() {
+        val city = binding.citySearchInput.text?.toString()?.trim()
+        if (!city.isNullOrEmpty()) {
+            currentCity = city
+            binding.cityNameText.text = city
+            
+            // ذخیره شهر جدید
+            val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+            prefs.edit().putString("selected_city", city).apply()
+            
+            // پاک کردن input
+            binding.citySearchInput.setText("")
+            binding.citySearchInput.clearFocus()
+            
+            // مخفی کردن کیبورد
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.hideSoftInputFromWindow(binding.citySearchInput.windowToken, 0)
+            
+            // بارگذاری آب و هوا
+            loadWeather(forceFresh = true)
+        }
+    }
+    
+    private fun setupQuickCities() {
+        popularCities.take(10).forEach { city ->
+            val button = Button(this).apply {
+                text = city
+                setBackgroundResource(android.R.drawable.btn_default)
+                setPadding(32, 16, 32, 16)
+                setOnClickListener {
+                    currentCity = city
+                    binding.cityNameText.text = city
+                    
+                    // ذخیره شهر
+                    val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+                    prefs.edit().putString("selected_city", city).apply()
+                    
+                    loadWeather()
+                }
             }
             
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.setMargins(8, 0, 8, 0)
+            button.layoutParams = params
+            
+            binding.quickCitiesLayout.addView(button)
         }
     }
     
     private fun loadWeather(forceFresh: Boolean = false) {
-        val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-        val city = prefs.getString("selected_city", "تهران") ?: "تهران"
-        
         // پاک کردن کش در صورت نیاز
         if (forceFresh) {
             OpenWeatherAPI.clearCache()
@@ -84,33 +135,44 @@ class WeatherActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // ابتدا سعی می‌کنیم داده واقعی بگیریم
-                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                val weather = OpenWeatherAPI.getCurrentWeather(currentCity)
                 
                 if (weather != null) {
                     // نمایش داده‌های واقعی
-                    binding.cityNameText.text = city
                     binding.tempText.text = "${weather.temp.roundToInt()}°"
                     binding.descText.text = weather.description
                     binding.humidityText.text = "${weather.humidity}%"
                     binding.windText.text = "${weather.windSpeed.roundToInt()} km/h"
                     binding.feelsLikeText.text = "${weather.feelsLike.roundToInt()}°"
                 } else {
-                    // در صورت عدم دسترسی به API، از Mock Data استفاده می‌کنیم
-                    val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
-                    binding.cityNameText.text = city
+                    // استفاده از Mock Data
+                    val mockWeather = OpenWeatherAPI.getMockWeatherData(currentCity)
                     binding.tempText.text = "${mockWeather.temp.roundToInt()}°"
                     binding.descText.text = mockWeather.description
                     binding.humidityText.text = "${mockWeather.humidity}%"
                     binding.windText.text = "${mockWeather.windSpeed.roundToInt()} km/h"
                     binding.feelsLikeText.text = "${mockWeather.feelsLike.roundToInt()}°"
                     
-                    Toast.makeText(this@WeatherActivity, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "⚠️ استفاده از داده‌های آفلاین", Toast.LENGTH_SHORT).show()
                 }
                 
+                // بارگذاری پیش‌بینی ساعتی
+                loadHourlyForecast()
+                
             } catch (e: Exception) {
-                Toast.makeText(this@WeatherActivity, "خطا در دریافت اطلاعات آب و هوا", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
+                Toast.makeText(this, "خطا در دریافت اطلاعات", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    private fun loadHourlyForecast() {
+        lifecycleScope.launch {
+            try {
+                val hourlyData = OpenWeatherAPI.getHourlyForecast(currentCity)
+                // نمایش در RecyclerView (باید اضافه شود)
+                // binding.hourlyRecyclerView.adapter = HourlyAdapter(hourlyData)
+            } catch (e: Exception) {
+                android.util.Log.e("WeatherActivity", "Error loading hourly forecast", e)
             }
         }
     }
