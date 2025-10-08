@@ -98,13 +98,9 @@ class DashboardActivity : AppCompatActivity() {
         binding.musicCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                try {
-                    val intent = Intent(this, MusicActivity::class.java)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                } catch (e: Exception) {
-                    Toast.makeText(this, "موزیک پلیر در حال توسعه است", Toast.LENGTH_SHORT).show()
-                }
+                val intent = Intent(this, MusicActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 150)
         }
         
@@ -119,25 +115,43 @@ class DashboardActivity : AppCompatActivity() {
     private fun loadWeather() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
+        // نمایش نام شهر
+        binding.weatherCityName?.text = city
+        
         lifecycleScope.launch {
             try {
                 val weatherData = OpenWeatherAPI.getCurrentWeather(city)
                 
                 if (weatherData != null) {
-                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°C"
+                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
                     binding.weatherIcon?.text = OpenWeatherAPI.getWeatherEmoji(weatherData.icon)
                 } else {
                     // Fallback به Mock Data
                     val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                    binding.weatherTempText?.text = "${mockData.temp.roundToInt()}°C"
-                    binding.weatherIcon?.text = "☀️"
+                    binding.weatherTempText?.text = "${mockData.temp.roundToInt()}°"
+                    binding.weatherIcon?.text = mockData.icon
                 }
                 
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
-                binding.weatherTempText?.text = "25°C"
+                binding.weatherTempText?.text = "25°"
                 binding.weatherIcon?.text = "🌤️"
             }
+        }
+        
+        // دکمه‌های پیش‌بینی
+        binding.hourlyBtn?.setOnClickListener {
+            val intent = Intent(this, WeatherActivity::class.java)
+            intent.putExtra("SHOW_HOURLY", true)
+            startActivity(intent)
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+        }
+        
+        binding.weeklyBtn?.setOnClickListener {
+            val intent = Intent(this, WeatherForecastActivity::class.java)
+            intent.putExtra("city", city)
+            startActivity(intent)
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
         }
     }
     

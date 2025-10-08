@@ -5,11 +5,16 @@
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background">
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
 
         <!-- Header Card -->
         <com.google.android.material.card.MaterialCardView
@@ -123,8 +128,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="16dp"
+                    android:padding="12dp"
                     android:background="#FF6B6B">
 
                     <TextView
@@ -132,24 +136,63 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="☀️"
-                        android:textSize="56sp" />
+                        android:layout_gravity="center"
+                        android:textSize="40sp" />
 
                     <TextView
+                        android:id="@+id/weatherCityName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="آب و هوا"
+                        android:text="تهران"
                         android:textColor="@android:color/white"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold"
-                        android:layout_marginTop="8dp" />
+                        android:layout_gravity="center" />
 
                     <TextView
                         android:id="@+id/weatherTempText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="25°C"
-                        android:textColor="#FFE0E0"
-                        android:textSize="12sp" />
+                        android:text="25°"
+                        android:textColor="@android:color/white"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:layout_gravity="center" />
+                        
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_marginTop="4dp">
+                        
+                        <TextView
+                            android:id="@+id/hourlyBtn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⏰ ساعتی"
+                            android:textColor="#FFE0E0"
+                            android:textSize="11sp"
+                            android:padding="4dp"
+                            android:clickable="true" />
+                            
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" | "
+                            android:textColor="#FFE0E0"
+                            android:textSize="11sp" />
+                        
+                        <TextView
+                            android:id="@+id/weeklyBtn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📅 7 روزه"
+                            android:textColor="#FFE0E0"
+                            android:textSize="11sp"
+                            android:padding="4dp"
+                            android:clickable="true" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -291,5 +334,6 @@
 
         </GridLayout>
 
-    </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

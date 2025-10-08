@@ -166,8 +166,113 @@ class WeatherActivity : AppCompatActivity() {
     }
     
     private fun loadHourlyForecast() {
-        // TODO: پیاده‌سازی پیش‌بینی ساعتی
-        // فعلاً غیرفعال تا API مناسب اضافه شود
+        // ایجاد Mock Data برای پیش‌بینی ساعتی
+        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val hourlyLayout = binding.hourlyForecastRecycler
+        
+        // اگر RecyclerView وجود نداره، از روش ساده استفاده کن
+        if (hourlyLayout == null) {
+            // شاید باید Layout Manager اضافه کنیم
+            return
+        }
+        
+        // ایجاد داده‌های ساعتی (12 ساعت آینده)
+        val hourlyData = mutableListOf<HourlyWeatherData>()
+        for (i in 0..11) {
+            val hour = (currentHour + i) % 24
+            val temp = 25 + (Math.random() * 10 - 5).toInt() // دمای تصادفی بین 20-30
+            val icon = when {
+                hour in 6..10 -> "☀️"
+                hour in 11..15 -> "⛅"
+                hour in 16..18 -> "☁️"
+                hour in 19..21 -> "🌙"
+                else -> "⭐"
+            }
+            
+            hourlyData.add(HourlyWeatherData(
+                time = String.format("%02d:00", hour),
+                temp = temp,
+                icon = icon
+            ))
+        }
+        
+        // نمایش در RecyclerView
+        val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+            this, 
+            androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, 
+            false
+        )
+        hourlyLayout.layoutManager = layoutManager
+        hourlyLayout.adapter = HourlyWeatherAdapter(hourlyData)
+    }
+    
+    // Data class برای هر ساعت
+    data class HourlyWeatherData(
+        val time: String,
+        val temp: Int,
+        val icon: String
+    )
+    
+    // Adapter برای RecyclerView
+    inner class HourlyWeatherAdapter(
+        private val items: List<HourlyWeatherData>
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<HourlyWeatherAdapter.ViewHolder>() {
+        
+        inner class ViewHolder(itemView: android.view.View) : 
+            androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
+            val timeText: android.widget.TextView = itemView.findViewById(android.R.id.text1)
+            val iconText: android.widget.TextView = itemView.findViewById(android.R.id.text2)
+            val tempText: android.widget.TextView = itemView.findViewById(android.R.id.hint)
+        }
+        
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            // ایجاد یک View ساده
+            val linearLayout = android.widget.LinearLayout(parent.context).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                gravity = android.view.Gravity.CENTER
+                setPadding(24, 16, 24, 16)
+                layoutParams = android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            }
+            
+            // اضافه کردن TextView ها
+            val timeText = android.widget.TextView(parent.context).apply {
+                id = android.R.id.text1
+                textSize = 12f
+                gravity = android.view.Gravity.CENTER
+            }
+            
+            val iconText = android.widget.TextView(parent.context).apply {
+                id = android.R.id.text2
+                textSize = 24f
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, 8, 0, 8)
+            }
+            
+            val tempText = android.widget.TextView(parent.context).apply {
+                id = android.R.id.hint
+                textSize = 14f
+                gravity = android.view.Gravity.CENTER
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+            
+            linearLayout.addView(timeText)
+            linearLayout.addView(iconText)
+            linearLayout.addView(tempText)
+            
+            return ViewHolder(linearLayout)
+        }
+        
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val item = items[position]
+            holder.timeText.text = item.time
+            holder.iconText.text = item.icon
+            holder.tempText.text = "${item.temp}°"
+        }
+        
+        override fun getItemCount() = items.size
     }
     
     override fun onSupportNavigateUp(): Boolean {
