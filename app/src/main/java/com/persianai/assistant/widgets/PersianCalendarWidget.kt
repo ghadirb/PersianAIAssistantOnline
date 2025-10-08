@@ -53,6 +53,13 @@ class PersianCalendarWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar)
         
+        // خواندن تنظیمات
+        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+        val transparency = prefs.getInt("widget_transparency", 70)
+        val showWeather = prefs.getBoolean("show_weather", true)
+        val showGregorian = prefs.getBoolean("show_gregorian", false)
+        val theme = prefs.getString("widget_theme", "auto") ?: "auto"
+        
         // شروع سرویس آپدیت
         val serviceIntent = Intent(context, WidgetUpdateService::class.java)
         context.startService(serviceIntent)
@@ -64,8 +71,22 @@ class PersianCalendarWidget : AppWidgetProvider() {
         
         views.setTextViewText(R.id.widgetPersianDate, dateText)
         
+        // نمایش/مخفی کردن تاریخ میلادی
+        if (showGregorian) {
+            val gregorianDate = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.ENGLISH).format(Date())
+            views.setTextViewText(R.id.widgetGregorianDate, gregorianDate)
+            views.setViewVisibility(R.id.widgetGregorianDate, android.view.View.VISIBLE)
+        } else {
+            views.setViewVisibility(R.id.widgetGregorianDate, android.view.View.GONE)
+        }
+        
         // آب و هوا
-        updateWeather(context, views)
+        if (showWeather) {
+            views.setViewVisibility(R.id.widgetWeather, android.view.View.VISIBLE)
+            updateWeather(context, views)
+        } else {
+            views.setViewVisibility(R.id.widgetWeather, android.view.View.GONE)
+        }
         
         // کلیک بر روی ساعت - باز کردن برنامه
         val intent = Intent(context, DashboardActivity::class.java)

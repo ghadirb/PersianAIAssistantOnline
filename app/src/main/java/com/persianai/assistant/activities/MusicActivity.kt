@@ -53,26 +53,30 @@ class MusicActivity : AppCompatActivity() {
     }
     
     private fun setupUI() {
-        // Mood chips
-        val moods = listOf(
-            "🎉 شاد" to "شاد",
-            "😢 غمگین" to "غمگین",
-            "❤️ عاشقانه" to "عاشقانه",
-            "🎭 سنتی" to "سنتی",
-            "⚡ پرانرژی" to "انرژی",
-            "🎲 تصادفی" to "random"
-        )
-        
-        moods.forEach { (label, mood) ->
-            val chip = Chip(this)
-            chip.text = label
-            chip.isCheckable = true
-            chip.setOnClickListener {
-                selectedMood = mood
-                binding.selectedMoodText?.text = "حالت انتخاب شده: $label"
-                binding.createPlaylistButton?.isEnabled = true
+        try {
+            // Mood chips
+            val moods = listOf(
+                "🎉 شاد" to "شاد",
+                "😢 غمگین" to "غمگین",
+                "❤️ عاشقانه" to "عاشقانه",
+                "🎭 سنتی" to "سنتی",
+                "⚡ پرانرژی" to "انرژی",
+                "🎲 تصادفی" to "random"
+            )
+            
+            moods.forEach { (label, mood) ->
+                val chip = Chip(this)
+                chip.text = label
+                chip.isCheckable = true
+                chip.setOnClickListener {
+                    selectedMood = mood
+                    binding.selectedMoodText?.text = "حالت انتخاب شده: $label"
+                    binding.createPlaylistButton?.isEnabled = true
+                }
+                binding.moodChipGroup?.addView(chip)
             }
-            binding.moodChipGroup?.addView(chip)
+        } catch (e: Exception) {
+            android.util.Log.e("MusicActivity", "Error in setupUI", e)
         }
         
         // Create playlist button

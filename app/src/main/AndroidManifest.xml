@@ -108,9 +108,21 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
             
+        <!-- Weather Forecast Activity -->
+        <activity
+            android:name=".activities.WeatherForecastActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.WeatherActivity" />
+            
         <!-- Weather Search Activity -->
         <activity
             android:name=".activities.WeatherSearchActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity" />
+            
+        <!-- Music Activity -->
+        <activity
+            android:name=".activities.MusicActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 

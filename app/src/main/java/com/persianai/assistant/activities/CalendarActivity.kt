@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.persianai.assistant.R
-import com.persianai.assistant.databinding.ActivityCalendarBinding
+// import حذف شد - استفاده از findViewById
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.PersianEvent
 import com.persianai.assistant.utils.PersianEvents
@@ -17,14 +17,13 @@ import com.persianai.assistant.adapters.CalendarGridAdapter
 
 class CalendarActivity : AppCompatActivity() {
     
-    private lateinit var binding: ActivityCalendarBinding
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityCalendarBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        // استفاده از layout یکسان با داشبورد
+        setContentView(R.layout.activity_calendar_unified)
         
-        setSupportActionBar(binding.toolbar)
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "📅 تقویم فارسی"
         
@@ -39,7 +38,7 @@ class CalendarActivity : AppCompatActivity() {
         updateMonthDisplay()
         setupGrid()
         
-        binding.prevMonthBtn.setOnClickListener {
+        findViewById<android.widget.ImageButton>(R.id.prevMonthButton)?.setOnClickListener {
             currentMonth--
             if (currentMonth < 1) {
                 currentMonth = 12
@@ -49,7 +48,7 @@ class CalendarActivity : AppCompatActivity() {
             setupGrid()
         }
         
-        binding.nextMonthBtn.setOnClickListener {
+        findViewById<android.widget.ImageButton>(R.id.nextMonthButton)?.setOnClickListener {
             currentMonth++
             if (currentMonth > 12) {
                 currentMonth = 1
@@ -61,7 +60,11 @@ class CalendarActivity : AppCompatActivity() {
     }
     
     private fun updateMonthDisplay() {
-        binding.currentMonthText.text = "${PersianDateConverter.getMonthName(currentMonth)} $currentYear"
+        findViewById<TextView>(R.id.currentMonthText)?.text = "${PersianDateConverter.getMonthName(currentMonth)} $currentYear"
+        
+        // تاریخ امروز
+        val persianDate = PersianDateConverter.getCurrentPersianDate()
+        findViewById<TextView>(R.id.persianDateBig)?.text = "${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}"
     }
     
     private fun getFirstDayOfMonth(persianYear: Int, persianMonth: Int): Int {
@@ -129,9 +132,9 @@ class CalendarActivity : AppCompatActivity() {
         }
         
         val adapter = CalendarGridAdapter(this, days, currentMonth, currentYear)
-        binding.calendarGrid.adapter = adapter
+        findViewById<android.widget.GridView>(R.id.calendarGrid)?.adapter = adapter
         
-        binding.calendarGrid.setOnItemClickListener { _, _, position, _ ->
+        findViewById<android.widget.GridView>(R.id.calendarGrid)?.setOnItemClickListener { _, _, position, _ ->
             val day = days[position]
             if (day > 0) {  // فقط اگر روز معتبر بود
                 showDayEvents(day)
@@ -146,13 +149,13 @@ class CalendarActivity : AppCompatActivity() {
     
     private fun showDayEvents(day: Int) {
         val events = PersianEvents.getEventsForDate(currentMonth, day)
-        binding.selectedDayEvents.text = "مناسبت‌های $day ${PersianDateConverter.getMonthName(currentMonth)} $currentYear:"
+        findViewById<TextView>(R.id.occasionText)?.text = if (events.isEmpty()) "📌 مناسبت امروز" else events.joinToString(" | ") { it.title }
         
-        // آپدیت تاریخ میلادی و قمری
-        updateDates()
+        // آپدیت تاریخ میلادی
+        val gregorianDate = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.ENGLISH).format(java.util.Date())
+        findViewById<TextView>(R.id.gregorianDate)?.text = gregorianDate
         
-        binding.eventsRecyclerView.layoutManager = LinearLayoutManager(this)
-        binding.eventsRecyclerView.adapter = if (events.isEmpty()) {
+        if (events.isEmpty()) {
             EventsAdapter(listOf())
         } else {
             EventsAdapter(events)

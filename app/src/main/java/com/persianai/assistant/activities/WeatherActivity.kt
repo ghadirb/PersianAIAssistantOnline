@@ -26,8 +26,8 @@ class WeatherActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // استفاده از layout جدید
-        setContentView(R.layout.activity_weather_updated)
+        // استفاده از layout نهایی یکسان با داشبورد
+        setContentView(R.layout.activity_weather_final)
         
         // تنظیم Toolbar
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
@@ -104,12 +104,11 @@ class WeatherActivity : AppCompatActivity() {
     }
     
     private fun setupQuickCities() {
-        val quickCitiesLayout = findViewById<LinearLayout>(R.id.quickCitiesLayout)
+        val quickCitiesLayout = findViewById<com.google.android.material.chip.ChipGroup>(R.id.quickCitiesLayout)
         popularCities.take(10).forEach { city ->
-            val button = Button(this).apply {
+            val chip = com.google.android.material.chip.Chip(this).apply {
                 text = city
-                setBackgroundResource(android.R.drawable.btn_default)
-                setPadding(32, 16, 32, 16)
+                isClickable = true
                 setOnClickListener {
                     currentCity = city
                     findViewById<android.widget.TextView>(R.id.cityNameText).text = city
@@ -122,15 +121,7 @@ class WeatherActivity : AppCompatActivity() {
                     Toast.makeText(this@WeatherActivity, "شهر انتخاب شد: $city", Toast.LENGTH_SHORT).show()
                 }
             }
-            
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(8, 0, 8, 0)
-            button.layoutParams = params
-            
-            quickCitiesLayout.addView(button)
+            quickCitiesLayout?.addView(chip)
         }
     }
     private fun loadWeather(forceFresh: Boolean = false) {
@@ -138,6 +129,7 @@ class WeatherActivity : AppCompatActivity() {
         if (forceFresh) {
             OpenWeatherAPI.clearCache()
         }
+        loadCurrentWeather()
     }
     
     private fun loadCurrentWeather() {
@@ -175,7 +167,7 @@ class WeatherActivity : AppCompatActivity() {
     private fun loadHourlyForecast() {
         // ایجاد Mock Data برای پیش‌بینی ساعتی
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val hourlyLayout = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hourlyForecastRecycler)
+        val hourlyLayout = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hourlyRecyclerView)
         
         // اگر RecyclerView وجود نداره، از روش ساده استفاده کن
         if (hourlyLayout == null) {
