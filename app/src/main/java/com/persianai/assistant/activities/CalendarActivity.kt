@@ -254,6 +254,7 @@ class CalendarActivity : AppCompatActivity() {
     
     private fun showDateConverterDialog() {
         val persianDate = PersianDateConverter.getCurrentPersianDate()
+        val hijriDate = getHijriDate()
         val message = """
             📅 تاریخ فارسی:
             ${persianDate.day} ${PersianDateConverter.getMonthName(persianDate.month)} ${persianDate.year}
@@ -261,8 +262,8 @@ class CalendarActivity : AppCompatActivity() {
             📆 تاریخ میلادی:
             ${java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.ENGLISH).format(java.util.Date())}
             
-            🌙 تاریخ قمری (تقریبی):
-            ۱۳ ربیع الاول ۱۴۴۷
+            🌙 تاریخ قمری:
+            $hijriDate
         """.trimIndent()
         
         androidx.appcompat.app.AlertDialog.Builder(this)
@@ -270,6 +271,51 @@ class CalendarActivity : AppCompatActivity() {
             .setMessage(message)
             .setPositiveButton("بستن", null)
             .show()
+    }
+    
+    private fun getHijriDate(): String {
+        // محاسبه تقریبی تاریخ قمری بر اساس الگوریتم
+        val calendar = java.util.Calendar.getInstance()
+        val gregorianYear = calendar.get(java.util.Calendar.YEAR)
+        val gregorianMonth = calendar.get(java.util.Calendar.MONTH) + 1
+        val gregorianDay = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        
+        // فرمول تبدیل میلادی به قمری (تقریبی)
+        val totalDays = (gregorianYear - 1) * 365 + gregorianYear / 4 - gregorianYear / 100 + gregorianYear / 400
+        val monthDays = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
+        val daysSinceEpoch = totalDays + monthDays[gregorianMonth - 1] + gregorianDay
+        
+        // تاریخ مبنا: 1 محرم 1 = 16 ژوئیه 622
+        val hijriEpoch = 227015
+        val daysSinceHijriEpoch = daysSinceEpoch - hijriEpoch
+        
+        // هر سال قمری حدود 354.36 روز
+        val hijriYear = (daysSinceHijriEpoch / 354.36).toInt() + 1
+        val remainingDays = (daysSinceHijriEpoch % 354.36).toInt()
+        
+        val hijriMonthDays = intArrayOf(30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29)
+        var hijriMonth = 1
+        var hijriDay = remainingDays
+        
+        for (i in hijriMonthDays.indices) {
+            if (hijriDay <= hijriMonthDays[i]) {
+                break
+            }
+            hijriDay -= hijriMonthDays[i]
+            hijriMonth++
+        }
+        
+        if (hijriDay == 0) {
+            hijriDay = 1
+        }
+        
+        val hijriMonthNames = arrayOf(
+            "محرم", "صفر", "ربیع الاول", "ربیع الثانی", "جمادی الاول", "جمادی الثانی",
+            "رجب", "شعبان", "رمضان", "شوال", "ذی‌القعده", "ذی‌الحجه"
+        )
+        
+        val monthName = if (hijriMonth in 1..12) hijriMonthNames[hijriMonth - 1] else "محرم"
+        return "$hijriDay $monthName $hijriYear"
     }
     
     override fun onSupportNavigateUp(): Boolean {
