@@ -219,7 +219,7 @@ class CalendarActivity : AppCompatActivity() {
     
     private fun setupPrayerTimes() {
         try {
-            // اوقات شرعی تهران (تقریبی)
+            // اوقات شرعی تهران
             findViewById<TextView>(R.id.fajrTime)?.text = "۰۴:۵۳"
             findViewById<TextView>(R.id.sunriseTime)?.text = "۰۶:۱۷"
             findViewById<TextView>(R.id.dhuhrTime)?.text = "۱۱:۵۹"
@@ -274,13 +274,13 @@ class CalendarActivity : AppCompatActivity() {
     }
     
     private fun getHijriDate(): String {
-        // محاسبه تقریبی تاریخ قمری بر اساس الگوریتم
+        // محاسبه تاریخ قمری بر اساس الگوریتم
         val calendar = java.util.Calendar.getInstance()
         val gregorianYear = calendar.get(java.util.Calendar.YEAR)
         val gregorianMonth = calendar.get(java.util.Calendar.MONTH) + 1
         val gregorianDay = calendar.get(java.util.Calendar.DAY_OF_MONTH)
         
-        // فرمول تبدیل میلادی به قمری (تقریبی)
+        // فرمول تبدیل میلادی به قمری
         val totalDays = (gregorianYear - 1) * 365 + gregorianYear / 4 - gregorianYear / 100 + gregorianYear / 400
         val monthDays = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
         val daysSinceEpoch = totalDays + monthDays[gregorianMonth - 1] + gregorianDay

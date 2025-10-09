@@ -115,16 +115,21 @@ class WeatherActivity : AppCompatActivity() {
         
         // Handle city selection
         listView.setOnItemClickListener { _, _, position, _ ->
-            val city = adapter.getItem(position) ?: return@setOnItemClickListener
-            currentCity = city
-            findViewById<android.widget.TextView>(R.id.cityNameText).text = city
-            
-            val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-            prefs.edit().putString("selected_city", city).apply()
-            
-            loadCurrentWeather()
-            dialog.dismiss()
-            Toast.makeText(this, "شهر انتخاب شد: $city", Toast.LENGTH_SHORT).show()
+            try {
+                val city = adapter.getItem(position) ?: return@setOnItemClickListener
+                currentCity = city
+                findViewById<android.widget.TextView>(R.id.cityNameText)?.text = city
+                
+                val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+                prefs.edit().putString("selected_city", city).apply()
+                
+                dialog.dismiss()
+                loadWeather(forceFresh = true)
+                Toast.makeText(this, "🌍 $city", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                android.util.Log.e("WeatherActivity", "Error selecting city from dialog", e)
+                Toast.makeText(this, "خطا در انتخاب شهر", Toast.LENGTH_SHORT).show()
+            }
         }
         
         dialog.show()
