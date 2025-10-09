@@ -93,6 +93,9 @@ dependencies {
     // Lottie for animations
     implementation 'com.airbnb.android:lottie:6.2.0'
     
+    // ExoPlayer for internal music playback
+    implementation 'com.google.android.exoplayer:exoplayer:2.19.1'
+    
     // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

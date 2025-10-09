@@ -19,6 +19,10 @@ import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityMusicBinding
 import com.persianai.assistant.music.MusicPlaylistManager
 import kotlinx.coroutines.launch
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
+import androidx.core.net.toUri
 
 class MusicActivity : AppCompatActivity() {
     
@@ -26,6 +30,9 @@ class MusicActivity : AppCompatActivity() {
     private lateinit var musicManager: MusicPlaylistManager
     private var selectedMood: String = ""
     private var selectedPlayerPackage: String? = null
+    private var exoPlayer: ExoPlayer? = null
+    private var currentPlaylist: MusicPlaylistManager.Playlist? = null
+    private var currentTrackIndex = 0
     
     companion object {
         private const val PERMISSION_REQUEST_CODE = 101
@@ -77,23 +84,19 @@ class MusicActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error in setupUI", e)
-        }
         
         // Create playlist button
         binding.createPlaylistButton?.setOnClickListener {
             createPlaylist()
         }
         
-        // Select player button
-        binding.selectPlayerButton?.setOnClickListener {
-            selectMusicPlayer()
-        }
+        // Music Player Selection Button - حذف شد (پخش داخلی)
+        binding.selectPlayerButton?.visibility = View.GONE
         
         // Scan music button
         binding.scanMusicButton?.setOnClickListener {
             scanMusic()
         }
-        
         // Chat AI button - تبدیل از دستور صوتی
         binding.voiceCommandButton?.setOnClickListener {
             try {
@@ -238,8 +241,8 @@ class MusicActivity : AppCompatActivity() {
                 ${playlist.tracks.take(5).joinToString("\n") { "• ${it.title}" }}
                 ${if (playlist.tracks.size > 5) "\n..." else ""}
             """.trimIndent())
-            .setPositiveButton("پخش در Music Player") { _, _ ->
-                musicManager.openPlaylistInMusicPlayer(playlist, selectedPlayerPackage)
+            .setPositiveButton("پخش در برنامه") { _, _ ->
+                playInternalPlayer(playlist)
             }
             .setNeutralButton("ذخیره پلی‌لیست") { _, _ ->
                 savePlaylist(playlist)
@@ -291,6 +294,99 @@ class MusicActivity : AppCompatActivity() {
                 prefs.edit().putString("selected_player", selectedPlayerPackage).apply()
             }
             .show()
+    }
+    
+    private fun playInternalPlayer(playlist: MusicPlaylistManager.Playlist) {
+        try {
+            currentPlaylist = playlist
+            currentTrackIndex = 0
+            
+            // ایجاد ExoPlayer
+            if (exoPlayer == null) {
+                exoPlayer = ExoPlayer.Builder(this).build()
+                
+                // افزودن listener برای پخش خودکار آهنگ بعدی
+                exoPlayer?.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        when (playbackState) {
+                            Player.STATE_ENDED -> {
+                                playNextTrack()
+                            }
+                        }
+                    }
+                })
+            }
+            
+            // پاک کردن صف فعلی و اضافه کردن آهنگ‌ها
+            exoPlayer?.clearMediaItems()
+            playlist.tracks.forEach { track ->
+                val mediaItem = MediaItem.fromUri(track.uri.toUri())
+                exoPlayer?.addMediaItem(mediaItem)
+            }
+            
+            // آماده کردن و شروع پخش
+            exoPlayer?.prepare()
+            exoPlayer?.play()
+            
+            // نمایش کنترل‌های پخش
+            showPlaybackControls(playlist.tracks[0])
+            
+            Toast.makeText(this, "▶️ پخش ${playlist.tracks.size} آهنگ", Toast.LENGTH_SHORT).show()
+            
+        } catch (e: Exception) {
+            android.util.Log.e("MusicActivity", "Error playing music", e)
+            Toast.makeText(this, "خطا در پخش موزیک: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun playNextTrack() {
+        currentPlaylist?.let { playlist ->
+            currentTrackIndex++
+            if (currentTrackIndex < playlist.tracks.size) {
+                showPlaybackControls(playlist.tracks[currentTrackIndex])
+            } else {
+                // پخش تمام شد
+                currentTrackIndex = 0
+                Toast.makeText(this, "✅ پخش پلی‌لیست تمام شد", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    private fun showPlaybackControls(track: MusicPlaylistManager.MusicTrack) {
+        // نمایش اطلاعات آهنگ در حال پخش
+        binding.nowPlayingText?.text = "▶️ ${track.title}"
+        binding.nowPlayingText?.visibility = View.VISIBLE
+        
+        // می‌توانید یک Player UI ساده اضافه کنید
+        binding.playPauseButton?.visibility = View.VISIBLE
+        binding.nextButton?.visibility = View.VISIBLE
+        binding.prevButton?.visibility = View.VISIBLE
+        
+        binding.playPauseButton?.setOnClickListener {
+            exoPlayer?.let {
+                if (it.isPlaying) {
+                    it.pause()
+                    binding.playPauseButton?.text = "▶️"
+                } else {
+                    it.play()
+                    binding.playPauseButton?.text = "⏸️"
+                }
+            }
+        }
+        
+        binding.nextButton?.setOnClickListener {
+            exoPlayer?.seekToNext()
+        }
+        
+        binding.prevButton?.setOnClickListener {
+            exoPlayer?.seekToPrevious()
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        exoPlayer?.release()
+        exoPlayer = null
     }
     
     override fun onSupportNavigateUp(): Boolean {
