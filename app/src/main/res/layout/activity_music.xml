@@ -200,6 +200,84 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Music Player Controls -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/playerControlsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#9C27B0"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- Now Playing Text -->
+                    <TextView
+                        android:id="@+id/nowPlayingText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="▶️ در حال پخش..."
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/white"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Playback Controls -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center">
+
+                        <!-- Previous Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/prevButton"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:text="⏮️"
+                            android:textSize="24sp"
+                            android:visibility="gone"
+                            app:cornerRadius="32dp"
+                            app:backgroundTint="#7B1FA2"
+                            android:layout_marginEnd="12dp" />
+
+                        <!-- Play/Pause Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/playPauseButton"
+                            android:layout_width="80dp"
+                            android:layout_height="80dp"
+                            android:text="⏸️"
+                            android:textSize="32sp"
+                            android:visibility="gone"
+                            app:cornerRadius="40dp"
+                            app:backgroundTint="#8E24AA"
+                            android:layout_marginHorizontal="12dp" />
+
+                        <!-- Next Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/nextButton"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:text="⏭️"
+                            android:textSize="24sp"
+                            android:visibility="gone"
+                            app:cornerRadius="32dp"
+                            app:backgroundTint="#7B1FA2"
+                            android:layout_marginStart="12dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
     </ScrollView>
 

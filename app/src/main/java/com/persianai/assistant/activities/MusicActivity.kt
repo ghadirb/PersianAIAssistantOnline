@@ -357,7 +357,8 @@ class MusicActivity : AppCompatActivity() {
         binding.nowPlayingText?.text = "▶️ ${track.title}"
         binding.nowPlayingText?.visibility = View.VISIBLE
         
-        // می‌توانید یک Player UI ساده اضافه کنید
+        // نمایش کارت کنترل‌ها
+        binding.playerControlsCard?.visibility = View.VISIBLE
         binding.playPauseButton?.visibility = View.VISIBLE
         binding.nextButton?.visibility = View.VISIBLE
         binding.prevButton?.visibility = View.VISIBLE
