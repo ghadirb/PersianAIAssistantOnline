@@ -175,32 +175,37 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         
-        // دکمه‌های پیش‌بینی
+        // دکمه پیش‌بینی ساعتی - با جلوگیری از کرش
         binding.hourlyBtn?.setOnClickListener {
             android.util.Log.d("DashboardActivity", "Hourly button clicked")
-            try {
-                val intent = Intent(this, WeatherActivity::class.java)
-                intent.putExtra("SHOW_HOURLY", true)
-                intent.putExtra("city", city)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardActivity", "Error opening hourly weather", e)
-                Toast.makeText(this, "خطا در نمایش پیش‌بینی ساعتی", Toast.LENGTH_SHORT).show()
-            }
+            it.postDelayed({
+                try {
+                    val intent = Intent(this, WeatherActivity::class.java)
+                    intent.putExtra("SHOW_HOURLY", true)
+                    intent.putExtra("city", city)
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardActivity", "Error opening hourly weather", e)
+                    Toast.makeText(this, "خطا در نمایش پیش‌بینی ساعتی", Toast.LENGTH_SHORT).show()
+                }
+            }, 100)
         }
         
+        // دکمه پیش‌بینی هفتگی - با جلوگیری از کرش
         binding.weeklyBtn?.setOnClickListener {
             android.util.Log.d("DashboardActivity", "Weekly button clicked")
-            try {
-                val intent = Intent(this, WeatherForecastActivity::class.java)
-                intent.putExtra("city", city)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardActivity", "Error opening weekly forecast", e)
-                Toast.makeText(this, "خطا در نمایش پیش‌بینی هفتگی", Toast.LENGTH_SHORT).show()
-            }
+            it.postDelayed({
+                try {
+                    val intent = Intent(this, WeatherForecastActivity::class.java)
+                    intent.putExtra("city", city)
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardActivity", "Error opening weekly forecast", e)
+                    Toast.makeText(this, "خطا در نمایش پیش‌بینی هفتگی", Toast.LENGTH_SHORT).show()
+                }
+            }, 100)
         }
     }
     

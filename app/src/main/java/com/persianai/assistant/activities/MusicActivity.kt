@@ -94,9 +94,17 @@ class MusicActivity : AppCompatActivity() {
             scanMusic()
         }
         
-        // Voice command button (برای آینده)
+        // Chat AI button - تبدیل از دستور صوتی
         binding.voiceCommandButton?.setOnClickListener {
-            Snackbar.make(binding.root, "🎤 به زودی: دستور صوتی برای ایجاد پلی‌لیست", Snackbar.LENGTH_SHORT).show()
+            try {
+                val intent = android.content.Intent(this, ChatActivity::class.java)
+                intent.putExtra("SUGGEST_TEXT", "یک پلی‌لیست موزیک شاد برای من بساز")
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            } catch (e: Exception) {
+                android.util.Log.e("MusicActivity", "Error opening chat", e)
+                Toast.makeText(this, "💬 برای استفاده از چت AI، به بخش چت بروید", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
