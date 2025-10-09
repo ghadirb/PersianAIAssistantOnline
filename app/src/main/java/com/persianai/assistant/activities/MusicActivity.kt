@@ -97,7 +97,7 @@ class MusicActivity : AppCompatActivity() {
         // Chat AI button - تبدیل از دستور صوتی
         binding.voiceCommandButton?.setOnClickListener {
             try {
-                val intent = android.content.Intent(this, ChatActivity::class.java)
+                val intent = android.content.Intent(this, MainActivity::class.java)
                 intent.putExtra("SUGGEST_TEXT", "یک پلی‌لیست موزیک شاد برای من بساز")
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
