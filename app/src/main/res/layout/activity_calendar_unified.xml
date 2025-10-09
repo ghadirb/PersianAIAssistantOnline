@@ -266,12 +266,15 @@
                     </LinearLayout>
 
                     <!-- Calendar Grid -->
-                    <GridLayout
+                    <GridView
                         android:id="@+id/calendarGrid"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:columnCount="7"
-                        android:rowCount="6" />
+                        android:layout_height="300dp"
+                        android:numColumns="7"
+                        android:horizontalSpacing="2dp"
+                        android:verticalSpacing="2dp"
+                        android:stretchMode="columnWidth"
+                        android:gravity="center" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
