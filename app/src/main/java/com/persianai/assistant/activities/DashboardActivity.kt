@@ -46,6 +46,8 @@ class DashboardActivity : AppCompatActivity() {
         binding.weatherCard?.alpha = 0f
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
+        binding.expensesCard?.alpha = 0f
+        binding.remindersCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
     }
     
@@ -118,6 +120,24 @@ class DashboardActivity : AppCompatActivity() {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
                 val intent = Intent(this, MusicActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
+        }
+        
+        binding.expensesCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                val intent = Intent(this, ExpensesActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
+        }
+        
+        binding.remindersCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                val intent = Intent(this, RemindersActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 150)
@@ -241,6 +261,8 @@ class DashboardActivity : AppCompatActivity() {
             binding.weatherCard,
             binding.aiChatCard,
             binding.musicCard,
+            binding.expensesCard,
+            binding.remindersCard,
             binding.aboutCard
         )
         
