@@ -84,6 +84,7 @@ class MusicActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error in setupUI", e)
+        }
         
         // Create playlist button
         binding.createPlaylistButton?.setOnClickListener {
