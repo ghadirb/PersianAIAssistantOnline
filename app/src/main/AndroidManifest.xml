@@ -159,6 +159,17 @@
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
 
+        <!-- Navigation Activity -->
+        <activity
+            android:name=".activities.NavigationActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.DashboardActivity" />
+
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBVVV_YOUR_MAPS_API_KEY_HERE" />
+
         <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"

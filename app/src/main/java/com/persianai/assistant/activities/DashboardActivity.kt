@@ -48,6 +48,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
         binding.remindersCard?.alpha = 0f
+        binding.navigationCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
     }
     
@@ -82,6 +83,24 @@ class DashboardActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         android.util.Log.e("DashboardActivity", "Error opening calendar", e)
                         Toast.makeText(this, "خطا در باز کردن تقویم", Toast.LENGTH_SHORT).show()
+                    }
+                }, 150)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Click error", e)
+            }
+        }
+        
+        binding.navigationCard?.setOnClickListener {
+            try {
+                AnimationHelper.clickAnimation(it)
+                it.postDelayed({
+                    try {
+                        val intent = Intent(this, NavigationActivity::class.java)
+                        startActivity(intent)
+                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardActivity", "Error opening navigation", e)
+                        Toast.makeText(this, "خطا در باز کردن مسیریابی", Toast.LENGTH_SHORT).show()
                     }
                 }, 150)
             } catch (e: Exception) {
@@ -264,6 +283,7 @@ class DashboardActivity : AppCompatActivity() {
             binding.musicCard,
             binding.expensesCard,
             binding.remindersCard,
+            binding.navigationCard,
             binding.aboutCard
         )
         
