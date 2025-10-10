@@ -96,6 +96,10 @@ dependencies {
     // ExoPlayer for internal music playback
     implementation 'com.google.android.exoplayer:exoplayer:2.19.1'
     
+    // Google Maps & Location for Navigation
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+    
     // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
