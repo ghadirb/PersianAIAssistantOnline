@@ -147,9 +147,6 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
         
-        // دکمه تنظیمات ویجت - غیرفعال شد
-        binding.widgetSettingsButton.visibility = View.GONE
-        
         // دکمه به‌روزرسانی کلیدها
         binding.refreshKeysButton.setOnClickListener {
             showPasswordDialogForRefresh()

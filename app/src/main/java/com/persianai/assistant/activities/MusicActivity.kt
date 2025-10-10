@@ -50,6 +50,9 @@ class MusicActivity : AppCompatActivity() {
             
             musicManager = MusicPlaylistManager(this)
             
+            // Initialize ExoPlayer
+            exoPlayer = ExoPlayer.Builder(this).build()
+            
             setupUI()
             checkPermissions()
         } catch (e: Exception) {
