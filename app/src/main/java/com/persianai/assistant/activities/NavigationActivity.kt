@@ -19,6 +19,7 @@ import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityNavigationBinding
 import com.persianai.assistant.navigation.NessanMapsAPI
 import com.persianai.assistant.navigation.PersianNavigationTTS
+import com.persianai.assistant.navigation.AIPoweredTTS
 import com.persianai.assistant.navigation.SpeedCameraManager
 import kotlinx.coroutines.launch
 import java.util.*
@@ -32,7 +33,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityNavigationBinding
     private var googleMap: GoogleMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var persianTTS: PersianNavigationTTS
+    private lateinit var aiPoweredTTS: AIPoweredTTS
     private lateinit var speedCameraManager: SpeedCameraManager
     private lateinit var nessanMapsAPI: NessanMapsAPI
     
@@ -65,9 +66,12 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         
         // Initialize services
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        persianTTS = PersianNavigationTTS(this)
+        aiPoweredTTS = AIPoweredTTS(this)
         speedCameraManager = SpeedCameraManager(this)
         nessanMapsAPI = NessanMapsAPI()
+        
+        // نمایش وضعیت TTS
+        android.util.Log.d("Navigation", "TTS Status: ${aiPoweredTTS.getStatus()}")
         
         // Setup map
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
@@ -174,10 +178,10 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     
     private fun checkSpeedWarnings(location: Location) {
         if (speedLimit > 0 && currentSpeed > speedLimit + 5) {
-            // هشدار تخطی از سرعت مجاز
+            // هشدار تخطی از سرعت مجاز (فوری)
             lifecycleScope.launch {
                 val warning = "توجه! سرعت شما ${currentSpeed.toInt()} کیلومتر است. محدودیت سرعت $speedLimit کیلومتر می‌باشد"
-                persianTTS.speak(warning)
+                aiPoweredTTS.speak(warning, urgent = true)
             }
         }
     }
@@ -214,7 +218,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             else -> "دوربین سرعت در $distanceInMeters متری"
         }
         
-        persianTTS.speak(warning)
+        aiPoweredTTS.speak(warning, urgent = true)
         
         // نمایش آیکون دوربین روی نقشه
         googleMap?.addMarker(
@@ -313,7 +317,9 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                 binding.speedLimitText.text = "سرعت مجاز: ${route.speedLimit} km/h"
                 
                 // شروع راهنمایی صوتی
-                persianTTS.speak("مسیر محاسبه شد. مسافت ${route.distance} کیلومتر. زمان تقریبی ${route.duration} دقیقه")
+                lifecycleScope.launch {
+                    aiPoweredTTS.speak("مسیر محاسبه شد. مسافت ${route.distance} کیلومتر. زمان تقریبی ${route.duration} دقیقه")
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("Navigation", "Error getting route", e)
@@ -327,7 +333,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             binding.stopNavigationButton.visibility = android.view.View.VISIBLE
             
             lifecycleScope.launch {
-                persianTTS.speak("مسیریابی شروع شد. لطفاً به دستورات توجه کنید")
+                aiPoweredTTS.speak("مسیریابی شروع شد. لطفاً به دستورات توجه کنید")
             }
             
             Toast.makeText(this, "مسیریابی شروع شد", Toast.LENGTH_SHORT).show()
@@ -349,7 +355,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onDestroy() {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
-        persianTTS.shutdown()
+        aiPoweredTTS.shutdown()
     }
     
     override fun onSupportNavigateUp(): Boolean {
