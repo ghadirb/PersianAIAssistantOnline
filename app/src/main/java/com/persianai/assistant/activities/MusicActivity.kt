@@ -321,7 +321,7 @@ class MusicActivity : AppCompatActivity() {
             // پاک کردن صف فعلی و اضافه کردن آهنگ‌ها
             exoPlayer?.clearMediaItems()
             playlist.tracks.forEach { track ->
-                val mediaItem = MediaItem.fromUri(track.uri.toUri())
+                val mediaItem = MediaItem.fromUri(track.path.toUri())
                 exoPlayer?.addMediaItem(mediaItem)
             }
             
