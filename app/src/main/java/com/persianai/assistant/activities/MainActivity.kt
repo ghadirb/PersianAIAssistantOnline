@@ -1195,7 +1195,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_weather -> {
-                startActivity(Intent(this, WeatherSearchActivity::class.java))
+                startActivity(Intent(this, WeatherActivity::class.java))
                 true
             }
             R.id.action_calendar -> {

@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import android.util.Log
-import com.persianai.assistant.models.AIModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -18,7 +17,6 @@ import java.util.*
  */
 class AIPoweredTTS(private val context: Context) {
     
-    private var aiModelManager: AIModelManager? = null
     private var androidTTS: TextToSpeech? = null
     private var mediaPlayer: MediaPlayer? = null
     private var isReady = false
@@ -44,11 +42,8 @@ class AIPoweredTTS(private val context: Context) {
     private var currentMode: TTSMode = TTSMode.ANDROID_TTS
     
     init {
-        // تلاش برای initialize کردن AI Model
+        // چک کردن دسترسی به OpenAI
         try {
-            aiModelManager = AIModelManager(context)
-            
-            // چک کردن دسترسی به OpenAI
             val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
             val openaiKey = prefs.getString("openai_api_key", null)
             
@@ -57,7 +52,7 @@ class AIPoweredTTS(private val context: Context) {
                 Log.d(TAG, "Using OpenAI TTS (Best Quality)")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "AI Model not available", e)
+            Log.e(TAG, "OpenAI key not found", e)
         }
         
         // Initialize Android TTS as fallback
@@ -148,14 +143,14 @@ class AIPoweredTTS(private val context: Context) {
                 .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
             
+            val mediaType = okhttp3.MediaType.Companion.parse("application/json")
+            val requestBodyObj = okhttp3.RequestBody.Companion.create(requestBody, mediaType)
+            
             val request = okhttp3.Request.Builder()
                 .url("https://api.openai.com/v1/audio/speech")
                 .addHeader("Authorization", "Bearer $apiKey")
                 .addHeader("Content-Type", "application/json")
-                .post(okhttp3.RequestBody.create(
-                    okhttp3.MediaType.parse("application/json"),
-                    requestBody
-                ))
+                .post(requestBodyObj)
                 .build()
             
             val response = client.newCall(request).execute()
@@ -163,7 +158,7 @@ class AIPoweredTTS(private val context: Context) {
             if (response.isSuccessful) {
                 // ذخیره فایل صوتی
                 val audioFile = File(context.cacheDir, "tts_${System.currentTimeMillis()}.mp3")
-                response.body()?.byteStream()?.use { input ->
+                response.body?.byteStream()?.use { input ->
                     audioFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
@@ -177,7 +172,7 @@ class AIPoweredTTS(private val context: Context) {
                 Log.d(TAG, "OpenAI TTS successful!")
                 return@withContext true
             } else {
-                Log.e(TAG, "OpenAI TTS failed: ${response.code()}")
+                Log.e(TAG, "OpenAI TTS failed: ${response.code}")
                 return@withContext false
             }
         } catch (e: Exception) {
