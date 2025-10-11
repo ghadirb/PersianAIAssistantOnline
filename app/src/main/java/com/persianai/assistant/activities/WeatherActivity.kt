@@ -69,8 +69,8 @@ class WeatherActivity : AppCompatActivity() {
     }
     
     private fun setupSearchBar() {
-        // دکمه جستجو
-        findViewById<android.widget.ImageView>(R.id.searchCityButton)?.setOnClickListener {
+        // دکمه جستجو - MaterialButton
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.searchCityButton)?.setOnClickListener {
             showCitySearchDialog()
         }
     }

@@ -65,15 +65,24 @@
                             android:textSize="18sp"
                             android:textStyle="bold" />
 
-                        <ImageView
+                        <!-- دکمه جستجوی واضح‌تر -->
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/searchCityButton"
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_search"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="🔍 جستجو"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
                             android:layout_marginStart="8dp"
-                            android:padding="2dp"
-                            android:background="?selectableItemBackgroundBorderless"
-                            android:tint="@android:color/white" />
+                            app:cornerRadius="18dp"
+                            app:icon="@drawable/ic_search"
+                            app:iconTint="@android:color/white"
+                            app:iconSize="18dp"
+                            app:iconGravity="start"
+                            android:backgroundTint="#80FFFFFF"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            style="@style/Widget.Material3.Button.TonalButton" />
                     </LinearLayout>
 
                     <!-- دما - مثل داشبورد -->
