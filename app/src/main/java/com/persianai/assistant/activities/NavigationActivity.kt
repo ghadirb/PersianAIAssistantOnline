@@ -82,6 +82,9 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     }
     
     private fun setupUI() {
+        // سرعت‌سنج ابتدا مخفی است
+        binding.speedCard.visibility = android.view.View.GONE
+        
         // دکمه جستجوی مقصد
         binding.searchDestinationButton.setOnClickListener {
             showDestinationSearchDialog()
@@ -93,15 +96,31 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                 googleMap?.animateCamera(
                     CameraUpdateFactory.newLatLngZoom(
                         LatLng(location.latitude, location.longitude),
-                        15f
+                        17f
                     )
                 )
+                Toast.makeText(this, "📍 مکان فعلی", Toast.LENGTH_SHORT).show()
+            } ?: run {
+                Toast.makeText(this, "مکان شما هنوز آماده نیست", Toast.LENGTH_SHORT).show()
             }
         }
         
         // دکمه شروع مسیریابی
         binding.startNavigationButton.setOnClickListener {
-            startNavigation()
+            if (currentRoute != null) {
+                startNavigation()
+                // نمایش سرعت‌سنج
+                binding.speedCard.visibility = android.view.View.VISIBLE
+            } else {
+                Toast.makeText(this, "لطفاً ابتدا مقصد را انتخاب کنید", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // دکمه توقف
+        binding.stopNavigationButton.setOnClickListener {
+            stopNavigation()
+            // مخفی کردن سرعت‌سنج
+            binding.speedCard.visibility = android.view.View.GONE
         }
         
         // دکمه توقف مسیریابی

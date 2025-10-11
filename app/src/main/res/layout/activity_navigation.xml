@@ -27,41 +27,49 @@
             app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Speed and Info Card (Top) -->
+    <!-- Speed Card (Bottom Right - فقط در حین مسیریابی) -->
     <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:id="@+id/speedCard"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
         android:layout_margin="16dp"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="72dp"
-        app:cardCornerRadius="12dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="180dp"
+        android:visibility="gone"
+        app:cardCornerRadius="60dp"
         app:cardElevation="8dp"
         android:backgroundTint="#E01976D2">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:gravity="center"
+            android:padding="12dp">
 
             <TextView
                 android:id="@+id/currentSpeedText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="سرعت: 0 km/h"
+                android:text="0"
                 android:textColor="@android:color/white"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_gravity="center" />
+                android:textSize="36sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="km/h"
+                android:textColor="#FFE0E0"
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/speedLimitText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="سرعت مجاز: -- km/h"
+                android:text="مجاز: --"
                 android:textColor="#FFE0E0"
-                android:textSize="14sp"
-                android:layout_gravity="center"
+                android:textSize="10sp"
                 android:layout_marginTop="4dp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

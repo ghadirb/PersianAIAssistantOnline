@@ -54,6 +54,22 @@ object BackupManager {
         }
         backup.put("reminders", reminders)
         
+        // Weather preferences
+        val weatherPrefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+        val weather = JSONObject()
+        weatherPrefs.all.forEach { (key, value) ->
+            weather.put(key, value)
+        }
+        backup.put("weather", weather)
+        
+        // API Keys
+        val apiKeysPrefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
+        val apiKeys = JSONObject()
+        apiKeysPrefs.all.forEach { (key, value) ->
+            apiKeys.put(key, value)
+        }
+        backup.put("api_keys", apiKeys)
+        
         // Save to file
         val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)
         val fileName = "backup_${dateFormat.format(Date())}.json"
@@ -100,6 +116,31 @@ object BackupManager {
                 val expenses = backup.getJSONObject("expenses")
                 expenses.keys().forEach { key ->
                     prefs.putString(key, expenses.getString(key))
+                }
+                prefs.apply()
+            }
+            
+            // Restore weather
+            if (backup.has("weather")) {
+                val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE).edit()
+                val weather = backup.getJSONObject("weather")
+                weather.keys().forEach { key ->
+                    val value = weather.get(key)
+                    when (value) {
+                        is String -> prefs.putString(key, value)
+                        is Float -> prefs.putFloat(key, value as Float)
+                        is Long -> prefs.putLong(key, value)
+                    }
+                }
+                prefs.apply()
+            }
+            
+            // Restore API keys
+            if (backup.has("api_keys")) {
+                val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE).edit()
+                val apiKeys = backup.getJSONObject("api_keys")
+                apiKeys.keys().forEach { key ->
+                    prefs.putString(key, apiKeys.getString(key))
                 }
                 prefs.apply()
             }

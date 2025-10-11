@@ -40,18 +40,10 @@ class WeatherForecastActivity : AppCompatActivity() {
     }
     
     private fun setupTabs() {
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("7 روزه"))
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("30 روزه"))
-        
-        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                forecastType = if (tab?.position == 0) "daily" else "monthly"
-                loadForecast()
-            }
-            
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
+        // فقط 7 روزه - 30 روزه نادرست بود
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("📅 پیش‌بینی 7 روزه"))
+        binding.tabLayout.visibility = View.GONE // فقط یک تب است
+        forecastType = "daily"
     }
     
     private fun setupRecyclerView() {

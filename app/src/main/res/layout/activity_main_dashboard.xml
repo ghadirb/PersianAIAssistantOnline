@@ -139,14 +139,12 @@
                         android:layout_gravity="center"
                         android:textSize="40sp" />
 
+                    <!-- آیکون ساده به جای نام شهر -->
                     <TextView
-                        android:id="@+id/weatherCityName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="تهران"
-                        android:textColor="@android:color/white"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
+                        android:text="🌡️"
+                        android:textSize="20sp"
                         android:layout_gravity="center" />
 
                     <TextView
