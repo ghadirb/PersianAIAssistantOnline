@@ -69,6 +69,13 @@ class MainActivity : AppCompatActivity() {
         updateModeIndicator()
     }
     
+    private fun isActionCommand(text: String): Boolean {
+        val cmd = text.lowercase()
+        val musicKeywords = listOf("آهنگ", "موزیک", "موسیقی", "پخش")
+        val navKeywords = listOf("مسیر", "ببر", "برو", "مسیریابی")
+        return musicKeywords.any { cmd.contains(it) } || navKeywords.any { cmd.contains(it) }
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
         ttsHelper.shutdown()
@@ -424,6 +431,20 @@ class MainActivity : AppCompatActivity() {
         val text = binding.messageInput.text.toString().trim()
         if (text.isEmpty()) {
             Toast.makeText(this, "لطفاً پیامی وارد کنید", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        // چک دستورات عملی (موزیک، مسیریابی)
+        if (isActionCommand(text)) {
+            val result = com.persianai.assistant.ai.SmartAssistant.processCommand(this, text)
+            val aiMessage = ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = result,
+                timestamp = System.currentTimeMillis()
+            )
+            addMessage(ChatMessage(MessageRole.USER, text, System.currentTimeMillis()))
+            addMessage(aiMessage)
+            binding.messageInput.text?.clear()
             return
         }
 

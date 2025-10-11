@@ -55,10 +55,29 @@ class MusicActivity : AppCompatActivity() {
             
             setupUI()
             checkPermissions()
+            
+            // چک دستورات AI
+            handleAIIntent()
+            
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error in onCreate", e)
             Toast.makeText(this, "خطا در بارگذاری صفحه موزیک", Toast.LENGTH_LONG).show()
             finish()
+        }
+    }
+    
+    private fun handleAIIntent() {
+        val aiMood = intent.getStringExtra("AI_MOOD")
+        val autoStart = intent.getBooleanExtra("AUTO_START", false)
+        
+        if (aiMood != null && autoStart) {
+            selectedMood = aiMood
+            binding.selectedMoodText?.text = "حالت انتخاب شده: 🎵 $aiMood"
+            
+            // ایجاد خودکار پلی‌لیست
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                createPlaylist()
+            }, 500)
         }
     }
     

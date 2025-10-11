@@ -78,6 +78,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
         
         setupUI()
+        handleAIIntent()
         checkPermissions()
     }
     
@@ -375,6 +376,48 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
         aiPoweredTTS.shutdown()
+    }
+    
+    private fun handleAIIntent() {
+        val aiDestination = intent.getStringExtra("AI_DESTINATION")
+        val aiVoice = intent.getBooleanExtra("AI_VOICE", false)
+        
+        if (aiDestination != null) {
+            // جستجوی خودکار مقصد
+            lifecycleScope.launch {
+                try {
+                    val results = nessanMapsAPI.searchLocation(aiDestination)
+                    if (results.isNotEmpty()) {
+                        val dest = results[0]
+                        Toast.makeText(
+                            this@NavigationActivity,
+                            "🗺️ مسیریابی به ${dest.name}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        
+                        if (aiVoice) {
+                            aiPoweredTTS.speak("مسیریابی به ${dest.name} شروع شد")
+                        }
+                        
+                        // شروع مسیریابی
+                        currentLocation?.let {
+                            startNavigation(
+                                LatLng(it.latitude, it.longitude),
+                                LatLng(dest.latitude, dest.longitude)
+                            )
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@NavigationActivity,
+                            "❌ مقصد '‎$aiDestination' پیدا نشد",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("NavigationActivity", "AI Intent error", e)
+                }
+            }
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {
