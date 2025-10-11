@@ -6,6 +6,8 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.*
 
@@ -143,8 +145,7 @@ class AIPoweredTTS(private val context: Context) {
                 .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
             
-            val mediaType = okhttp3.MediaType.Companion.parse("application/json")
-            val requestBodyObj = okhttp3.RequestBody.Companion.create(requestBody, mediaType)
+            val requestBodyObj = requestBody.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
             
             val request = okhttp3.Request.Builder()
                 .url("https://api.openai.com/v1/audio/speech")
