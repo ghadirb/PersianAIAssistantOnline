@@ -386,7 +386,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             // جستجوی خودکار مقصد
             lifecycleScope.launch {
                 try {
-                    val results = nessanMapsAPI.searchLocation(aiDestination)
+                    val results = com.persianai.assistant.api.NeshanAPI.searchLocation(aiDestination)
                     if (results.isNotEmpty()) {
                         val dest = results[0]
                         Toast.makeText(
