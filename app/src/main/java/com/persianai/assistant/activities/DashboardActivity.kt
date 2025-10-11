@@ -172,8 +172,7 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun loadWeather() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
-        // نمایش نام شهر
-        binding.weatherCityName?.text = city
+        // نام شهر حذف شد - فقط آیکون نمایش داده می‌شود
         
         lifecycleScope.launch {
             try {
