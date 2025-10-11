@@ -247,6 +247,9 @@ class OfflineModelManager(private val context: Context) {
      * دریافت مدل‌های دانلود شده
      */
     fun getDownloadedModels(): List<Pair<ModelInfo, String>> {
+        // ابتدا اسکن پوشه برای مدل‌های دستی
+        scanForManuallyDownloadedModels()
+        
         val prefs = context.getSharedPreferences("offline_models", Context.MODE_PRIVATE)
         val downloadedModels = mutableListOf<Pair<ModelInfo, String>>()
         
@@ -257,7 +260,18 @@ class OfflineModelManager(private val context: Context) {
                     val json = JSONObject(modelData)
                     val path = json.getString("path")
                     if (File(path).exists()) {
-                        downloadedModels.add(Pair(model, path))
+                        val fileSize = File(path).length()
+                        val expectedSize = (model.size * 1024 * 1024 * 1024).toLong()
+                        
+                        // چک حجم فایل - باید حداقل 80% باشد
+                        if (fileSize >= expectedSize * 0.8) {
+                            downloadedModels.add(Pair(model, path))
+                            android.util.Log.d("OfflineModelManager", "✅ Valid model: ${model.name} - ${formatSize(fileSize)}")
+                        } else {
+                            android.util.Log.w("OfflineModelManager", "⚠️ Invalid size: ${model.name} - ${formatSize(fileSize)} (expected: ${formatSize(expectedSize)})")
+                        }
+                    } else {
+                        android.util.Log.w("OfflineModelManager", "❌ File not found: $path")
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -266,6 +280,61 @@ class OfflineModelManager(private val context: Context) {
         }
         
         return downloadedModels
+    }
+    
+    /**
+     * اسکن پوشه برای شناسایی مدل‌های دستی
+     */
+    private fun scanForManuallyDownloadedModels() {
+        val modelDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "models")
+        if (!modelDir.exists()) {
+            modelDir.mkdirs()
+            android.util.Log.d("OfflineModelManager", "Created models directory: ${modelDir.absolutePath}")
+            return
+        }
+        
+        android.util.Log.d("OfflineModelManager", "Scanning: ${modelDir.absolutePath}")
+        
+        val files = modelDir.listFiles() ?: return
+        val prefs = context.getSharedPreferences("offline_models", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        
+        for (file in files) {
+            if (!file.name.endsWith(".gguf")) continue
+            
+            android.util.Log.d("OfflineModelManager", "Found file: ${file.name} - ${formatSize(file.length())}")
+            
+            // تطبیق با مدل‌ها
+            for (model in availableModels) {
+                val expectedFileName = "${model.name.replace(" ", "_")}.gguf"
+                
+                if (file.name.equals(expectedFileName, ignoreCase = true)) {
+                    val fileSize = file.length()
+                    val expectedSize = (model.size * 1024 * 1024 * 1024).toLong()
+                    
+                    // چک حجم - باید حداقل 80% باشد
+                    if (fileSize >= expectedSize * 0.8) {
+                        // ذخیره در SharedPreferences
+                        val json = JSONObject().apply {
+                            put("name", model.name)
+                            put("path", file.absolutePath)
+                            put("size", model.size)
+                            put("description", model.description)
+                            put("downloadDate", System.currentTimeMillis())
+                            put("manualDownload", true)
+                        }
+                        
+                        editor.putString(model.name, json.toString())
+                        android.util.Log.d("OfflineModelManager", "✅ Registered: ${model.name} - ${file.absolutePath}")
+                    } else {
+                        android.util.Log.w("OfflineModelManager", "⚠️ Size too small: ${file.name} - ${formatSize(fileSize)} (expected: ${formatSize(expectedSize)})")
+                    }
+                    break
+                }
+            }
+        }
+        
+        editor.apply()
     }
     
     /**

@@ -44,6 +44,20 @@ class OfflineModelsActivity : AppCompatActivity() {
         adapter = ModelsAdapter()
         binding.recyclerModels.layoutManager = LinearLayoutManager(this)
         binding.recyclerModels.adapter = adapter
+        
+        // نمایش مسیر پوشه
+        val modelDir = java.io.File(getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "models")
+        if (!modelDir.exists()) {
+            modelDir.mkdirs()
+        }
+        
+        binding.pathInfoText?.text = "📁 مسیر پوشه:\n${modelDir.absolutePath}"
+        binding.pathInfoText?.setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("Model Path", modelDir.absolutePath)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "✅ مسیر کپی شد", Toast.LENGTH_SHORT).show()
+        }
     }
     
     private fun loadModels() {
@@ -142,43 +156,53 @@ class OfflineModelsActivity : AppCompatActivity() {
         }
         
         AlertDialog.Builder(this)
-            .setTitle("راهنمای دانلود ${model.name}")
+            .setTitle("⚠️ ${model.name} - دانلود دستی")
             .setMessage("""
-                حجم دانلود: ${model.size} GB
+                💾 حجم: ${model.size} GB
                 
-                لینک دانلود:
-                ${model.url}
+                ⚠️ توجه: دانلود در برنامه به دلیل محدودیت‌های Hugging Face کار نمی‌کند.
                 
-                روش‌های دانلود:
-                1️⃣ لینک را کپی کنید و در مرورگر باز کنید
-                2️⃣ از دانلود منیجر استفاده کنید (ADM یا IDM)
-                3️⃣ پس از دانلود، فایل را در این مسیر کپی کنید:
-                /Android/data/com.persianai.assistant/files/Download/models/
+                📥 روش دانلود صحیح:
                 
-                ⚠️ نکات مهم:
-                • از اتصال Wi-Fi استفاده کنید
-                • دانلود ممکن است چند ساعت طول بکشد
+                1️⃣ روی "🔗 باز کردن لینک" کلیک کنید
+                
+                2️⃣ صبر کنید تا مرورگر باز شود و دانلود شروع شود
+                   (اگر شروع نشد، لینک را کپی کنید)
+                
+                3️⃣ می‌توانید از دانلود منیجر استفاده کنید:
+                   • ADM (Advanced Download Manager)
+                   • IDM (Internet Download Manager)
+                
+                4️⃣ پس از دانلود، فایل .gguf را در این پوشه قرار دهید:
+                   /Android/data/com.persianai.assistant/files/Download/models/
+                
+                5️⃣ نام فایل را دقیقاً به این صورت تغییر دهید:
+                   ${model.name.replace(" ", "_")}.gguf
+                
+                ✅ بعد از کپی فایل، برنامه را ریستارت کنید.
+                
+                ⚠️ نکات:
+                • حتماً Wi-Fi استفاده کنید
+                • دانلود ${model.size}GB ممکن است 2-6 ساعت طول بکشد
+                • از قطع اینترنت جلوگیری کنید
             """.trimIndent())
-            .setPositiveButton("کپی لینک") { _, _ ->
+            .setPositiveButton("🔗 باز کردن لینک") { _, _ ->
+                // باز کردن لینک در مرورگر
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(model.url))
+                    startActivity(intent)
+                    Toast.makeText(this, "🌐 مرورگر باز شد - صبر کنید...", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this, "❌ خطا در باز کردن لینک", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNeutralButton("📋 کپی لینک") { _, _ ->
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 val clip = android.content.ClipData.newPlainText("Model URL", model.url)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "✅ لینک کپی شد", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "✅ لینک کپی شد - در دانلود منیجر Paste کنید", Toast.LENGTH_LONG).show()
             }
-            .setNeutralButton("دانلود در برنامه") { _, _ ->
-                // شروع دانلود با OkHttp
-                modelManager.downloadModel(model) { success ->
-                    runOnUiThread {
-                        if (success) {
-                            Toast.makeText(this, "✅ دانلود کامل شد!", Toast.LENGTH_LONG).show()
-                            loadModels()
-                        } else {
-                            Toast.makeText(this, "❌ خطا در دانلود", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            }
-            .setNegativeButton("بستن", null)
+            .setNegativeButton("❌ بستن", null)
             .show()
     }
     
