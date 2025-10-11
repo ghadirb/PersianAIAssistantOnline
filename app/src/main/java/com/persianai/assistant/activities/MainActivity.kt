@@ -442,7 +442,11 @@ class MainActivity : AppCompatActivity() {
                 content = result,
                 timestamp = System.currentTimeMillis()
             )
-            addMessage(ChatMessage(MessageRole.USER, text, System.currentTimeMillis()))
+            addMessage(ChatMessage(
+                role = MessageRole.USER,
+                content = text,
+                timestamp = System.currentTimeMillis()
+            ))
             addMessage(aiMessage)
             binding.messageInput.text?.clear()
             return

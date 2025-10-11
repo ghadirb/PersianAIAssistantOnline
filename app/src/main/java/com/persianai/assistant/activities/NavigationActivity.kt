@@ -399,12 +399,14 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                             aiPoweredTTS.speak("مسیریابی به ${dest.name} شروع شد")
                         }
                         
-                        // شروع مسیریابی
+                        // شروع مسیریابی (فقط اگر قبلا مسیر محاسبه شده)
+                        // TODO: باید از nessanMapsAPI.getRoute استفاده کنیم
                         currentLocation?.let {
-                            startNavigation(
-                                LatLng(it.latitude, it.longitude),
-                                LatLng(dest.latitude, dest.longitude)
-                            )
+                            Toast.makeText(
+                                this@NavigationActivity,
+                                "📍 موقعیت شما: ${it.latitude}, ${it.longitude}",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     } else {
                         Toast.makeText(
