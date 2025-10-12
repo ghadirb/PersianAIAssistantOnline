@@ -195,7 +195,7 @@ object AqicnWeatherAPI {
             }
             Calendar.JUNE, Calendar.JULY, Calendar.AUGUST -> {
                 // تابستان - دمای پایه واقعی‌تر
-                if (hour in 6..18) 28.0 else 20.0
+                if (hour in 6..18) 22.0 else 18.0
             }
             else -> {
                 // پاییز
@@ -203,15 +203,15 @@ object AqicnWeatherAPI {
             }
         }
         
-        // تنظیم دما بر اساس ساعت دقیق - دمای واقعی فعلی
+        // تنظیم دما بر اساس ساعت دقیق - دمای واقعی‌تر
         return when (hour) {
-            in 0..5 -> baseTemp - 5  // اوایل صبح - سردترین
-            in 6..8 -> baseTemp - 3  // صبح زود
-            in 9..11 -> baseTemp - 1 // صبح (شروع گرم شدن)
-            in 12..14 -> baseTemp + 1 // ظهر (دمای فعلی نزدیک baseTemp)
-            in 15..17 -> baseTemp + 2 // اوج گرما (2-4 بعد از ظهر)
-            in 18..20 -> baseTemp - 1 // غروب (شروع خنک شدن)
-            in 21..23 -> baseTemp - 3 // شب
+            in 0..5 -> baseTemp - 3  // اوایل صبح
+            in 6..8 -> baseTemp - 2  // صبح زود
+            in 9..11 -> baseTemp     // صبح
+            in 12..14 -> baseTemp + 1 // ظهر
+            in 15..17 -> baseTemp + 2 // عصر (گرم‌ترین)
+            in 18..20 -> baseTemp     // غروب
+            in 21..23 -> baseTemp - 2 // شب
             else -> baseTemp
         }
     }

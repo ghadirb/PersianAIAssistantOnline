@@ -2,27 +2,31 @@ package com.persianai.assistant.activities
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.View
-import android.widget.*
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.chip.Chip
-import com.google.android.material.chip.ChipGroup
-import com.google.android.material.snackbar.Snackbar
-import com.persianai.assistant.R
-import com.persianai.assistant.databinding.ActivityMusicBinding
-import com.persianai.assistant.music.MusicPlaylistManager
-import kotlinx.coroutines.launch
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.Player
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.media3.common.MediaItem
+import com.google.android.media3.common.Player
+import com.google.android.media3.exoplayer.ExoPlayer
+import com.persianai.assistant.databinding.ActivityMusicBinding
+import com.persianai.assistant.utils.MusicPlaylistManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 class MusicActivity : AppCompatActivity() {
     
@@ -347,7 +351,8 @@ class MusicActivity : AppCompatActivity() {
             // پاک کردن صف فعلی و اضافه کردن آهنگ‌ها
             exoPlayer?.clearMediaItems()
             playlist.tracks.forEach { track ->
-                val mediaItem = MediaItem.fromUri(track.path.toUri())
+                val uri = Uri.parse(track.path)
+                val mediaItem = MediaItem.fromUri(uri)
                 exoPlayer?.addMediaItem(mediaItem)
             }
             
@@ -370,10 +375,13 @@ class MusicActivity : AppCompatActivity() {
         currentPlaylist?.let { playlist ->
             currentTrackIndex++
             if (currentTrackIndex < playlist.tracks.size) {
+                // پخش آهنگ بعدی
+                exoPlayer?.seekToNextMediaItem()
                 showPlaybackControls(playlist.tracks[currentTrackIndex])
             } else {
                 // پخش تمام شد
                 currentTrackIndex = 0
+                exoPlayer?.stop()
                 Toast.makeText(this, "✅ پخش پلی‌لیست تمام شد", Toast.LENGTH_SHORT).show()
             }
         }
