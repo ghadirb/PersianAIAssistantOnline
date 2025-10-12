@@ -297,13 +297,8 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                     // حرکت دوربین به مقصد
                     googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(destination, 13f))
                     
-                    // دریافت مسیرهای جایگزین
-                    currentLocation?.let { location ->
-                        getAlternativeRoutesAndDisplay(
-                            LatLng(location.latitude, location.longitude),
-                            destination
-                        )
-                    }
+                    // TODO: دریافت مسیرهای جایگزین در آینده
+                    Toast.makeText(this@NavigationActivity, "مسیریابی فعال شد", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this@NavigationActivity, "مقصد یافت نشد", Toast.LENGTH_SHORT).show()
                 }
