@@ -33,6 +33,10 @@ class MusicActivity : AppCompatActivity() {
     private var exoPlayer: ExoPlayer? = null
     private var currentPlaylist: MusicPlaylistManager.Playlist? = null
     private var currentTrackIndex = 0
+    private var isShuffleEnabled = false
+    private var repeatMode = Player.REPEAT_MODE_OFF // OFF, ONE, ALL
+    private val seekBarHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var isUserSeeking = false
     
     companion object {
         private const val PERMISSION_REQUEST_CODE = 101
@@ -385,6 +389,13 @@ class MusicActivity : AppCompatActivity() {
         binding.playPauseButton?.visibility = View.VISIBLE
         binding.nextButton?.visibility = View.VISIBLE
         binding.prevButton?.visibility = View.VISIBLE
+        binding.shuffleButton?.visibility = View.VISIBLE
+        binding.repeatButton?.visibility = View.VISIBLE
+        binding.seekBar?.visibility = View.VISIBLE
+        binding.timeText?.visibility = View.VISIBLE
+        
+        // Setup SeekBar
+        setupSeekBar()
         
         binding.playPauseButton?.setOnClickListener {
             exoPlayer?.let {
@@ -405,10 +416,94 @@ class MusicActivity : AppCompatActivity() {
         binding.prevButton?.setOnClickListener {
             exoPlayer?.seekToPrevious()
         }
+        
+        // Shuffle Button
+        binding.shuffleButton?.setOnClickListener {
+            isShuffleEnabled = !isShuffleEnabled
+            exoPlayer?.shuffleModeEnabled = isShuffleEnabled
+            val color = if (isShuffleEnabled) "#FF4081" else "#6A1B9A"
+            binding.shuffleButton?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                android.graphics.Color.parseColor(color)
+            )
+            val msg = if (isShuffleEnabled) "🔀 Shuffle فعال" else "🔀 Shuffle غیرفعال"
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        }
+        
+        // Repeat Button
+        binding.repeatButton?.setOnClickListener {
+            repeatMode = when (repeatMode) {
+                Player.REPEAT_MODE_OFF -> {
+                    binding.repeatButton?.text = "🔂"
+                    binding.repeatButton?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.parseColor("#FF4081")
+                    )
+                    Toast.makeText(this, "🔂 تکرار یک آهنگ", Toast.LENGTH_SHORT).show()
+                    Player.REPEAT_MODE_ONE
+                }
+                Player.REPEAT_MODE_ONE -> {
+                    binding.repeatButton?.text = "🔁"
+                    Toast.makeText(this, "🔁 تکرار همه", Toast.LENGTH_SHORT).show()
+                    Player.REPEAT_MODE_ALL
+                }
+                else -> {
+                    binding.repeatButton?.text = "🔁"
+                    binding.repeatButton?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.parseColor("#6A1B9A")
+                    )
+                    Toast.makeText(this, "❌ تکرار غیرفعال", Toast.LENGTH_SHORT).show()
+                    Player.REPEAT_MODE_OFF
+                }
+            }
+            exoPlayer?.repeatMode = repeatMode
+        }
+    }
+    
+    private fun setupSeekBar() {
+        binding.seekBar?.max = exoPlayer?.duration?.toInt() ?: 0
+        binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    exoPlayer?.seekTo(progress.toLong())
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) { isUserSeeking = true }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) { isUserSeeking = false }
+        })
+        startSeekBarUpdate()
+    }
+    
+    private fun startSeekBarUpdate() {
+        seekBarHandler.post(updateSeekBar)
+    }
+    
+    private fun stopSeekBarUpdate() {
+        seekBarHandler.removeCallbacks(updateSeekBar)
+    }
+    
+    private val updateSeekBar = object : Runnable {
+        override fun run() {
+            exoPlayer?.let {
+                if (!isUserSeeking && it.duration > 0) {
+                    val current = it.currentPosition
+                    val total = it.duration
+                    binding.seekBar?.max = total.toInt()
+                    binding.seekBar?.progress = current.toInt()
+                    binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
+                }
+            }
+            seekBarHandler.postDelayed(this, 1000)
+        }
+    }
+    
+    private fun formatTime(millis: Long): String {
+        val minutes = (millis / 1000) / 60
+        val seconds = (millis / 1000) % 60
+        return String.format("%d:%02d", minutes, seconds)
     }
     
     override fun onDestroy() {
         super.onDestroy()
+        stopSeekBarUpdate()
         exoPlayer?.release()
         exoPlayer = null
     }

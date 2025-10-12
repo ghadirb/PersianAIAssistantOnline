@@ -172,7 +172,13 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun loadWeather() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
-        // نام شهر حذف شد - فقط آیکون نمایش داده می‌شود
+        
+        // نمایش فوری cache برای جلوگیری از چشمک زدن
+        val savedTemp = prefs.getFloat("current_temp_$city", -999f)
+        if (savedTemp != -999f) {
+            binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+            binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
+        }
         
         lifecycleScope.launch {
             try {

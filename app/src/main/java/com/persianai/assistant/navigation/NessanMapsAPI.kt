@@ -75,6 +75,49 @@ class NessanMapsAPI {
     }
     
     /**
+     * دریافت مسیرهای جایگزین (تا 3 مسیر)
+     */
+    suspend fun getAlternativeRoutes(origin: LatLng, destination: LatLng): List<RouteResult> = withContext(Dispatchers.IO) {
+        val routes = mutableListOf<RouteResult>()
+        
+        try {
+            // دریافت مسیر اصلی
+            val mainRoute = getDirections(origin, destination)
+            if (mainRoute != null) {
+                routes.add(mainRoute)
+            }
+            
+            // ایجاد مسیرهای جایگزین (موک)
+            // مسیر 2: کمی طولانی‌تر ولی سریع‌تر
+            if (mainRoute != null) {
+                routes.add(mainRoute.copy(
+                    distance = mainRoute.distance * 1.15,
+                    duration = (mainRoute.duration * 0.85).toInt(),
+                    speedLimit = 100,
+                    instructions = mainRoute.instructions
+                ))
+            }
+            
+            // مسیر 3: کوتاه‌تر ولی کندتر
+            if (mainRoute != null) {
+                routes.add(mainRoute.copy(
+                    distance = mainRoute.distance * 0.92,
+                    duration = (mainRoute.duration * 1.1).toInt(),
+                    speedLimit = 60,
+                    instructions = mainRoute.instructions
+                ))
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting alternative routes", e)
+            // Fallback
+            routes.addAll(getMockAlternativeRoutes(origin, destination))
+        }
+        
+        return@withContext routes
+    }
+    
+    /**
      * محاسبه مسیر بین دو نقطه
      */
     suspend fun getDirections(origin: LatLng, destination: LatLng): RouteResult? = withContext(Dispatchers.IO) {
@@ -272,6 +315,32 @@ class NessanMapsAPI {
             duration = duration,
             speedLimit = 80,
             instructions = listOf("مستقیم به سمت مقصد بروید")
+        )
+    }
+    
+    /**
+     * مسیرهای تستی جایگزین
+     */
+    private fun getMockAlternativeRoutes(origin: LatLng, destination: LatLng): List<RouteResult> {
+        val baseRoute = getMockRoute(origin, destination)
+        
+        return listOf(
+            // مسیر 1: متعادل
+            baseRoute,
+            // مسیر 2: آزادراه (سریع‌تر)
+            baseRoute.copy(
+                distance = baseRoute.distance * 1.2,
+                duration = (baseRoute.duration * 0.7).toInt(),
+                speedLimit = 110,
+                instructions = listOf("از آزادراه استفاده کنید")
+            ),
+            // مسیر 3: معابر شهری (کوتاه‌تر)
+            baseRoute.copy(
+                distance = baseRoute.distance * 0.85,
+                duration = (baseRoute.duration * 1.3).toInt(),
+                speedLimit = 50,
+                instructions = listOf("از معابر شهری استفاده کنید")
+            )
         )
     }
     

@@ -41,6 +41,9 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentRoute: List<LatLng>? = null
     private var currentSpeed: Float = 0f // km/h
     private var speedLimit: Int = 0
+    private var alternativeRoutes: List<NessanMapsAPI.RouteResult> = emptyList()
+    private var selectedRouteIndex: Int = 0
+    private var routePolylines: MutableList<Polyline> = mutableListOf()
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -294,9 +297,9 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                     // حرکت دوربین به مقصد
                     googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(destination, 13f))
                     
-                    // دریافت مسیر
+                    // دریافت مسیرهای جایگزین
                     currentLocation?.let { location ->
-                        getRoute(
+                        getAlternativeRoutesAndDisplay(
                             LatLng(location.latitude, location.longitude),
                             destination
                         )
