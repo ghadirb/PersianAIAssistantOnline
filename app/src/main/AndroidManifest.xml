@@ -165,6 +165,12 @@
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
 
+        <!-- Accounting Activity -->
+        <activity
+            android:name=".activities.AccountingActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.DashboardActivity" />
+
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
