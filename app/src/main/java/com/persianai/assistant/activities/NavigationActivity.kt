@@ -161,6 +161,11 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         binding.saveCurrentLocationButton?.setOnClickListener {
             saveCurrentLocation()
         }
+        
+        // دکمه چت AI
+        binding.aiChatFab?.setOnClickListener {
+            showNavigationAIChat()
+        }
     }
     
     override fun onMapReady(map: GoogleMap) {
@@ -628,6 +633,65 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             "home" -> "🏠"
             "work" -> "💼"
             else -> "⭐"
+        }
+    }
+    
+    private fun showNavigationAIChat() {
+        val input = EditText(this)
+        input.hint = "مثلا: منو به نزدیکترین پمپ بنزین ببر یا مکان فعلی رو ذخیره کن"
+        input.setPadding(20, 20, 20, 20)
+        
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("🤖 دستیار مسیریاب")
+        builder.setView(input)
+        builder.setPositiveButton("ارسال") { _, _ ->
+            val command = input.text.toString()
+            if (command.isNotEmpty()) {
+                processNavigationCommand(command)
+            }
+        }
+        builder.setNegativeButton("لغو", null)
+        builder.show()
+    }
+    
+    private fun processNavigationCommand(command: String) {
+        Toast.makeText(this, "🔄 در حال پردازش...", Toast.LENGTH_SHORT).show()
+        
+        when {
+            command.contains("پمپ") || command.contains("بنزین") -> {
+                showPOIsOnMap("gas")
+                Toast.makeText(this, "⛽ نمایش پمپ بنزین‌ها", Toast.LENGTH_SHORT).show()
+            }
+            command.contains("رستوران") || command.contains("غذا") -> {
+                showPOIsOnMap("food")
+                Toast.makeText(this, "🍴 نمایش رستوران‌ها", Toast.LENGTH_SHORT).show()
+            }
+            command.contains("بیمارستان") -> {
+                showPOIsOnMap("hospital")
+                Toast.makeText(this, "🏥 نمایش بیمارستان‌ها", Toast.LENGTH_SHORT).show()
+            }
+            command.contains("ذخیره") && command.contains("مکان") -> {
+                saveCurrentLocation()
+            }
+            command.contains("خانه") -> {
+                // جستجوی خانه در مکان‌های ذخیره شده
+                val homeLocation = savedLocationsManager.getAllLocations().find { it.category == "home" }
+                if (homeLocation != null) {
+                    val destination = LatLng(homeLocation.latitude, homeLocation.longitude)
+                    googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(destination, 15f))
+                    currentLocation?.let { origin ->
+                        lifecycleScope.launch {
+                            getRoute(LatLng(origin.latitude, origin.longitude), destination)
+                        }
+                    }
+                    Toast.makeText(this, "🏠 مسیر به خانه", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "⚠️ مکان خانه ذخیره نشده", Toast.LENGTH_SHORT).show()
+                }
+            }
+            else -> {
+                Toast.makeText(this, "💬 من دستیار مسیریاب هستم. می‌تونید بگید: پمپ بنزین، رستوران، مسیر خانه، ذخیره مکان", Toast.LENGTH_LONG).show()
+            }
         }
     }
     

@@ -237,4 +237,17 @@
         android:visibility="gone"
         android:indeterminateTint="@color/primaryColor" />
 
+    <!-- AI Chat Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/aiChatFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="80dp"
+        android:layout_marginStart="16dp"
+        android:src="@android:drawable/ic_dialog_email"
+        android:contentDescription="چت AI"
+        app:backgroundTint="#9C27B0"
+        app:tint="@android:color/white" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

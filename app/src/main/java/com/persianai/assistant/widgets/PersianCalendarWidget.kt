@@ -9,7 +9,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import com.persianai.assistant.R
 import com.persianai.assistant.activities.DashboardActivity
-import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.WidgetThemeManager
 import kotlinx.coroutines.*
@@ -107,9 +107,9 @@ class PersianCalendarWidget : AppWidgetProvider() {
         // آپدیت آب و هوا در background
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(weather.icon)
+                    val emoji = getWeatherEmoji(weather.temp)
                     val text = "$emoji ${weather.temp.toInt()}° $city"
                     
                     withContext(Dispatchers.Main) {
@@ -124,17 +124,20 @@ class PersianCalendarWidget : AppWidgetProvider() {
                         }
                     }
                 } else {
-                    // استفاده از Mock data اگر API جواب نداد
-                    val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                    val text = "☀️ ${mockData.temp.toInt()}° $city"
+                    // استفاده از داده ذخیره شده
+                    val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+                    val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    val emoji = getWeatherEmoji(savedTemp.toDouble())
+                    val text = "$emoji ${savedTemp.toInt()}° $city"
                     views.setTextViewText(R.id.widgetWeather, text)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("PersianCalendarWidget", "Error updating weather: ${e.message}", e)
-                // استفاده از Mock data با دمای واقعی‌تر
-                val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                val emoji = OpenWeatherAPI.getWeatherEmoji(mockData.icon)
-                val text = "$emoji ${mockData.temp.toInt()}° $city"
+                // استفاده از داده ذخیره شده
+                val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+                val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                val emoji = getWeatherEmoji(savedTemp.toDouble())
+                val text = "$emoji ${savedTemp.toInt()}° $city"
                 views.setTextViewText(R.id.widgetWeather, text)
             }
         }
@@ -151,6 +154,16 @@ class PersianCalendarWidget : AppWidgetProvider() {
             Calendar.THURSDAY -> "پنج‌شنبه"
             Calendar.FRIDAY -> "جمعه"
             else -> ""
+        }
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
 }

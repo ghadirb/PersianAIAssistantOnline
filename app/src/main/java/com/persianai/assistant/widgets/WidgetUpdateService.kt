@@ -11,7 +11,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.RemoteViews
 import com.persianai.assistant.R
-import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.utils.PersianDateConverter
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
@@ -120,9 +120,9 @@ class WidgetUpdateService : Service() {
         
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(weather.icon)
+                    val emoji = getWeatherEmoji(weather.temp)
                     val text = "$emoji ${weather.temp.roundToInt()}°"
                     withContext(Dispatchers.Main) {
                         views.setTextViewText(R.id.widgetWeatherSmall, text)
@@ -134,9 +134,11 @@ class WidgetUpdateService : Service() {
                         }
                     }
                 } else {
-                    val mockWeather = OpenWeatherAPI.getMockWeatherData(city)
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(mockWeather.icon)
-                    val text = "$emoji ${mockWeather.temp.roundToInt()}°"
+                    // استفاده از داده ذخیره شده
+                    val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+                    val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    val emoji = getWeatherEmoji(savedTemp.toDouble())
+                    val text = "$emoji ${savedTemp.roundToInt()}°"
                     withContext(Dispatchers.Main) {
                         views.setTextViewText(R.id.widgetWeatherSmall, text)
                         val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -192,9 +194,9 @@ class WidgetUpdateService : Service() {
                 val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
                 val city = prefs.getString("selected_city", "تهران") ?: "تهران"
                 
-                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(weather.icon)
+                    val emoji = getWeatherEmoji(weather.temp)
                     val text = "$emoji ${weather.temp.toInt()}° $city"
                     
                     withContext(Dispatchers.Main) {
@@ -231,6 +233,16 @@ class WidgetUpdateService : Service() {
             Calendar.THURSDAY -> "پنج‌شنبه"
             Calendar.FRIDAY -> "جمعه"
             else -> ""
+        }
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
     

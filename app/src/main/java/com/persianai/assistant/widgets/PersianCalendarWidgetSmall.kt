@@ -9,7 +9,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import com.persianai.assistant.R
 import com.persianai.assistant.activities.MainActivity
-import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.utils.PersianDateConverter
 import kotlinx.coroutines.*
 
@@ -80,9 +80,9 @@ class PersianCalendarWidgetSmall : AppWidgetProvider() {
         
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(weather.icon)
+                    val emoji = getWeatherEmoji(weather.temp)
                     val text = "$emoji ${weather.temp.toInt()}°"
                     
                     withContext(Dispatchers.Main) {
@@ -96,17 +96,29 @@ class PersianCalendarWidgetSmall : AppWidgetProvider() {
                         }
                     }
                 } else {
-                    val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(mockData.icon)
-                    val text = "$emoji ${mockData.temp.toInt()}°"
+                    val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+                    val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    val emoji = getWeatherEmoji(savedTemp.toDouble())
+                    val text = "$emoji ${savedTemp.toInt()}°"
                     views.setTextViewText(R.id.widgetWeatherSmall, text)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("PersianWidgetSmall", "Error updating weather", e)
-                val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                val emoji = OpenWeatherAPI.getWeatherEmoji(mockData.icon)
-                views.setTextViewText(R.id.widgetWeatherSmall, "$emoji ${mockData.temp.toInt()}°")
+                val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+                val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                val emoji = getWeatherEmoji(savedTemp.toDouble())
+                views.setTextViewText(R.id.widgetWeatherSmall, "$emoji ${savedTemp.toInt()}°")
             }
+        }
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
 }

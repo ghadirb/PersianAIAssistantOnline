@@ -10,8 +10,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import android.widget.EditText
+import android.widget.Toast
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityRemindersBinding
+import com.persianai.assistant.ai.AIModelManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,6 +38,7 @@ class RemindersActivity : AppCompatActivity() {
         
         setupRecyclerView()
         loadReminders()
+        setupAIChatButton()
     }
     
     private fun setupRecyclerView() {
@@ -102,6 +106,76 @@ class RemindersActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+    
+    private fun setupAIChatButton() {
+        binding.aiChatButton.setOnClickListener {
+            showAIChat()
+        }
+    }
+    
+    private fun showAIChat() {
+        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+        val input = EditText(this)
+        input.hint = "چی کاری می‌تونم برات انجام بدم؟ مثلا: یادآوری فردا ساعت 9 صبح تنظیم کن"
+        input.setPadding(20, 20, 20, 20)
+        
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("🤖 دستیار یادآوری")
+            .setView(input)
+            .setPositiveButton("ارسال") { _, _ ->
+                val userMessage = input.text.toString()
+                if (userMessage.isNotEmpty()) {
+                    processAICommand(userMessage)
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .create()
+        
+        dialog.show()
+    }
+    
+    private fun processAICommand(command: String) {
+        // تحلیل دستور برای افزودن یادآوری
+        Toast.makeText(this, "🔄 در حال پردازش...", Toast.LENGTH_SHORT).show()
+        
+        // مثال: "یادآوری فردا ساعت 9 صبح تنظیم کن"
+        if (command.contains("یادآوری") || command.contains("یاداور")) {
+            // استخراج زمان و متن
+            val timePattern = """(\d{1,2})\s*(صبح|ظهر|عصر|شب)""".toRegex()
+            val match = timePattern.find(command)
+            
+            if (match != null) {
+                val hour = match.groupValues[1].toIntOrNull() ?: 9
+                val period = match.groupValues[2]
+                val message = command.replace(timePattern, "").replace("یادآوری", "").replace("تنظیم کن", "").trim()
+                
+                val hourAdjusted = when (period) {
+                    "ظهر" -> hour + 12
+                    "عصر" -> hour + 12
+                    "شب" -> hour + 12
+                    else -> hour
+                }
+                
+                val time = "ساعت $hourAdjusted:00"
+                val reminderMessage = if (message.isNotEmpty()) message else "یادآوری"
+                
+                // افزودن یادآوری جدید
+                val newReminder = Reminder(time, reminderMessage, false, System.currentTimeMillis())
+                reminders.add(newReminder)
+                reminders.sortBy { it.timestamp }
+                saveReminders()
+                adapter.notifyDataSetChanged()
+                updateEmptyState()
+                
+                Toast.makeText(this, "✅ یادآوری اضافه شد: $time", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "⚠️ زمان را مشخص کنید (مثل ساعت 9 صبح)", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // پاسخ عمومی AI
+            Toast.makeText(this, "💬 من دستیار یادآوری هستم. برای افزودن یادآوری بگویید: یادآوری ساعت X صبح", Toast.LENGTH_LONG).show()
+        }
     }
     
     companion object {

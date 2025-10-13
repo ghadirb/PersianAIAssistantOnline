@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.persianai.assistant.R
-import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.databinding.ActivityWeatherForecastBinding
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -81,7 +81,7 @@ class WeatherForecastActivity : AppCompatActivity() {
     }
     
     private suspend fun loadDailyForecast(city: String) {
-        val forecasts = OpenWeatherAPI.getForecast(city)
+        val forecasts = WorldWeatherAPI.getForecast(city)
         
         if (forecasts.isNotEmpty()) {
             // گروه‌بندی بر اساس روز و گرفتن پیش‌بینی ظهر هر روز
@@ -263,7 +263,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                     dateText.text = "${dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]}, ${cal.get(Calendar.DAY_OF_MONTH)} ${monthNames[cal.get(Calendar.MONTH)]}"
                 }
                 
-                iconText.text = OpenWeatherAPI.getWeatherEmoji(forecast.icon)
+                iconText.text = getWeatherEmoji(forecast.tempMax)
                 
                 tempText.text = "${forecast.tempMin.roundToInt()}° - ${forecast.tempMax.roundToInt()}°"
                 
@@ -274,6 +274,16 @@ class WeatherForecastActivity : AppCompatActivity() {
                     itemView.setBackgroundColor(itemView.context.getColor(android.R.color.holo_blue_light))
                 }
             }
+        }
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
 }

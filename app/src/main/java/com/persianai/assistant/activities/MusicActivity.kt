@@ -22,6 +22,8 @@ import android.widget.SeekBar
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.audio.AudioAttributes
+import com.google.android.exoplayer2.C
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityMusicBinding
 import com.persianai.assistant.utils.MusicPlaylistManager
@@ -61,8 +63,16 @@ class MusicActivity : AppCompatActivity() {
             
             musicManager = MusicPlaylistManager(this)
             
-            // Initialize ExoPlayer
-            exoPlayer = ExoPlayer.Builder(this).build()
+            // Initialize ExoPlayer with Audio Attributes
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
+            
+            exoPlayer = ExoPlayer.Builder(this).build().apply {
+                setAudioAttributes(audioAttributes, true)
+                volume = 1f // حداکثر صدا
+            }
             
             setupUI()
             checkPermissions()
@@ -335,7 +345,15 @@ class MusicActivity : AppCompatActivity() {
             
             // ایجاد ExoPlayer
             if (exoPlayer == null) {
-                exoPlayer = ExoPlayer.Builder(this).build()
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build()
+                
+                exoPlayer = ExoPlayer.Builder(this).build().apply {
+                    setAudioAttributes(audioAttributes, true)
+                    volume = 1f
+                }
                 
                 // افزودن listener برای پخش خودکار آهنگ بعدی
                 exoPlayer?.addListener(object : Player.Listener {
