@@ -13,6 +13,7 @@ import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
+import com.persianai.assistant.utils.SharedDataManager
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -38,6 +39,7 @@ class DashboardActivity : AppCompatActivity() {
         setupClickListeners()
         loadWeather()
         loadWeatherButtons()
+        loadSharedData()
         animateCards()
     }
     
@@ -282,6 +284,47 @@ class DashboardActivity : AppCompatActivity() {
                 startActivity(intent)
             }
             .show()
+    }
+    
+    private fun loadSharedData() {
+        // بارگذاری داده‌های یکپارچه
+        lifecycleScope.launch {
+            try {
+                // یادآوری‌ها
+                val reminders = SharedDataManager.getUpcomingReminders(this@DashboardActivity, 3)
+                val reminderCount = reminders.size
+                if (reminderCount > 0) {
+                    binding.remindersCard?.alpha = 1f
+                    // می‌توانید تعداد را نمایش دهید
+                    android.util.Log.d("DashboardActivity", "🔔 $reminderCount یادآوری فعال")
+                }
+                
+                // حسابداری
+                val balance = SharedDataManager.getTotalBalance(this@DashboardActivity)
+                val monthlyExpenses = SharedDataManager.getMonthlyExpenses(this@DashboardActivity)
+                
+                if (balance != 0.0 || monthlyExpenses != 0.0) {
+                    android.util.Log.d("DashboardActivity", "💰 موجودی: ${balance.toLong()} - هزینه: ${monthlyExpenses.toLong()}")
+                }
+                
+                // ذخیره دما در SharedDataManager
+                val city = prefs.getString("selected_city", "تهران") ?: "تهران"
+                val temp = prefs.getFloat("current_temp_$city", 25f)
+                val desc = prefs.getString("weather_desc_$city", "آفتابی") ?: "آفتابی"
+                SharedDataManager.saveWeatherData(this@DashboardActivity, city, temp, desc, getWeatherEmoji(temp.toDouble()))
+                
+                android.util.Log.d("DashboardActivity", "✅ داده‌ها به SharedDataManager ذخیره شدند")
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Error loading shared data", e)
+            }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // بروزرسانی داده‌ها هنگام بازگشت
+        loadWeather()
+        loadSharedData()
     }
     
     private fun animateCards() {

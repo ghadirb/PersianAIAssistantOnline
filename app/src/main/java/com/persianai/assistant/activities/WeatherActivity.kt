@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
-// import حذف شد - استفاده از findViewById به جای ViewBinding
+import com.persianai.assistant.utils.SharedDataManager
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -193,6 +193,16 @@ class WeatherActivity : AppCompatActivity() {
                     prefs.edit().putString("weather_desc_$currentCity", weatherData.description).apply()
                     prefs.edit().putInt("weather_humidity_$currentCity", weatherData.humidity).apply()
                     prefs.edit().putFloat("weather_wind_$currentCity", weatherData.windSpeed.toFloat()).apply()
+                    
+                    // Sync با SharedDataManager
+                    SharedDataManager.saveWeatherData(
+                        this@WeatherActivity,
+                        currentCity,
+                        weatherData.temp.toFloat(),
+                        weatherData.description,
+                        getWeatherEmoji(weatherData.temp)
+                    )
+                    android.util.Log.d("WeatherActivity", "💾 Synced to SharedDataManager: $currentCity - ${weatherData.temp}°C")
                 } else {
                     // استفاده از داده‌های ذخیره شده
                     val savedTemp = prefs.getFloat("current_temp_$currentCity", 25f)

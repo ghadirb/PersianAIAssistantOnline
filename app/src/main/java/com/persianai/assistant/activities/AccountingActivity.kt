@@ -10,6 +10,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityAccountingBinding
 import com.persianai.assistant.data.*
+import com.persianai.assistant.utils.SharedDataManager
 import kotlinx.coroutines.launch
 
 class AccountingActivity : AppCompatActivity() {
@@ -104,6 +105,17 @@ class AccountingActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val balance = db.getBalance()
             binding.totalBalanceText.text = String.format("%,.0f تومان", balance)
+            
+            // ذخیره در SharedDataManager
+            SharedDataManager.saveTotalBalance(this@AccountingActivity, balance)
+            
+            // ذخیره هزینه و درآمد ماهانه
+            val expenses = db.getMonthlyExpenses()
+            val income = db.getMonthlyIncome()
+            SharedDataManager.saveMonthlyExpenses(this@AccountingActivity, expenses)
+            SharedDataManager.saveMonthlyIncome(this@AccountingActivity, income)
+            
+            android.util.Log.d("AccountingActivity", "💾 داده‌ها به SharedDataManager sync شد: Balance=$balance, Expenses=$expenses, Income=$income")
         }
     }
 }

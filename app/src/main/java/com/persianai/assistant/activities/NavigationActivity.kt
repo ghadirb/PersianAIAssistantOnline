@@ -22,6 +22,7 @@ import com.persianai.assistant.navigation.PersianNavigationTTS
 import com.persianai.assistant.navigation.AIPoweredTTS
 import com.persianai.assistant.navigation.SpeedCameraManager
 import com.persianai.assistant.navigation.SavedLocationsManager
+import com.persianai.assistant.utils.SharedDataManager
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -71,6 +72,11 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { location ->
                 currentLocation = location
+                updateCurrentLocationUI(location)
+                
+                // Sync مکان فعلی با SharedDataManager
+                SharedDataManager.saveLastLocation(this@NavigationActivity, location.latitude, location.longitude)
+                
                 currentSpeed = location.speed * 3.6f // m/s به km/h
                 
                 updateLocationOnMap(location)
