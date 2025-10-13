@@ -162,10 +162,8 @@ class WeatherActivity : AppCompatActivity() {
         }
     }
     private fun loadWeather(forceFresh: Boolean = false) {
-        // پاک کردن کش در صورت نیاز
-        if (forceFresh) {
-            WorldWeatherAPI.clearCache()
-        }
+        // همیشه کش را پاک کنید تا دمای واقعی دریافت شود
+        WorldWeatherAPI.clearCache()
         loadCurrentWeather()
     }
     

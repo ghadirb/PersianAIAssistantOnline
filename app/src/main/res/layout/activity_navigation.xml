@@ -261,55 +261,38 @@
         app:backgroundTint="#9C27B0"
         app:tint="@android:color/white" />
 
-    <!-- Map Layer Switcher -->
+    <!-- Map Type Info -->
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/layerSwitcherCard"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
         android:layout_marginTop="80dp"
         android:layout_marginEnd="16dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp">
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="#EF5350">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="4dp">
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/googleMapButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:text="G"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:cornerRadius="8dp"
-                style="@style/Widget.Material3.Button.TonalButton" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🗺️"
+                android:textSize="20sp"
+                android:layout_marginEnd="8dp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/neshanMapButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="4dp"
-                android:text="N"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:cornerRadius="8dp"
-                style="@style/Widget.Material3.Button.TonalButton" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/osmMapButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="4dp"
-                android:text="O"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:cornerRadius="8dp"
-                style="@style/Widget.Material3.Button.TonalButton" />
-
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="نقشه نشان"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

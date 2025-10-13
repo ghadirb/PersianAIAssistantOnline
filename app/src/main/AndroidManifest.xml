@@ -171,10 +171,10 @@
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
 
-        <!-- Google Maps API Key -->
-        <meta-data
+        <!-- Google Maps API Key - فعلاً ندارید، از Neshan استفاده می‌شود -->
+        <!-- <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBVVV_YOUR_MAPS_API_KEY_HERE" />
+            android:value="YOUR_API_KEY" /> -->
 
         <!-- Background Service -->
         <service

@@ -175,18 +175,8 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             showNavigationAIChat()
         }
         
-        // دکمه‌های تغییر لایه نقشه
-        binding.googleMapButton?.setOnClickListener {
-            switchMapLayer(GoogleMap.MAP_TYPE_NORMAL, "🗺️ Google Maps")
-        }
-        
-        binding.neshanMapButton?.setOnClickListener {
-            switchMapLayer(GoogleMap.MAP_TYPE_SATELLITE, "🛰️ Neshan (Satellite)")
-        }
-        
-        binding.osmMapButton?.setOnClickListener {
-            switchMapLayer(GoogleMap.MAP_TYPE_TERRAIN, "🌍 OSM (Terrain)")
-        }
+        // نقشه از Neshan استفاده می‌کند (Google Maps API Key نداریم)
+        // اطلاعیه نمایش داده می‌شود: "نقشه نشان"
         
         binding.addWaypointButton?.setOnClickListener {
             addWaypoint()
@@ -677,11 +667,6 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         builder.setNegativeButton("لغو", null)
         builder.show()
-    }
-    
-    private fun switchMapLayer(mapType: Int, layerName: String) {
-        googleMap?.mapType = mapType
-        Toast.makeText(this, layerName, Toast.LENGTH_SHORT).show()
     }
     
     private fun addWaypoint() {
