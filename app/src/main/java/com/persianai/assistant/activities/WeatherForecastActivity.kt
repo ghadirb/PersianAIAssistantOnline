@@ -88,37 +88,22 @@ class WeatherForecastActivity : AppCompatActivity() {
             val dailyForecasts = mutableListOf<DailyForecast>()
             val today = Calendar.getInstance()
             
-            // فقط از امروز به بعد
-            val filteredForecasts = forecasts.filter { forecast ->
-                val forecastDate = Date(forecast.dateTime)
-                forecastDate.after(Date()) || isSameDay(forecastDate, Date())
-            }
-            
-            // گروه‌بندی بر اساس روز
-            val groupedByDay = filteredForecasts.groupBy { forecast ->
+            // تبدیل به DailyForecast - بدون فیلتر چون WorldWeatherAPI فقط آینده بر میگرداند
+            forecasts.take(7).forEach { forecast ->
+                // پارس تاریخ از رشته (format: "2025-10-13")
+                val dateParts = forecast.date.split("-")
                 val cal = Calendar.getInstance()
-                cal.timeInMillis = forecast.dateTime
-                "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}-${cal.get(Calendar.DAY_OF_MONTH)}"
-            }
-            
-            groupedByDay.entries.take(7).forEach { (_, dayForecasts) ->
-                // پیدا کردن پیش‌بینی ظهر یا میانگین روز
-                val noonForecast = dayForecasts.find { forecast ->
-                    val cal = Calendar.getInstance()
-                    cal.timeInMillis = forecast.dateTime
-                    cal.get(Calendar.HOUR_OF_DAY) in 12..14
-                } ?: dayForecasts[dayForecasts.size / 2]
-                
-                val minTemp = dayForecasts.minOf { it.tempMin }
-                val maxTemp = dayForecasts.maxOf { it.tempMax }
+                if (dateParts.size == 3) {
+                    cal.set(dateParts[0].toInt(), dateParts[1].toInt() - 1, dateParts[2].toInt())
+                }
                 
                 dailyForecasts.add(
                     DailyForecast(
-                        date = Date(noonForecast.dateTime),
-                        tempMin = minTemp,
-                        tempMax = maxTemp,
-                        description = noonForecast.description,
-                        icon = noonForecast.icon
+                        date = cal.time,
+                        tempMin = forecast.minTemp,
+                        tempMax = forecast.maxTemp,
+                        description = forecast.description,
+                        icon = forecast.icon
                     )
                 )
             }

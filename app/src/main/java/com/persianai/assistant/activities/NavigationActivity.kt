@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -72,7 +73,6 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { location ->
                 currentLocation = location
-                updateCurrentLocationUI(location)
                 
                 // Sync مکان فعلی با SharedDataManager
                 SharedDataManager.saveLastLocation(this@NavigationActivity, location.latitude, location.longitude)

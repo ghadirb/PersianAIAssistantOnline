@@ -14,7 +14,6 @@ import android.widget.EditText
 import android.widget.Toast
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityRemindersBinding
-import com.persianai.assistant.ai.AIModelManager
 import java.text.SimpleDateFormat
 import java.util.*
 
