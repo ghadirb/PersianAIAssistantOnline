@@ -48,6 +48,8 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentLocation: Location? = null
     private var currentRoute: List<LatLng>? = null
     private var currentSpeed: Float = 0f // km/h
+    private val waypoints = mutableListOf<LatLng>() // مقاصد میانی
+    private var finalDestination: LatLng? = null
     private var speedLimit: Int = 0
     private var alternativeRoutes: List<NessanMapsAPI.RouteResult> = emptyList()
     private var selectedRouteIndex: Int = 0
@@ -165,6 +167,23 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         // دکمه چت AI
         binding.aiChatFab?.setOnClickListener {
             showNavigationAIChat()
+        }
+        
+        // دکمه‌های تغییر لایه نقشه
+        binding.googleMapButton?.setOnClickListener {
+            switchMapLayer(GoogleMap.MAP_TYPE_NORMAL, "🗺️ Google Maps")
+        }
+        
+        binding.neshanMapButton?.setOnClickListener {
+            switchMapLayer(GoogleMap.MAP_TYPE_SATELLITE, "🛰️ Neshan (Satellite)")
+        }
+        
+        binding.osmMapButton?.setOnClickListener {
+            switchMapLayer(GoogleMap.MAP_TYPE_TERRAIN, "🌍 OSM (Terrain)")
+        }
+        
+        binding.addWaypointButton?.setOnClickListener {
+            addWaypoint()
         }
     }
     
@@ -652,6 +671,51 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         builder.setNegativeButton("لغو", null)
         builder.show()
+    }
+    
+    private fun switchMapLayer(mapType: Int, layerName: String) {
+        googleMap?.mapType = mapType
+        Toast.makeText(this, layerName, Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun addWaypoint() {
+        currentLocation?.let { location ->
+            val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+            builder.setTitle("📍 مقصد میانی")
+            builder.setMessage("می‌خواهید مکان فعلی را به عنوان مقصد میانی اضافه کنید؟")
+            builder.setPositiveButton("بله") { _, _ ->
+                val waypoint = LatLng(location.latitude, location.longitude)
+                waypoints.add(waypoint)
+                
+                googleMap?.addMarker(
+                    MarkerOptions()
+                        .position(waypoint)
+                        .title("مقصد میانی ${waypoints.size}")
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                )
+                
+                Toast.makeText(this, "✅ مقصد میانی ${waypoints.size} اضافه شد", Toast.LENGTH_SHORT).show()
+                
+                if (waypoints.size > 0 && finalDestination != null) {
+                    recalculateRouteWithWaypoints()
+                }
+            }
+            builder.setNegativeButton("لغو", null)
+            builder.show()
+        } ?: run {
+            Toast.makeText(this, "⚠️ مکان فعلی در دسترس نیست", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun recalculateRouteWithWaypoints() {
+        currentLocation?.let { origin ->
+            finalDestination?.let { destination ->
+                lifecycleScope.launch {
+                    Toast.makeText(this@NavigationActivity, "🔄 محاسبه مسیر با ${waypoints.size} مقصد میانی", Toast.LENGTH_SHORT).show()
+                    getRoute(LatLng(origin.latitude, origin.longitude), destination)
+                }
+            }
+        }
     }
     
     private fun processNavigationCommand(command: String) {

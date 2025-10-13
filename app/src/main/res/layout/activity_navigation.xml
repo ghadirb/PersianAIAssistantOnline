@@ -226,6 +226,17 @@
                 android:backgroundTint="#F44336"
                 style="@style/Widget.Material3.Button" />
         </LinearLayout>
+
+        <!-- Waypoint Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addWaypointButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="📍 افزودن مقصد میانی"
+            android:textSize="14sp"
+            app:cornerRadius="8dp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
     </LinearLayout>
 
     <!-- Progress Bar -->
@@ -249,5 +260,57 @@
         android:contentDescription="چت AI"
         app:backgroundTint="#9C27B0"
         app:tint="@android:color/white" />
+
+    <!-- Map Layer Switcher -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/layerSwitcherCard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="80dp"
+        android:layout_marginEnd="16dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/googleMapButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="G"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:cornerRadius="8dp"
+                style="@style/Widget.Material3.Button.TonalButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/neshanMapButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="4dp"
+                android:text="N"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:cornerRadius="8dp"
+                style="@style/Widget.Material3.Button.TonalButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/osmMapButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="4dp"
+                android:text="O"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:cornerRadius="8dp"
+                style="@style/Widget.Material3.Button.TonalButton" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
