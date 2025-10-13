@@ -1,0 +1,71 @@
+در MusicActivity.kt باید این تغییرات اعمال شود:
+
+1. در showPlaybackControls() اضافه کنید:
+   - binding.shuffleButton?.visibility = View.VISIBLE
+   - binding.repeatButton?.visibility = View.VISIBLE
+   - binding.seekBar?.visibility = View.VISIBLE
+   - binding.timeText?.visibility = View.VISIBLE
+
+2. توابع جدید اضافه کنید:
+
+private fun setupSeekBar() {
+    binding.seekBar?.max = exoPlayer?.duration?.toInt() ?: 0
+    binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+            if (fromUser) {
+                exoPlayer?.seekTo(progress.toLong())
+            }
+        }
+        override fun onStartTrackingTouch(seekBar: SeekBar?) { isUserSeeking = true }
+        override fun onStopTrackingTouch(seekBar: SeekBar?) { isUserSeeking = false }
+    })
+    startSeekBarUpdate()
+}
+
+private fun startSeekBarUpdate() {
+    seekBarHandler.post(updateSeekBar)
+}
+
+private fun stopSeekBarUpdate() {
+    seekBarHandler.removeCallbacks(updateSeekBar)
+}
+
+private val updateSeekBar = object : Runnable {
+    override fun run() {
+        exoPlayer?.let {
+            if (!isUserSeeking) {
+                val current = it.currentPosition
+                val total = it.duration
+                binding.seekBar?.progress = current.toInt()
+                binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
+            }
+        }
+        seekBarHandler.postDelayed(this, 1000)
+    }
+}
+
+private fun formatTime(millis: Long): String {
+    val minutes = (millis / 1000) / 60
+    val seconds = (millis / 1000) % 60
+    return String.format("%d:%02d", minutes, seconds)
+}
+
+3. دکمه Shuffle:
+binding.shuffleButton?.setOnClickListener {
+    isShuffleEnabled = !isShuffleEnabled
+    exoPlayer?.shuffleModeEnabled = isShuffleEnabled
+    Toast.makeText(this, if (isShuffleEnabled) "🔀 فعال" else "🔀 غیرفعال", Toast.LENGTH_SHORT).show()
+}
+
+4. دکمه Repeat:
+binding.repeatButton?.setOnClickListener {
+    repeatMode = when (repeatMode) {
+        Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
+        Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
+        else -> Player.REPEAT_MODE_OFF
+    }
+    exoPlayer?.repeatMode = repeatMode
+}
+
+5. در onDestroy() اضافه کنید:
+   stopSeekBarUpdate()
