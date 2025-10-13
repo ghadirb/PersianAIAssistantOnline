@@ -151,6 +151,49 @@
                 style="@style/Widget.Material3.Button.Icon" />
         </LinearLayout>
 
+        <!-- Saved Locations & POI Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/savedLocationsButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="💾 ذخیره‌ها"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/poiButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="📏 نزدیک"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="4dp"
+                android:layout_marginStart="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/saveCurrentLocationButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="⭐ ذخیره"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
         <!-- Navigation Control Buttons -->
         <LinearLayout
             android:layout_width="match_parent"

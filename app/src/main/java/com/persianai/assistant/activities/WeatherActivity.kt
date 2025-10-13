@@ -10,8 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.persianai.assistant.R
-import com.persianai.assistant.api.OpenWeatherAPI
-import com.persianai.assistant.api.AqicnWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 // import حذف شد - استفاده از findViewById به جای ViewBinding
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -165,7 +164,7 @@ class WeatherActivity : AppCompatActivity() {
     private fun loadWeather(forceFresh: Boolean = false) {
         // پاک کردن کش در صورت نیاز
         if (forceFresh) {
-            OpenWeatherAPI.clearCache()
+            WorldWeatherAPI.clearCache()
         }
         loadCurrentWeather()
     }
@@ -173,36 +172,40 @@ class WeatherActivity : AppCompatActivity() {
     private fun loadCurrentWeather() {
         lifecycleScope.launch {
             try {
-                // دریافت دمای واقعی لحظه‌ای - همان دمای داشبورد
+                // دریافت دمای واقعی از WorldWeatherOnline API
                 val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-                val savedTemp = prefs.getFloat("current_temp_$currentCity", -999f)
                 
-                // ابتدا از AQICN API استفاده کن
-                val aqicnData = AqicnWeatherAPI.getWeatherByCity(currentCity)
+                val weatherData = WorldWeatherAPI.getCurrentWeather(currentCity)
                 
-                if (aqicnData != null) {
-                    android.util.Log.d("WeatherActivity", "Live weather: ${aqicnData.temp}°C")
-                    updateUIWithAqicnData(aqicnData)
+                if (weatherData != null) {
+                    android.util.Log.d("WeatherActivity", "Live weather from WorldWeather: ${weatherData.temp}°C")
+                    
+                    // نمایش اطلاعات
+                    findViewById<android.widget.TextView>(R.id.tempText)?.text = "${weatherData.temp.roundToInt()}°"
+                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = getWeatherEmoji(weatherData.temp)
+                    findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = weatherData.description
+                    findViewById<android.widget.TextView>(R.id.humidityText)?.text = "${weatherData.humidity}%"
+                    findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${weatherData.windSpeed.roundToInt()} km/h"
+                    findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "حس ${weatherData.feelsLike.roundToInt()}°"
+                    
                     // ذخیره دما
-                    prefs.edit().putFloat("current_temp_$currentCity", aqicnData.temp.toFloat()).apply()
-                } else if (savedTemp != -999f) {
-                    // استفاده از دمای ذخیره شده از داشبورد
-                    findViewById<android.widget.TextView>(R.id.tempText)?.text = "${savedTemp.roundToInt()}°"
-                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
-                    findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = getWeatherDescription(savedTemp.toDouble())
-                    findViewById<android.widget.TextView>(R.id.humidityText)?.text = "45%"
-                    findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "12 km/h"
-                    findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "${(savedTemp + 2).roundToInt()}°"
+                    prefs.edit().putFloat("current_temp_$currentCity", weatherData.temp.toFloat()).apply()
+                    prefs.edit().putString("weather_desc_$currentCity", weatherData.description).apply()
+                    prefs.edit().putInt("weather_humidity_$currentCity", weatherData.humidity).apply()
+                    prefs.edit().putFloat("weather_wind_$currentCity", weatherData.windSpeed.toFloat()).apply()
                 } else {
-                    // داده‌های تخمینی
-                    val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(currentCity)
-                    findViewById<android.widget.TextView>(R.id.tempText)?.text = "${estimatedData.temp.roundToInt()}°"
-                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
-                    findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = getWeatherDescription(estimatedData.temp)
-                    findViewById<android.widget.TextView>(R.id.humidityText)?.text = "${estimatedData.humidity}%"
-                    findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${estimatedData.windSpeed.roundToInt()} km/h"
-                    findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "${(estimatedData.temp + 2).roundToInt()}°"
-                    prefs.edit().putFloat("current_temp_$currentCity", estimatedData.temp.toFloat()).apply()
+                    // استفاده از داده‌های ذخیره شده
+                    val savedTemp = prefs.getFloat("current_temp_$currentCity", 25f)
+                    val savedDesc = prefs.getString("weather_desc_$currentCity", "آفتابی")
+                    val savedHumidity = prefs.getInt("weather_humidity_$currentCity", 45)
+                    val savedWind = prefs.getFloat("weather_wind_$currentCity", 12f)
+                    
+                    findViewById<android.widget.TextView>(R.id.tempText)?.text = "${savedTemp.roundToInt()}°"
+                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = getWeatherEmoji(savedTemp.toDouble())
+                    findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = savedDesc
+                    findViewById<android.widget.TextView>(R.id.humidityText)?.text = "$savedHumidity%"
+                    findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${savedWind.roundToInt()} km/h"
+                    findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "حس ${(savedTemp + 2).roundToInt()}°"
                 }
                 
                 // بارگذاری پیش‌بینی ساعتی
@@ -215,13 +218,13 @@ class WeatherActivity : AppCompatActivity() {
         }
     }
     
-    private fun getWeatherDescription(temp: Double): String {
+    private fun getWeatherEmoji(temp: Double): String {
         return when {
-            temp < 0 -> "سرد و یخبندان"
-            temp < 10 -> "سرد"
-            temp < 20 -> "خنک"
-            temp < 30 -> "معتدل"
-            else -> "گرم"
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
     
@@ -335,41 +338,6 @@ class WeatherActivity : AppCompatActivity() {
         override fun getItemCount() = items.size
     }
     
-    private fun updateUIWithAqicnData(data: AqicnWeatherAPI.WeatherData) {
-        // آپدیت دما
-        findViewById<android.widget.TextView>(R.id.tempText)?.text = "${data.temp.roundToInt()}°"
-        findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = AqicnWeatherAPI.getWeatherEmoji(data.temp)
-        
-        // آپدیت رطوبت
-        findViewById<android.widget.TextView>(R.id.humidityText)?.text = "${data.humidity}%"
-        
-        // آپدیت سرعت باد
-        findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${data.windSpeed.roundToInt()} km/h"
-        
-        // آپدیت فشار هوا
-        findViewById<android.widget.TextView>(R.id.feelsLikeText)?.text = "حس ${(data.temp + 2).roundToInt()}°"
-        
-        // نمایش کیفیت هوا
-        findViewById<android.widget.TextView>(R.id.aqiValueText)?.text = "AQI: ${data.aqi}"
-        findViewById<android.widget.TextView>(R.id.aqiStatusText)?.text = AqicnWeatherAPI.getAqiText(data.aqi)
-        findViewById<android.widget.ProgressBar>(R.id.aqiProgressBar)?.progress = data.aqi
-        
-        // رنگ بندی بر اساس کیفیت هوا
-        val aqiColor = android.graphics.Color.parseColor(AqicnWeatherAPI.getAqiColor(data.aqi))
-        findViewById<android.widget.ProgressBar>(R.id.aqiProgressBar)?.progressDrawable?.setColorFilter(
-            aqiColor,
-            android.graphics.PorterDuff.Mode.SRC_IN
-        )
-        
-        // توضیحات آب و هوا
-        findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = when {
-            data.temp < 10 -> "سرد"
-            data.temp < 20 -> "خنک"
-            data.temp < 30 -> "معتدل"
-            data.temp < 35 -> "گرم"
-            else -> "بسیار گرم"
-        }
-    }
     
     override fun onSupportNavigateUp(): Boolean {
         finish()

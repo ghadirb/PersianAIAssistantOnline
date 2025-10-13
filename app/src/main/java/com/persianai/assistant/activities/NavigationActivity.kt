@@ -21,6 +21,7 @@ import com.persianai.assistant.navigation.NessanMapsAPI
 import com.persianai.assistant.navigation.PersianNavigationTTS
 import com.persianai.assistant.navigation.AIPoweredTTS
 import com.persianai.assistant.navigation.SpeedCameraManager
+import com.persianai.assistant.navigation.SavedLocationsManager
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -42,6 +43,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var aiPoweredTTS: AIPoweredTTS
     private lateinit var speedCameraManager: SpeedCameraManager
     private lateinit var nessanMapsAPI: NessanMapsAPI
+    private lateinit var savedLocationsManager: SavedLocationsManager
     
     private var currentLocation: Location? = null
     private var currentRoute: List<LatLng>? = null
@@ -90,6 +92,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         aiPoweredTTS = AIPoweredTTS(this)
         speedCameraManager = SpeedCameraManager(this)
         nessanMapsAPI = NessanMapsAPI()
+        savedLocationsManager = SavedLocationsManager(this)
         
         // نمایش وضعیت TTS
         android.util.Log.d("Navigation", "TTS Status: ${aiPoweredTTS.getStatus()}")
@@ -142,6 +145,21 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         // دکمه توقف مسیریابی
         binding.stopNavigationButton.setOnClickListener {
             stopNavigation()
+        }
+        
+        // دکمه مکان‌های ذخیره شده
+        binding.savedLocationsButton?.setOnClickListener {
+            showSavedLocationsDialog()
+        }
+        
+        // دکمه نمایش POI
+        binding.poiButton?.setOnClickListener {
+            showPOIDialog()
+        }
+        
+        // دکمه ذخیره مکان فعلی
+        binding.saveCurrentLocationButton?.setOnClickListener {
+            saveCurrentLocation()
         }
     }
     
@@ -465,6 +483,152 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+    
+    private fun showSavedLocationsDialog() {
+        val locations = savedLocationsManager.getAllLocations()
+        
+        if (locations.isEmpty()) {
+            Toast.makeText(this, "📍 مکانی ذخیره نشده است", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val locationNames = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+        
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("📍 مکان‌های ذخیره شده")
+        builder.setItems(locationNames) { _, which ->
+            val selectedLocation = locations[which]
+            val destination = LatLng(selectedLocation.latitude, selectedLocation.longitude)
+            
+            // نمایش مارکر
+            googleMap?.addMarker(
+                MarkerOptions()
+                    .position(destination)
+                    .title(selectedLocation.name)
+                    .snippet(selectedLocation.address)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+            )
+            
+            // حرکت دوربین
+            googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(destination, 15f))
+            
+            // محاسبه مسیر
+            currentLocation?.let { origin ->
+                lifecycleScope.launch {
+                    getRoute(LatLng(origin.latitude, origin.longitude), destination)
+                }
+            }
+            
+            Toast.makeText(this, "📍 ${selectedLocation.name}", Toast.LENGTH_SHORT).show()
+        }
+        
+        builder.setNeutralButton("مدیریت") { _, _ ->
+            showManageLocationsDialog()
+        }
+        
+        builder.setNegativeButton("بستن", null)
+        builder.show()
+    }
+    
+    private fun showManageLocationsDialog() {
+        val locations = savedLocationsManager.getAllLocations()
+        val locationNames = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+        
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("🗑️ مدیریت مکان‌ها")
+        builder.setItems(locationNames) { _, which ->
+            val location = locations[which]
+            
+            val confirmBuilder = androidx.appcompat.app.AlertDialog.Builder(this)
+            confirmBuilder.setTitle("حذف ${location.name}")
+            confirmBuilder.setMessage("آیا مطمئن هستید؟")
+            confirmBuilder.setPositiveButton("حذف") { _, _ ->
+                if (savedLocationsManager.deleteLocation(location.id)) {
+                    Toast.makeText(this, "✅ حذف شد", Toast.LENGTH_SHORT).show()
+                }
+            }
+            confirmBuilder.setNegativeButton("لغو", null)
+            confirmBuilder.show()
+        }
+        builder.setNegativeButton("بستن", null)
+        builder.show()
+    }
+    
+    private fun showPOIDialog() {
+        val poiList = arrayOf(
+            "⛽ پمپ بنزین",
+            "🍴 رستوران",
+            "🏥 بیمارستان",
+            "🏧 عابر بانک",
+            "🅿️ پارکینگ",
+            "☕ کافه",
+            "🏨 هتل"
+        )
+        
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("📏 نمایش مکان‌های نزدیک")
+        builder.setItems(poiList) { _, which ->
+            val poiType = when(which) {
+                0 -> "gas"
+                1 -> "food"
+                2 -> "hospital"
+                3 -> "atm"
+                4 -> "parking"
+                5 -> "cafe"
+                6 -> "hotel"
+                else -> "gas"
+            }
+            showPOIsOnMap(poiType)
+        }
+        builder.setNegativeButton("بستن", null)
+        builder.show()
+    }
+    
+    private fun saveCurrentLocation() {
+        currentLocation?.let { location ->
+            val latLng = LatLng(location.latitude, location.longitude)
+            
+            val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+            builder.setTitle("💾 ذخیره مکان")
+            
+            val input = android.widget.EditText(this)
+            input.hint = "نام مکان"
+            builder.setView(input)
+            
+            val categories = arrayOf("🏠 خانه", "💼 محل کار", "⭐ علاقه‌مندی")
+            var selectedCategory = "favorite"
+            
+            builder.setSingleChoiceItems(categories, 2) { _, which ->
+                selectedCategory = when(which) {
+                    0 -> "home"
+                    1 -> "work"
+                    else -> "favorite"
+                }
+            }
+            
+            builder.setPositiveButton("ذخیره") { _, _ ->
+                val name = input.text.toString()
+                if (name.isNotEmpty()) {
+                    if (savedLocationsManager.saveLocation(name, "", latLng, selectedCategory)) {
+                        Toast.makeText(this, "✅ ذخیره شد", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            
+            builder.setNegativeButton("لغو", null)
+            builder.show()
+        } ?: run {
+            Toast.makeText(this, "مکان فعلی در دسترس نیست", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun getCategoryEmoji(category: String): String {
+        return when(category) {
+            "home" -> "🏠"
+            "work" -> "💼"
+            else -> "⭐"
+        }
     }
     
     override fun onRequestPermissionsResult(

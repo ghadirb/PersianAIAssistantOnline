@@ -9,8 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
-import com.persianai.assistant.api.OpenWeatherAPI
-import com.persianai.assistant.api.AqicnWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
@@ -38,6 +37,7 @@ class DashboardActivity : AppCompatActivity() {
         setupDate()
         setupClickListeners()
         loadWeather()
+        loadWeatherButtons()
         animateCards()
     }
     
@@ -177,48 +177,53 @@ class DashboardActivity : AppCompatActivity() {
         val savedTemp = prefs.getFloat("current_temp_$city", -999f)
         if (savedTemp != -999f) {
             binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-            binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
+            binding.weatherIcon?.text = getWeatherEmoji(savedTemp.toDouble())
         }
         
         lifecycleScope.launch {
             try {
-                // دریافت دمای واقعی لحظه‌ای از AQICN
-                val aqicnData = AqicnWeatherAPI.getWeatherByCity(city)
+                // دریافت دمای واقعی از WorldWeatherOnline API
+                val weatherData = WorldWeatherAPI.getCurrentWeather(city)
                 
-                if (aqicnData != null) {
-                    android.util.Log.d("DashboardActivity", "Live weather: ${aqicnData.temp}°C for $city")
-                    binding.weatherTempText?.text = "${aqicnData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(aqicnData.temp)
+                if (weatherData != null) {
+                    android.util.Log.d("DashboardActivity", "Live weather from WorldWeather: ${weatherData.temp}°C for $city")
+                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
+                    binding.weatherIcon?.text = getWeatherEmoji(weatherData.temp)
                     
                     // ذخیره دما برای استفاده در WeatherActivity
-                    prefs.edit().putFloat("current_temp_$city", aqicnData.temp.toFloat()).apply()
+                    prefs.edit().putFloat("current_temp_$city", weatherData.temp.toFloat()).apply()
+                    prefs.edit().putString("weather_desc_$city", weatherData.description).apply()
+                    prefs.edit().putInt("weather_humidity_$city", weatherData.humidity).apply()
+                    prefs.edit().putFloat("weather_wind_$city", weatherData.windSpeed.toFloat()).apply()
                 } else {
-                    // استفاده از داده‌های ذخیره شده یا تخمینی
-                    val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-                    if (savedTemp != -999f) {
-                        binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
-                    } else {
-                        val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(city)
-                        binding.weatherTempText?.text = "${estimatedData.temp.roundToInt()}°"
-                        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
-                        prefs.edit().putFloat("current_temp_$city", estimatedData.temp.toFloat()).apply()
-                    }
+                    // استفاده از داده‌های ذخیره شده
+                    val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+                    binding.weatherIcon?.text = getWeatherEmoji(savedTemp.toDouble())
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
-                // استفاده از داده ذخیره شده یا تخمینی
-                val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-                if (savedTemp != -999f) {
-                    binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
-                } else {
-                    val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(city)
-                    binding.weatherTempText?.text = "${estimatedData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
-                }
+                // استفاده از داده ذخیره شده
+                val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+                binding.weatherIcon?.text = getWeatherEmoji(savedTemp.toDouble())
             }
         }
+        
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
+        }
+    }
+    
+    private fun loadWeatherButtons() {
+        val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
         // دکمه پیش‌بینی ساعتی - با جلوگیری از کرش
         binding.hourlyBtn?.setOnClickListener {

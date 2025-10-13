@@ -342,7 +342,35 @@ class MusicActivity : AppCompatActivity() {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         when (playbackState) {
                             Player.STATE_ENDED -> {
-                                playNextTrack()
+                                // تمام شد - به آهنگ بعدی برو
+                                if (exoPlayer?.hasNextMediaItem() == true) {
+                                    exoPlayer?.seekToNext()
+                                    exoPlayer?.play()
+                                } else {
+                                    // پلی لیست تمام شد
+                                    runOnUiThread {
+                                        Toast.makeText(this@MusicActivity, "✅ پخش تمام شد", Toast.LENGTH_SHORT).show()
+                                        binding.playPauseButton?.text = "▶️"
+                                    }
+                                }
+                            }
+                            Player.STATE_READY -> {
+                                runOnUiThread {
+                                    binding.playPauseButton?.text = if (exoPlayer?.isPlaying == true) "⏸️" else "▶️"
+                                }
+                            }
+                        }
+                    }
+                    
+                    override fun onMediaItemTransition(mediaItem: com.google.android.exoplayer2.MediaItem?, reason: Int) {
+                        super.onMediaItemTransition(mediaItem, reason)
+                        // بروزرسانی UI برای آهنگ جدید
+                        currentPlaylist?.let { playlist ->
+                            val currentIndex = exoPlayer?.currentMediaItemIndex ?: 0
+                            if (currentIndex < playlist.tracks.size) {
+                                runOnUiThread {
+                                    binding.nowPlayingText?.text = "▶️ ${playlist.tracks[currentIndex].title}"
+                                }
                             }
                         }
                     }
@@ -376,21 +404,6 @@ class MusicActivity : AppCompatActivity() {
         }
     }
     
-    private fun playNextTrack() {
-        currentPlaylist?.let { playlist ->
-            currentTrackIndex++
-            if (currentTrackIndex < playlist.tracks.size) {
-                // پخش آهنگ بعدی
-                exoPlayer?.seekToNextMediaItem()
-                showPlaybackControls(playlist.tracks[currentTrackIndex])
-            } else {
-                // پخش تمام شد
-                currentTrackIndex = 0
-                exoPlayer?.stop()
-                Toast.makeText(this, "✅ پخش پلی‌لیست تمام شد", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
     
     private fun showPlaybackControls(track: MusicPlaylistManager.MusicTrack) {
         // نمایش اطلاعات آهنگ در حال پخش
@@ -423,11 +436,21 @@ class MusicActivity : AppCompatActivity() {
         }
         
         binding.nextButton?.setOnClickListener {
-            exoPlayer?.seekToNext()
+            if (exoPlayer?.hasNextMediaItem() == true) {
+                exoPlayer?.seekToNext()
+            } else {
+                Toast.makeText(this, "آخرین آهنگ", Toast.LENGTH_SHORT).show()
+            }
         }
         
         binding.prevButton?.setOnClickListener {
-            exoPlayer?.seekToPrevious()
+            if (exoPlayer?.hasPreviousMediaItem() == true) {
+                exoPlayer?.seekToPrevious()
+            } else {
+                // برگشت به ابتدای آهنگ فعلی
+                exoPlayer?.seekTo(0)
+                Toast.makeText(this, "اولین آهنگ", Toast.LENGTH_SHORT).show()
+            }
         }
         
         // Shuffle Button
@@ -472,19 +495,25 @@ class MusicActivity : AppCompatActivity() {
     }
     
     private fun setupSeekBar() {
-        binding.seekBar?.max = exoPlayer?.duration?.toInt() ?: 0
         binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
                     exoPlayer?.let {
-                        val position = (it.duration * progress / 100)
-                        it.seekTo(position)
+                        if (it.duration > 0) {
+                            val position = (it.duration * progress / seekBar!!.max)
+                            it.seekTo(position)
+                        }
                     }
                 }
             }
             
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                isUserSeeking = true
+            }
+            
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                isUserSeeking = false
+            }
         })
         startSeekBarUpdate()
     }
