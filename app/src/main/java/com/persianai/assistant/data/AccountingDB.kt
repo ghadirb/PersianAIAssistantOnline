@@ -48,4 +48,26 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         cursor.close()
         return balance
     }
+    
+    fun getMonthlyExpenses(): Double {
+        val cursor = readableDatabase.rawQuery(
+            "SELECT SUM(amount) FROM transactions WHERE type = 'EXPENSE' AND date >= strftime('%s', 'now', 'start of month') * 1000", null)
+        var expenses = 0.0
+        if (cursor.moveToFirst()) {
+            expenses = cursor.getDouble(0)
+        }
+        cursor.close()
+        return expenses
+    }
+    
+    fun getMonthlyIncome(): Double {
+        val cursor = readableDatabase.rawQuery(
+            "SELECT SUM(amount) FROM transactions WHERE type = 'INCOME' AND date >= strftime('%s', 'now', 'start of month') * 1000", null)
+        var income = 0.0
+        if (cursor.moveToFirst()) {
+            income = cursor.getDouble(0)
+        }
+        cursor.close()
+        return income
+    }
 }

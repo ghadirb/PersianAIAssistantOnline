@@ -94,7 +94,8 @@ dependencies {
     implementation 'com.airbnb.android:lottie:6.2.0'
     
     // ExoPlayer for internal music playback
-    implementation 'com.google.android.exoplayer:exoplayer:2.19.1'
+    implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
+    implementation 'com.google.android.exoplayer:exoplayer-ui:2.19.1'
     
     // Google Maps & Location for Navigation
     implementation 'com.google.android.gms:play-services-maps:18.2.0'

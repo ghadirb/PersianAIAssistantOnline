@@ -98,8 +98,6 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
         mapFragment.getMapAsync(this)
         
-        setupUI()
-        
         // سرعت‌سنج ابتدا مخفی است
         binding.speedCard.visibility = android.view.View.GONE
         

@@ -16,10 +16,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
-import com.google.android.media3.common.MediaItem
-import com.google.android.media3.common.Player
-import com.google.android.media3.exoplayer.ExoPlayer
+import android.widget.SeekBar
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.ExoPlayer
+import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityMusicBinding
 import com.persianai.assistant.utils.MusicPlaylistManager
 import kotlinx.coroutines.Dispatchers
@@ -101,16 +104,16 @@ class MusicActivity : AppCompatActivity() {
                 "🎲 تصادفی" to "random"
             )
             
-            moods.forEach { (label, mood) ->
-                val chip = Chip(this)
-                chip.text = label
-                chip.isCheckable = true
-                chip.setOnClickListener {
-                    selectedMood = mood
-                    binding.selectedMoodText?.text = "حالت انتخاب شده: $label"
+            moods.forEach { mood ->
+                val moodChip = com.google.android.material.chip.Chip(this)
+                moodChip.text = mood.first
+                moodChip.isCheckable = true
+                moodChip.setOnClickListener {
+                    selectedMood = mood.second
+                    binding.selectedMoodText?.text = "حالت انتخاب شده: ${mood.first}"
                     binding.createPlaylistButton?.isEnabled = true
                 }
-                binding.moodChipGroup?.addView(chip)
+                binding.moodChipGroup?.addView(moodChip)
             }
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error in setupUI", e)
@@ -238,20 +241,19 @@ class MusicActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val playlist = musicManager.createMoodPlaylist(selectedMood)
+                val allTracks = musicManager.scanDeviceMusic()
+                val playlist = musicManager.createPlaylistByMood(selectedMood, allTracks)
                 
-                runOnUiThread {
-                    binding.progressBar?.visibility = View.GONE
-                    
-                    if (playlist.tracks.isEmpty()) {
-                        Snackbar.make(
-                            binding.root,
-                            "⚠️ هیچ آهنگی برای این mood یافت نشد",
-                            Snackbar.LENGTH_LONG
-                        ).show()
-                    } else {
-                        showPlaylistDialog(playlist)
-                    }
+                binding.progressBar?.visibility = View.GONE
+                
+                if (playlist.tracks.isEmpty()) {
+                    Snackbar.make(
+                        binding.root,
+                        "⚠️ هیچ آهنگی برای این mood یافت نشد",
+                        Snackbar.LENGTH_LONG
+                    ).show()
+                } else {
+                    showPlaylistDialog(playlist)
                 }
             } catch (e: Exception) {
                 runOnUiThread {
@@ -312,19 +314,18 @@ class MusicActivity : AppCompatActivity() {
             return
         }
         
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("انتخاب Music Player")
         val playerNames = players.map { it.appName }.toTypedArray()
-        
-        AlertDialog.Builder(this)
-            .setTitle("انتخاب Music Player")
-            .setItems(playerNames) { _, which ->
-                selectedPlayerPackage = players[which].packageName
-                binding.selectedPlayerText?.text = "Player: ${players[which].appName}"
-                
-                // ذخیره انتخاب کاربر
-                val prefs = getSharedPreferences("music_settings", MODE_PRIVATE)
-                prefs.edit().putString("selected_player", selectedPlayerPackage).apply()
-            }
-            .show()
+        builder.setItems(playerNames) { _, which ->
+            selectedPlayerPackage = players[which].packageName
+            binding.selectedPlayerText?.text = "Player: ${players[which].appName}"
+            
+            // ذخیره انتخاب کاربر
+            val prefs = getSharedPreferences("music_settings", MODE_PRIVATE)
+            prefs.edit().putString("selected_player", selectedPlayerPackage).apply()
+        }
+        builder.show()
     }
     
     private fun playInternalPlayer(playlist: MusicPlaylistManager.Playlist) {
@@ -350,8 +351,12 @@ class MusicActivity : AppCompatActivity() {
             
             // پاک کردن صف فعلی و اضافه کردن آهنگ‌ها
             exoPlayer?.clearMediaItems()
-            playlist.tracks.forEach { track ->
-                val uri = Uri.parse(track.path)
+            for (track in playlist.tracks) {
+                val uri = if (track.path.startsWith("content://")) {
+                    Uri.parse(track.path)
+                } else {
+                    Uri.fromFile(File(track.path))
+                }
                 val mediaItem = MediaItem.fromUri(uri)
                 exoPlayer?.addMediaItem(mediaItem)
             }
@@ -471,11 +476,15 @@ class MusicActivity : AppCompatActivity() {
         binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    exoPlayer?.seekTo(progress.toLong())
+                    exoPlayer?.let {
+                        val position = (it.duration * progress / 100)
+                        it.seekTo(position)
+                    }
                 }
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) { isUserSeeking = true }
-            override fun onStopTrackingTouch(seekBar: SeekBar?) { isUserSeeking = false }
+            
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
         startSeekBarUpdate()
     }

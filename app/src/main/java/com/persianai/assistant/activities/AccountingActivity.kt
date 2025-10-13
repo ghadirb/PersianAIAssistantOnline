@@ -33,20 +33,16 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun setupUI() {
-        // دکمه اضافه کردن تراکنش
-        binding.addTransactionFab?.setOnClickListener {
-            showAddTransactionDialog()
-        }
-        
-        // دکمه چت AI
-        binding.chatFab?.setOnClickListener {
-            showAIChat()
-        }
         binding.addIncomeButton.setOnClickListener { showAddDialog(TransactionType.INCOME) }
         binding.addExpenseButton.setOnClickListener { showAddDialog(TransactionType.EXPENSE) }
         binding.addCheckButton.setOnClickListener { showCheckDialog() }
         binding.addInstallmentButton.setOnClickListener { showInstallmentDialog() }
         binding.aiChatButton.setOnClickListener { showAIChat() }
+    }
+    
+    private fun showAddTransactionDialog() {
+        // Default to expense
+        showAddDialog(TransactionType.EXPENSE)
     }
     
     private fun showAddDialog(type: TransactionType) {
