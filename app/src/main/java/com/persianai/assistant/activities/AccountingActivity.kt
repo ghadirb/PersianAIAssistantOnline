@@ -33,6 +33,15 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun setupUI() {
+        // دکمه اضافه کردن تراکنش
+        binding.addTransactionFab?.setOnClickListener {
+            showAddTransactionDialog()
+        }
+        
+        // دکمه چت AI
+        binding.chatFab?.setOnClickListener {
+            showAIChat()
+        }
         binding.addIncomeButton.setOnClickListener { showAddDialog(TransactionType.INCOME) }
         binding.addExpenseButton.setOnClickListener { showAddDialog(TransactionType.EXPENSE) }
         binding.addCheckButton.setOnClickListener { showCheckDialog() }
@@ -72,7 +81,27 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun showAIChat() {
-        // Open AI chat with accounting context
+        val input = android.widget.EditText(this).apply {
+            hint = "سوال خود را بپرسید (مثلا: خرج این ماه چقدر شد؟)"
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("💰 دستیار مالی AI")
+            .setView(input)
+            .setPositiveButton("ارسال") { _, _ ->
+                val question = input.text.toString()
+                val expenses = db.getMonthlyExpenses()
+                val income = db.getMonthlyIncome()
+                val response = "💸 هزینه این ماه: ${expenses}\n💰 درآمد: ${income}"
+                
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("پاسخ AI")
+                    .setMessage(response)
+                    .setPositiveButton("باشه", null)
+                    .show()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun updateBalance() {

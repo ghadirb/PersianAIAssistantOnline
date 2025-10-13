@@ -30,6 +30,12 @@ import java.util.*
  */
 class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     
+    companion object {
+        private const val LOCATION_PERMISSION_REQUEST = 1001
+        private const val DEFAULT_ZOOM = 15f
+        const val NESHAN_API_KEY = "service.649ba7521ba04da595c5ab56413b3c84"
+    }
+    
     private lateinit var binding: ActivityNavigationBinding
     private var googleMap: GoogleMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -44,6 +50,18 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private var alternativeRoutes: List<NessanMapsAPI.RouteResult> = emptyList()
     private var selectedRouteIndex: Int = 0
     private var routePolylines: MutableList<Polyline> = mutableListOf()
+    private var isNavigating = false
+    private var destinationMarker: Marker? = null
+    private var routePolyline: Polyline? = null
+    
+    // POI Types
+    private val poiTypes = mapOf(
+        "gas" to "⛽ پمپ بنزین",
+        "food" to "🍴 رستوران",
+        "hospital" to "🏥 بیمارستان",
+        "atm" to "💳 عابر بانک",
+        "parking" to "🅿️ پارکینگ"
+    )
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -81,11 +99,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
         
         setupUI()
-        handleAIIntent()
-        checkPermissions()
-    }
-    
-    private fun setupUI() {
+        
         // سرعت‌سنج ابتدا مخفی است
         binding.speedCard.visibility = android.view.View.GONE
         
@@ -251,6 +265,36 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                 .snippet("محدودیت: $cameraSpeedLimit km/h")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
         )
+    }
+    
+    private fun showPOIsOnMap(poiType: String) {
+        currentLocation?.let { location ->
+            // نمایش POI های اطراف
+            Toast.makeText(this, "در حال جستجوی ${poiTypes[poiType]}...", Toast.LENGTH_SHORT).show()
+            
+            // TODO: API call to get POIs
+            // برای الان موقعیت‌های نمونه
+            val samplePOIs = when(poiType) {
+                "gas" -> listOf(
+                    LatLng(location.latitude + 0.01, location.longitude + 0.01),
+                    LatLng(location.latitude - 0.01, location.longitude + 0.02)
+                )
+                "food" -> listOf(
+                    LatLng(location.latitude + 0.02, location.longitude - 0.01),
+                    LatLng(location.latitude - 0.02, location.longitude - 0.02)
+                )
+                else -> emptyList()
+            }
+            
+            samplePOIs.forEach { poi ->
+                googleMap?.addMarker(
+                    MarkerOptions()
+                        .position(poi)
+                        .title(poiTypes[poiType])
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW))
+                )
+            }
+        }
     }
     
     private fun showDestinationSearchDialog() {
