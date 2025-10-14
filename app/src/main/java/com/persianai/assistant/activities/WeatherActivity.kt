@@ -197,7 +197,7 @@ class WeatherActivity : AppCompatActivity() {
                     
                     // Sync با SharedDataManager
                     SharedDataManager.saveWeatherData(
-                        this,
+                        this@WeatherActivity,
                         currentCity,
                         weatherData.temp.toFloat(),
                         weatherData.description,

@@ -668,24 +668,6 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
     
-    private fun showNavigationAIChat() {
-        val input = EditText(this)
-        input.hint = "مثلا: منو به نزدیکترین پمپ بنزین ببر یا مکان فعلی رو ذخیره کن"
-        input.setPadding(20, 20, 20, 20)
-        
-        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
-        builder.setTitle("🤖 دستیار مسیریاب")
-        builder.setView(input)
-        builder.setPositiveButton("ارسال") { _, _ ->
-            val command = input.text.toString()
-            if (command.isNotEmpty()) {
-                processNavigationCommand(command)
-            }
-        }
-        builder.setNegativeButton("لغو", null)
-        builder.show()
-    }
-    
     private fun addWaypoint() {
         currentLocation?.let { location ->
             val builder = androidx.appcompat.app.AlertDialog.Builder(this)

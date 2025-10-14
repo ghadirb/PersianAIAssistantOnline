@@ -147,7 +147,6 @@ class MusicActivity : AppCompatActivity() {
         // Chat AI button - دستیار موسیقی هوشمند
         binding.voiceCommandButton?.setOnClickListener {
             showMusicAIChat()
-            }
         }
     }
     

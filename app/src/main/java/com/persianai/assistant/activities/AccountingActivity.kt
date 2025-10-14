@@ -9,7 +9,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityAccountingBinding
-import com.persianai.assistant.accounting.*
+import com.persianai.assistant.data.AccountingDB
+import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.ai.ContextualAIAssistant
 import kotlinx.coroutines.launch

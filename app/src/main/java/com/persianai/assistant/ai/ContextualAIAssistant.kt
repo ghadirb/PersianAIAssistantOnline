@@ -2,8 +2,9 @@ package com.persianai.assistant.ai
 
 import android.content.Context
 import android.util.Log
-import com.persianai.assistant.accounting.AccountingDB
-import com.persianai.assistant.accounting.Transaction
+import com.persianai.assistant.data.AccountingDB
+import com.persianai.assistant.data.Transaction
+import com.persianai.assistant.models.AIModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
