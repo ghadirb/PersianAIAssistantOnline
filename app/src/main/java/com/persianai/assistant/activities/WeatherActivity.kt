@@ -237,44 +237,59 @@ class WeatherActivity : AppCompatActivity() {
     }
     
     private fun loadHourlyForecast() {
-        // ایجاد Mock Data برای پیش‌بینی ساعتی
-        val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val hourlyLayout = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hourlyRecyclerView)
-        
-        // اگر RecyclerView وجود نداره، از روش ساده استفاده کن
-        if (hourlyLayout == null) {
-            // شاید باید Layout Manager اضافه کنیم
-            return
-        }
-        
-        // ایجاد داده‌های ساعتی (12 ساعت آینده)
-        val hourlyData = mutableListOf<HourlyWeatherData>()
-        for (i in 0..11) {
-            val hour = (currentHour + i) % 24
-            val temp = 25 + (Math.random() * 10 - 5).toInt() // دمای تصادفی بین 20-30
-            val icon = when {
-                hour in 6..10 -> "☀️"
-                hour in 11..15 -> "⛅"
-                hour in 16..18 -> "☁️"
-                hour in 19..21 -> "🌙"
-                else -> "⭐"
+        lifecycleScope.launch {
+            try {
+                val hourlyLayout = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hourlyRecyclerView)
+                if (hourlyLayout == null) return@launch
+                
+                // دریافت پیش‌بینی واقعی از API
+                val forecasts = WorldWeatherAPI.getForecast(currentCity, 1)
+                
+                val hourlyData = if (forecasts.isNotEmpty() && forecasts[0].hourly.isNotEmpty()) {
+                    // استفاده از داده‌های واقعی API
+                    forecasts[0].hourly.take(12).map { hourly ->
+                        val timeStr = hourly.time.padStart(4, '0')
+                        val formattedTime = "${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}"
+                        
+                        HourlyWeatherData(
+                            time = formattedTime,
+                            temp = hourly.temp.roundToInt(),
+                            icon = WorldWeatherAPI.getWeatherEmoji(hourly.icon)
+                        )
+                    }
+                } else {
+                    // Fallback: نمایش دمای فعلی برای 12 ساعت
+                    val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+                    val currentTemp = prefs.getFloat("current_temp_$currentCity", 20f).toInt()
+                    val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    
+                    (0..11).map { i ->
+                        val hour = (currentHour + i) % 24
+                        HourlyWeatherData(
+                            time = String.format("%02d:00", hour),
+                            temp = currentTemp + (-2..2).random(),
+                            icon = when {
+                                hour in 6..17 -> "☀️"
+                                else -> "🌙"
+                            }
+                        )
+                    }
+                }
+                
+                // نمایش در RecyclerView
+                withContext(Dispatchers.Main) {
+                    val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+                        this@WeatherActivity,
+                        androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL,
+                        false
+                    )
+                    hourlyLayout.layoutManager = layoutManager
+                    hourlyLayout.adapter = HourlyWeatherAdapter(hourlyData)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("WeatherActivity", "Error loading hourly forecast", e)
             }
-            
-            hourlyData.add(HourlyWeatherData(
-                time = String.format("%02d:00", hour),
-                temp = temp,
-                icon = icon
-            ))
         }
-        
-        // نمایش در RecyclerView
-        val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
-            this, 
-            androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, 
-            false
-        )
-        hourlyLayout.layoutManager = layoutManager
-        hourlyLayout.adapter = HourlyWeatherAdapter(hourlyData)
     }
     
     // Data class برای هر ساعت

@@ -103,7 +103,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                         tempMin = forecast.minTemp,
                         tempMax = forecast.maxTemp,
                         description = forecast.description,
-                        icon = forecast.icon
+                        icon = WorldWeatherAPI.getWeatherEmoji(forecast.icon)
                     )
                 )
             }
@@ -138,13 +138,17 @@ class WeatherForecastActivity : AppCompatActivity() {
             }
             
             val variation = (Math.random() * 10 - 5).roundToInt()
+            val iconsList = listOf("☀️", "⛅", "☁️", "🌧️")
+            val descList = listOf("آفتابی", "نیمه ابری", "ابری", "بارانی")
+            val index = (Math.random() * iconsList.size).toInt()
+            
             forecasts.add(
                 DailyForecast(
                     date = calendar.time,
                     tempMin = baseTemp + variation - 5,
                     tempMax = baseTemp + variation + 5,
-                    description = listOf("آفتابی", "ابری", "نیمه ابری", "بارانی").random(),
-                    icon = listOf("01d", "02d", "03d", "10d").random()
+                    description = descList[index],
+                    icon = iconsList[index]
                 )
             )
             calendar.add(Calendar.DAY_OF_MONTH, 1)

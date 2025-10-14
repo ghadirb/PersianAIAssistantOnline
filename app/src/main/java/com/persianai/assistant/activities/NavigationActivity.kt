@@ -105,9 +105,17 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         // نمایش وضعیت TTS
         android.util.Log.d("Navigation", "TTS Status: ${aiPoweredTTS.getStatus()}")
         
-        // Setup map
-        val mapFragment = supportFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
+        // Setup map - فعلاً بدون Google Maps API Key
+        try {
+            val mapFragment = supportFragmentManager.findFragmentById(R.id.mapFragment) as? SupportMapFragment
+            mapFragment?.getMapAsync(this) ?: run {
+                android.util.Log.e("Navigation", "Map fragment is null - Google Maps API Key needed")
+                Toast.makeText(this, "🗺️ فعلاً از نقشه Neshan استفاده می‌شود", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Navigation", "Error loading map: ${e.message}")
+            Toast.makeText(this, "⚠️ Google Maps API Key مورد نیاز است", Toast.LENGTH_LONG).show()
+        }
         
         // سرعت‌سنج ابتدا مخفی است
         binding.speedCard.visibility = android.view.View.GONE
