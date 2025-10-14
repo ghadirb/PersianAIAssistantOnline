@@ -13,6 +13,8 @@ import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.utils.SharedDataManager
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import kotlin.math.roundToInt
 
 class WeatherActivity : AppCompatActivity() {

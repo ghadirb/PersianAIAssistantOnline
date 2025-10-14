@@ -121,7 +121,7 @@ class MusicActivity : AppCompatActivity() {
                 moodChip.setOnClickListener {
                     selectedMood = mood.second
                     binding.selectedMoodText?.text = "حالت انتخاب شده: ${mood.first}"
-                    binding.createPlaylistButton?.isEnabled = true
+                    // دکمه createPlaylist حذف شده - پلی‌لیست مستقیماً ایجاد می‌شود
                 }
                 binding.moodChipGroup?.addView(moodChip)
             }
@@ -129,10 +129,7 @@ class MusicActivity : AppCompatActivity() {
             android.util.Log.e("MusicActivity", "Error in setupUI", e)
         }
         
-        // Create playlist button
-        binding.createPlaylistButton?.setOnClickListener {
-            createPlaylist()
-        }
+        // دکمه createPlaylist حذف شده است
         
         // Music Player Selection Button - حذف شد (پخش داخلی)
         binding.selectPlayerButton?.visibility = View.GONE
