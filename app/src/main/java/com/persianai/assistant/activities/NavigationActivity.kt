@@ -24,6 +24,7 @@ import com.persianai.assistant.navigation.AIPoweredTTS
 import com.persianai.assistant.navigation.SpeedCameraManager
 import com.persianai.assistant.navigation.SavedLocationsManager
 import com.persianai.assistant.utils.SharedDataManager
+import com.persianai.assistant.ai.ContextualAIAssistant
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -46,6 +47,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var speedCameraManager: SpeedCameraManager
     private lateinit var nessanMapsAPI: NessanMapsAPI
     private lateinit var savedLocationsManager: SavedLocationsManager
+    private lateinit var aiAssistant: ContextualAIAssistant
     
     private var currentLocation: Location? = null
     private var currentRoute: List<LatLng>? = null
@@ -88,19 +90,21 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityNavigationBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "🗺️ مسیریابی فارسی"
-        
-        // Initialize services
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        aiPoweredTTS = AIPoweredTTS(this)
-        speedCameraManager = SpeedCameraManager(this)
-        nessanMapsAPI = NessanMapsAPI()
-        savedLocationsManager = SavedLocationsManager(this)
+        try {
+            binding = ActivityNavigationBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.title = "🗺️ مسیریابی فارسی"
+            
+            // Initialize services
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            aiPoweredTTS = AIPoweredTTS(this)
+            speedCameraManager = SpeedCameraManager(this)
+            nessanMapsAPI = NessanMapsAPI()
+            savedLocationsManager = SavedLocationsManager(this)
+            aiAssistant = ContextualAIAssistant(this)
         
         // نمایش وضعیت TTS
         android.util.Log.d("Navigation", "TTS Status: ${aiPoweredTTS.getStatus()}")
@@ -188,6 +192,11 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         
         binding.addWaypointButton?.setOnClickListener {
             addWaypoint()
+        }
+        } catch (e: Exception) {
+            android.util.Log.e("NavigationActivity", "Error in onCreate", e)
+            Toast.makeText(this, "خطا در بارگذاری مسیریاب: ${e.message}", Toast.LENGTH_LONG).show()
+            finish()
         }
     }
     
@@ -756,6 +765,48 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
                 Toast.makeText(this, "💬 من دستیار مسیریاب هستم. می‌تونید بگید: پمپ بنزین، رستوران، مسیر خانه، ذخیره مکان", Toast.LENGTH_LONG).show()
             }
         }
+    }
+    
+    private fun showNavigationAIChat() {
+        val input = EditText(this).apply {
+            hint = "دستور خود را بنویسید (مثل: نزدیک‌ترین پمپ بنزین)"
+            setPadding(32, 32, 32, 32)
+        }
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("🗺️ دستیار مسیریابی هوشمند")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userMessage = input.text.toString()
+                if (userMessage.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            val response = aiAssistant.processNavigationCommand(userMessage)
+                            
+                            runOnUiThread {
+                                if (response.success && response.action == "find_poi") {
+                                    val poiType = response.data["poi_type"] as? String ?: ""
+                                    if (poiType.isNotEmpty()) {
+                                        showPOIsOnMap(poiType)
+                                    }
+                                }
+                                
+                                androidx.appcompat.app.AlertDialog.Builder(this@NavigationActivity)
+                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ خطا")
+                                    .setMessage(response.message)
+                                    .setPositiveButton("باشه", null)
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@NavigationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     override fun onRequestPermissionsResult(

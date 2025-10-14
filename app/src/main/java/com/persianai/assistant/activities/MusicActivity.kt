@@ -27,6 +27,7 @@ import com.google.android.exoplayer2.C
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityMusicBinding
 import com.persianai.assistant.utils.MusicPlaylistManager
+import com.persianai.assistant.ai.ContextualAIAssistant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,6 +38,7 @@ class MusicActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMusicBinding
     private lateinit var musicManager: MusicPlaylistManager
+    private lateinit var aiAssistant: ContextualAIAssistant
     private var selectedMood: String = ""
     private var selectedPlayerPackage: String? = null
     private var exoPlayer: ExoPlayer? = null
@@ -62,6 +64,7 @@ class MusicActivity : AppCompatActivity() {
             supportActionBar?.title = "🎵 پلی‌لیست هوشمند"
             
             musicManager = MusicPlaylistManager(this)
+            aiAssistant = ContextualAIAssistant(this)
             
             // Initialize ExoPlayer with Audio Attributes
             val audioAttributes = AudioAttributes.Builder()
@@ -121,7 +124,10 @@ class MusicActivity : AppCompatActivity() {
                 moodChip.setOnClickListener {
                     selectedMood = mood.second
                     binding.selectedMoodText?.text = "حالت انتخاب شده: ${mood.first}"
-                    // دکمه createPlaylist حذف شده - پلی‌لیست مستقیماً ایجاد می‌شود
+                    // ایجاد خودکار پلی‌لیست بعد از انتخاب حالت
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        createPlaylist()
+                    }, 300)
                 }
                 binding.moodChipGroup?.addView(moodChip)
             }
@@ -138,16 +144,9 @@ class MusicActivity : AppCompatActivity() {
         binding.scanMusicButton?.setOnClickListener {
             scanMusic()
         }
-        // Chat AI button - تبدیل از دستور صوتی
+        // Chat AI button - دستیار موسیقی هوشمند
         binding.voiceCommandButton?.setOnClickListener {
-            try {
-                val intent = android.content.Intent(this, MainActivity::class.java)
-                intent.putExtra("SUGGEST_TEXT", "یک پلی‌لیست موزیک شاد برای من بساز")
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            } catch (e: Exception) {
-                android.util.Log.e("MusicActivity", "Error opening chat", e)
-                Toast.makeText(this, "💬 برای استفاده از چت AI، به بخش چت بروید", Toast.LENGTH_SHORT).show()
+            showMusicAIChat()
             }
         }
     }
@@ -560,6 +559,52 @@ class MusicActivity : AppCompatActivity() {
         val minutes = (millis / 1000) / 60
         val seconds = (millis / 1000) % 60
         return String.format("%d:%02d", minutes, seconds)
+    }
+    
+    private fun showMusicAIChat() {
+        val input = android.widget.EditText(this).apply {
+            hint = "دستور خود را بنویسید (مثل: پلی‌لیست شاد بساز)"
+            setPadding(32, 32, 32, 32)
+        }
+        
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("🎵 دستیار موسیقی هوشمند")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userMessage = input.text.toString()
+                if (userMessage.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            val response = aiAssistant.processMusicCommand(userMessage)
+                            
+                            runOnUiThread {
+                                if (response.success && response.action == "create_playlist") {
+                                    val mood = response.data["mood"] as? String ?: ""
+                                    if (mood.isNotEmpty()) {
+                                        selectedMood = mood
+                                        binding.selectedMoodText?.text = "حالت انتخاب شده: 🎵 $mood"
+                                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                            createPlaylist()
+                                        }, 300)
+                                    }
+                                }
+                                
+                                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MusicActivity)
+                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ خطا")
+                                    .setMessage(response.message)
+                                    .setPositiveButton("باشه", null)
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@MusicActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     override fun onDestroy() {

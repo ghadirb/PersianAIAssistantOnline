@@ -14,6 +14,9 @@ import android.widget.EditText
 import android.widget.Toast
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityRemindersBinding
+import com.persianai.assistant.ai.ContextualAIAssistant
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,6 +27,7 @@ class RemindersActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityRemindersBinding
     private lateinit var adapter: RemindersAdapter
+    private lateinit var aiAssistant: ContextualAIAssistant
     private val reminders = mutableListOf<Reminder>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +38,8 @@ class RemindersActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "یادآوری‌ها"
+        
+        aiAssistant = ContextualAIAssistant(this)
         
         setupRecyclerView()
         loadReminders()
@@ -114,24 +120,41 @@ class RemindersActivity : AppCompatActivity() {
     }
     
     private fun showAIChat() {
-        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
         val input = EditText(this)
-        input.hint = "چی کاری می‌تونم برات انجام بدم؟ مثلا: یادآوری فردا ساعت 9 صبح تنظیم کن"
-        input.setPadding(20, 20, 20, 20)
+        input.hint = "دستور خود را بنویسید (مثل: یادآوری ساعت 9 صبح جلسه)"
+        input.setPadding(32, 32, 32, 32)
         
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle("🤖 دستیار یادآوری")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔔 دستیار یادآوری هوشمند")
             .setView(input)
-            .setPositiveButton("ارسال") { _, _ ->
+            .setPositiveButton("اجرا") { _, _ ->
                 val userMessage = input.text.toString()
                 if (userMessage.isNotEmpty()) {
-                    processAICommand(userMessage)
+                    lifecycleScope.launch {
+                        try {
+                            val response = aiAssistant.processReminderCommand(userMessage)
+                            
+                            runOnUiThread {
+                                MaterialAlertDialogBuilder(this@RemindersActivity)
+                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ خطا")
+                                    .setMessage(response.message)
+                                    .setPositiveButton("باشه") { _, _ ->
+                                        if (response.success && response.action == "add_reminder") {
+                                            loadReminders()
+                                        }
+                                    }
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@RemindersActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 }
             }
             .setNegativeButton("لغو", null)
-            .create()
-        
-        dialog.show()
+            .show()
     }
     
     private fun processAICommand(command: String) {

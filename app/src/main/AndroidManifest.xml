@@ -39,16 +39,22 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
-        <!-- Welcome Activity - First Launch -->
+        <!-- Splash Screen Activity - LAUNCHER -->
         <activity
-            android:name=".activities.WelcomeActivity"
+            android:name=".activities.SplashScreenActivity"
             android:exported="true"
-            android:theme="@style/Theme.PersianAIAssistant">
+            android:theme="@style/Theme.PersianAIAssistant.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Welcome Activity - First Launch -->
+        <activity
+            android:name=".activities.WelcomeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PersianAIAssistant" />
 
         <!-- Dashboard Activity -->
         <activity
@@ -62,7 +68,7 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- Splash Activity - Disabled temporarily -->
+        <!-- Old Splash Activity - Disabled -->
         <activity
             android:name=".activities.SplashActivity"
             android:exported="false"

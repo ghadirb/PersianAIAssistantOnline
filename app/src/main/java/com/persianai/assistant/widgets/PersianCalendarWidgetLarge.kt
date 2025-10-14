@@ -134,7 +134,7 @@ class PersianCalendarWidgetLarge : AppWidgetProvider() {
             try {
                 val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = getWeatherEmoji(weather.temp)
+                    val emoji = WorldWeatherAPI.getWeatherEmoji(weather.icon)
                     val tempText = "$emoji ${weather.temp.toInt()}° $city"
                     val descText = weather.description
                     
@@ -152,8 +152,9 @@ class PersianCalendarWidgetLarge : AppWidgetProvider() {
                 } else {
                     val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
                     val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    val savedIcon = prefs.getString("weather_icon_$city", "113") ?: "113"
                     val savedDesc = prefs.getString("weather_desc_$city", "آفتابی")
-                    val emoji = getWeatherEmoji(savedTemp.toDouble())
+                    val emoji = WorldWeatherAPI.getWeatherEmoji(savedIcon)
                     views.setTextViewText(R.id.widgetWeatherLarge, "$emoji ${savedTemp.toInt()}° $city")
                     views.setTextViewText(R.id.widgetWeatherDescLarge, savedDesc)
                 }
@@ -161,8 +162,9 @@ class PersianCalendarWidgetLarge : AppWidgetProvider() {
                 android.util.Log.e("PersianWidgetLarge", "Error updating weather", e)
                 val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
                 val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                val savedIcon = prefs.getString("weather_icon_$city", "113") ?: "113"
                 val savedDesc = prefs.getString("weather_desc_$city", "آفتابی")
-                val emoji = getWeatherEmoji(savedTemp.toDouble())
+                val emoji = WorldWeatherAPI.getWeatherEmoji(savedIcon)
                 views.setTextViewText(R.id.widgetWeatherLarge, "$emoji ${savedTemp.toInt()}° $city")
                 views.setTextViewText(R.id.widgetWeatherDescLarge, savedDesc)
             }

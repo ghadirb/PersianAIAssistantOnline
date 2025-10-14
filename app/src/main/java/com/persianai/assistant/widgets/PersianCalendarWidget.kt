@@ -80,7 +80,8 @@ class PersianCalendarWidget : AppWidgetProvider() {
             val weatherPrefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
             val city = weatherPrefs.getString("selected_city", "تهران") ?: "تهران"
             val savedTemp = weatherPrefs.getFloat("current_temp_$city", 25f)
-            val emoji = getWeatherEmoji(savedTemp.toDouble())
+            val savedIcon = weatherPrefs.getString("weather_icon_$city", "113") ?: "113"
+            val emoji = WorldWeatherAPI.getWeatherEmoji(savedIcon)
             val weatherText = "$emoji ${savedTemp.toInt()}° $city"
             views.setTextViewText(R.id.widgetWeather, weatherText)
             
@@ -129,8 +130,9 @@ class PersianCalendarWidget : AppWidgetProvider() {
                 if (weather != null) {
                     // ذخیره در SharedPreferences
                     prefs.edit().putFloat("current_temp_$city", weather.temp.toFloat()).apply()
+                    prefs.edit().putString("weather_icon_$city", weather.icon).apply()
                     
-                    val emoji = getWeatherEmoji(weather.temp)
+                    val emoji = WorldWeatherAPI.getWeatherEmoji(weather.icon)
                     val text = "$emoji ${weather.temp.toInt()}° $city"
                     
                     // آپدیت ویجت

@@ -14,6 +14,8 @@ import com.persianai.assistant.databinding.ActivityMainDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
 import com.persianai.assistant.utils.SharedDataManager
+import com.persianai.assistant.utils.NotificationHelper
+import com.persianai.assistant.utils.AppRatingHelper
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -31,6 +33,12 @@ class DashboardActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+        
+        // ایجاد کانال‌های نوتیفیکیشن
+        NotificationHelper.createNotificationChannels(this)
+        
+        // بررسی و نمایش دیالوگ امتیازدهی
+        AppRatingHelper.checkAndShowRatingDialog(this)
         
         // Hide all cards initially
         hideAllCards()
@@ -177,9 +185,10 @@ class DashboardActivity : AppCompatActivity() {
         
         // نمایش فوری cache برای جلوگیری از چشمک زدن
         val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-        if (savedTemp != -999f) {
+        val savedIcon = prefs.getString("weather_icon_$city", null)
+        if (savedTemp != -999f && !savedIcon.isNullOrEmpty()) {
             binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-            binding.weatherIcon?.text = getWeatherEmoji(savedTemp.toDouble())
+            binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
         }
         
         lifecycleScope.launch {
@@ -190,25 +199,28 @@ class DashboardActivity : AppCompatActivity() {
                 if (weatherData != null) {
                     android.util.Log.d("DashboardActivity", "Live weather from WorldWeather: ${weatherData.temp}°C for $city")
                     binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = getWeatherEmoji(weatherData.temp)
+                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
                     
                     // ذخیره دما برای استفاده در WeatherActivity
                     prefs.edit().putFloat("current_temp_$city", weatherData.temp.toFloat()).apply()
+                    prefs.edit().putString("weather_icon_$city", weatherData.icon).apply()
                     prefs.edit().putString("weather_desc_$city", weatherData.description).apply()
                     prefs.edit().putInt("weather_humidity_$city", weatherData.humidity).apply()
                     prefs.edit().putFloat("weather_wind_$city", weatherData.windSpeed.toFloat()).apply()
                 } else {
                     // استفاده از داده‌های ذخیره شده
                     val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    val savedIcon = prefs.getString("weather_icon_$city", "113")
                     binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                    binding.weatherIcon?.text = getWeatherEmoji(savedTemp.toDouble())
+                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
                 // استفاده از داده ذخیره شده
                 val savedTemp = prefs.getFloat("current_temp_$city", 25f)
+                val savedIcon = prefs.getString("weather_icon_$city", "113")
                 binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                binding.weatherIcon?.text = getWeatherEmoji(savedTemp.toDouble())
+                binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
             }
         }
         
@@ -311,7 +323,8 @@ class DashboardActivity : AppCompatActivity() {
                 val city = prefs.getString("selected_city", "تهران") ?: "تهران"
                 val temp = prefs.getFloat("current_temp_$city", 25f)
                 val desc = prefs.getString("weather_desc_$city", "آفتابی") ?: "آفتابی"
-                SharedDataManager.saveWeatherData(this@DashboardActivity, city, temp, desc, getWeatherEmoji(temp.toDouble()))
+                val icon = prefs.getString("weather_icon_$city", "113") ?: "113"
+                SharedDataManager.saveWeatherData(this@DashboardActivity, city, temp, desc, WorldWeatherAPI.getWeatherEmoji(icon))
                 
                 android.util.Log.d("DashboardActivity", "✅ داده‌ها به SharedDataManager ذخیره شدند")
             } catch (e: Exception) {

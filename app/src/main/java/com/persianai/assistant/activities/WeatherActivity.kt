@@ -182,7 +182,7 @@ class WeatherActivity : AppCompatActivity() {
                     
                     // نمایش اطلاعات
                     findViewById<android.widget.TextView>(R.id.tempText)?.text = "${weatherData.temp.roundToInt()}°"
-                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = getWeatherEmoji(weatherData.temp)
+                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
                     findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = weatherData.description
                     findViewById<android.widget.TextView>(R.id.humidityText)?.text = "${weatherData.humidity}%"
                     findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${weatherData.windSpeed.roundToInt()} km/h"
@@ -190,28 +190,30 @@ class WeatherActivity : AppCompatActivity() {
                     
                     // ذخیره دما
                     prefs.edit().putFloat("current_temp_$currentCity", weatherData.temp.toFloat()).apply()
+                    prefs.edit().putString("weather_icon_$currentCity", weatherData.icon).apply()
                     prefs.edit().putString("weather_desc_$currentCity", weatherData.description).apply()
                     prefs.edit().putInt("weather_humidity_$currentCity", weatherData.humidity).apply()
                     prefs.edit().putFloat("weather_wind_$currentCity", weatherData.windSpeed.toFloat()).apply()
                     
                     // Sync با SharedDataManager
                     SharedDataManager.saveWeatherData(
-                        this@WeatherActivity,
+                        this,
                         currentCity,
                         weatherData.temp.toFloat(),
                         weatherData.description,
-                        getWeatherEmoji(weatherData.temp)
+                        WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
                     )
                     android.util.Log.d("WeatherActivity", "💾 Synced to SharedDataManager: $currentCity - ${weatherData.temp}°C")
                 } else {
                     // استفاده از داده‌های ذخیره شده
                     val savedTemp = prefs.getFloat("current_temp_$currentCity", 25f)
-                    val savedDesc = prefs.getString("weather_desc_$currentCity", "آفتابی")
+                    val savedIcon = prefs.getString("weather_icon_$currentCity", "113") ?: "113"
+                    val savedDesc = prefs.getString("weather_desc_$currentCity", "آفتابی") ?: "آفتابی"
                     val savedHumidity = prefs.getInt("weather_humidity_$currentCity", 45)
                     val savedWind = prefs.getFloat("weather_wind_$currentCity", 12f)
                     
                     findViewById<android.widget.TextView>(R.id.tempText)?.text = "${savedTemp.roundToInt()}°"
-                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = getWeatherEmoji(savedTemp.toDouble())
+                    findViewById<android.widget.TextView>(R.id.weatherIcon)?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
                     findViewById<android.widget.TextView>(R.id.weatherDescText)?.text = savedDesc
                     findViewById<android.widget.TextView>(R.id.humidityText)?.text = "$savedHumidity%"
                     findViewById<android.widget.TextView>(R.id.windSpeedText)?.text = "${savedWind.roundToInt()} km/h"

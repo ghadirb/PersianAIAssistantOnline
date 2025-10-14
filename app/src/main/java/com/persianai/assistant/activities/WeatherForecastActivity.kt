@@ -103,7 +103,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                         tempMin = forecast.minTemp,
                         tempMax = forecast.maxTemp,
                         description = forecast.description,
-                        icon = WorldWeatherAPI.getWeatherEmoji(forecast.icon)
+                        icon = forecast.icon  // ذخیره کد آیکون برای تبدیل بعدی
                     )
                 )
             }
@@ -252,7 +252,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                     dateText.text = "${dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]}, ${cal.get(Calendar.DAY_OF_MONTH)} ${monthNames[cal.get(Calendar.MONTH)]}"
                 }
                 
-                iconText.text = getWeatherEmoji(forecast.tempMax)
+                iconText.text = WorldWeatherAPI.getWeatherEmoji(forecast.icon)
                 
                 tempText.text = "${forecast.tempMin.roundToInt()}° - ${forecast.tempMax.roundToInt()}°"
                 

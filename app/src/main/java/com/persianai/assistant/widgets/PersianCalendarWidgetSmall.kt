@@ -82,7 +82,7 @@ class PersianCalendarWidgetSmall : AppWidgetProvider() {
             try {
                 val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = getWeatherEmoji(weather.temp)
+                    val emoji = WorldWeatherAPI.getWeatherEmoji(weather.icon)
                     val text = "$emoji ${weather.temp.toInt()}°"
                     
                     withContext(Dispatchers.Main) {
@@ -98,7 +98,8 @@ class PersianCalendarWidgetSmall : AppWidgetProvider() {
                 } else {
                     val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
                     val savedTemp = prefs.getFloat("current_temp_$city", 25f)
-                    val emoji = getWeatherEmoji(savedTemp.toDouble())
+                    val savedIcon = prefs.getString("weather_icon_$city", "113") ?: "113"
+                    val emoji = WorldWeatherAPI.getWeatherEmoji(savedIcon)
                     val text = "$emoji ${savedTemp.toInt()}°"
                     views.setTextViewText(R.id.widgetWeatherSmall, text)
                 }
@@ -106,7 +107,8 @@ class PersianCalendarWidgetSmall : AppWidgetProvider() {
                 android.util.Log.e("PersianWidgetSmall", "Error updating weather", e)
                 val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
                 val savedTemp = prefs.getFloat("current_temp_$city", 25f)
-                val emoji = getWeatherEmoji(savedTemp.toDouble())
+                val savedIcon = prefs.getString("weather_icon_$city", "113") ?: "113"
+                val emoji = WorldWeatherAPI.getWeatherEmoji(savedIcon)
                 views.setTextViewText(R.id.widgetWeatherSmall, "$emoji ${savedTemp.toInt()}°")
             }
         }
