@@ -297,6 +297,68 @@ class ContextualAIAssistant(private val context: Context) {
         }
     }
     
+    private fun parseAccountingResponse(aiResponse: String, db: AccountingDB, userMessage: String): AIResponse {
+        return try {
+            val json = JSONObject(aiResponse)
+            val action = json.optString("action", "chat")
+            val response = json.optString("response", "پاسخ دریافت شد")
+            
+            when (action) {
+                "add_transaction" -> {
+                    val type = json.optString("transaction_type", "EXPENSE")
+                    val amount = json.optDouble("amount", 0.0)
+                    val description = json.optString("description", userMessage)
+                    
+                    if (amount > 0) {
+                        val transaction = Transaction(
+                            0,
+                            TransactionType.valueOf(type),
+                            amount,
+                            "",
+                            description,
+                            System.currentTimeMillis()
+                        )
+                        db.addTransaction(transaction)
+                        AIResponse(true, response, "add_transaction")
+                    } else {
+                        AIResponse(false, "مبلغ نامعتبر است", "chat")
+                    }
+                }
+                "show_balance" -> {
+                    val balance = db.getBalance()
+                    AIResponse(true, response, "show_balance")
+                }
+                else -> AIResponse(true, response, "chat")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse AI response", e)
+            extractAccountingCommandManually(userMessage, db)
+        }
+    }
+    
+    private fun parseReminderResponse(aiResponse: String, userMessage: String): AIResponse {
+        return try {
+            val json = JSONObject(aiResponse)
+            val action = json.optString("action", "chat")
+            val response = json.optString("response", "پاسخ دریافت شد")
+            
+            when (action) {
+                "add_reminder" -> {
+                    val time = json.optString("time", "09:00")
+                    val message = json.optString("message", userMessage)
+                    
+                    val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+                    prefs.edit().putString("reminder_${System.currentTimeMillis()}", "$time|$message").apply()
+                    AIResponse(true, response, "add_reminder")
+                }
+                else -> AIResponse(true, response, "chat")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse AI response", e)
+            extractReminderCommandManually(userMessage)
+        }
+    }
+    
     private fun formatMoney(amount: Double): String {
         return String.format("%,.0f", amount)
     }

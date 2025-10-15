@@ -70,4 +70,33 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         cursor.close()
         return income
     }
+    
+    fun getAllTransactions(): List<Transaction> {
+        val transactions = mutableListOf<Transaction>()
+        val cursor = readableDatabase.rawQuery(
+            "SELECT * FROM transactions ORDER BY date DESC LIMIT 50", null)
+        
+        while (cursor.moveToNext()) {
+            val transaction = Transaction(
+                id = cursor.getLong(0),
+                type = TransactionType.valueOf(cursor.getString(1)),
+                amount = cursor.getDouble(2),
+                category = cursor.getString(3) ?: "",
+                description = cursor.getString(4) ?: "",
+                date = cursor.getLong(5),
+                checkNumber = cursor.getString(6),
+                checkStatus = cursor.getString(7)?.let { CheckStatus.valueOf(it) },
+                installmentId = if (cursor.isNull(8)) null else cursor.getLong(8),
+                installmentNumber = if (cursor.isNull(9)) null else cursor.getInt(9),
+                totalInstallments = if (cursor.isNull(10)) null else cursor.getInt(10)
+            )
+            transactions.add(transaction)
+        }
+        cursor.close()
+        return transactions
+    }
+    
+    fun deleteTransaction(id: Long): Int {
+        return writableDatabase.delete("transactions", "id = ?", arrayOf(id.toString()))
+    }
 }

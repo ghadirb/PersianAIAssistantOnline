@@ -14,6 +14,8 @@ import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.ai.ContextualAIAssistant
+import com.persianai.assistant.adapters.TransactionAdapter
+import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.launch
 import android.widget.Toast
 
@@ -22,6 +24,8 @@ class AccountingActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAccountingBinding
     private lateinit var db: AccountingDB
     private lateinit var aiAssistant: ContextualAIAssistant
+    private lateinit var transactionAdapter: TransactionAdapter
+    private val transactions = mutableListOf<Transaction>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +40,9 @@ class AccountingActivity : AppCompatActivity() {
         aiAssistant = ContextualAIAssistant(this)
         
         setupUI()
+        setupRecyclerView()
         updateBalance()
+        loadTransactions()
     }
     
     private fun setupUI() {
@@ -132,6 +138,40 @@ class AccountingActivity : AppCompatActivity() {
             }
             .setNegativeButton("لغو", null)
             .show()
+    }
+    
+    private fun setupRecyclerView() {
+        transactionAdapter = TransactionAdapter(transactions) { transaction ->
+            // حذف تراکنش
+            MaterialAlertDialogBuilder(this)
+                .setTitle("❌ حذف تراکنش")
+                .setMessage("آیا از حذف این تراکنش مطمئن هستید؟")
+                .setPositiveButton("حذف") { _, _ ->
+                    lifecycleScope.launch {
+                        db.deleteTransaction(transaction.id)
+                        transactionAdapter.removeItem(transaction)
+                        updateBalance()
+                        loadTransactions()
+                        Toast.makeText(this@AccountingActivity, "✅ تراکنش حذف شد", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("لغو", null)
+                .show()
+        }
+        
+        binding.transactionsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@AccountingActivity)
+            adapter = transactionAdapter
+        }
+    }
+    
+    private fun loadTransactions() {
+        lifecycleScope.launch {
+            val allTransactions = db.getAllTransactions()
+            transactions.clear()
+            transactions.addAll(allTransactions)
+            transactionAdapter.notifyDataSetChanged()
+        }
     }
     
     private fun updateBalance() {
