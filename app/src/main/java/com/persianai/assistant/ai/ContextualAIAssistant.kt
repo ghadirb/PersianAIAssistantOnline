@@ -5,7 +5,6 @@ import android.util.Log
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
-import com.persianai.assistant.api.AIModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -16,55 +15,22 @@ import java.util.*
  */
 class ContextualAIAssistant(private val context: Context) {
     
-    private val aiModelManager = AIModelManager(context)
     private val TAG = "ContextualAIAssistant"
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
-        try {
-            val systemPrompt = """
-                دستیار مالی هستی. پاسخ JSON:
-                {"action":"add_transaction|show_balance|chat","transaction_type":"INCOME|EXPENSE","amount":1000,"description":"...","response":"پاسخ فارسی"}
-            """.trimIndent()
-            
-            val balance = db.getBalance()
-            val userPrompt = "موجودی: $balance تومان\nپیام: $userMessage"
-            
-            val aiResponse = aiModelManager.sendMessage(userPrompt, systemPrompt)
-            return@withContext parseAccountingResponse(aiResponse, db, userMessage)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error", e)
-            return@withContext extractAccountingCommandManually(userMessage, db)
-        }
+        return@withContext extractAccountingCommandManually(userMessage, db)
     }
     
     suspend fun processReminderCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
-        try {
-            val systemPrompt = """دستیار یادآوری. JSON: {"action":"add_reminder|chat","time":"09:00","message":"...","response":"..."}"""
-            val aiResponse = aiModelManager.sendMessage(userMessage, systemPrompt)
-            return@withContext parseReminderResponse(aiResponse, userMessage)
-        } catch (e: Exception) {
-            return@withContext extractReminderCommandManually(userMessage)
-        }
+        return@withContext extractReminderCommandManually(userMessage)
     }
     
     suspend fun processMusicCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
-        try {
-            val systemPrompt = """دستیار موسیقی. JSON: {"action":"create_playlist|play|pause","mood":"شاد|غمگین","response":"..."}"""
-            val aiResponse = aiModelManager.sendMessage(userMessage, systemPrompt)
-            return@withContext parseMusicResponse(aiResponse, userMessage)
-        } catch (e: Exception) {
-            return@withContext extractMusicCommandManually(userMessage)
-        }
+        return@withContext extractMusicCommandManually(userMessage)
     }
     
     suspend fun processNavigationCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
-        try {
-            val systemPrompt = """دستیار مسیریاب. JSON: {"action":"find_poi|navigate","poi_type":"gas|food|hospital","response":"..."}"""
-            val aiResponse = aiModelManager.sendMessage(userMessage, systemPrompt)
-            return@withContext parseNavigationResponse(aiResponse, userMessage)
-        } catch (e: Exception) {
-            return@withContext extractNavigationCommandManually(userMessage)
-        }
+        return@withContext extractNavigationCommandManually(userMessage)
     }
     
     private suspend fun parseAccountingResponse(aiResponse: String, db: AccountingDB, userMessage: String): AIResponse {
