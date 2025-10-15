@@ -11,6 +11,7 @@ import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityAccountingBinding
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
+import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.ai.ContextualAIAssistant
 import kotlinx.coroutines.launch
@@ -39,8 +40,8 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun setupUI() {
-        binding.addIncomeButton.setOnClickListener { showAddDialog(Transaction.TransactionType.INCOME) }
-        binding.addExpenseButton.setOnClickListener { showAddDialog(Transaction.TransactionType.EXPENSE) }
+        binding.addIncomeButton.setOnClickListener { showAddDialog(TransactionType.INCOME) }
+        binding.addExpenseButton.setOnClickListener { showAddDialog(TransactionType.EXPENSE) }
         binding.addCheckButton.setOnClickListener { showCheckDialog() }
         binding.addInstallmentButton.setOnClickListener { showInstallmentDialog() }
         binding.aiChatButton.setOnClickListener { showAIChat() }
@@ -48,17 +49,17 @@ class AccountingActivity : AppCompatActivity() {
     
     private fun showAddTransactionDialog() {
         // Default to expense
-        showAddDialog(Transaction.TransactionType.EXPENSE)
+        showAddDialog(TransactionType.EXPENSE)
     }
     
-    private fun showAddDialog(type: Transaction.TransactionType) {
+    private fun showAddDialog(type: TransactionType) {
         val view = layoutInflater.inflate(R.layout.dialog_add_transaction, null)
         val amountField = view.findViewById<TextInputEditText>(R.id.amountField)
         val categoryField = view.findViewById<TextInputEditText>(R.id.categoryField)
         val descField = view.findViewById<TextInputEditText>(R.id.descriptionField)
         
         MaterialAlertDialogBuilder(this)
-            .setTitle(if (type == Transaction.TransactionType.INCOME) "➥ درآمد جدید" else "➖ هزینه جدید")
+            .setTitle(if (type == TransactionType.INCOME) "➥ درآمد جدید" else "➖ هزینه جدید")
             .setView(view)
             .setPositiveButton("ثبت") { _, _ ->
                 val amount = amountField.text.toString().toDoubleOrNull() ?: 0.0

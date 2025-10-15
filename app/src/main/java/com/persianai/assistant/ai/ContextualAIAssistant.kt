@@ -4,7 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
-import com.persianai.assistant.models.AIModelManager
+import com.persianai.assistant.data.TransactionType
+import com.persianai.assistant.api.AIModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -78,7 +79,7 @@ class ContextualAIAssistant(private val context: Context) {
                     val desc = json.optString("description", userMessage)
                     
                     if (amount > 0) {
-                        val transaction = Transaction(0, Transaction.TransactionType.valueOf(type), amount, "", desc, System.currentTimeMillis())
+                        val transaction = Transaction(0, TransactionType.valueOf(type), amount, "", desc, System.currentTimeMillis())
                         db.addTransaction(transaction)
                         AIResponse(true, "✅ ثبت شد: ${formatMoney(amount)} تومان", "add_transaction", mapOf("transaction" to transaction))
                     } else {
@@ -150,12 +151,12 @@ class ContextualAIAssistant(private val context: Context) {
         
         return when {
             msg.contains("درآمد") && amount > 0 -> {
-                val t = Transaction(0, Transaction.TransactionType.INCOME, amount, "", userMessage, System.currentTimeMillis())
+                val t = Transaction(0, TransactionType.INCOME, amount, "", userMessage, System.currentTimeMillis())
                 db.addTransaction(t)
                 AIResponse(true, "✅ درآمد ${formatMoney(amount)} تومان ثبت شد", "add_transaction")
             }
             msg.contains("هزینه") && amount > 0 -> {
-                val t = Transaction(0, Transaction.TransactionType.EXPENSE, amount, "", userMessage, System.currentTimeMillis())
+                val t = Transaction(0, TransactionType.EXPENSE, amount, "", userMessage, System.currentTimeMillis())
                 db.addTransaction(t)
                 AIResponse(true, "✅ هزینه ${formatMoney(amount)} تومان ثبت شد", "add_transaction")
             }
