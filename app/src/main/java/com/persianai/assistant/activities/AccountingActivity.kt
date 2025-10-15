@@ -71,9 +71,9 @@ class AccountingActivity : AppCompatActivity() {
                             id = 0,
                             type = type,
                             amount = amount,
+                            category = category,
                             description = desc,
-                            date = java.util.Date(),
-                            category = category
+                            date = System.currentTimeMillis()
                         )
                         db.addTransaction(transaction)
                         updateBalance()

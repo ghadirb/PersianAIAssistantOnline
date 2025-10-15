@@ -78,7 +78,7 @@ class ContextualAIAssistant(private val context: Context) {
                     val desc = json.optString("description", userMessage)
                     
                     if (amount > 0) {
-                        val transaction = Transaction(0, Transaction.TransactionType.valueOf(type), amount, desc, Date(), "")
+                        val transaction = Transaction(0, Transaction.TransactionType.valueOf(type), amount, "", desc, System.currentTimeMillis())
                         db.addTransaction(transaction)
                         AIResponse(true, "✅ ثبت شد: ${formatMoney(amount)} تومان", "add_transaction", mapOf("transaction" to transaction))
                     } else {
@@ -150,12 +150,12 @@ class ContextualAIAssistant(private val context: Context) {
         
         return when {
             msg.contains("درآمد") && amount > 0 -> {
-                val t = Transaction(0, Transaction.TransactionType.INCOME, amount, userMessage, Date(), "")
+                val t = Transaction(0, Transaction.TransactionType.INCOME, amount, "", userMessage, System.currentTimeMillis())
                 db.addTransaction(t)
                 AIResponse(true, "✅ درآمد ${formatMoney(amount)} تومان ثبت شد", "add_transaction")
             }
             msg.contains("هزینه") && amount > 0 -> {
-                val t = Transaction(0, Transaction.TransactionType.EXPENSE, amount, userMessage, Date(), "")
+                val t = Transaction(0, Transaction.TransactionType.EXPENSE, amount, "", userMessage, System.currentTimeMillis())
                 db.addTransaction(t)
                 AIResponse(true, "✅ هزینه ${formatMoney(amount)} تومان ثبت شد", "add_transaction")
             }
