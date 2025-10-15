@@ -279,7 +279,8 @@ class MusicActivity : AppCompatActivity() {
                 ${playlist.tracks.take(5).joinToString("\n") { "• ${it.title}" }}
                 ${if (playlist.tracks.size > 5) "\n..." else ""}
             """.trimIndent())
-            .setPositiveButton("پخش در برنامه") { _, _ ->
+            .setPositiveButton("پخش در برنامه") { dialog, _ ->
+                dialog.dismiss()
                 playInternalPlayer(playlist)
             }
             .setNeutralButton("ذخیره پلی‌لیست") { _, _ ->
@@ -404,12 +405,16 @@ class MusicActivity : AppCompatActivity() {
             
             // آماده کردن و شروع پخش
             exoPlayer?.prepare()
-            exoPlayer?.play()
             
-            // نمایش کنترل‌های پخش
+            // نمایش کنترل‌های پخش قبل از شروع پخش
             showPlaybackControls(playlist.tracks[0])
             
+            // شروع پخش
+            exoPlayer?.play()
+            
             Toast.makeText(this, "▶️ پخش ${playlist.tracks.size} آهنگ", Toast.LENGTH_SHORT).show()
+            
+            android.util.Log.d("MusicActivity", "Started playing ${playlist.tracks.size} tracks")
             
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error playing music", e)

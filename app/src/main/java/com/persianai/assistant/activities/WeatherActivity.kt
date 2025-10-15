@@ -175,10 +175,11 @@ class WeatherActivity : AppCompatActivity() {
                 // دریافت دمای واقعی از WorldWeatherOnline API
                 val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
                 
+                android.util.Log.d("WeatherActivity", "Fetching weather for: $currentCity")
                 val weatherData = WorldWeatherAPI.getCurrentWeather(currentCity)
                 
                 if (weatherData != null) {
-                    android.util.Log.d("WeatherActivity", "Live weather from WorldWeather: ${weatherData.temp}°C")
+                    android.util.Log.d("WeatherActivity", "✅ Live weather from WorldWeather: ${weatherData.temp}°C for $currentCity")
                     
                     // نمایش اطلاعات
                     findViewById<android.widget.TextView>(R.id.tempText)?.text = "${weatherData.temp.roundToInt()}°"
