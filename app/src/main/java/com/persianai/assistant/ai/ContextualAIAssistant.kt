@@ -16,7 +16,7 @@ import java.util.*
  */
 class ContextualAIAssistant(private val context: Context) {
     
-    private val aiModelManager = AIModelManager.getInstance(context)
+    private val aiModelManager = AIModelManager(context)
     private val TAG = "ContextualAIAssistant"
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
