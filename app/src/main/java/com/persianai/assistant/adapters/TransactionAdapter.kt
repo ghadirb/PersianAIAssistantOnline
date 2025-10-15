@@ -37,24 +37,29 @@ class TransactionAdapter(
         // آیکون و رنگ بر اساس نوع
         when (transaction.type) {
             TransactionType.INCOME -> {
-                holder.typeIcon.text = "➕"
+                holder.typeIcon.text = "💰"
                 holder.amount.setTextColor(holder.itemView.context.getColor(android.R.color.holo_green_dark))
                 holder.amount.text = "+${formatMoney(transaction.amount)} تومان"
             }
             TransactionType.EXPENSE -> {
-                holder.typeIcon.text = "➖"
+                holder.typeIcon.text = "💸"
                 holder.amount.setTextColor(holder.itemView.context.getColor(android.R.color.holo_red_dark))
                 holder.amount.text = "-${formatMoney(transaction.amount)} تومان"
             }
-            TransactionType.CHECK -> {
+            TransactionType.CHECK_IN -> {
+                holder.typeIcon.text = "📝"
+                holder.amount.setTextColor(holder.itemView.context.getColor(android.R.color.holo_green_light))
+                holder.amount.text = "+${formatMoney(transaction.amount)} تومان"
+            }
+            TransactionType.CHECK_OUT -> {
                 holder.typeIcon.text = "📄"
                 holder.amount.setTextColor(holder.itemView.context.getColor(android.R.color.holo_orange_dark))
-                holder.amount.text = "${formatMoney(transaction.amount)} تومان"
+                holder.amount.text = "-${formatMoney(transaction.amount)} تومان"
             }
             TransactionType.INSTALLMENT -> {
-                holder.typeIcon.text = "📅"
+                holder.typeIcon.text = "📊"
                 holder.amount.setTextColor(holder.itemView.context.getColor(android.R.color.holo_blue_dark))
-                holder.amount.text = "${formatMoney(transaction.amount)} تومان"
+                holder.amount.text = "-${formatMoney(transaction.amount)} تومان"
             }
         }
         
