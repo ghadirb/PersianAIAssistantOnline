@@ -5,6 +5,9 @@ import android.util.Log
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
+import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.models.ChatMessage
+import com.persianai.assistant.models.MessageRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -16,13 +19,112 @@ import java.util.*
 class ContextualAIAssistant(private val context: Context) {
     
     private val TAG = "ContextualAIAssistant"
+    private val prefsManager = PreferencesManager(context)
+    
+    private fun getAIClient(): AIClient? {
+        return try {
+            val apiKeys = prefsManager.getApiKeys()
+            if (apiKeys.isNotEmpty()) {
+                AIClient(apiKeys)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create AIClient", e)
+            null
+        }
+    }
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
-        return@withContext extractAccountingCommandManually(userMessage, db)
+        // اگر API Key موجود است، از مدل AI استفاده کن
+        val aiClient = getAIClient()
+        if (aiClient != null && prefsManager.hasValidApiKey()) {
+            try {
+                val balance = db.getBalance()
+                val monthlyExpenses = db.getMonthlyExpenses()
+                val monthlyIncome = db.getMonthlyIncome()
+                
+                val systemPrompt = """
+                    شما یک دستیار مالی هوشمند هستید. وظیفه شما کمک به کاربر در مدیریت مالی است.
+                    
+                    اطلاعات فعلی کاربر:
+                    - موجودی: ${formatMoney(balance)} تومان
+                    - هزینه‌های ماه جاری: ${formatMoney(monthlyExpenses)} تومان
+                    - درآمد ماه جاری: ${formatMoney(monthlyIncome)} تومان
+                    
+                    دستورات قابل انجام:
+                    1. ثبت درآمد: "درآمد 500000 تومان ثبت کن"
+                    2. ثبت هزینه: "هزینه 200000 تومان برای خرید"
+                    3. نمایش موجودی: "موجودی من چقدر است؟"
+                    
+                    پاسخ را به صورت JSON بده:
+                    {
+                      "action": "add_transaction" یا "show_balance" یا "chat",
+                      "transaction_type": "INCOME" یا "EXPENSE",
+                      "amount": مبلغ به عدد,
+                      "description": "توضیحات",
+                      "response": "پاسخ فارسی به کاربر"
+                    }
+                """.trimIndent()
+                
+                // استفاده از مدل پیش‌فرض
+                val model = prefsManager.getSelectedModel()
+                val messages = listOf(ChatMessage(MessageRole.USER, userMessage, System.currentTimeMillis()))
+                val aiResponse = aiClient.sendMessage(model, messages, systemPrompt)
+                Log.d(TAG, "AI Response: ${aiResponse.content}")
+                
+                return@withContext parseAccountingResponse(aiResponse.content, db, userMessage)
+            } catch (e: Exception) {
+                Log.e(TAG, "AI processing failed, falling back to manual", e)
+                return@withContext extractAccountingCommandManually(userMessage, db)
+            }
+        } else {
+            // Fallback به manual extraction
+            return@withContext extractAccountingCommandManually(userMessage, db)
+        }
     }
     
     suspend fun processReminderCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
-        return@withContext extractReminderCommandManually(userMessage)
+        // اگر API Key موجود است، از مدل AI استفاده کن
+        val aiClient = getAIClient()
+        if (aiClient != null && prefsManager.hasValidApiKey()) {
+            try {
+                val systemPrompt = """
+                    شما یک دستیار یادآوری هوشمند هستید. وظیفه شما کمک به کاربر در مدیریت یادآوری‌ها است.
+                    
+                    دستورات قابل انجام:
+                    1. افزودن یادآوری: "یادآوری ساعت 9 صبح برای جلسه"
+                    2. نمایش یادآوری‌ها: "یادآوری‌های من چیست?"
+                    
+                    پاسخ را به صورت JSON بده:
+                    {
+                      "action": "add_reminder" یا "show_reminders" یا "chat",
+                      "time": "09:00" (فرمت 24 ساعته),
+                      "message": "متن یادآوری",
+                      "response": "پاسخ فارسی به کاربر"
+                    }
+                    
+                    برای تبدیل زمان:
+                    - صبح: 6-11
+                    - ظهر: 12-13
+                    - عصر: 14-18
+                    - شب: 19-23
+                """.trimIndent()
+                
+                // استفاده از مدل پیش‌فرض
+                val model = prefsManager.getSelectedModel()
+                val messages = listOf(ChatMessage(MessageRole.USER, userMessage, System.currentTimeMillis()))
+                val aiResponse = aiClient.sendMessage(model, messages, systemPrompt)
+                Log.d(TAG, "AI Response: ${aiResponse.content}")
+                
+                return@withContext parseReminderResponse(aiResponse.content, userMessage)
+            } catch (e: Exception) {
+                Log.e(TAG, "AI processing failed, falling back to manual", e)
+                return@withContext extractReminderCommandManually(userMessage)
+            }
+        } else {
+            return@withContext extractReminderCommandManually(userMessage)
+        }
     }
     
     suspend fun processMusicCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
