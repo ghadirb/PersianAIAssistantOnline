@@ -103,7 +103,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                         tempMin = forecast.minTemp,
                         tempMax = forecast.maxTemp,
                         description = forecast.description,
-                        icon = forecast.icon  // ذخیره کد آیکون برای تبدیل بعدی
+                        icon = WorldWeatherAPI.getWeatherEmoji(forecast.icon)  // تبدیل به ایموجی
                     )
                 )
             }
