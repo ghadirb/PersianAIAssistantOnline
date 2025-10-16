@@ -16,13 +16,48 @@ import java.util.*
 class ContextualAIAssistant(private val context: Context) {
     
     private val TAG = "ContextualAIAssistant"
+    private val nlp = PersianNLP()
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
-        return@withContext extractAccountingCommandManually(userMessage, db)
+        val cmd = nlp.parse(userMessage)
+        return@withContext when(cmd.type) {
+            PersianNLP.Type.EXPENSE -> {
+                if (cmd.amount != null && cmd.amount > 0) {
+                    val t = Transaction(0, TransactionType.EXPENSE, cmd.amount, "", cmd.text ?: "", System.currentTimeMillis())
+                    db.addTransaction(t)
+                    AIResponse(true, "✅ هزینه ${formatMoney(cmd.amount)} تومان ثبت شد", "add_transaction")
+                } else {
+                    AIResponse(false, "مبلغ نامعتبر است", "error")
+                }
+            }
+            PersianNLP.Type.INCOME -> {
+                if (cmd.amount != null && cmd.amount > 0) {
+                    val t = Transaction(0, TransactionType.INCOME, cmd.amount, "", cmd.text ?: "", System.currentTimeMillis())
+                    db.addTransaction(t)
+                    AIResponse(true, "✅ درآمد ${formatMoney(cmd.amount)} تومان ثبت شد", "add_transaction")
+                } else {
+                    AIResponse(false, "مبلغ نامعتبر است", "error")
+                }
+            }
+            else -> extractAccountingCommandManually(userMessage, db)
+        }
     }
     
     suspend fun processReminderCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
-        return@withContext extractReminderCommandManually(userMessage)
+        val cmd = nlp.parse(userMessage)
+        return@withContext when(cmd.type) {
+            PersianNLP.Type.REMINDER -> {
+                if (cmd.time != null) {
+                    val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+                    prefs.edit().putString("reminder_${System.currentTimeMillis()}", "${cmd.time}|${cmd.text}").apply()
+                    val timeStr = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(cmd.time))
+                    AIResponse(true, "✅ یادآوری ساعت $timeStr ثبت شد", "add_reminder")
+                } else {
+                    AIResponse(false, "زمان نامعتبر است", "error")
+                }
+            }
+            else -> extractReminderCommandManually(userMessage)
+        }
     }
     
     suspend fun processMusicCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
