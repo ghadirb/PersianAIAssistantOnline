@@ -94,11 +94,11 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun showCheckDialog() {
-        // Similar dialog for checks
+        Toast.makeText(this, "قابلیت چک در نسخه بعدی", Toast.LENGTH_SHORT).show()
     }
     
     private fun showInstallmentDialog() {
-        // Dialog for installments
+        Toast.makeText(this, "قابلیت قسط در نسخه بعدی", Toast.LENGTH_SHORT).show()
     }
     
     private fun showAIChat() {

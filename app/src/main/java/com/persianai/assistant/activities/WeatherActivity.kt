@@ -263,22 +263,8 @@ class WeatherActivity : AppCompatActivity() {
                         )
                     }
                 } else {
-                    // Fallback: نمایش دمای فعلی برای 12 ساعت
-                    val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
-                    val currentTemp = prefs.getFloat("current_temp_$currentCity", 20f).toInt()
-                    val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-                    
-                    (0..11).map { i ->
-                        val hour = (currentHour + i) % 24
-                        HourlyWeatherData(
-                            time = String.format("%02d:00", hour),
-                            temp = currentTemp + (-2..2).random(),
-                            icon = when {
-                                hour in 6..17 -> "☀️"
-                                else -> "🌙"
-                            }
-                        )
-                    }
+                    // خطا در دریافت - لیست خالی
+                    emptyList()
                 }
                 
                 // نمایش در RecyclerView

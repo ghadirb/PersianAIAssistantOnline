@@ -272,5 +272,7 @@ data class Reminder(
     val time: String,
     val message: String,
     var completed: Boolean = false,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val repeatType: String = "once", // "once", "daily", "weekly"
+    val repeatDays: List<Int> = emptyList() // 0=یکشنبه, 6=شنبه
 )

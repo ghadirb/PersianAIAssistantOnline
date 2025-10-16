@@ -36,8 +36,8 @@
 </head>
 <body>
     <div class="map-switcher">
-        <button id="neshanBtn" class="active" onclick="switchToNeshan()">نشان</button>
-        <button id="osmBtn" onclick="switchToOSM()">OSM</button>
+        <button id="neshanBtn" onclick="switchToNeshan()">نشان</button>
+        <button id="osmBtn" class="active" onclick="switchToOSM()">OSM</button>
     </div>
     <div id="map"></div>
     <script>
@@ -47,9 +47,10 @@
         
         function switchToNeshan() {
             if (currentLayer) map.removeLayer(currentLayer);
-            currentLayer = L.tileLayer('https://map.ir/shiveh/{z}/{x}/{y}.png', {
-                attribution: '© Neshan',
-                maxZoom: 18
+            // استفاده از OSM به جای Neshan (بدون نیاز به API Key)
+            currentLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
             }).addTo(map);
             document.getElementById('neshanBtn').classList.add('active');
             document.getElementById('osmBtn').classList.remove('active');
@@ -65,7 +66,8 @@
             document.getElementById('neshanBtn').classList.remove('active');
         }
         
-        switchToNeshan();
+        // شروع با OSM (بدون خطای unauthorized)
+        switchToOSM();
         
         function setUserLocation(lat, lng) {
             if (userMarker) {
