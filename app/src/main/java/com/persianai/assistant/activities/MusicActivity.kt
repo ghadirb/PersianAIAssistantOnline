@@ -409,12 +409,16 @@ class MusicActivity : AppCompatActivity() {
             // نمایش کنترل‌های پخش قبل از شروع پخش
             showPlaybackControls(playlist.tracks[0])
             
+            // شروع بروزرسانی SeekBar
+            startSeekBarUpdate()
+            
             // شروع پخش
             exoPlayer?.play()
             
             Toast.makeText(this, "▶️ پخش ${playlist.tracks.size} آهنگ", Toast.LENGTH_SHORT).show()
             
             android.util.Log.d("MusicActivity", "Started playing ${playlist.tracks.size} tracks")
+            android.util.Log.d("MusicActivity", "ExoPlayer state: ${exoPlayer?.playbackState}, isPlaying: ${exoPlayer?.isPlaying}")
             
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error playing music", e)
