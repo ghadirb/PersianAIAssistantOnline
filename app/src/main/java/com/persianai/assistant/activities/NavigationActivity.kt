@@ -11,11 +11,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.*
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.*
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.JavascriptInterface
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityNavigationBinding
 import com.persianai.assistant.navigation.NessanMapsAPI
@@ -32,7 +30,7 @@ import java.util.*
  * مسیریابی فارسی با نقشه و هشدارهای صوتی
  * استفاده از Google Maps + Nessan Maps API + Persian TTS
  */
-class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
+class NavigationActivity : AppCompatActivity() {
     
     companion object {
         private const val LOCATION_PERMISSION_REQUEST = 1001
@@ -41,7 +39,7 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     }
     
     private lateinit var binding: ActivityNavigationBinding
-    private var googleMap: GoogleMap? = null
+    private lateinit var webView: WebView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var aiPoweredTTS: AIPoweredTTS
     private lateinit var speedCameraManager: SpeedCameraManager
@@ -109,9 +107,8 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             // نمایش وضعیت TTS
             android.util.Log.d("Navigation", "TTS Status: ${aiPoweredTTS.getStatus()}")
         
-            // Map disabled - Google Maps API Key required
-            android.util.Log.d("Navigation", "Map disabled - Google Maps API Key needed")
-            Toast.makeText(this, "🗺️ برای استفاده از نقشه، Google Maps API Key مورد نیاز است", Toast.LENGTH_SHORT).show()
+            // Setup Neshan Map WebView
+            setupNeshanMap()
         
         // سرعت‌سنج ابتدا مخفی است
         binding.speedCard.visibility = android.view.View.GONE
@@ -192,7 +189,29 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
     
-    override fun onMapReady(map: GoogleMap) {
+    private fun setupNeshanMap() {
+        webView = binding.mapWebView
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.webViewClient = WebViewClient()
+        
+        // اضافه کردن interface برای ارتباط با JavaScript
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun onMapClick(lat: Double, lng: Double) {
+                runOnUiThread {
+                    Toast.makeText(this@NavigationActivity, "Clicked: $lat, $lng", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }, "Android")
+        
+        // بارگذاری نقشه
+        webView.loadUrl("file:///android_asset/neshan_map.html")
+        
+        android.util.Log.d("Navigation", "Neshan Map loaded")
+    }
+    
+    override fun onMapReady(googleMap: GoogleMap) {
         googleMap = map
         
         if (ActivityCompat.checkSelfPermission(

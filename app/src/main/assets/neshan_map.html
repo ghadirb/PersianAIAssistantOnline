@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neshan Map</title>
+    <link rel="stylesheet" href="https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.css" />
+    <script src="https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { width: 100%; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        var map = new L.Map('map', {
+            key: 'service.649ba7521ba04da595c5ab56413b3c84',
+            maptype: 'neshan',
+            poi: true,
+            traffic: false,
+            center: [35.699739, 51.338097], // تهران
+            zoom: 14
+        });
+
+        var marker = null;
+
+        // دریافت دستورات از Android
+        function setLocation(lat, lng) {
+            map.setView([lat, lng], 15);
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng]).addTo(map);
+            }
+        }
+
+        function addMarker(lat, lng, title) {
+            L.marker([lat, lng]).addTo(map).bindPopup(title);
+        }
+
+        // ارسال موقعیت کلیک به Android
+        map.on('click', function(e) {
+            if (window.Android) {
+                window.Android.onMapClick(e.latlng.lat, e.latlng.lng);
+            }
+        });
+    </script>
+</body>
+</html>

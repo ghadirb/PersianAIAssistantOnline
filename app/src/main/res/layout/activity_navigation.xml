@@ -6,23 +6,11 @@
     android:layout_height="match_parent"
     tools:context=".activities.NavigationActivity">
 
-    <!-- Map Placeholder (Google Maps API Key required) -->
-    <FrameLayout
-        android:id="@+id/mapContainer"
+    <!-- Neshan Map WebView -->
+    <WebView
+        android:id="@+id/mapWebView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#E0E0E0">
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="🗺️ نقشه\n\n(نیاز به Google Maps API Key)"
-            android:textSize="18sp"
-            android:textColor="#666"
-            android:gravity="center"
-            android:padding="32dp" />
-    </FrameLayout>
+        android:layout_height="match_parent" />
 
     <!-- Top Bar -->
     <com.google.android.material.appbar.AppBarLayout
