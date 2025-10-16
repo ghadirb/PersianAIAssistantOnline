@@ -108,6 +108,18 @@ class RemindersActivity : AppCompatActivity() {
         }
     }
     
+    private fun showAddReminderDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_add_reminder, null)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔔 یادآوری جدید")
+            .setView(view)
+            .setPositiveButton("ثبت") { _, _ ->
+                // ذخیره یادآوری
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
@@ -116,6 +128,10 @@ class RemindersActivity : AppCompatActivity() {
     private fun setupAIChatButton() {
         binding.aiChatButton.setOnClickListener {
             showAIChat()
+        }
+        
+        binding.fab?.setOnClickListener {
+            showAddReminderDialog()
         }
     }
     
