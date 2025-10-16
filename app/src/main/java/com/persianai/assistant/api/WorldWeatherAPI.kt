@@ -81,7 +81,7 @@ class WorldWeatherAPI {
                         humidity = currentCondition.getInt("humidity"),
                         windSpeed = currentCondition.getDouble("windspeedKmph"),
                         description = currentCondition.getJSONArray("lang_fa").getJSONObject(0).getString("value"),
-                        icon = getWeatherIconCode(currentCondition.getString("weatherCode")),
+                        icon = currentCondition.getString("weatherCode"),
                         cityName = cityName,
                         uvIndex = currentCondition.optInt("uvIndex", 0),
                         visibility = currentCondition.optInt("visibility", 10)
@@ -127,7 +127,7 @@ class WorldWeatherAPI {
                                 temp = hour.getDouble("tempC"),
                                 feelsLike = hour.getDouble("FeelsLikeC"),
                                 description = hour.getJSONArray("lang_fa").getJSONObject(0).getString("value"),
-                                icon = getWeatherIconCode(hour.getString("weatherCode")),
+                                icon = hour.getString("weatherCode"),
                                 chanceOfRain = hour.optInt("chanceofrain", 0)
                             ))
                         }
@@ -149,7 +149,7 @@ class WorldWeatherAPI {
                             minTemp = day.getDouble("mintempC"),
                             avgTemp = day.getDouble("avgtempC"),
                             description = middayForecast?.description ?: "",
-                            icon = middayForecast?.icon ?: "01d",
+                            icon = middayForecast?.icon ?: "113",
                             hourly = hourlyForecasts
                         ))
                     }
