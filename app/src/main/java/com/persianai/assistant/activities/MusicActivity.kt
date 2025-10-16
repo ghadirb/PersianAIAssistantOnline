@@ -41,11 +41,11 @@ class MusicActivity : AppCompatActivity() {
     private lateinit var aiAssistant: ContextualAIAssistant
     private var selectedMood: String = ""
     private var selectedPlayerPackage: String? = null
-    private var mediaPlayer: MediaPlayer? = null
+    private var exoPlayer: ExoPlayer? = null
     private var currentPlaylist: MusicPlaylistManager.Playlist? = null
     private var currentTrackIndex = 0
     private var isShuffleEnabled = false
-    private var repeatMode = 0 // 0=OFF, 1=ONE, 2=ALL
+    private var repeatMode = Player.REPEAT_MODE_OFF // OFF, ONE, ALL
     private val seekBarHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var isUserSeeking = false
     
@@ -66,15 +66,15 @@ class MusicActivity : AppCompatActivity() {
             musicManager = MusicPlaylistManager(this)
             aiAssistant = ContextualAIAssistant(this)
             
-            // Initialize MediaPlayer
-            mediaPlayer = MediaPlayer().apply {
-                setAudioAttributes(
-                    android.media.AudioAttributes.Builder()
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                setVolume(1.0f, 1.0f)
+            // Initialize ExoPlayer with Audio Attributes
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
+            
+            exoPlayer = ExoPlayer.Builder(this).build().apply {
+                setAudioAttributes(audioAttributes, true)
+                volume = 1f // حداکثر صدا
             }
             
             setupUI()
