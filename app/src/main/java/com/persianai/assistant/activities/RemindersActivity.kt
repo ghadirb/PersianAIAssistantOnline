@@ -109,12 +109,23 @@ class RemindersActivity : AppCompatActivity() {
     }
     
     private fun showAddReminderDialog() {
-        val view = layoutInflater.inflate(R.layout.dialog_add_reminder, null)
+        val input = EditText(this)
+        input.hint = "پیام یادآوری"
+        input.setPadding(32, 32, 32, 32)
+        
         MaterialAlertDialogBuilder(this)
             .setTitle("🔔 یادآوری جدید")
-            .setView(view)
+            .setView(input)
             .setPositiveButton("ثبت") { _, _ ->
-                // ذخیره یادآوری
+                val message = input.text.toString()
+                if (message.isNotEmpty()) {
+                    val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                    reminders.add(Reminder(time, message))
+                    saveReminders()
+                    adapter.notifyDataSetChanged()
+                    updateEmptyState()
+                    Toast.makeText(this, "✅ یادآوری ثبت شد", Toast.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton("لغو", null)
             .show()
@@ -128,10 +139,6 @@ class RemindersActivity : AppCompatActivity() {
     private fun setupAIChatButton() {
         binding.aiChatButton.setOnClickListener {
             showAIChat()
-        }
-        
-        binding.fab?.setOnClickListener {
-            showAddReminderDialog()
         }
     }
     
