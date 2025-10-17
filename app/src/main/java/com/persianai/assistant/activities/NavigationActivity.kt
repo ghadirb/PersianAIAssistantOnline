@@ -16,6 +16,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityNavigationBinding
 import com.persianai.assistant.navigation.SavedLocationsManager
 import com.google.android.gms.maps.model.LatLng
+import com.persianai.assistant.ml.LocationHistoryManager
+import com.persianai.assistant.ml.RoutePredictor
+import com.persianai.assistant.utils.NeshanSearchAPI
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class NavigationActivity : AppCompatActivity() {
     
@@ -23,6 +28,9 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var savedLocationsManager: SavedLocationsManager
+    private lateinit var locationHistoryManager: LocationHistoryManager
+    private lateinit var routePredictor: RoutePredictor
+    private lateinit var searchAPI: NeshanSearchAPI
     private var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
     
@@ -32,6 +40,9 @@ class NavigationActivity : AppCompatActivity() {
                 currentLocation = loc
                 webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
                 binding.currentSpeedText.text = "${(loc.speed * 3.6f).toInt()} km/h"
+                
+                // ثبت مکان برای یادگیری
+                locationHistoryManager.recordLocation(loc)
             }
         }
     }
@@ -47,6 +58,9 @@ class NavigationActivity : AppCompatActivity() {
         
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         savedLocationsManager = SavedLocationsManager(this)
+        locationHistoryManager = LocationHistoryManager(this)
+        routePredictor = RoutePredictor(this)
+        searchAPI = NeshanSearchAPI(this)
         
         webView = binding.mapWebView
         webView.settings.javaScriptEnabled = true
@@ -66,16 +80,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.searchDestinationButton.setOnClickListener {
-            val input = EditText(this)
-            input.hint = "نام مقصد"
-            MaterialAlertDialogBuilder(this)
-                .setTitle("🔍 جستجوی مقصد")
-                .setView(input)
-                .setPositiveButton("جستجو") { _, _ ->
-                    Toast.makeText(this, "جستجو: ${input.text}", Toast.LENGTH_SHORT).show()
-                }
-                .setNegativeButton("لغو", null)
-                .show()
+            showAdvancedSearchDialog()
         }
         
         binding.savedLocationsButton.setOnClickListener {
@@ -212,6 +217,108 @@ class NavigationActivity : AppCompatActivity() {
             "work" -> "💼"
             else -> "⭐"
         }
+    }
+    
+    private fun showAdvancedSearchDialog() {
+        val view = layoutInflater.inflate(android.R.layout.simple_list_item_2, null)
+        val searchInput = EditText(this).apply {
+            hint = "جستجوی مقصد..."
+            setPadding(32, 32, 32, 16)
+        }
+        
+        val cityInput = EditText(this).apply {
+            hint = "شهر (پیش‌فرض: تهران)"
+            setPadding(32, 16, 32, 32)
+        }
+        
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(searchInput)
+            addView(cityInput)
+        }
+        
+        // پیشنهادات ML
+        currentLocation?.let { loc ->
+            val predictions = routePredictor.predictNextDestination(loc)
+            if (predictions.isNotEmpty()) {
+                val suggestionsText = android.widget.TextView(this).apply {
+                    text = "💡 پیشنهادات هوشمند:"
+                    setPadding(32, 16, 32, 8)
+                    setTextColor(0xFF9C27B0.toInt())
+                    textSize = 14f
+                }
+                layout.addView(suggestionsText)
+                
+                predictions.take(2).forEach { prediction ->
+                    val btn = com.google.android.material.button.MaterialButton(this).apply {
+                        text = prediction.reason
+                        setOnClickListener {
+                            selectedDestination = prediction.location
+                            webView.evaluateJavascript("addMarker(${prediction.location.latitude}, ${prediction.location.longitude}, 'پیشنهاد ML');", null)
+                            Toast.makeText(this@NavigationActivity, "📍 مقصد انتخاب شد", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    layout.addView(btn)
+                }
+            }
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔍 جستجوی مقصد")
+            .setView(layout)
+            .setPositiveButton("جستجو") { _, _ ->
+                val query = searchInput.text.toString()
+                val city = cityInput.text.toString().ifEmpty { "تهران" }
+                
+                if (query.isNotEmpty()) {
+                    performSearch(query, city)
+                } else {
+                    Toast.makeText(this, "⚠️ لطفاً مقصد را وارد کنید", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
+    private fun performSearch(query: String, city: String) {
+        binding.progressBar.visibility = View.VISIBLE
+        
+        lifecycleScope.launch {
+            try {
+                val results = searchAPI.search(query, city)
+                
+                runOnUiThread {
+                    binding.progressBar.visibility = View.GONE
+                    
+                    if (results.isEmpty()) {
+                        Toast.makeText(this@NavigationActivity, "❌ نتیجه‌ای یافت نشد", Toast.LENGTH_SHORT).show()
+                        return@runOnUiThread
+                    }
+                    
+                    showSearchResults(results)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this@NavigationActivity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
+    private fun showSearchResults(results: List<NeshanSearchAPI.SearchResult>) {
+        val items = results.map { "📍 ${it.title}\n${it.address}" }.toTypedArray()
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔍 نتایج جستجو (${results.size})")
+            .setItems(items) { _, which ->
+                val result = results[which]
+                selectedDestination = LatLng(result.latitude, result.longitude)
+                webView.evaluateJavascript("addMarker(${result.latitude}, ${result.longitude}, '${result.title}');", null)
+                Toast.makeText(this, "✅ ${result.title}", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
     }
     
     private fun checkPermissions() {
