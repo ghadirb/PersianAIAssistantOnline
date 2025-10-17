@@ -65,7 +65,38 @@ class ContextualAIAssistant(private val context: Context) {
     }
     
     suspend fun processNavigationCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
-        return@withContext extractNavigationCommandManually(userMessage)
+        val cmd = nlp.parse(userMessage)
+        
+        return@withContext when {
+            userMessage.contains("پمپ بنزین") || userMessage.contains("بنزین") -> {
+                AIResponse(true, "🔍 در حال جستجوی پمپ بنزین‌های نزدیک...", "search_poi", mapOf("type" to "gas_station"))
+            }
+            userMessage.contains("رستوران") || userMessage.contains("غذا") -> {
+                AIResponse(true, "🔍 در حال جستجوی رستوران‌های نزدیک...", "search_poi", mapOf("type" to "restaurant"))
+            }
+            userMessage.contains("بیمارستان") || userMessage.contains("درمانگاه") -> {
+                AIResponse(true, "🔍 در حال جستجوی بیمارستان‌های نزدیک...", "search_poi", mapOf("type" to "hospital"))
+            }
+            userMessage.contains("خانه") || userMessage.contains("منزل") -> {
+                AIResponse(true, "🏠 مسیر به خانه محاسبه می‌شود", "navigate_home")
+            }
+            userMessage.contains("کار") || userMessage.contains("محل کار") -> {
+                AIResponse(true, "💼 مسیر به محل کار محاسبه می‌شود", "navigate_work")
+            }
+            userMessage.contains("ذخیره") || userMessage.contains("save") -> {
+                AIResponse(true, "💾 مکان فعلی ذخیره می‌شود", "save_location")
+            }
+            userMessage.contains("ترافیک") || userMessage.contains("traffic") -> {
+                AIResponse(true, "🚦 اطلاعات ترافیک در حال بارگذاری...", "show_traffic")
+            }
+            userMessage.contains("دوربین") || userMessage.contains("سرعت") -> {
+                AIResponse(true, "📷 دوربین‌های سرعت در حال نمایش...", "show_cameras")
+            }
+            userMessage.contains("مسیر") || userMessage.contains("route") -> {
+                AIResponse(true, "🛣️ پیشنهاد مسیرهای مختلف...", "suggest_routes")
+            }
+            else -> extractNavigationCommandManually(userMessage)
+        }
     }
     
     private suspend fun parseAccountingResponse(aiResponse: String, db: AccountingDB, userMessage: String): AIResponse {
