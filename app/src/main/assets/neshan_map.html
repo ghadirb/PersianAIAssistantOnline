@@ -53,6 +53,8 @@
         var map = L.map('map').setView([35.699739, 51.338097], 14);
         var currentLayer;
         var userMarker = null;
+        var selectedMarker = null;
+        var poiMarkers = [];
         
         function switchToNeshan() {
             if (currentLayer) map.removeLayer(currentLayer);

@@ -1,6 +1,8 @@
 package com.persianai.assistant.activities
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -19,6 +21,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.ml.LocationHistoryManager
 import com.persianai.assistant.ml.RoutePredictor
 import com.persianai.assistant.utils.NeshanSearchAPI
+import com.persianai.assistant.ai.ContextualAIAssistant
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
@@ -31,6 +34,7 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var locationHistoryManager: LocationHistoryManager
     private lateinit var routePredictor: RoutePredictor
     private lateinit var searchAPI: NeshanSearchAPI
+    private lateinit var aiAssistant: ContextualAIAssistant
     private var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
     
@@ -61,6 +65,7 @@ class NavigationActivity : AppCompatActivity() {
         locationHistoryManager = LocationHistoryManager(this)
         routePredictor = RoutePredictor(this)
         searchAPI = NeshanSearchAPI(this)
+        aiAssistant = ContextualAIAssistant(this)
         
         webView = binding.mapWebView
         webView.settings.javaScriptEnabled = true
@@ -80,7 +85,8 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.searchDestinationButton.setOnClickListener {
-            showAdvancedSearchDialog()
+            val intent = Intent(this, SearchDestinationActivity::class.java)
+            startActivityForResult(intent, 1001)
         }
         
         binding.savedLocationsButton.setOnClickListener {
@@ -120,7 +126,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.aiChatFab.setOnClickListener {
-            Toast.makeText(this, "💬 چت AI", Toast.LENGTH_SHORT).show()
+            showAIChat()
         }
     }
     
@@ -321,6 +327,40 @@ class NavigationActivity : AppCompatActivity() {
             .show()
     }
     
+    private fun showAIChat() {
+        val input = EditText(this).apply {
+            hint = "دستور خود را بنویسید..."
+            setPadding(32, 32, 32, 32)
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🤖 دستیار مسیریابی")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userMessage = input.text.toString()
+                if (userMessage.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            val response = aiAssistant.processNavigationCommand(userMessage)
+                            runOnUiThread {
+                                MaterialAlertDialogBuilder(this@NavigationActivity)
+                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ پاسخ")
+                                    .setMessage(response.message)
+                                    .setPositiveButton("باشه", null)
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@NavigationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
     private fun checkPermissions() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
             != PackageManager.PERMISSION_GRANTED) {
@@ -339,6 +379,21 @@ class NavigationActivity : AppCompatActivity() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
             == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.requestLocationUpdates(request, locationCallback, mainLooper)
+        }
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1001 && resultCode == Activity.RESULT_OK && data != null) {
+            val lat = data.getDoubleExtra("latitude", 0.0)
+            val lng = data.getDoubleExtra("longitude", 0.0)
+            val title = data.getStringExtra("title") ?: "مقصد"
+            
+            if (lat != 0.0 && lng != 0.0) {
+                selectedDestination = LatLng(lat, lng)
+                webView.evaluateJavascript("addMarker($lat, $lng, '$title');", null)
+                Toast.makeText(this, "✅ $title", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
