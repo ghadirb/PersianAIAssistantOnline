@@ -53,7 +53,7 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
-        binding.weatherCard?.alpha = 0f
+        binding.weatherCard?.visibility = android.view.View.GONE
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
@@ -124,6 +124,7 @@ class DashboardActivity : AppCompatActivity() {
                 it.postDelayed({
                     try {
                         val intent = Intent(this, WeatherActivity::class.java)
+                        binding.weatherCard.visibility = View.GONE
                         startActivity(intent)
                         overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                     } catch (e: Exception) {
