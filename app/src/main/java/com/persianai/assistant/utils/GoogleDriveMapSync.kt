@@ -14,9 +14,13 @@ import java.util.*
 
 class GoogleDriveMapSync(private val context: Context) {
     
-    // لینک عمومی Google Drive (فقط خواندن)
-    private val DRIVE_FILE_ID = "YOUR_GOOGLE_DRIVE_FILE_ID"
-    private val DRIVE_DOWNLOAD_URL = "https://drive.google.com/uc?export=download&id=$DRIVE_FILE_ID"
+    // لینک عمومی Google Drive (با قابلیت ویرایش)
+    private val DRIVE_FOLDER_ID = "1bp1Ay9kmK_bjWq_PznRfkPvhhjdhSye1"
+    private val DRIVE_FILE_NAME = "map_corrections.json"
+    
+    // API endpoint برای آپلود/دانلود
+    private val DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
+    private val DRIVE_DOWNLOAD_URL = "https://www.googleapis.com/drive/v3/files"
     
     private val prefs = context.getSharedPreferences("map_corrections", Context.MODE_PRIVATE)
     

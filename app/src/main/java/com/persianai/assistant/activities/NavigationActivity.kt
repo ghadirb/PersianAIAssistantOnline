@@ -20,6 +20,7 @@ import com.persianai.assistant.navigation.SavedLocationsManager
 import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.ml.LocationHistoryManager
 import com.persianai.assistant.ml.RoutePredictor
+import com.persianai.assistant.ml.RouteLearningSys
 import com.persianai.assistant.utils.NeshanSearchAPI
 import com.persianai.assistant.ai.ContextualAIAssistant
 import androidx.lifecycle.lifecycleScope
@@ -33,10 +34,13 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var savedLocationsManager: SavedLocationsManager
     private lateinit var locationHistoryManager: LocationHistoryManager
     private lateinit var routePredictor: RoutePredictor
+    private lateinit var routeLearningSys: RouteLearningSys
     private lateinit var searchAPI: NeshanSearchAPI
     private lateinit var aiAssistant: ContextualAIAssistant
     private var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
+    private val routeWaypoints = mutableListOf<LatLng>()
+    private var routeStartTime: Long = 0
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -64,6 +68,7 @@ class NavigationActivity : AppCompatActivity() {
         savedLocationsManager = SavedLocationsManager(this)
         locationHistoryManager = LocationHistoryManager(this)
         routePredictor = RoutePredictor(this)
+        routeLearningSys = RouteLearningSys(this)
         searchAPI = NeshanSearchAPI(this)
         aiAssistant = ContextualAIAssistant(this)
         
@@ -110,15 +115,11 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.startNavigationButton.setOnClickListener {
-            binding.speedCard.visibility = View.VISIBLE
-            binding.routeInfoCard.visibility = View.VISIBLE
-            Toast.makeText(this, "▶️ مسیریابی شروع شد", Toast.LENGTH_SHORT).show()
+            startNavigation()
         }
         
         binding.stopNavigationButton.setOnClickListener {
-            binding.speedCard.visibility = View.GONE
-            binding.routeInfoCard.visibility = View.GONE
-            Toast.makeText(this, "⏹️ مسیریابی متوقف شد", Toast.LENGTH_SHORT).show()
+            stopNavigation()
         }
         
         binding.addWaypointButton.setOnClickListener {
@@ -395,6 +396,17 @@ class NavigationActivity : AppCompatActivity() {
                 Toast.makeText(this, "✅ $title", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+    
+    private fun startNavigation() {
+        routeStartTime = System.currentTimeMillis()
+        binding.speedCard.visibility = View.VISIBLE
+        binding.routeInfoCard.visibility = View.VISIBLE
+    }
+    
+    private fun stopNavigation() {
+        binding.speedCard.visibility = View.GONE
+        binding.routeInfoCard.visibility = View.GONE
     }
     
     override fun onDestroy() {

@@ -54,12 +54,12 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
-        binding.weatherCard?.visibility = android.view.View.GONE
+        // نمایش مسیریاب به جای آب و هوا
+        binding.navigationCard?.alpha = 0f
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
         binding.remindersCard?.alpha = 0f
-        binding.navigationCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
     }
     
@@ -346,20 +346,19 @@ class DashboardActivity : AppCompatActivity() {
         // Staggered fade in animation for cards
         val cards = listOfNotNull(
             binding.calendarCard,
-            binding.weatherCard,
+            binding.navigationCard,
             binding.aiChatCard,
             binding.musicCard,
             binding.expensesCard,
             binding.remindersCard,
-            binding.navigationCard,
             binding.aboutCard
         )
         
         AnimationHelper.animateListItems(cards, delayBetween = 100)
         
-        // Add pulse animation to weather card to draw attention
-        binding.weatherCard?.postDelayed({
-            AnimationHelper.pulseAnimation(binding.weatherCard!!, scaleFactor = 1.05f, duration = 2000)
+        // Add pulse animation to navigation card to draw attention
+        binding.navigationCard?.postDelayed({
+            AnimationHelper.pulseAnimation(binding.navigationCard!!, scaleFactor = 1.05f, duration = 2000)
         }, 1000)
     }
 }

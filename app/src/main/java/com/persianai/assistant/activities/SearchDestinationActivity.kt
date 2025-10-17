@@ -30,9 +30,6 @@ class SearchDestinationActivity : AppCompatActivity() {
         binding = ActivitySearchDestinationBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "🔍 جستجوی مقصد"
         
         searchAPI = NeshanSearchAPI(this)
         
@@ -53,20 +50,14 @@ class SearchDestinationActivity : AppCompatActivity() {
                 val query = s.toString()
                 if (query.length >= 2) {
                     performSearch(query)
+                } else {
+                    results.clear()
+                    adapter.notifyDataSetChanged()
                 }
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
-        
-        binding.showOnMapButton.setOnClickListener {
-            if (results.isNotEmpty()) {
-                val intent = Intent()
-                intent.putExtra("show_all", true)
-                setResult(Activity.RESULT_OK, intent)
-                finish()
-            }
-        }
     }
     
     private fun setupRecyclerView() {
@@ -109,19 +100,19 @@ class SearchResultsAdapter(
 ) : androidx.recyclerview.widget.RecyclerView.Adapter<SearchResultsAdapter.ViewHolder>() {
     
     class ViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-        val titleText: android.widget.TextView = view.findViewById(android.R.id.text1)
-        val addressText: android.widget.TextView = view.findViewById(android.R.id.text2)
+        val titleText: android.widget.TextView = view.findViewById(com.persianai.assistant.R.id.titleText)
+        val addressText: android.widget.TextView = view.findViewById(com.persianai.assistant.R.id.addressText)
     }
     
     override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
         val view = android.view.LayoutInflater.from(parent.context)
-            .inflate(android.R.layout.simple_list_item_2, parent, false)
+            .inflate(com.persianai.assistant.R.layout.item_search_result, parent, false)
         return ViewHolder(view)
     }
     
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val result = results[position]
-        holder.titleText.text = "📍 ${result.title}"
+        holder.titleText.text = result.title
         holder.addressText.text = result.address
         holder.itemView.setOnClickListener { onItemClick(result) }
     }
