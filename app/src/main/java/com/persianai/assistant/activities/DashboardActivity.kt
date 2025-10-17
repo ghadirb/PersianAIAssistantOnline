@@ -16,6 +16,7 @@ import com.persianai.assistant.utils.AnimationHelper
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.AppRatingHelper
+import android.view.View
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
