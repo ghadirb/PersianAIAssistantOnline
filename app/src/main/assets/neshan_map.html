@@ -18,6 +18,7 @@
             padding: 8px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            display: none; /* مخفی کردن دکمه‌های تعویض نقشه */
         }
         .map-switcher button {
             margin: 3px;
@@ -31,6 +32,14 @@
         .map-switcher button.active {
             background: #4CAF50;
             color: white;
+        }
+        /* دکمه‌های zoom زیر toolbar */
+        .leaflet-control-zoom {
+            margin-top: 70px !important;
+        }
+        .leaflet-top.leaflet-left {
+            top: 0;
+            left: 10px;
         }
     </style>
 </head>
