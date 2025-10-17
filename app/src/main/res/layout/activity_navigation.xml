@@ -260,39 +260,5 @@
         app:backgroundTint="#9C27B0"
         app:tint="@android:color/white" />
 
-    <!-- Map Type Info -->
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="80dp"
-        android:layout_marginEnd="16dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="6dp"
-        app:cardBackgroundColor="#EF5350">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="12dp"
-            android:gravity="center">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🗺️"
-                android:textSize="20sp"
-                android:layout_marginEnd="8dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="نقشه نشان"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -98,6 +98,13 @@
                 window.Android.onMapClick(e.latlng.lat, e.latlng.lng);
             }
         });
+        
+        function addMarker(lat, lng, name) {
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup(name)
+                .openPopup();
+            map.setView([lat, lng], 15);
+        }
     </script>
 </body>
 </html>

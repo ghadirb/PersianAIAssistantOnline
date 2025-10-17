@@ -27,6 +27,12 @@ class WeatherActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // آب و هوا موقتاً غیرفعال است
+        Toast.makeText(this, "⚠️ آب و هوا موقتاً غیرفعال است", Toast.LENGTH_LONG).show()
+        finish()
+        return
+        
         // استفاده از layout نهایی یکسان با داشبورد
         setContentView(R.layout.activity_weather_final)
         

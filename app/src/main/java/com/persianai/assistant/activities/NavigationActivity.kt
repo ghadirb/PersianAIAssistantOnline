@@ -14,13 +14,17 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityNavigationBinding
+import com.persianai.assistant.navigation.SavedLocationsManager
+import com.google.android.gms.maps.model.LatLng
 
 class NavigationActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityNavigationBinding
     private lateinit var webView: WebView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var savedLocationsManager: SavedLocationsManager
     private var currentLocation: Location? = null
+    private var selectedDestination: LatLng? = null
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -42,6 +46,7 @@ class NavigationActivity : AppCompatActivity() {
         supportActionBar?.title = "🗺️ مسیریاب"
         
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        savedLocationsManager = SavedLocationsManager(this)
         
         webView = binding.mapWebView
         webView.settings.javaScriptEnabled = true
@@ -74,7 +79,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.savedLocationsButton.setOnClickListener {
-            Toast.makeText(this, "💾 مکان‌های ذخیره شده", Toast.LENGTH_SHORT).show()
+            showSavedLocations()
         }
         
         binding.poiButton.setOnClickListener {
@@ -88,9 +93,9 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.saveCurrentLocationButton.setOnClickListener {
-            currentLocation?.let {
-                Toast.makeText(this, "⭐ مکان ذخیره شد", Toast.LENGTH_SHORT).show()
-            }
+            currentLocation?.let { loc ->
+                showSaveLocationDialog(LatLng(loc.latitude, loc.longitude))
+            } ?: Toast.makeText(this, "⚠️ در حال دریافت موقعیت...", Toast.LENGTH_SHORT).show()
         }
         
         binding.startNavigationButton.setOnClickListener {
@@ -118,8 +123,94 @@ class NavigationActivity : AppCompatActivity() {
         @JavascriptInterface
         fun onMapClick(lat: Double, lng: Double) {
             runOnUiThread {
-                Toast.makeText(this@NavigationActivity, "📍 $lat, $lng", Toast.LENGTH_SHORT).show()
+                showSaveLocationDialog(LatLng(lat, lng))
             }
+        }
+    }
+    
+    private fun showSavedLocations() {
+        val locations = savedLocationsManager.getAllLocations()
+        if (locations.isEmpty()) {
+            Toast.makeText(this, "💾 هیچ مکانی ذخیره نشده", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val items = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("💾 مکان‌های ذخیره شده")
+            .setItems(items) { _, which ->
+                val location = locations[which]
+                selectedDestination = LatLng(location.latitude, location.longitude)
+                webView.evaluateJavascript("addMarker(${location.latitude}, ${location.longitude}, '${location.name}');", null)
+                Toast.makeText(this, "📍 ${location.name}", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("مدیریت") { _, _ ->
+                showManageLocationsDialog()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun showManageLocationsDialog() {
+        val locations = savedLocationsManager.getAllLocations()
+        val items = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🗑️ مدیریت مکان‌ها")
+            .setItems(items) { _, which ->
+                val location = locations[which]
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("حذف ${location.name}؟")
+                    .setMessage("آیا مطمئن هستید؟")
+                    .setPositiveButton("حذف") { _, _ ->
+                        savedLocationsManager.deleteLocation(location.id)
+                        Toast.makeText(this, "✅ حذف شد", Toast.LENGTH_SHORT).show()
+                        showManageLocationsDialog()
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun showSaveLocationDialog(latLng: LatLng) {
+        val input = EditText(this)
+        input.hint = "نام مکان"
+        
+        val categories = arrayOf("🏠 خانه", "💼 محل کار", "⭐ علاقه‌مندی")
+        var selectedCategory = "favorite"
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("⭐ ذخیره مکان")
+            .setMessage("📍 ${String.format("%.6f", latLng.latitude)}, ${String.format("%.6f", latLng.longitude)}")
+            .setView(input)
+            .setSingleChoiceItems(categories, 2) { _, which ->
+                selectedCategory = when (which) {
+                    0 -> "home"
+                    1 -> "work"
+                    else -> "favorite"
+                }
+            }
+            .setPositiveButton("ذخیره") { _, _ ->
+                val name = input.text.toString().ifEmpty { "مکان ${System.currentTimeMillis()}" }
+                val address = "${String.format("%.6f", latLng.latitude)}, ${String.format("%.6f", latLng.longitude)}"
+                
+                if (savedLocationsManager.saveLocation(name, address, latLng, selectedCategory)) {
+                    Toast.makeText(this, "✅ ذخیره شد: $name", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "❌ خطا در ذخیره", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
+    private fun getCategoryEmoji(category: String): String {
+        return when (category) {
+            "home" -> "🏠"
+            "work" -> "💼"
+            else -> "⭐"
         }
     }
     
