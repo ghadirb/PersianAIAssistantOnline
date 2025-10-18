@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.webkit.WebView
 import android.webkit.JavascriptInterface
@@ -23,8 +24,17 @@ import com.persianai.assistant.ml.RoutePredictor
 import com.persianai.assistant.ml.RouteLearningSys
 import com.persianai.assistant.utils.NeshanSearchAPI
 import com.persianai.assistant.ai.ContextualAIAssistant
+import com.persianai.assistant.navigation.AdvancedNavigationSystem
+import com.persianai.assistant.navigation.models.*
+import com.persianai.assistant.navigation.sync.GoogleDriveSync
+import com.persianai.assistant.navigation.learning.RouteLearningSystem
+import com.persianai.assistant.navigation.detectors.SpeedCameraDetector
+import com.persianai.assistant.navigation.analyzers.TrafficAnalyzer
+import com.persianai.assistant.navigation.analyzers.RoadConditionAnalyzer
+import com.persianai.assistant.navigation.ai.AIRoutePredictor
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import org.osmdroid.util.GeoPoint
 
 class NavigationActivity : AppCompatActivity() {
     
@@ -37,12 +47,24 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var routeLearningSys: RouteLearningSys
     private lateinit var searchAPI: NeshanSearchAPI
     private lateinit var aiAssistant: ContextualAIAssistant
+    
+    // سیستم مسیریاب پیشرفته
+    private lateinit var navigationSystem: AdvancedNavigationSystem
+    private lateinit var googleDriveSync: GoogleDriveSync
+    private lateinit var routeLearningSystem: RouteLearningSystem
+    private lateinit var speedCameraDetector: SpeedCameraDetector
+    private lateinit var trafficAnalyzer: TrafficAnalyzer
+    private lateinit var roadConditionAnalyzer: RoadConditionAnalyzer
+    private lateinit var aiRoutePredictor: AIRoutePredictor
+    
     private var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
+    private var currentNavigationRoute: NavigationRoute? = null
     private val routeWaypoints = mutableListOf<LatLng>()
     private var routeStartTime: Long = 0
     private var isTrafficEnabled = false
     private var currentMapLayer = "normal"
+    private var isNavigationActive = false
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -53,6 +75,29 @@ class NavigationActivity : AppCompatActivity() {
                 
                 // ثبت مکان برای یادگیری
                 locationHistoryManager.recordLocation(loc)
+                
+                // اگر در حال مسیریابی هستیم، هشدارها را بررسی کن
+                if (isNavigationActive) {
+                    checkAlerts(loc)
+                }
+            }
+        }
+    }
+    
+    private fun checkAlerts(location: Location) {
+        lifecycleScope.launch {
+            try {
+                // بررسی هشدار سرعت‌گیرها و دوربین‌ها
+                speedCameraDetector.checkLocation(GeoPoint(location.latitude, location.longitude))
+                
+                // بررسی هشدار ترافیک
+                trafficAnalyzer.checkLocation(GeoPoint(location.latitude, location.longitude))
+                
+                // بررسی وضعیت جاده
+                roadConditionAnalyzer.checkLocation(GeoPoint(location.latitude, location.longitude))
+                
+            } catch (e: Exception) {
+                Log.e("NavigationActivity", "Error checking alerts", e)
             }
         }
     }
@@ -75,6 +120,23 @@ class NavigationActivity : AppCompatActivity() {
             searchAPI = NeshanSearchAPI(this)
             aiAssistant = ContextualAIAssistant(this)
             
+            // مقداردهی سیستم مسیریاب پیشرفته
+            navigationSystem = AdvancedNavigationSystem(this)
+            googleDriveSync = GoogleDriveSync(this)
+            routeLearningSystem = RouteLearningSystem(this)
+            speedCameraDetector = SpeedCameraDetector(this)
+            trafficAnalyzer = TrafficAnalyzer(this)
+            roadConditionAnalyzer = RoadConditionAnalyzer(this)
+            aiRoutePredictor = AIRoutePredictor(this)
+            
+            // تنظیم کلید API نشان
+            val neshanApiKey = "service.649ba7521ba04da595c5ab56413b3c84"
+            navigationSystem.setNeshanApiKey(neshanApiKey)
+            
+            // تنظیم لینک Google Drive برای اشتراک‌گذاری مسیرها
+            val driveUrl = "https://drive.google.com/drive/folders/1bp1Ay9kmK_bjWq_PznRfkPvhhjdhSye1?usp=drive_link"
+            googleDriveSync.setDriveUrl(driveUrl)
+            
             webView = binding.mapWebView
             webView.settings.javaScriptEnabled = true
             webView.addJavascriptInterface(MapInterface(), "Android")
@@ -82,6 +144,23 @@ class NavigationActivity : AppCompatActivity() {
             
             checkPermissions()
             setupButtons()
+            
+            // شروع همگام‌سازی با Google Drive
+            lifecycleScope.launch {
+                try {
+                    val syncResult = googleDriveSync.syncRoutes()
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@NavigationActivity,
+                            "همگام‌سازی: ${syncResult.uploadedCount} آپلود، ${syncResult.downloadedCount} دانلود",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e("NavigationActivity", "Sync error", e)
+                }
+            }
+            
         } catch (e: Exception) {
             Toast.makeText(this, "خطا: ${e.message}", Toast.LENGTH_LONG).show()
             android.util.Log.e("NavigationActivity", "Error", e)
@@ -115,7 +194,11 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.startNavigationButton.setOnClickListener {
-            startNavigation()
+            if (selectedDestination != null && currentLocation != null) {
+                startNavigation()
+            } else {
+                Toast.makeText(this, "لطفاً ابتدا مقصد را انتخاب کنید", Toast.LENGTH_SHORT).show()
+            }
         }
         
         binding.stopNavigationButton.setOnClickListener {
@@ -130,6 +213,166 @@ class NavigationActivity : AppCompatActivity() {
             showAIChat()
         }
         
+        // دکمه تنظیمات هشدارها
+        binding.alertSettingsButton.setOnClickListener {
+            showAlertSettingsDialog()
+        }
+        
+        // دکمه همگام‌سازی دستی
+        binding.syncButton.setOnClickListener {
+            lifecycleScope.launch {
+                try {
+                    binding.syncButton.isEnabled = false
+                    val syncResult = googleDriveSync.syncRoutes()
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@NavigationActivity,
+                            "همگام‌سازی انجام شد: ${syncResult.uploadedCount} آپلود، ${syncResult.downloadedCount} دانلود",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        binding.syncButton.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@NavigationActivity,
+                            "خطا در همگام‌سازی: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        binding.syncButton.isEnabled = true
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun startNavigation() {
+        selectedDestination?.let { dest ->
+            currentLocation?.let { start ->
+                lifecycleScope.launch {
+                    try {
+                        // استفاده از سیستم مسیریاب پیشرفته برای پیدا کردن مسیر
+                        val route = navigationSystem.findRoute(
+                            GeoPoint(start.latitude, start.longitude),
+                            GeoPoint(dest.latitude, dest.longitude)
+                        )
+                        
+                        currentNavigationRoute = route
+                        routeStartTime = System.currentTimeMillis()
+                        isNavigationActive = true
+                        
+                        // نمایش مسیر روی نقشه
+                        val routePoints = route.points.joinToString(",") { 
+                            "new L.LatLng(${it.latitude}, ${it.longitude})"
+                        }
+                        webView.evaluateJavascript("showRoute([$routePoints]);", null)
+                        
+                        // شروع یادگیری مسیر
+                        routeLearningSystem.startLearningRoute(route)
+                        
+                        // فعال کردن هشدارها
+                        enableAlerts()
+                        
+                        // نمایش کارت‌های سرعت و اطلاعات مسیر
+                        binding.speedCard.visibility = View.VISIBLE
+                        binding.routeInfoCard.visibility = View.VISIBLE
+                        
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@NavigationActivity,
+                                "🧭 مسیریابی شروع شد (طول: ${route.distanceKm} کیلومتر)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@NavigationActivity,
+                                "خطا در مسیریابی: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun stopNavigation() {
+        isNavigationActive = false
+        currentNavigationRoute?.let { route ->
+            // پایان یادگیری مسیر
+            routeLearningSystem.finishLearningRoute(route)
+            
+            // آپلود مسیر یادگرفته شده به Google Drive
+            lifecycleScope.launch {
+                try {
+                    val learnedRoutes = routeLearningSystem.getLearnedRoutes()
+                    googleDriveSync.uploadRoutes(learnedRoutes)
+                } catch (e: Exception) {
+                    Log.e("NavigationActivity", "Error uploading learned route", e)
+                }
+            }
+        }
+        
+        webView.evaluateJavascript("clearRoute();", null)
+        currentNavigationRoute = null
+        disableAlerts()
+        
+        // مخفی کردن کارت‌های سرعت و اطلاعات مسیر
+        binding.speedCard.visibility = View.GONE
+        binding.routeInfoCard.visibility = View.GONE
+        
+        Toast.makeText(this, "✅ مسیریابی متوقف شد", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun enableAlerts() {
+        // فعال کردن هشدار سرعت‌گیرها و دوربین‌ها
+        speedCameraDetector.enable()
+        
+        // فعال کردن تحلیلگر ترافیک
+        trafficAnalyzer.enable()
+        
+        // فعال کردن تحلیلگر وضعیت جاده
+        roadConditionAnalyzer.enable()
+    }
+    
+    private fun disableAlerts() {
+        speedCameraDetector.disable()
+        trafficAnalyzer.disable()
+        roadConditionAnalyzer.disable()
+    }
+    
+    private fun showAlertSettingsDialog() {
+        val alertTypes = arrayOf(
+            "هشدار سرعت‌گیرها",
+            "هشدار دوربین‌های کنترل سرعت",
+            "هشدار ترافیک",
+            "هشدار وضعیت جاده",
+            "هشدارهای صوتی"
+        )
+        val checkedItems = booleanArrayOf(true, true, true, true, true)
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("تنظیمات هشدارها")
+            .setMultiChoiceItems(alertTypes, checkedItems) { _, which, isChecked ->
+                // ذخیره تنظیمات
+                when (which) {
+                    0 -> speedCameraDetector.setSpeedBumpAlertsEnabled(isChecked)
+                    1 -> speedCameraDetector.setCameraAlertsEnabled(isChecked)
+                    2 -> trafficAnalyzer.setEnabled(isChecked)
+                    3 -> roadConditionAnalyzer.setEnabled(isChecked)
+                    4 -> {
+                        speedCameraDetector.setVoiceAlertsEnabled(isChecked)
+                        trafficAnalyzer.setVoiceAlertsEnabled(isChecked)
+                        roadConditionAnalyzer.setVoiceAlertsEnabled(isChecked)
+                    }
+                }
+            }
+            .setPositiveButton("ذخیره", null)
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun toggleTraffic() {
@@ -465,17 +708,6 @@ class NavigationActivity : AppCompatActivity() {
                 Toast.makeText(this, "✅ $title", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-    
-    private fun startNavigation() {
-        routeStartTime = System.currentTimeMillis()
-        binding.speedCard.visibility = View.VISIBLE
-        binding.routeInfoCard.visibility = View.VISIBLE
-    }
-    
-    private fun stopNavigation() {
-        binding.speedCard.visibility = View.GONE
-        binding.routeInfoCard.visibility = View.GONE
     }
     
     override fun onDestroy() {
