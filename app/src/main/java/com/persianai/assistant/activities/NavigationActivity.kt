@@ -41,6 +41,8 @@ class NavigationActivity : AppCompatActivity() {
     private var selectedDestination: LatLng? = null
     private val routeWaypoints = mutableListOf<LatLng>()
     private var routeStartTime: Long = 0
+    private var isTrafficEnabled = false
+    private var currentMapLayer = "normal"
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -103,13 +105,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         binding.poiButton.setOnClickListener {
-            val items = arrayOf("⛽ پمپ بنزین", "🍽️ رستوران", "🏥 بیمارستان", "🏧 ATM")
-            MaterialAlertDialogBuilder(this)
-                .setTitle("📏 مکان‌های نزدیک")
-                .setItems(items) { _, which ->
-                    Toast.makeText(this, "انتخاب: ${items[which]}", Toast.LENGTH_SHORT).show()
-                }
-                .show()
+            showPOIDialog()
         }
         
         binding.saveCurrentLocationButton.setOnClickListener {
@@ -133,6 +129,84 @@ class NavigationActivity : AppCompatActivity() {
         binding.aiChatFab.setOnClickListener {
             showAIChat()
         }
+        
+        // دکمه ترافیک
+        binding.trafficButton?.setOnClickListener {
+            toggleTraffic()
+        }
+        
+        // دکمه لایه‌های نقشه
+        binding.layersButton?.setOnClickListener {
+            showMapLayersDialog()
+        }
+    }
+    
+    private fun toggleTraffic() {
+        isTrafficEnabled = !isTrafficEnabled
+        if (isTrafficEnabled) {
+            webView.evaluateJavascript("enableTraffic();", null)
+            Toast.makeText(this, "🚦 ترافیک فعال شد", Toast.LENGTH_SHORT).show()
+        } else {
+            webView.evaluateJavascript("disableTraffic();", null)
+            Toast.makeText(this, "✅ ترافیک غیرفعال شد", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun showMapLayersDialog() {
+        val layers = arrayOf("🗺️ نقشه عادی", "🛰️ ماهواره", "🌍 ترکیبی")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("لایه نقشه")
+            .setItems(layers) { _, which ->
+                currentMapLayer = when (which) {
+                    0 -> "normal"
+                    1 -> "satellite"
+                    else -> "hybrid"
+                }
+                webView.evaluateJavascript("setMapLayer('$currentMapLayer');", null)
+                Toast.makeText(this, layers[which], Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+    
+    private fun showPOIDialog() {
+        val poiTypes = arrayOf(
+            "⛽ پمپ بنزین",
+            "🍽️ رستوران",
+            "🏥 بیمارستان",
+            "🏧 ATM",
+            "🅿️ پارکینگ",
+            "☕ کافه",
+            "🏨 هتل",
+            "🏪 فروشگاه",
+            "💊 داروخانه",
+            "🏦 بانک"
+        )
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📍 مکان‌های نزدیک")
+            .setItems(poiTypes) { _, which ->
+                val poiType = when (which) {
+                    0 -> "gas_station"
+                    1 -> "restaurant"
+                    2 -> "hospital"
+                    3 -> "atm"
+                    4 -> "parking"
+                    5 -> "cafe"
+                    6 -> "hotel"
+                    7 -> "store"
+                    8 -> "pharmacy"
+                    else -> "bank"
+                }
+                searchNearbyPOI(poiType, poiTypes[which])
+            }
+            .show()
+    }
+    
+    private fun searchNearbyPOI(type: String, name: String) {
+        currentLocation?.let { loc ->
+            Toast.makeText(this, "🔍 جستجوی $name ...", Toast.LENGTH_SHORT).show()
+            webView.evaluateJavascript("searchNearby(${loc.latitude}, ${loc.longitude}, '$type');", null)
+        } ?: Toast.makeText(this, "⚠️ مکان شما در دسترس نیست", Toast.LENGTH_SHORT).show()
     }
     
     inner class MapInterface {
