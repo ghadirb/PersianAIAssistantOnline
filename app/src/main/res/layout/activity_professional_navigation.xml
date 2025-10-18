@@ -397,7 +397,7 @@
                     android:gravity="center">
 
                     <TextView
-                        android:id="@+id/distanceText"
+                        android:id="@+id/summaryDistanceText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="۰ کیلومتر"
@@ -422,7 +422,7 @@
                     android:gravity="center">
 
                     <TextView
-                        android:id="@+id/durationText"
+                        android:id="@+id/summaryDurationText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="۰ دقیقه"
@@ -447,7 +447,7 @@
                     android:gravity="center">
 
                     <TextView
-                        android:id="@+id/trafficText"
+                        android:id="@+id/summaryTrafficText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="روان"
