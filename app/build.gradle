@@ -117,10 +117,10 @@ dependencies {
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
     implementation 'org.osmdroid:osmdroid-geopackage:6.1.17'
     
-    // Navigation and Routing
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:9.6.1'
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-navigation-ui:0.42.6'
-    implementation 'com.mapbox.mapboxsdk:mapbox-android-navigation:0.42.6'
+    // Navigation and Routing - Updated to newer versions
+    implementation 'com.mapbox.maps:android-sdk:10.9.0'
+    implementation 'com.mapbox.navigation:android:2.5.0'
+    implementation 'com.mapbox.plugin:annotation-v10:0.4.0'
     
     // Testing
     testImplementation 'junit:junit:4.13.2'
