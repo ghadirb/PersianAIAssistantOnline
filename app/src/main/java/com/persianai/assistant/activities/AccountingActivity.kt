@@ -114,11 +114,12 @@ class AccountingActivity : AppCompatActivity() {
                     lifecycleScope.launch {
                         val transaction = Transaction(
                             id = 0,
-                            type = TransactionType.CHECK,
+                            type = TransactionType.CHECK_OUT,
                             amount = amount,
                             category = "چک $checkNum",
                             description = desc,
-                            date = System.currentTimeMillis()
+                            date = System.currentTimeMillis(),
+                            checkNumber = checkNum
                         )
                         db.addTransaction(transaction)
                         updateBalance()

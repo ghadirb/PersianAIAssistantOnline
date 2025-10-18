@@ -130,15 +130,6 @@ class NavigationActivity : AppCompatActivity() {
             showAIChat()
         }
         
-        // دکمه ترافیک
-        binding.trafficButton?.setOnClickListener {
-            toggleTraffic()
-        }
-        
-        // دکمه لایه‌های نقشه
-        binding.layersButton?.setOnClickListener {
-            showMapLayersDialog()
-        }
     }
     
     private fun toggleTraffic() {

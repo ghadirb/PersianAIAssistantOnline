@@ -5,7 +5,7 @@ import android.util.Log
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
-import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.AIModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -18,18 +18,18 @@ class ContextualAIAssistant(private val context: Context) {
     
     private val TAG = "ContextualAIAssistant"
     private val nlp = PersianNLP()
-    private val aiModel = AIModel(context)
+    private val aiModelManager = AIModelManager(context)
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
         // اول سعی می‌کنیم با مدل واقعی پردازش کنیم
-        if (aiModel.isModelLoaded()) {
+        if (aiModelManager.hasApiKey()) {
             try {
                 val prompt = """تو یک دستیار مالی هستی. کاربر می‌گوید: "$userMessage"
 اگر درخواست ثبت هزینه یا درآمد است، به فرمت JSON پاسخ بده:
 {"type": "expense/income", "amount": مبلغ, "description": "توضیحات"}
 اگر سوال است، مستقیم پاسخ بده."""
                 
-                val response = aiModel.generateResponse(prompt)
+                val response = aiModelManager.generateText(prompt)
                 if (response.contains("{") && response.contains("}")) {
                     val json = JSONObject(response.substring(response.indexOf("{"), response.lastIndexOf("}") + 1))
                     val type = json.optString("type")
