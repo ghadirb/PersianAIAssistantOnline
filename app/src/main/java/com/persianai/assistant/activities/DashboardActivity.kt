@@ -54,13 +54,14 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
-        // نمایش مسیریاب به جای آب و هوا
         binding.navigationCard?.alpha = 0f
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
         binding.remindersCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
+        // مخفی کردن کارت آب و هوا
+        binding.weatherCard?.visibility = View.GONE
     }
     
     private fun setupDate() {

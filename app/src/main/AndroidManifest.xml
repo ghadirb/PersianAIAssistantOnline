@@ -177,6 +177,18 @@
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
 
+        <!-- Accounting Advanced Activity -->
+        <activity
+            android:name=".activities.AccountingAdvancedActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AccountingActivity" />
+
+        <!-- Search Destination Activity -->
+        <activity
+            android:name=".activities.SearchDestinationActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.NavigationActivity" />
+
         <!-- Google Maps API Key - فعلاً ندارید، از Neshan استفاده می‌شود -->
         <!-- <meta-data
             android:name="com.google.android.geo.API_KEY"

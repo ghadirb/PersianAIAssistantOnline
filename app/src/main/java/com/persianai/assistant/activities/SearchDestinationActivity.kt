@@ -30,12 +30,17 @@ class SearchDestinationActivity : AppCompatActivity() {
         binding = ActivitySearchDestinationBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        
-        searchAPI = NeshanSearchAPI(this)
-        
-        setupCitySpinner()
-        setupSearch()
-        setupRecyclerView()
+        try {
+            searchAPI = NeshanSearchAPI(this)
+            
+            setupCitySpinner()
+            setupSearch()
+            setupRecyclerView()
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در بارگذاری: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("SearchDestination", "Error", e)
+            finish()
+        }
     }
     
     private fun setupCitySpinner() {

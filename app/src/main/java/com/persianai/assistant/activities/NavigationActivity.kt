@@ -64,22 +64,26 @@ class NavigationActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🗺️ مسیریاب"
         
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        savedLocationsManager = SavedLocationsManager(this)
-        locationHistoryManager = LocationHistoryManager(this)
-        routePredictor = RoutePredictor(this)
-        routeLearningSys = RouteLearningSys(this)
-        searchAPI = NeshanSearchAPI(this)
-        aiAssistant = ContextualAIAssistant(this)
-        
-        webView = binding.mapWebView
-        webView.settings.javaScriptEnabled = true
-        webView.addJavascriptInterface(MapInterface(), "Android")
-        webView.loadUrl("file:///android_asset/neshan_map.html")
-        
-        checkPermissions()
-        
-        setupButtons()
+        try {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            savedLocationsManager = SavedLocationsManager(this)
+            locationHistoryManager = LocationHistoryManager(this)
+            routePredictor = RoutePredictor(this)
+            routeLearningSys = RouteLearningSys(this)
+            searchAPI = NeshanSearchAPI(this)
+            aiAssistant = ContextualAIAssistant(this)
+            
+            webView = binding.mapWebView
+            webView.settings.javaScriptEnabled = true
+            webView.addJavascriptInterface(MapInterface(), "Android")
+            webView.loadUrl("file:///android_asset/neshan_map.html")
+            
+            checkPermissions()
+            setupButtons()
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("NavigationActivity", "Error", e)
+        }
     }
     
     private fun setupButtons() {
