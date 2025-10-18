@@ -112,15 +112,10 @@ dependencies {
     implementation 'com.google.maps:google-maps-services:2.2.0'
     implementation 'org.slf4j:slf4j-simple:1.7.25'
     
-    // OpenStreetMap (OSM) - Alternative
+    // OpenStreetMap (OSM) - Alternative navigation solution
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
     implementation 'org.osmdroid:osmdroid-geopackage:6.1.17'
-    
-    // Navigation and Routing - Updated to newer versions
-    implementation 'com.mapbox.maps:android-sdk:10.9.0'
-    implementation 'com.mapbox.navigation:android:2.5.0'
-    implementation 'com.mapbox.plugin:annotation-v10:0.4.0'
     
     // Testing
     testImplementation 'junit:junit:4.13.2'
