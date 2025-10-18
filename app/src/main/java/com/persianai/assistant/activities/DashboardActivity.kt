@@ -37,13 +37,11 @@ class DashboardActivity : AppCompatActivity() {
         
         setupDate()
         setupClickListeners()
-        loadWeather()
         animateCards()
     }
     
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
-        binding.weatherCard?.alpha = 0f
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
@@ -108,23 +106,7 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         
-        binding.weatherCard?.setOnClickListener {
-            try {
-                AnimationHelper.clickAnimation(it)
-                it.postDelayed({
-                    try {
-                        val intent = Intent(this, WeatherActivity::class.java)
-                        startActivity(intent)
-                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                    } catch (e: Exception) {
-                        android.util.Log.e("DashboardActivity", "Error opening weather", e)
-                        Toast.makeText(this, "خطا در باز کردن آب و هوا", Toast.LENGTH_SHORT).show()
-                    }
-                }, 150)
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardActivity", "Click error", e)
-            }
-        }
+        // Weather card listener removed
         
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
@@ -170,89 +152,7 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
     
-    private fun loadWeather() {
-        val city = prefs.getString("selected_city", "تهران") ?: "تهران"
-        
-        // نمایش فوری cache برای جلوگیری از چشمک زدن
-        val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-        if (savedTemp != -999f) {
-            binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-            binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
-        }
-        
-        lifecycleScope.launch {
-            try {
-                // دریافت دمای واقعی لحظه‌ای از AQICN
-                val aqicnData = AqicnWeatherAPI.getWeatherByCity(city)
-                
-                if (aqicnData != null) {
-                    android.util.Log.d("DashboardActivity", "Live weather: ${aqicnData.temp}°C for $city")
-                    binding.weatherTempText?.text = "${aqicnData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(aqicnData.temp)
-                    
-                    // ذخیره دما برای استفاده در WeatherActivity
-                    prefs.edit().putFloat("current_temp_$city", aqicnData.temp.toFloat()).apply()
-                } else {
-                    // استفاده از داده‌های ذخیره شده یا تخمینی
-                    val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-                    if (savedTemp != -999f) {
-                        binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
-                    } else {
-                        val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(city)
-                        binding.weatherTempText?.text = "${estimatedData.temp.roundToInt()}°"
-                        binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
-                        prefs.edit().putFloat("current_temp_$city", estimatedData.temp.toFloat()).apply()
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardActivity", "Error loading weather", e)
-                // استفاده از داده ذخیره شده یا تخمینی
-                val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-                if (savedTemp != -999f) {
-                    binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(savedTemp.toDouble())
-                } else {
-                    val estimatedData = AqicnWeatherAPI.getEstimatedWeatherForCity(city)
-                    binding.weatherTempText?.text = "${estimatedData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = AqicnWeatherAPI.getWeatherEmoji(estimatedData.temp)
-                }
-            }
-        }
-        
-        // دکمه پیش‌بینی ساعتی - با جلوگیری از کرش
-        binding.hourlyBtn?.setOnClickListener {
-            android.util.Log.d("DashboardActivity", "Hourly button clicked")
-            it.postDelayed({
-                try {
-                    val intent = Intent(this, WeatherActivity::class.java)
-                    intent.putExtra("SHOW_HOURLY", true)
-                    intent.putExtra("city", city)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                } catch (e: Exception) {
-                    android.util.Log.e("DashboardActivity", "Error opening hourly weather", e)
-                    Toast.makeText(this, "خطا در نمایش پیش‌بینی ساعتی", Toast.LENGTH_SHORT).show()
-                }
-            }, 100)
-        }
-        
-        // دکمه پیش‌بینی هفتگی - با جلوگیری از کرش
-        binding.weeklyBtn?.setOnClickListener {
-            android.util.Log.d("DashboardActivity", "Weekly button clicked")
-            it.postDelayed({
-                try {
-                    val intent = Intent(this, WeatherForecastActivity::class.java)
-                    intent.putExtra("city", city)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                } catch (e: Exception) {
-                    android.util.Log.e("DashboardActivity", "Error opening weekly forecast", e)
-                    Toast.makeText(this, "خطا در نمایش پیش‌بینی هفتگی", Toast.LENGTH_SHORT).show()
-                }
-            }, 100)
-        }
-    }
+    // Weather related methods removed
     
     private fun showAboutDialog() {
         MaterialAlertDialogBuilder(this)

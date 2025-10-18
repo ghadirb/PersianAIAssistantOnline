@@ -182,6 +182,20 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+            
+        <!-- Music Player Service -->
+        <service
+            android:name=".services.MusicPlayerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+            
+        <!-- Real Music Service (ExoPlayer based) -->
+        <service
+            android:name=".music.RealMusicService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Reminder Receiver -->
         <receiver

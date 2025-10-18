@@ -96,13 +96,31 @@ dependencies {
     // ExoPlayer for internal music playback
     implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
     implementation 'com.google.android.exoplayer:exoplayer-ui:2.19.1'
+    implementation 'com.google.android.exoplayer:exoplayer-dash:2.19.1'
+    implementation 'com.google.android.exoplayer:exoplayer-hls:2.19.1'
+    implementation 'com.google.android.exoplayer:extension-mediasession:2.19.1'
+    
+    // Media support for notifications
+    implementation 'androidx.media:media:1.7.0'
     
     // Google Maps & Location for Navigation
     implementation 'com.google.android.gms:play-services-maps:18.2.0'
     implementation 'com.google.android.gms:play-services-location:21.0.1'
+    implementation 'com.google.android.gms:play-services-places:17.0.0'
+    implementation 'com.google.android.libraries.places:places:3.3.0'
+    implementation 'com.google.maps.android:android-maps-utils:2.3.0'
+    implementation 'com.google.maps:google-maps-services:2.2.0'
+    implementation 'org.slf4j:slf4j-simple:1.7.25'
     
-    // OpenStreetMap (OSM)
+    // OpenStreetMap (OSM) - Alternative
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
+    implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
+    implementation 'org.osmdroid:osmdroid-geopackage:6.1.17'
+    
+    // Navigation and Routing
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:9.6.1'
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-navigation-ui:0.42.6'
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-navigation:0.42.6'
     
     // Testing
     testImplementation 'junit:junit:4.13.2'

@@ -1,11 +1,14 @@
 package com.persianai.assistant.activities
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.MediaStore
 import android.view.View
 import android.widget.Toast
@@ -13,19 +16,18 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import android.widget.SeekBar
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.ExoPlayer
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityMusicBinding
+import com.persianai.assistant.music.RealMusicService
 import com.persianai.assistant.utils.MusicPlaylistManager
+import com.persianai.assistant.utils.MusicRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -35,15 +37,35 @@ class MusicActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMusicBinding
     private lateinit var musicManager: MusicPlaylistManager
+    private lateinit var musicRepository: MusicRepository
     private var selectedMood: String = ""
     private var selectedPlayerPackage: String? = null
-    private var exoPlayer: ExoPlayer? = null
     private var currentPlaylist: MusicPlaylistManager.Playlist? = null
     private var currentTrackIndex = 0
     private var isShuffleEnabled = false
-    private var repeatMode = Player.REPEAT_MODE_OFF // OFF, ONE, ALL
+    // TODO: Implement repeat mode in RealMusicService
     private val seekBarHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var isUserSeeking = false
+    
+    // Service connection
+    private var musicService: RealMusicService? = null
+    private var isServiceBound = false
+    
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as RealMusicService.MusicBinder
+            musicService = binder.getService()
+            isServiceBound = true
+            
+            // Update UI based on service state
+            updateUIFromService()
+        }
+        
+        override fun onServiceDisconnected(name: ComponentName?) {
+            isServiceBound = false
+            musicService = null
+        }
+    }
     
     companion object {
         private const val PERMISSION_REQUEST_CODE = 101
@@ -60,12 +82,13 @@ class MusicActivity : AppCompatActivity() {
             supportActionBar?.title = "🎵 پلی‌لیست هوشمند"
             
             musicManager = MusicPlaylistManager(this)
-            
-            // Initialize ExoPlayer
-            exoPlayer = ExoPlayer.Builder(this).build()
+            musicRepository = MusicRepository(this)
             
             setupUI()
             checkPermissions()
+            
+            // Bind to music service
+            bindToMusicService()
             
             // چک دستورات AI
             handleAIIntent()
@@ -330,42 +353,30 @@ class MusicActivity : AppCompatActivity() {
     
     private fun playInternalPlayer(playlist: MusicPlaylistManager.Playlist) {
         try {
+            if (!isServiceBound) {
+                Toast.makeText(this, "در حال اتصال به سرویس موزیک...", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
             currentPlaylist = playlist
             currentTrackIndex = 0
             
-            // ایجاد ExoPlayer
-            if (exoPlayer == null) {
-                exoPlayer = ExoPlayer.Builder(this).build()
-                
-                // افزودن listener برای پخش خودکار آهنگ بعدی
-                exoPlayer?.addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        when (playbackState) {
-                            Player.STATE_ENDED -> {
-                                playNextTrack()
-                            }
-                        }
-                    }
-                })
-            }
+            // Convert MusicPlaylistManager tracks to Song model
+            val song = com.persianai.assistant.models.Song(
+                id = playlist.tracks[0].id,
+                title = playlist.tracks[0].title,
+                artist = playlist.tracks[0].artist ?: "Unknown",
+                album = playlist.tracks[0].album ?: "Unknown",
+                url = playlist.tracks[0].path,
+                mood = selectedMood,
+                duration = playlist.tracks[0].duration,
+                albumArt = ""
+            )
             
-            // پاک کردن صف فعلی و اضافه کردن آهنگ‌ها
-            exoPlayer?.clearMediaItems()
-            for (track in playlist.tracks) {
-                val uri = if (track.path.startsWith("content://")) {
-                    Uri.parse(track.path)
-                } else {
-                    Uri.fromFile(File(track.path))
-                }
-                val mediaItem = MediaItem.fromUri(uri)
-                exoPlayer?.addMediaItem(mediaItem)
-            }
+            // Play song through service
+            musicService?.playSong(song)
             
-            // آماده کردن و شروع پخش
-            exoPlayer?.prepare()
-            exoPlayer?.play()
-            
-            // نمایش کنترل‌های پخش
+            // Show playback controls
             showPlaybackControls(playlist.tracks[0])
             
             Toast.makeText(this, "▶️ پخش ${playlist.tracks.size} آهنگ", Toast.LENGTH_SHORT).show()
@@ -378,17 +389,7 @@ class MusicActivity : AppCompatActivity() {
     
     private fun playNextTrack() {
         currentPlaylist?.let { playlist ->
-            currentTrackIndex++
-            if (currentTrackIndex < playlist.tracks.size) {
-                // پخش آهنگ بعدی
-                exoPlayer?.seekToNextMediaItem()
-                showPlaybackControls(playlist.tracks[currentTrackIndex])
-            } else {
-                // پخش تمام شد
-                currentTrackIndex = 0
-                exoPlayer?.stop()
-                Toast.makeText(this, "✅ پخش پلی‌لیست تمام شد", Toast.LENGTH_SHORT).show()
-            }
+            musicService?.playNext()
         }
     }
     
@@ -411,29 +412,26 @@ class MusicActivity : AppCompatActivity() {
         setupSeekBar()
         
         binding.playPauseButton?.setOnClickListener {
-            exoPlayer?.let {
-                if (it.isPlaying) {
-                    it.pause()
-                    binding.playPauseButton?.text = "▶️"
+            musicService?.let { service ->
+                if (service.isCurrentlyPlaying()) {
+                    service.pause()
                 } else {
-                    it.play()
-                    binding.playPauseButton?.text = "⏸️"
+                    service.play()
                 }
             }
         }
         
         binding.nextButton?.setOnClickListener {
-            exoPlayer?.seekToNext()
+            musicService?.playNext()
         }
         
         binding.prevButton?.setOnClickListener {
-            exoPlayer?.seekToPrevious()
+            musicService?.playPrevious()
         }
         
-        // Shuffle Button
+        // Shuffle Button - TODO: Implement in RealMusicService
         binding.shuffleButton?.setOnClickListener {
             isShuffleEnabled = !isShuffleEnabled
-            exoPlayer?.shuffleModeEnabled = isShuffleEnabled
             val color = if (isShuffleEnabled) "#FF4081" else "#6A1B9A"
             binding.shuffleButton?.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 android.graphics.Color.parseColor(color)
@@ -442,75 +440,30 @@ class MusicActivity : AppCompatActivity() {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
         
-        // Repeat Button
+        // Repeat Button - TODO: Implement in RealMusicService
         binding.repeatButton?.setOnClickListener {
-            repeatMode = when (repeatMode) {
-                Player.REPEAT_MODE_OFF -> {
-                    binding.repeatButton?.text = "🔂"
-                    binding.repeatButton?.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                        android.graphics.Color.parseColor("#FF4081")
-                    )
-                    Toast.makeText(this, "🔂 تکرار یک آهنگ", Toast.LENGTH_SHORT).show()
-                    Player.REPEAT_MODE_ONE
-                }
-                Player.REPEAT_MODE_ONE -> {
-                    binding.repeatButton?.text = "🔁"
-                    Toast.makeText(this, "🔁 تکرار همه", Toast.LENGTH_SHORT).show()
-                    Player.REPEAT_MODE_ALL
-                }
-                else -> {
-                    binding.repeatButton?.text = "🔁"
-                    binding.repeatButton?.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                        android.graphics.Color.parseColor("#6A1B9A")
-                    )
-                    Toast.makeText(this, "❌ تکرار غیرفعال", Toast.LENGTH_SHORT).show()
-                    Player.REPEAT_MODE_OFF
-                }
-            }
-            exoPlayer?.repeatMode = repeatMode
+            Toast.makeText(this, "تکرار به زودی اضافه می‌شود", Toast.LENGTH_SHORT).show()
         }
     }
     
     private fun setupSeekBar() {
-        binding.seekBar?.max = exoPlayer?.duration?.toInt() ?: 0
         binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    exoPlayer?.let {
-                        val position = (it.duration * progress / 100)
-                        it.seekTo(position)
-                    }
+                    musicService?.seekTo(progress.toLong())
                 }
             }
             
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-        startSeekBarUpdate()
-    }
-    
-    private fun startSeekBarUpdate() {
-        seekBarHandler.post(updateSeekBar)
-    }
-    
-    private fun stopSeekBarUpdate() {
-        seekBarHandler.removeCallbacks(updateSeekBar)
-    }
-    
-    private val updateSeekBar = object : Runnable {
-        override fun run() {
-            exoPlayer?.let {
-                if (!isUserSeeking && it.duration > 0) {
-                    val current = it.currentPosition
-                    val total = it.duration
-                    binding.seekBar?.max = total.toInt()
-                    binding.seekBar?.progress = current.toInt()
-                    binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
-                }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                isUserSeeking = true
             }
-            seekBarHandler.postDelayed(this, 1000)
-        }
+            
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                isUserSeeking = false
+            }
+        })
     }
+    
     
     private fun formatTime(millis: Long): String {
         val minutes = (millis / 1000) / 60
@@ -518,11 +471,63 @@ class MusicActivity : AppCompatActivity() {
         return String.format("%d:%02d", minutes, seconds)
     }
     
+    private fun updateUIFromService() {
+        musicService?.let { service ->
+            updatePlayPauseButton(service.isCurrentlyPlaying())
+            
+            // Update seekbar
+            binding.seekBar?.max = service.getDuration().toInt()
+            
+            // Start position updates
+            startPositionUpdater()
+        }
+    }
+    
+    private fun startPositionUpdater() {
+        seekBarHandler.post(object : Runnable {
+            override fun run() {
+                musicService?.let { service ->
+                    if (!isUserSeeking && service.isCurrentlyPlaying()) {
+                        val current = service.getCurrentPosition()
+                        val total = service.getDuration()
+                        binding.seekBar?.progress = current.toInt()
+                        binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
+                    }
+                }
+                seekBarHandler.postDelayed(this, 1000)
+            }
+        })
+    }
+    
+    private fun bindToMusicService() {
+        val intent = Intent(this, RealMusicService::class.java)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        startService(intent) // Start service in foreground
+    }
+    
+    private fun unbindFromMusicService() {
+        if (isServiceBound) {
+            unbindService(serviceConnection)
+            isServiceBound = false
+        }
+    }
+    
+    private fun updatePlayPauseButton(isPlaying: Boolean) {
+        binding.playPauseButton?.text = if (isPlaying) "⏸️" else "▶️"
+    }
+    
+    private fun updateTimeDisplay() {
+        musicService?.let { service ->
+            val current = service.getCurrentPosition()
+            val total = service.getDuration()
+            binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
+        }
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
-        stopSeekBarUpdate()
-        exoPlayer?.release()
-        exoPlayer = null
+        seekBarHandler.removeCallbacksAndMessages(null)
+        unbindFromMusicService()
     }
     
     override fun onSupportNavigateUp(): Boolean {
