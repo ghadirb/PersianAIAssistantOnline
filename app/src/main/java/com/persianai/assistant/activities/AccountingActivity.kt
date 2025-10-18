@@ -94,11 +94,79 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun showCheckDialog() {
-        Toast.makeText(this, "قابلیت چک در نسخه بعدی", Toast.LENGTH_SHORT).show()
+        val view = layoutInflater.inflate(R.layout.dialog_add_transaction, null)
+        val amountField = view.findViewById<TextInputEditText>(R.id.amountField)
+        val categoryField = view.findViewById<TextInputEditText>(R.id.categoryField)
+        val descField = view.findViewById<TextInputEditText>(R.id.descriptionField)
+        
+        categoryField.hint = "شماره چک"
+        descField.hint = "توضیحات"
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📝 چک جدید")
+            .setView(view)
+            .setPositiveButton("ثبت") { _, _ ->
+                val amount = amountField.text.toString().toDoubleOrNull() ?: 0.0
+                val checkNum = categoryField.text.toString()
+                val desc = descField.text.toString()
+                
+                if (amount > 0) {
+                    lifecycleScope.launch {
+                        val transaction = Transaction(
+                            id = 0,
+                            type = TransactionType.CHECK,
+                            amount = amount,
+                            category = "چک $checkNum",
+                            description = desc,
+                            date = System.currentTimeMillis()
+                        )
+                        db.addTransaction(transaction)
+                        updateBalance()
+                        loadTransactions()
+                        Toast.makeText(this@AccountingActivity, "✅ چک ثبت شد", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun showInstallmentDialog() {
-        Toast.makeText(this, "قابلیت قسط در نسخه بعدی", Toast.LENGTH_SHORT).show()
+        val view = layoutInflater.inflate(R.layout.dialog_add_transaction, null)
+        val amountField = view.findViewById<TextInputEditText>(R.id.amountField)
+        val categoryField = view.findViewById<TextInputEditText>(R.id.categoryField)
+        val descField = view.findViewById<TextInputEditText>(R.id.descriptionField)
+        
+        categoryField.hint = "تعداد اقساط"
+        descField.hint = "توضیحات"
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📊 قسط جدید")
+            .setView(view)
+            .setPositiveButton("ثبت") { _, _ ->
+                val amount = amountField.text.toString().toDoubleOrNull() ?: 0.0
+                val months = categoryField.text.toString().toIntOrNull() ?: 1
+                val desc = descField.text.toString()
+                
+                if (amount > 0) {
+                    lifecycleScope.launch {
+                        val transaction = Transaction(
+                            id = 0,
+                            type = TransactionType.INSTALLMENT,
+                            amount = amount / months,
+                            category = "قسط $months ماهه",
+                            description = desc,
+                            date = System.currentTimeMillis()
+                        )
+                        db.addTransaction(transaction)
+                        updateBalance()
+                        loadTransactions()
+                        Toast.makeText(this@AccountingActivity, "✅ قسط ثبت شد", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun showAIChat() {

@@ -5,6 +5,7 @@ import android.util.Log
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
+import com.persianai.assistant.models.AIModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -17,8 +18,38 @@ class ContextualAIAssistant(private val context: Context) {
     
     private val TAG = "ContextualAIAssistant"
     private val nlp = PersianNLP()
+    private val aiModel = AIModel(context)
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
+        // اول سعی می‌کنیم با مدل واقعی پردازش کنیم
+        if (aiModel.isModelLoaded()) {
+            try {
+                val prompt = """تو یک دستیار مالی هستی. کاربر می‌گوید: "$userMessage"
+اگر درخواست ثبت هزینه یا درآمد است، به فرمت JSON پاسخ بده:
+{"type": "expense/income", "amount": مبلغ, "description": "توضیحات"}
+اگر سوال است، مستقیم پاسخ بده."""
+                
+                val response = aiModel.generateResponse(prompt)
+                if (response.contains("{") && response.contains("}")) {
+                    val json = JSONObject(response.substring(response.indexOf("{"), response.lastIndexOf("}") + 1))
+                    val type = json.optString("type")
+                    val amount = json.optDouble("amount", 0.0)
+                    val desc = json.optString("description", "")
+                    
+                    if (amount > 0) {
+                        val transType = if (type == "income") TransactionType.INCOME else TransactionType.EXPENSE
+                        val t = Transaction(0, transType, amount, "", desc, System.currentTimeMillis())
+                        db.addTransaction(t)
+                        return@withContext AIResponse(true, "✅ ${if (type == "income") "درآمد" else "هزینه"} ${formatMoney(amount)} تومان ثبت شد", "add_transaction")
+                    }
+                }
+                return@withContext AIResponse(true, response, "chat")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error using AI model", e)
+            }
+        }
+        
+        // اگر مدل در دسترس نبود، از NLP ساده استفاده می‌کنیم
         val cmd = nlp.parse(userMessage)
         return@withContext when(cmd.type) {
             PersianNLP.Type.EXPENSE -> {
