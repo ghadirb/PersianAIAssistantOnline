@@ -6,10 +6,9 @@
     android:layout_height="match_parent"
     tools:context=".activities.NavigationActivity">
 
-    <!-- Map Fragment -->
-    <fragment
-        android:id="@+id/mapFragment"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
+    <!-- Neshan Map WebView -->
+    <WebView
+        android:id="@+id/mapWebView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
@@ -151,6 +150,49 @@
                 style="@style/Widget.Material3.Button.Icon" />
         </LinearLayout>
 
+        <!-- Saved Locations & POI Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/savedLocationsButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="💾 ذخیره‌ها"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/poiButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="📏 نزدیک"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="4dp"
+                android:layout_marginStart="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/saveCurrentLocationButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="⭐ ذخیره"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
         <!-- Navigation Control Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -183,6 +225,17 @@
                 android:backgroundTint="#F44336"
                 style="@style/Widget.Material3.Button" />
         </LinearLayout>
+
+        <!-- Waypoint Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addWaypointButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="📍 افزودن مقصد میانی"
+            android:textSize="14sp"
+            app:cornerRadius="8dp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
     </LinearLayout>
 
     <!-- Progress Bar -->
@@ -193,5 +246,19 @@
         android:layout_gravity="center"
         android:visibility="gone"
         android:indeterminateTint="@color/primaryColor" />
+
+    <!-- AI Chat Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/aiChatFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="80dp"
+        android:layout_marginStart="16dp"
+        android:src="@android:drawable/ic_dialog_email"
+        android:contentDescription="چت AI"
+        app:backgroundTint="#9C27B0"
+        app:tint="@android:color/white" />
+
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

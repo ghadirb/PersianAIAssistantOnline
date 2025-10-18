@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.persianai.assistant.R
-import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.databinding.ActivityWeatherForecastBinding
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -81,44 +81,29 @@ class WeatherForecastActivity : AppCompatActivity() {
     }
     
     private suspend fun loadDailyForecast(city: String) {
-        val forecasts = OpenWeatherAPI.getForecast(city)
+        val forecasts = WorldWeatherAPI.getForecast(city)
         
         if (forecasts.isNotEmpty()) {
             // گروه‌بندی بر اساس روز و گرفتن پیش‌بینی ظهر هر روز
             val dailyForecasts = mutableListOf<DailyForecast>()
             val today = Calendar.getInstance()
             
-            // فقط از امروز به بعد
-            val filteredForecasts = forecasts.filter { forecast ->
-                val forecastDate = Date(forecast.dateTime)
-                forecastDate.after(Date()) || isSameDay(forecastDate, Date())
-            }
-            
-            // گروه‌بندی بر اساس روز
-            val groupedByDay = filteredForecasts.groupBy { forecast ->
+            // تبدیل به DailyForecast - بدون فیلتر چون WorldWeatherAPI فقط آینده بر میگرداند
+            forecasts.take(7).forEach { forecast ->
+                // پارس تاریخ از رشته (format: "2025-10-13")
+                val dateParts = forecast.date.split("-")
                 val cal = Calendar.getInstance()
-                cal.timeInMillis = forecast.dateTime
-                "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}-${cal.get(Calendar.DAY_OF_MONTH)}"
-            }
-            
-            groupedByDay.entries.take(7).forEach { (_, dayForecasts) ->
-                // پیدا کردن پیش‌بینی ظهر یا میانگین روز
-                val noonForecast = dayForecasts.find { forecast ->
-                    val cal = Calendar.getInstance()
-                    cal.timeInMillis = forecast.dateTime
-                    cal.get(Calendar.HOUR_OF_DAY) in 12..14
-                } ?: dayForecasts[dayForecasts.size / 2]
-                
-                val minTemp = dayForecasts.minOf { it.tempMin }
-                val maxTemp = dayForecasts.maxOf { it.tempMax }
+                if (dateParts.size == 3) {
+                    cal.set(dateParts[0].toInt(), dateParts[1].toInt() - 1, dateParts[2].toInt())
+                }
                 
                 dailyForecasts.add(
                     DailyForecast(
-                        date = Date(noonForecast.dateTime),
-                        tempMin = minTemp,
-                        tempMax = maxTemp,
-                        description = noonForecast.description,
-                        icon = noonForecast.icon
+                        date = cal.time,
+                        tempMin = forecast.minTemp,
+                        tempMax = forecast.maxTemp,
+                        description = forecast.description,
+                        icon = WorldWeatherAPI.getWeatherEmoji(forecast.icon)  // تبدیل به ایموجی
                     )
                 )
             }
@@ -153,13 +138,17 @@ class WeatherForecastActivity : AppCompatActivity() {
             }
             
             val variation = (Math.random() * 10 - 5).roundToInt()
+            val iconsList = listOf("☀️", "⛅", "☁️", "🌧️")
+            val descList = listOf("آفتابی", "نیمه ابری", "ابری", "بارانی")
+            val index = (Math.random() * iconsList.size).toInt()
+            
             forecasts.add(
                 DailyForecast(
                     date = calendar.time,
                     tempMin = baseTemp + variation - 5,
                     tempMax = baseTemp + variation + 5,
-                    description = listOf("آفتابی", "ابری", "نیمه ابری", "بارانی").random(),
-                    icon = listOf("01d", "02d", "03d", "10d").random()
+                    description = descList[index],
+                    icon = iconsList[index]
                 )
             )
             calendar.add(Calendar.DAY_OF_MONTH, 1)
@@ -263,7 +252,7 @@ class WeatherForecastActivity : AppCompatActivity() {
                     dateText.text = "${dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]}, ${cal.get(Calendar.DAY_OF_MONTH)} ${monthNames[cal.get(Calendar.MONTH)]}"
                 }
                 
-                iconText.text = OpenWeatherAPI.getWeatherEmoji(forecast.icon)
+                iconText.text = WorldWeatherAPI.getWeatherEmoji(forecast.icon)
                 
                 tempText.text = "${forecast.tempMin.roundToInt()}° - ${forecast.tempMax.roundToInt()}°"
                 
@@ -274,6 +263,16 @@ class WeatherForecastActivity : AppCompatActivity() {
                     itemView.setBackgroundColor(itemView.context.getColor(android.R.color.holo_blue_light))
                 }
             }
+        }
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
 }

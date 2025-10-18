@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_map"
+        android:icon="@android:drawable/ic_dialog_map"
+        android:title="نقشه" />
+    <item
+        android:id="@+id/nav_saved"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="ذخیره‌ها" />
+    <item
+        android:id="@+id/nav_nearby"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="نزدیک" />
+    <item
+        android:id="@+id/nav_more"
+        android:icon="@android:drawable/ic_menu_more"
+        android:title="سایر" />
+</menu>

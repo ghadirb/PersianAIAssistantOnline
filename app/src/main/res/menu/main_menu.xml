@@ -21,27 +21,6 @@
         app:showAsAction="never" />
     
     <item
-        android:id="@+id/action_reminders"
-        android:title="یادآوری‌ها"
-        android:icon="@drawable/ic_notification"
-        app:showAsAction="never" />
-    
-    <item
-        android:id="@+id/action_expenses"
-        android:title="💰 حسابداری"
-        app:showAsAction="never" />
-    
-    <item
-        android:id="@+id/action_weather"
-        android:title="🌤️ آب و هوا"
-        app:showAsAction="never" />
-    
-    <item
-        android:id="@+id/action_calendar"
-        android:title="📅 تقویم"
-        app:showAsAction="never" />
-    
-    <item
         android:id="@+id/action_refresh_keys"
         android:title="@string/menu_refresh_keys"
         android:icon="@drawable/ic_refresh"

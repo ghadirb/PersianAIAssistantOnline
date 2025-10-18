@@ -99,6 +99,16 @@
                     android:clickable="true"
                     android:focusable="true" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rescanButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🔄 اسکن مجدد مدل‌ها"
+                    android:layout_marginTop="12dp"
+                    app:icon="@android:drawable/ic_menu_rotate"
+                    app:iconGravity="textStart"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
             </LinearLayout>
 
         </androidx.cardview.widget.CardView>

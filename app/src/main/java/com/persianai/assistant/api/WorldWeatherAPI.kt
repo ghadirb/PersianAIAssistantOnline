@@ -7,6 +7,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import kotlin.math.abs
 
 /**
  * WorldWeatherOnline API Client
@@ -80,7 +81,7 @@ class WorldWeatherAPI {
                         humidity = currentCondition.getInt("humidity"),
                         windSpeed = currentCondition.getDouble("windspeedKmph"),
                         description = currentCondition.getJSONArray("lang_fa").getJSONObject(0).getString("value"),
-                        icon = getWeatherIconCode(currentCondition.getString("weatherCode")),
+                        icon = currentCondition.getString("weatherCode"),
                         cityName = cityName,
                         uvIndex = currentCondition.optInt("uvIndex", 0),
                         visibility = currentCondition.optInt("visibility", 10)
@@ -122,22 +123,33 @@ class WorldWeatherAPI {
                         for (j in 0 until hourlyArray.length()) {
                             val hour = hourlyArray.getJSONObject(j)
                             hourlyForecasts.add(HourlyForecast(
-                                time = hour.getString("time"),
+                                time = hour.getString("time").padStart(4, '0'),
                                 temp = hour.getDouble("tempC"),
                                 feelsLike = hour.getDouble("FeelsLikeC"),
                                 description = hour.getJSONArray("lang_fa").getJSONObject(0).getString("value"),
-                                icon = getWeatherIconCode(hour.getString("weatherCode")),
+                                icon = hour.getString("weatherCode"),
                                 chanceOfRain = hour.optInt("chanceofrain", 0)
                             ))
                         }
+                        
+                        // انتخاب نزدیک‌ترین ساعت به ظهر (1200) برای نماد روز
+                        val middayIndex = if (hourlyForecasts.isNotEmpty()) {
+                            hourlyForecasts.indices.minByOrNull { idx ->
+                                val timeStr = hourlyForecasts[idx].time
+                                val timeInt = timeStr.toIntOrNull() ?: 0
+                                abs(timeInt - 1200)
+                            } ?: 0
+                        } else 0
+                        
+                        val middayForecast = hourlyForecasts.getOrNull(middayIndex)
                         
                         forecasts.add(ForecastDay(
                             date = day.getString("date"),
                             maxTemp = day.getDouble("maxtempC"),
                             minTemp = day.getDouble("mintempC"),
                             avgTemp = day.getDouble("avgtempC"),
-                            description = hourlyForecasts.firstOrNull()?.description ?: "",
-                            icon = hourlyForecasts.firstOrNull()?.icon ?: "01d",
+                            description = middayForecast?.description ?: "",
+                            icon = middayForecast?.icon ?: "113",
                             hourly = hourlyForecasts
                         ))
                     }
@@ -172,16 +184,27 @@ class WorldWeatherAPI {
          * تبدیل به ایموجی
          */
         fun getWeatherEmoji(weatherCode: String): String {
+            // پشتیبانی از کدهای عددی WorldWeather و کدهای OpenWeather (01d, 10n, etc.)
             return when (weatherCode) {
-                "113" -> "☀️"
-                "116" -> "⛅"
-                "119", "122" -> "☁️"
-                "143", "248", "260" -> "🌫️"
-                "176", "263", "266", "293", "296" -> "🌦️"
-                "299", "302", "305", "308", "356", "359" -> "🌧️"
-                "179", "227", "230", "320", "323", "326", "368", "371" -> "❄️"
-                "182", "185", "281", "284", "311", "314", "317", "350", "377" -> "🌨️"
-                "200", "386", "389", "392", "395" -> "⛈️"
+                // WorldWeather numeric codes
+                "113" -> "☀️"  // Clear/Sunny
+                "116" -> "⛅"  // Partly cloudy
+                "119", "122" -> "☁️"  // Cloudy
+                "143", "248", "260" -> "🌫️"  // Mist/Fog
+                "176", "263", "266", "293", "296" -> "🌦️"  // Light rain
+                "299", "302", "305", "308", "356", "359" -> "🌧️"  // Heavy rain
+                "179", "227", "230", "320", "323", "326", "368", "371" -> "❄️"  // Snow
+                "182", "185", "281", "284", "311", "314", "317", "350", "362", "365", "377" -> "🌨️"  // Sleet/Light snow
+                "200", "386", "389", "392", "395" -> "⛈️"  // Thunder
+                // OpenWeather icon codes
+                "01d", "01n" -> "☀️"  // Clear sky
+                "02d", "02n" -> "⛅"  // Few clouds
+                "03d", "03n", "04d", "04n" -> "☁️"  // Clouds
+                "09d", "09n" -> "🌧️"  // Shower rain
+                "10d", "10n" -> "🌦️"  // Rain
+                "11d", "11n" -> "⛈️"  // Thunderstorm
+                "13d", "13n" -> "❄️"  // Snow
+                "50d", "50n" -> "🌫️"  // Mist
                 else -> "🌤️"
             }
         }

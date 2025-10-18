@@ -9,7 +9,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import com.persianai.assistant.R
 import com.persianai.assistant.activities.DashboardActivity
-import com.persianai.assistant.api.OpenWeatherAPI
+import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.WidgetThemeManager
 import kotlinx.coroutines.*
@@ -76,16 +76,31 @@ class PersianCalendarWidget : AppWidgetProvider() {
         // آب و هوا
         if (showWeather) {
             views.setViewVisibility(R.id.widgetWeather, android.view.View.VISIBLE)
-            updateWeather(context, views)
+            // بارگذاری فوری از SharedPreferences
+            val weatherPrefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
+            val city = weatherPrefs.getString("selected_city", "تهران") ?: "تهران"
+            val savedTemp = weatherPrefs.getFloat("current_temp_$city", 25f)
+            val savedIcon = weatherPrefs.getString("weather_icon_$city", "113") ?: "113"
+            val emoji = WorldWeatherAPI.getWeatherEmoji(savedIcon)
+            val weatherText = "$emoji ${savedTemp.toInt()}° $city"
+            views.setTextViewText(R.id.widgetWeather, weatherText)
+            
+            // سپس در background بروزرسانی کن
+            updateWeatherInBackground(context, appWidgetId, appWidgetManager)
         } else {
             views.setViewVisibility(R.id.widgetWeather, android.view.View.GONE)
         }
         
-        // کلیک بر روی ساعت - باز کردن برنامه
+        // کلیک بر روی کل ویجت - باز کردن برنامه
         val intent = Intent(context, DashboardActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         val pendingIntent = PendingIntent.getActivity(context, 0, intent, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        
+        // کلیک روی کل ویجت
+        views.setOnClickPendingIntent(R.id.widgetContainer, pendingIntent)
         views.setOnClickPendingIntent(R.id.widgetClock, pendingIntent)
+        views.setOnClickPendingIntent(R.id.widgetWeather, pendingIntent)
         
         // دکمه refresh
         val refreshIntent = Intent(context, PersianCalendarWidget::class.java)
@@ -100,42 +115,35 @@ class PersianCalendarWidget : AppWidgetProvider() {
         }
     }
     
-    private fun updateWeather(context: Context, views: RemoteViews) {
+    private fun updateWeatherInBackground(
+        context: Context, 
+        appWidgetId: Int,
+        appWidgetManager: AppWidgetManager
+    ) {
         val prefs = context.getSharedPreferences("weather_prefs", Context.MODE_PRIVATE)
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
         // آپدیت آب و هوا در background
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                val weather = OpenWeatherAPI.getCurrentWeather(city)
+                val weather = WorldWeatherAPI.getCurrentWeather(city)
                 if (weather != null) {
-                    val emoji = OpenWeatherAPI.getWeatherEmoji(weather.icon)
+                    // ذخیره در SharedPreferences
+                    prefs.edit().putFloat("current_temp_$city", weather.temp.toFloat()).apply()
+                    prefs.edit().putString("weather_icon_$city", weather.icon).apply()
+                    
+                    val emoji = WorldWeatherAPI.getWeatherEmoji(weather.icon)
                     val text = "$emoji ${weather.temp.toInt()}° $city"
                     
-                    withContext(Dispatchers.Main) {
-                        views.setTextViewText(R.id.widgetWeather, text)
-                        
-                        // آپدیت مجدد ویجت
-                        val appWidgetManager = AppWidgetManager.getInstance(context)
-                        val thisWidget = ComponentName(context, PersianCalendarWidget::class.java)
-                        val appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
-                        appWidgetIds.forEach { id ->
-                            appWidgetManager.updateAppWidget(id, views)
-                        }
-                    }
-                } else {
-                    // استفاده از Mock data اگر API جواب نداد
-                    val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                    val text = "☀️ ${mockData.temp.toInt()}° $city"
+                    // آپدیت ویجت
+                    val views = RemoteViews(context.packageName, R.layout.widget_persian_calendar)
                     views.setTextViewText(R.id.widgetWeather, text)
+                    appWidgetManager.partiallyUpdateAppWidget(appWidgetId, views)
+                    
+                    android.util.Log.d("Widget", "Weather updated: $text")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("PersianCalendarWidget", "Error updating weather: ${e.message}", e)
-                // استفاده از Mock data با دمای واقعی‌تر
-                val mockData = OpenWeatherAPI.getMockWeatherData(city)
-                val emoji = OpenWeatherAPI.getWeatherEmoji(mockData.icon)
-                val text = "$emoji ${mockData.temp.toInt()}° $city"
-                views.setTextViewText(R.id.widgetWeather, text)
+                android.util.Log.e("PersianCalendarWidget", "Error updating weather: ${e.message}")
             }
         }
     }
@@ -151,6 +159,16 @@ class PersianCalendarWidget : AppWidgetProvider() {
             Calendar.THURSDAY -> "پنج‌شنبه"
             Calendar.FRIDAY -> "جمعه"
             else -> ""
+        }
+    }
+    
+    private fun getWeatherEmoji(temp: Double): String {
+        return when {
+            temp < 0 -> "❄️"
+            temp < 10 -> "🌨️"
+            temp < 20 -> "⛅"
+            temp < 30 -> "☀️"
+            else -> "🔥"
         }
     }
 }

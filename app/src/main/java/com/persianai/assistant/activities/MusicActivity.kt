@@ -21,11 +21,23 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import android.widget.SeekBar
+<<<<<<< HEAD
+=======
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.audio.AudioAttributes
+import com.google.android.exoplayer2.C
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityMusicBinding
 import com.persianai.assistant.music.RealMusicService
 import com.persianai.assistant.utils.MusicPlaylistManager
+<<<<<<< HEAD
 import com.persianai.assistant.utils.MusicRepository
+=======
+import com.persianai.assistant.ai.ContextualAIAssistant
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -37,7 +49,11 @@ class MusicActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMusicBinding
     private lateinit var musicManager: MusicPlaylistManager
+<<<<<<< HEAD
     private lateinit var musicRepository: MusicRepository
+=======
+    private lateinit var aiAssistant: ContextualAIAssistant
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
     private var selectedMood: String = ""
     private var selectedPlayerPackage: String? = null
     private var currentPlaylist: MusicPlaylistManager.Playlist? = null
@@ -82,7 +98,22 @@ class MusicActivity : AppCompatActivity() {
             supportActionBar?.title = "🎵 پلی‌لیست هوشمند"
             
             musicManager = MusicPlaylistManager(this)
+<<<<<<< HEAD
             musicRepository = MusicRepository(this)
+=======
+            aiAssistant = ContextualAIAssistant(this)
+            
+            // Initialize ExoPlayer with Audio Attributes
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
+            
+            exoPlayer = ExoPlayer.Builder(this).build().apply {
+                setAudioAttributes(audioAttributes, true)
+                volume = 1f // حداکثر صدا
+            }
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
             
             setupUI()
             checkPermissions()
@@ -134,7 +165,10 @@ class MusicActivity : AppCompatActivity() {
                 moodChip.setOnClickListener {
                     selectedMood = mood.second
                     binding.selectedMoodText?.text = "حالت انتخاب شده: ${mood.first}"
-                    binding.createPlaylistButton?.isEnabled = true
+                    // ایجاد خودکار پلی‌لیست بعد از انتخاب حالت
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        createPlaylist()
+                    }, 300)
                 }
                 binding.moodChipGroup?.addView(moodChip)
             }
@@ -142,10 +176,7 @@ class MusicActivity : AppCompatActivity() {
             android.util.Log.e("MusicActivity", "Error in setupUI", e)
         }
         
-        // Create playlist button
-        binding.createPlaylistButton?.setOnClickListener {
-            createPlaylist()
-        }
+        // دکمه createPlaylist حذف شده است
         
         // Music Player Selection Button - حذف شد (پخش داخلی)
         binding.selectPlayerButton?.visibility = View.GONE
@@ -154,17 +185,9 @@ class MusicActivity : AppCompatActivity() {
         binding.scanMusicButton?.setOnClickListener {
             scanMusic()
         }
-        // Chat AI button - تبدیل از دستور صوتی
+        // Chat AI button - دستیار موسیقی هوشمند
         binding.voiceCommandButton?.setOnClickListener {
-            try {
-                val intent = android.content.Intent(this, MainActivity::class.java)
-                intent.putExtra("SUGGEST_TEXT", "یک پلی‌لیست موزیک شاد برای من بساز")
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            } catch (e: Exception) {
-                android.util.Log.e("MusicActivity", "Error opening chat", e)
-                Toast.makeText(this, "💬 برای استفاده از چت AI، به بخش چت بروید", Toast.LENGTH_SHORT).show()
-            }
+            showMusicAIChat()
         }
     }
     
@@ -297,7 +320,8 @@ class MusicActivity : AppCompatActivity() {
                 ${playlist.tracks.take(5).joinToString("\n") { "• ${it.title}" }}
                 ${if (playlist.tracks.size > 5) "\n..." else ""}
             """.trimIndent())
-            .setPositiveButton("پخش در برنامه") { _, _ ->
+            .setPositiveButton("پخش در برنامه") { dialog, _ ->
+                dialog.dismiss()
                 playInternalPlayer(playlist)
             }
             .setNeutralButton("ذخیره پلی‌لیست") { _, _ ->
@@ -361,6 +385,7 @@ class MusicActivity : AppCompatActivity() {
             currentPlaylist = playlist
             currentTrackIndex = 0
             
+<<<<<<< HEAD
             // Convert MusicPlaylistManager tracks to Song model
             val song = com.persianai.assistant.models.Song(
                 id = playlist.tracks[0].id,
@@ -372,14 +397,83 @@ class MusicActivity : AppCompatActivity() {
                 duration = playlist.tracks[0].duration,
                 albumArt = ""
             )
+=======
+            // ایجاد ExoPlayer
+            if (exoPlayer == null) {
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build()
+                
+                exoPlayer = ExoPlayer.Builder(this).build().apply {
+                    setAudioAttributes(audioAttributes, true)
+                    volume = 1f
+                }
+                
+                // افزودن listener برای پخش خودکار آهنگ بعدی
+                exoPlayer?.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        when (playbackState) {
+                            Player.STATE_ENDED -> {
+                                // تمام شد - به آهنگ بعدی برو
+                                if (exoPlayer?.hasNextMediaItem() == true) {
+                                    exoPlayer?.seekToNext()
+                                    exoPlayer?.play()
+                                } else {
+                                    // پلی لیست تمام شد
+                                    runOnUiThread {
+                                        Toast.makeText(this@MusicActivity, "✅ پخش تمام شد", Toast.LENGTH_SHORT).show()
+                                        binding.playPauseButton?.text = "▶️"
+                                    }
+                                }
+                            }
+                            Player.STATE_READY -> {
+                                runOnUiThread {
+                                    binding.playPauseButton?.text = if (exoPlayer?.isPlaying == true) "⏸️" else "▶️"
+                                }
+                            }
+                        }
+                    }
+                    
+                    override fun onMediaItemTransition(mediaItem: com.google.android.exoplayer2.MediaItem?, reason: Int) {
+                        super.onMediaItemTransition(mediaItem, reason)
+                        // بروزرسانی UI برای آهنگ جدید
+                        currentPlaylist?.let { playlist ->
+                            val currentIndex = exoPlayer?.currentMediaItemIndex ?: 0
+                            if (currentIndex < playlist.tracks.size) {
+                                runOnUiThread {
+                                    binding.nowPlayingText?.text = "▶️ ${playlist.tracks[currentIndex].title}"
+                                }
+                            }
+                        }
+                    }
+                })
+            }
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
             
             // Play song through service
             musicService?.playSong(song)
             
+<<<<<<< HEAD
             // Show playback controls
+=======
+            // آماده کردن و شروع پخش
+            exoPlayer?.prepare()
+            
+            // نمایش کنترل‌های پخش قبل از شروع پخش
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
             showPlaybackControls(playlist.tracks[0])
             
+            // شروع بروزرسانی SeekBar
+            startSeekBarUpdate()
+            
+            // شروع پخش
+            exoPlayer?.play()
+            
             Toast.makeText(this, "▶️ پخش ${playlist.tracks.size} آهنگ", Toast.LENGTH_SHORT).show()
+            
+            android.util.Log.d("MusicActivity", "Started playing ${playlist.tracks.size} tracks")
+            android.util.Log.d("MusicActivity", "ExoPlayer state: ${exoPlayer?.playbackState}, isPlaying: ${exoPlayer?.isPlaying}")
             
         } catch (e: Exception) {
             android.util.Log.e("MusicActivity", "Error playing music", e)
@@ -387,11 +481,14 @@ class MusicActivity : AppCompatActivity() {
         }
     }
     
+<<<<<<< HEAD
     private fun playNextTrack() {
         currentPlaylist?.let { playlist ->
             musicService?.playNext()
         }
     }
+=======
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
     
     private fun showPlaybackControls(track: MusicPlaylistManager.MusicTrack) {
         // نمایش اطلاعات آهنگ در حال پخش
@@ -422,11 +519,29 @@ class MusicActivity : AppCompatActivity() {
         }
         
         binding.nextButton?.setOnClickListener {
+<<<<<<< HEAD
             musicService?.playNext()
         }
         
         binding.prevButton?.setOnClickListener {
             musicService?.playPrevious()
+=======
+            if (exoPlayer?.hasNextMediaItem() == true) {
+                exoPlayer?.seekToNext()
+            } else {
+                Toast.makeText(this, "آخرین آهنگ", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        binding.prevButton?.setOnClickListener {
+            if (exoPlayer?.hasPreviousMediaItem() == true) {
+                exoPlayer?.seekToPrevious()
+            } else {
+                // برگشت به ابتدای آهنگ فعلی
+                exoPlayer?.seekTo(0)
+                Toast.makeText(this, "اولین آهنگ", Toast.LENGTH_SHORT).show()
+            }
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
         }
         
         // Shuffle Button - TODO: Implement in RealMusicService
@@ -450,12 +565,51 @@ class MusicActivity : AppCompatActivity() {
         binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
+<<<<<<< HEAD
                     musicService?.seekTo(progress.toLong())
+=======
+                    exoPlayer?.let {
+                        if (it.duration > 0) {
+                            val position = (it.duration * progress / seekBar!!.max)
+                            it.seekTo(position)
+                        }
+                    }
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
                 }
             }
             
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
                 isUserSeeking = true
+<<<<<<< HEAD
+=======
+            }
+            
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                isUserSeeking = false
+            }
+        })
+        startSeekBarUpdate()
+    }
+    
+    private fun startSeekBarUpdate() {
+        seekBarHandler.post(updateSeekBar)
+    }
+    
+    private fun stopSeekBarUpdate() {
+        seekBarHandler.removeCallbacks(updateSeekBar)
+    }
+    
+    private val updateSeekBar = object : Runnable {
+        override fun run() {
+            exoPlayer?.let {
+                if (!isUserSeeking && it.duration > 0) {
+                    val current = it.currentPosition
+                    val total = it.duration
+                    binding.seekBar?.max = total.toInt()
+                    binding.seekBar?.progress = current.toInt()
+                    binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
+                }
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
             }
             
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
@@ -471,6 +625,7 @@ class MusicActivity : AppCompatActivity() {
         return String.format("%d:%02d", minutes, seconds)
     }
     
+<<<<<<< HEAD
     private fun updateUIFromService() {
         musicService?.let { service ->
             updatePlayPauseButton(service.isCurrentlyPlaying())
@@ -522,6 +677,52 @@ class MusicActivity : AppCompatActivity() {
             val total = service.getDuration()
             binding.timeText?.text = "${formatTime(current)} / ${formatTime(total)}"
         }
+=======
+    private fun showMusicAIChat() {
+        val input = android.widget.EditText(this).apply {
+            hint = "دستور خود را بنویسید (مثل: پلی‌لیست شاد بساز)"
+            setPadding(32, 32, 32, 32)
+        }
+        
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("🎵 دستیار موسیقی هوشمند")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userMessage = input.text.toString()
+                if (userMessage.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            val response = aiAssistant.processMusicCommand(userMessage)
+                            
+                            runOnUiThread {
+                                if (response.success && response.action == "create_playlist") {
+                                    val mood = response.data["mood"] as? String ?: ""
+                                    if (mood.isNotEmpty()) {
+                                        selectedMood = mood
+                                        binding.selectedMoodText?.text = "حالت انتخاب شده: 🎵 $mood"
+                                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                            createPlaylist()
+                                        }, 300)
+                                    }
+                                }
+                                
+                                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@MusicActivity)
+                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ خطا")
+                                    .setMessage(response.message)
+                                    .setPositiveButton("باشه", null)
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@MusicActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+>>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
     }
     
     override fun onDestroy() {

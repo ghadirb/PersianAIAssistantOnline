@@ -1203,28 +1203,12 @@ class MainActivity : AppCompatActivity() {
                 showModelSelector()
                 true
             }
-            R.id.action_reminders -> {
-                startActivity(Intent(this, RemindersActivity::class.java))
-                true
-            }
             R.id.action_clear_chat -> {
                 clearChat()
                 true
             }
             R.id.action_refresh_keys -> {
                 refreshAPIKeys()
-                true
-            }
-            R.id.action_expenses -> {
-                startActivity(Intent(this, ExpensesActivity::class.java))
-                true
-            }
-            R.id.action_weather -> {
-                startActivity(Intent(this, WeatherActivity::class.java))
-                true
-            }
-            R.id.action_calendar -> {
-                startActivity(Intent(this, CalendarActivity::class.java))
                 true
             }
             R.id.action_settings -> {

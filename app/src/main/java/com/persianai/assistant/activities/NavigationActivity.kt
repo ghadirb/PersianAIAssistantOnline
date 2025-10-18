@@ -1,77 +1,58 @@
 package com.persianai.assistant.activities
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
+import android.view.View
+import android.webkit.WebView
+import android.webkit.JavascriptInterface
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.*
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.*
-import com.persianai.assistant.R
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityNavigationBinding
-import com.persianai.assistant.navigation.NessanMapsAPI
-import com.persianai.assistant.navigation.PersianNavigationTTS
-import com.persianai.assistant.navigation.AIPoweredTTS
-import com.persianai.assistant.navigation.SpeedCameraManager
+import com.persianai.assistant.navigation.SavedLocationsManager
+import com.google.android.gms.maps.model.LatLng
+import com.persianai.assistant.ml.LocationHistoryManager
+import com.persianai.assistant.ml.RoutePredictor
+import com.persianai.assistant.ml.RouteLearningSys
+import com.persianai.assistant.utils.NeshanSearchAPI
+import com.persianai.assistant.ai.ContextualAIAssistant
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import java.util.*
 
-/**
- * مسیریابی فارسی با نقشه و هشدارهای صوتی
- * استفاده از Google Maps + Nessan Maps API + Persian TTS
- */
-class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
-    
-    companion object {
-        private const val LOCATION_PERMISSION_REQUEST = 1001
-        private const val DEFAULT_ZOOM = 15f
-        const val NESHAN_API_KEY = "service.649ba7521ba04da595c5ab56413b3c84"
-    }
+class NavigationActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityNavigationBinding
-    private var googleMap: GoogleMap? = null
+    private lateinit var webView: WebView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var aiPoweredTTS: AIPoweredTTS
-    private lateinit var speedCameraManager: SpeedCameraManager
-    private lateinit var nessanMapsAPI: NessanMapsAPI
-    
+    private lateinit var savedLocationsManager: SavedLocationsManager
+    private lateinit var locationHistoryManager: LocationHistoryManager
+    private lateinit var routePredictor: RoutePredictor
+    private lateinit var routeLearningSys: RouteLearningSys
+    private lateinit var searchAPI: NeshanSearchAPI
+    private lateinit var aiAssistant: ContextualAIAssistant
     private var currentLocation: Location? = null
-    private var currentRoute: List<LatLng>? = null
-    private var currentSpeed: Float = 0f // km/h
-    private var speedLimit: Int = 0
-    private var alternativeRoutes: List<NessanMapsAPI.RouteResult> = emptyList()
-    private var selectedRouteIndex: Int = 0
-    private var routePolylines: MutableList<Polyline> = mutableListOf()
-    private var isNavigating = false
-    private var destinationMarker: Marker? = null
-    private var routePolyline: Polyline? = null
-    
-    // POI Types
-    private val poiTypes = mapOf(
-        "gas" to "⛽ پمپ بنزین",
-        "food" to "🍴 رستوران",
-        "hospital" to "🏥 بیمارستان",
-        "atm" to "💳 عابر بانک",
-        "parking" to "🅿️ پارکینگ"
-    )
+    private var selectedDestination: LatLng? = null
+    private val routeWaypoints = mutableListOf<LatLng>()
+    private var routeStartTime: Long = 0
+    private var isTrafficEnabled = false
+    private var currentMapLayer = "normal"
     
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
-            result.lastLocation?.let { location ->
-                currentLocation = location
-                currentSpeed = location.speed * 3.6f // m/s به km/h
+            result.lastLocation?.let { loc ->
+                currentLocation = loc
+                webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
+                binding.currentSpeedText.text = "${(loc.speed * 3.6f).toInt()} km/h"
                 
-                updateLocationOnMap(location)
-                checkSpeedWarnings(location)
-                checkSpeedCameras(location)
+                // ثبت مکان برای یادگیری
+                locationHistoryManager.recordLocation(loc)
             }
         }
     }
@@ -83,399 +64,422 @@ class NavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "🗺️ مسیریابی فارسی"
+        supportActionBar?.title = "🗺️ مسیریاب"
         
-        // Initialize services
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        aiPoweredTTS = AIPoweredTTS(this)
-        speedCameraManager = SpeedCameraManager(this)
-        nessanMapsAPI = NessanMapsAPI()
-        
-        // نمایش وضعیت TTS
-        android.util.Log.d("Navigation", "TTS Status: ${aiPoweredTTS.getStatus()}")
-        
-        // Setup map
-        val mapFragment = supportFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
-        
-        // سرعت‌سنج ابتدا مخفی است
-        binding.speedCard.visibility = android.view.View.GONE
-        
-        // دکمه جستجوی مقصد
-        binding.searchDestinationButton.setOnClickListener {
-            showDestinationSearchDialog()
-        }
-        
-        // دکمه مکان فعلی
-        binding.myLocationButton.setOnClickListener {
-            currentLocation?.let { location ->
-                googleMap?.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(
-                        LatLng(location.latitude, location.longitude),
-                        17f
-                    )
-                )
-                Toast.makeText(this, "📍 مکان فعلی", Toast.LENGTH_SHORT).show()
-            } ?: run {
-                Toast.makeText(this, "مکان شما هنوز آماده نیست", Toast.LENGTH_SHORT).show()
-            }
-        }
-        
-        // دکمه شروع مسیریابی
-        binding.startNavigationButton.setOnClickListener {
-            if (currentRoute != null) {
-                startNavigation()
-                // نمایش سرعت‌سنج
-                binding.speedCard.visibility = android.view.View.VISIBLE
-            } else {
-                Toast.makeText(this, "لطفاً ابتدا مقصد را انتخاب کنید", Toast.LENGTH_SHORT).show()
-            }
-        }
-        
-        // دکمه توقف
-        binding.stopNavigationButton.setOnClickListener {
-            stopNavigation()
-            // مخفی کردن سرعت‌سنج
-            binding.speedCard.visibility = android.view.View.GONE
-        }
-        
-        // دکمه توقف مسیریابی
-        binding.stopNavigationButton.setOnClickListener {
-            stopNavigation()
+        try {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+            savedLocationsManager = SavedLocationsManager(this)
+            locationHistoryManager = LocationHistoryManager(this)
+            routePredictor = RoutePredictor(this)
+            routeLearningSys = RouteLearningSys(this)
+            searchAPI = NeshanSearchAPI(this)
+            aiAssistant = ContextualAIAssistant(this)
+            
+            webView = binding.mapWebView
+            webView.settings.javaScriptEnabled = true
+            webView.addJavascriptInterface(MapInterface(), "Android")
+            webView.loadUrl("file:///android_asset/neshan_map.html")
+            
+            checkPermissions()
+            setupButtons()
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("NavigationActivity", "Error", e)
         }
     }
     
-    override fun onMapReady(map: GoogleMap) {
-        googleMap = map
-        
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            googleMap?.isMyLocationEnabled = true
-            googleMap?.uiSettings?.isMyLocationButtonEnabled = false
-            
-            startLocationUpdates()
+    private fun setupButtons() {
+        binding.myLocationButton.setOnClickListener {
+            currentLocation?.let { loc ->
+                webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
+            }
         }
+        
+        binding.searchDestinationButton.setOnClickListener {
+            val intent = Intent(this, SearchDestinationActivity::class.java)
+            startActivityForResult(intent, 1001)
+        }
+        
+        binding.savedLocationsButton.setOnClickListener {
+            showSavedLocations()
+        }
+        
+        binding.poiButton.setOnClickListener {
+            showPOIDialog()
+        }
+        
+        binding.saveCurrentLocationButton.setOnClickListener {
+            currentLocation?.let { loc ->
+                showSaveLocationDialog(LatLng(loc.latitude, loc.longitude))
+            } ?: Toast.makeText(this, "⚠️ در حال دریافت موقعیت...", Toast.LENGTH_SHORT).show()
+        }
+        
+        binding.startNavigationButton.setOnClickListener {
+            startNavigation()
+        }
+        
+        binding.stopNavigationButton.setOnClickListener {
+            stopNavigation()
+        }
+        
+        binding.addWaypointButton.setOnClickListener {
+            Toast.makeText(this, "📍 مقصد میانی", Toast.LENGTH_SHORT).show()
+        }
+        
+        binding.aiChatFab.setOnClickListener {
+            showAIChat()
+        }
+        
+    }
+    
+    private fun toggleTraffic() {
+        isTrafficEnabled = !isTrafficEnabled
+        if (isTrafficEnabled) {
+            webView.evaluateJavascript("enableTraffic();", null)
+            Toast.makeText(this, "🚦 ترافیک فعال شد", Toast.LENGTH_SHORT).show()
+        } else {
+            webView.evaluateJavascript("disableTraffic();", null)
+            Toast.makeText(this, "✅ ترافیک غیرفعال شد", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun showMapLayersDialog() {
+        val layers = arrayOf("🗺️ نقشه عادی", "🛰️ ماهواره", "🌍 ترکیبی")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("لایه نقشه")
+            .setItems(layers) { _, which ->
+                currentMapLayer = when (which) {
+                    0 -> "normal"
+                    1 -> "satellite"
+                    else -> "hybrid"
+                }
+                webView.evaluateJavascript("setMapLayer('$currentMapLayer');", null)
+                Toast.makeText(this, layers[which], Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+    
+    private fun showPOIDialog() {
+        val poiTypes = arrayOf(
+            "⛽ پمپ بنزین",
+            "🍽️ رستوران",
+            "🏥 بیمارستان",
+            "🏧 ATM",
+            "🅿️ پارکینگ",
+            "☕ کافه",
+            "🏨 هتل",
+            "🏪 فروشگاه",
+            "💊 داروخانه",
+            "🏦 بانک"
+        )
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📍 مکان‌های نزدیک")
+            .setItems(poiTypes) { _, which ->
+                val poiType = when (which) {
+                    0 -> "gas_station"
+                    1 -> "restaurant"
+                    2 -> "hospital"
+                    3 -> "atm"
+                    4 -> "parking"
+                    5 -> "cafe"
+                    6 -> "hotel"
+                    7 -> "store"
+                    8 -> "pharmacy"
+                    else -> "bank"
+                }
+                searchNearbyPOI(poiType, poiTypes[which])
+            }
+            .show()
+    }
+    
+    private fun searchNearbyPOI(type: String, name: String) {
+        currentLocation?.let { loc ->
+            Toast.makeText(this, "🔍 جستجوی $name ...", Toast.LENGTH_SHORT).show()
+            webView.evaluateJavascript("searchNearby(${loc.latitude}, ${loc.longitude}, '$type');", null)
+        } ?: Toast.makeText(this, "⚠️ مکان شما در دسترس نیست", Toast.LENGTH_SHORT).show()
+    }
+    
+    inner class MapInterface {
+        @JavascriptInterface
+        fun onMapClick(lat: Double, lng: Double) {
+            runOnUiThread {
+                showSaveLocationDialog(LatLng(lat, lng))
+            }
+        }
+    }
+    
+    private fun showSavedLocations() {
+        val locations = savedLocationsManager.getAllLocations()
+        if (locations.isEmpty()) {
+            Toast.makeText(this, "💾 هیچ مکانی ذخیره نشده", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val items = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("💾 مکان‌های ذخیره شده")
+            .setItems(items) { _, which ->
+                val location = locations[which]
+                selectedDestination = LatLng(location.latitude, location.longitude)
+                webView.evaluateJavascript("addMarker(${location.latitude}, ${location.longitude}, '${location.name}');", null)
+                Toast.makeText(this, "📍 ${location.name}", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("مدیریت") { _, _ ->
+                showManageLocationsDialog()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun showManageLocationsDialog() {
+        val locations = savedLocationsManager.getAllLocations()
+        val items = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🗑️ مدیریت مکان‌ها")
+            .setItems(items) { _, which ->
+                val location = locations[which]
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("حذف ${location.name}؟")
+                    .setMessage("آیا مطمئن هستید؟")
+                    .setPositiveButton("حذف") { _, _ ->
+                        savedLocationsManager.deleteLocation(location.id)
+                        Toast.makeText(this, "✅ حذف شد", Toast.LENGTH_SHORT).show()
+                        showManageLocationsDialog()
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun showSaveLocationDialog(latLng: LatLng) {
+        val input = EditText(this)
+        input.hint = "نام مکان"
+        
+        val categories = arrayOf("🏠 خانه", "💼 محل کار", "⭐ علاقه‌مندی")
+        var selectedCategory = "favorite"
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("⭐ ذخیره مکان")
+            .setMessage("📍 ${String.format("%.6f", latLng.latitude)}, ${String.format("%.6f", latLng.longitude)}")
+            .setView(input)
+            .setSingleChoiceItems(categories, 2) { _, which ->
+                selectedCategory = when (which) {
+                    0 -> "home"
+                    1 -> "work"
+                    else -> "favorite"
+                }
+            }
+            .setPositiveButton("ذخیره") { _, _ ->
+                val name = input.text.toString().ifEmpty { "مکان ${System.currentTimeMillis()}" }
+                val address = "${String.format("%.6f", latLng.latitude)}, ${String.format("%.6f", latLng.longitude)}"
+                
+                if (savedLocationsManager.saveLocation(name, address, latLng, selectedCategory)) {
+                    Toast.makeText(this, "✅ ذخیره شد: $name", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "❌ خطا در ذخیره", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
+    private fun getCategoryEmoji(category: String): String {
+        return when (category) {
+            "home" -> "🏠"
+            "work" -> "💼"
+            else -> "⭐"
+        }
+    }
+    
+    private fun showAdvancedSearchDialog() {
+        val view = layoutInflater.inflate(android.R.layout.simple_list_item_2, null)
+        val searchInput = EditText(this).apply {
+            hint = "جستجوی مقصد..."
+            setPadding(32, 32, 32, 16)
+        }
+        
+        val cityInput = EditText(this).apply {
+            hint = "شهر (پیش‌فرض: تهران)"
+            setPadding(32, 16, 32, 32)
+        }
+        
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(searchInput)
+            addView(cityInput)
+        }
+        
+        // پیشنهادات ML
+        currentLocation?.let { loc ->
+            val predictions = routePredictor.predictNextDestination(loc)
+            if (predictions.isNotEmpty()) {
+                val suggestionsText = android.widget.TextView(this).apply {
+                    text = "💡 پیشنهادات هوشمند:"
+                    setPadding(32, 16, 32, 8)
+                    setTextColor(0xFF9C27B0.toInt())
+                    textSize = 14f
+                }
+                layout.addView(suggestionsText)
+                
+                predictions.take(2).forEach { prediction ->
+                    val btn = com.google.android.material.button.MaterialButton(this).apply {
+                        text = prediction.reason
+                        setOnClickListener {
+                            selectedDestination = prediction.location
+                            webView.evaluateJavascript("addMarker(${prediction.location.latitude}, ${prediction.location.longitude}, 'پیشنهاد ML');", null)
+                            Toast.makeText(this@NavigationActivity, "📍 مقصد انتخاب شد", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    layout.addView(btn)
+                }
+            }
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔍 جستجوی مقصد")
+            .setView(layout)
+            .setPositiveButton("جستجو") { _, _ ->
+                val query = searchInput.text.toString()
+                val city = cityInput.text.toString().ifEmpty { "تهران" }
+                
+                if (query.isNotEmpty()) {
+                    performSearch(query, city)
+                } else {
+                    Toast.makeText(this, "⚠️ لطفاً مقصد را وارد کنید", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
+    private fun performSearch(query: String, city: String) {
+        binding.progressBar.visibility = View.VISIBLE
+        
+        lifecycleScope.launch {
+            try {
+                val results = searchAPI.search(query, city)
+                
+                runOnUiThread {
+                    binding.progressBar.visibility = View.GONE
+                    
+                    if (results.isEmpty()) {
+                        Toast.makeText(this@NavigationActivity, "❌ نتیجه‌ای یافت نشد", Toast.LENGTH_SHORT).show()
+                        return@runOnUiThread
+                    }
+                    
+                    showSearchResults(results)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this@NavigationActivity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
+    private fun showSearchResults(results: List<NeshanSearchAPI.SearchResult>) {
+        val items = results.map { "📍 ${it.title}\n${it.address}" }.toTypedArray()
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔍 نتایج جستجو (${results.size})")
+            .setItems(items) { _, which ->
+                val result = results[which]
+                selectedDestination = LatLng(result.latitude, result.longitude)
+                webView.evaluateJavascript("addMarker(${result.latitude}, ${result.longitude}, '${result.title}');", null)
+                Toast.makeText(this, "✅ ${result.title}", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun showAIChat() {
+        val input = EditText(this).apply {
+            hint = "دستور خود را بنویسید..."
+            setPadding(32, 32, 32, 32)
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🤖 دستیار مسیریابی")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userMessage = input.text.toString()
+                if (userMessage.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            val response = aiAssistant.processNavigationCommand(userMessage)
+                            runOnUiThread {
+                                MaterialAlertDialogBuilder(this@NavigationActivity)
+                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ پاسخ")
+                                    .setMessage(response.message)
+                                    .setPositiveButton("باشه", null)
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                Toast.makeText(this@NavigationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun checkPermissions() {
-        val permissions = arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this, permissions, 1001)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
         } else {
             startLocationUpdates()
         }
     }
     
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.create().apply {
-            interval = 2000 // هر 2 ثانیه
-            fastestInterval = 1000
+        val request = LocationRequest.create().apply {
+            interval = 2000
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
         
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                mainLooper
-            )
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
+            == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.requestLocationUpdates(request, locationCallback, mainLooper)
         }
     }
     
-    private fun updateLocationOnMap(location: Location) {
-        val latLng = LatLng(location.latitude, location.longitude)
-        
-        // بروزرسانی سرعت
-        binding.currentSpeedText.text = "سرعت: ${currentSpeed.toInt()} km/h"
-        
-        // تغییر رنگ سرعت اگر بیشتر از حد مجاز باشد
-        if (speedLimit > 0 && currentSpeed > speedLimit) {
-            binding.currentSpeedText.setTextColor(getColor(android.R.color.holo_red_dark))
-        } else {
-            binding.currentSpeedText.setTextColor(getColor(android.R.color.white))
-        }
-    }
-    
-    private fun checkSpeedWarnings(location: Location) {
-        if (speedLimit > 0 && currentSpeed > speedLimit + 5) {
-            // هشدار تخطی از سرعت مجاز (فوری)
-            lifecycleScope.launch {
-                val warning = "توجه! سرعت شما ${currentSpeed.toInt()} کیلومتر است. محدودیت سرعت $speedLimit کیلومتر می‌باشد"
-                aiPoweredTTS.speak(warning, urgent = true)
-            }
-        }
-    }
-    
-    private fun checkSpeedCameras(location: Location) {
-        lifecycleScope.launch {
-            val nearbyCameras = speedCameraManager.getNearbyCameras(
-                location.latitude,
-                location.longitude,
-                500.0 // 500 متر
-            )
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1001 && resultCode == Activity.RESULT_OK && data != null) {
+            val lat = data.getDoubleExtra("latitude", 0.0)
+            val lng = data.getDoubleExtra("longitude", 0.0)
+            val title = data.getStringExtra("title") ?: "مقصد"
             
-            nearbyCameras.forEach { camera ->
-                val distance = FloatArray(1)
-                Location.distanceBetween(
-                    location.latitude,
-                    location.longitude,
-                    camera.latitude,
-                    camera.longitude,
-                    distance
-                )
-                
-                if (distance[0] < 500) {
-                    warnSpeedCamera(distance[0].toInt(), camera.speedLimit)
-                }
+            if (lat != 0.0 && lng != 0.0) {
+                selectedDestination = LatLng(lat, lng)
+                webView.evaluateJavascript("addMarker($lat, $lng, '$title');", null)
+                Toast.makeText(this, "✅ $title", Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-    
-    private suspend fun warnSpeedCamera(distanceInMeters: Int, cameraSpeedLimit: Int) {
-        val warning = when {
-            distanceInMeters < 100 -> "دوربین سرعت! محدودیت $cameraSpeedLimit کیلومتر"
-            distanceInMeters < 300 -> "توجه! دوربین سرعت در $distanceInMeters متری. محدودیت $cameraSpeedLimit کیلومتر"
-            else -> "دوربین سرعت در $distanceInMeters متری"
-        }
-        
-        aiPoweredTTS.speak(warning, urgent = true)
-        
-        // نمایش آیکون دوربین روی نقشه
-        googleMap?.addMarker(
-            MarkerOptions()
-                .position(LatLng(currentLocation!!.latitude, currentLocation!!.longitude))
-                .title("دوربین سرعت")
-                .snippet("محدودیت: $cameraSpeedLimit km/h")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-        )
-    }
-    
-    private fun showPOIsOnMap(poiType: String) {
-        currentLocation?.let { location ->
-            // نمایش POI های اطراف
-            Toast.makeText(this, "در حال جستجوی ${poiTypes[poiType]}...", Toast.LENGTH_SHORT).show()
-            
-            // TODO: API call to get POIs
-            // برای الان موقعیت‌های نمونه
-            val samplePOIs = when(poiType) {
-                "gas" -> listOf(
-                    LatLng(location.latitude + 0.01, location.longitude + 0.01),
-                    LatLng(location.latitude - 0.01, location.longitude + 0.02)
-                )
-                "food" -> listOf(
-                    LatLng(location.latitude + 0.02, location.longitude - 0.01),
-                    LatLng(location.latitude - 0.02, location.longitude - 0.02)
-                )
-                else -> emptyList()
-            }
-            
-            samplePOIs.forEach { poi ->
-                googleMap?.addMarker(
-                    MarkerOptions()
-                        .position(poi)
-                        .title(poiTypes[poiType])
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW))
-                )
-            }
-        }
-    }
-    
-    private fun showDestinationSearchDialog() {
-        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
-        builder.setTitle("جستجوی مقصد")
-        
-        val input = android.widget.EditText(this)
-        input.hint = "آدرس مقصد را وارد کنید"
-        builder.setView(input)
-        
-        builder.setPositiveButton("جستجو") { _, _ ->
-            val destination = input.text.toString()
-            if (destination.isNotEmpty()) {
-                searchDestination(destination)
-            }
-        }
-        
-        builder.setNegativeButton("لغو") { dialog, _ ->
-            dialog.cancel()
-        }
-        
-        builder.show()
-    }
-    
-    private fun searchDestination(query: String) {
-        lifecycleScope.launch {
-            try {
-                binding.progressBar.visibility = android.view.View.VISIBLE
-                
-                // استفاده از Nessan Maps API برای جستجو
-                val result = nessanMapsAPI.searchPlace(query)
-                
-                if (result != null) {
-                    val destination = LatLng(result.latitude, result.longitude)
-                    
-                    // نمایش مارکر مقصد
-                    googleMap?.addMarker(
-                        MarkerOptions()
-                            .position(destination)
-                            .title(result.name)
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
-                    )
-                    
-                    // حرکت دوربین به مقصد
-                    googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(destination, 13f))
-                    
-                    // TODO: دریافت مسیرهای جایگزین در آینده
-                    Toast.makeText(this@NavigationActivity, "مسیریابی فعال شد", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@NavigationActivity, "مقصد یافت نشد", Toast.LENGTH_SHORT).show()
-                }
-                
-                binding.progressBar.visibility = android.view.View.GONE
-            } catch (e: Exception) {
-                android.util.Log.e("Navigation", "Error searching destination", e)
-                Toast.makeText(this@NavigationActivity, "خطا در جستجو", Toast.LENGTH_SHORT).show()
-                binding.progressBar.visibility = android.view.View.GONE
-            }
-        }
-    }
-    
-    private suspend fun getRoute(origin: LatLng, destination: LatLng) {
-        try {
-            val route = nessanMapsAPI.getDirections(origin, destination)
-            
-            if (route != null) {
-                currentRoute = route.points
-                speedLimit = route.speedLimit
-                
-                // رسم مسیر روی نقشه
-                val polylineOptions = PolylineOptions()
-                    .addAll(route.points)
-                    .color(getColor(R.color.primaryColor))
-                    .width(10f)
-                
-                googleMap?.addPolyline(polylineOptions)
-                
-                // نمایش اطلاعات مسیر
-                binding.routeInfoCard.visibility = android.view.View.VISIBLE
-                binding.routeDistanceText.text = "مسافت: ${route.distance} کیلومتر"
-                binding.routeDurationText.text = "زمان تقریبی: ${route.duration} دقیقه"
-                binding.speedLimitText.text = "سرعت مجاز: ${route.speedLimit} km/h"
-                
-                // شروع راهنمایی صوتی
-                lifecycleScope.launch {
-                    aiPoweredTTS.speak("مسیر محاسبه شد. مسافت ${route.distance} کیلومتر. زمان تقریبی ${route.duration} دقیقه")
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("Navigation", "Error getting route", e)
-            Toast.makeText(this, "خطا در محاسبه مسیر", Toast.LENGTH_SHORT).show()
         }
     }
     
     private fun startNavigation() {
-        if (currentRoute != null) {
-            binding.startNavigationButton.visibility = android.view.View.GONE
-            binding.stopNavigationButton.visibility = android.view.View.VISIBLE
-            
-            lifecycleScope.launch {
-                aiPoweredTTS.speak("مسیریابی شروع شد. لطفاً به دستورات توجه کنید")
-            }
-            
-            Toast.makeText(this, "مسیریابی شروع شد", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(this, "ابتدا مقصد را انتخاب کنید", Toast.LENGTH_SHORT).show()
-        }
+        routeStartTime = System.currentTimeMillis()
+        binding.speedCard.visibility = View.VISIBLE
+        binding.routeInfoCard.visibility = View.VISIBLE
     }
     
     private fun stopNavigation() {
-        binding.startNavigationButton.visibility = android.view.View.VISIBLE
-        binding.stopNavigationButton.visibility = android.view.View.GONE
-        
-        currentRoute = null
-        googleMap?.clear()
-        
-        Toast.makeText(this, "مسیریابی متوقف شد", Toast.LENGTH_SHORT).show()
+        binding.speedCard.visibility = View.GONE
+        binding.routeInfoCard.visibility = View.GONE
     }
     
     override fun onDestroy() {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
-        aiPoweredTTS.shutdown()
-    }
-    
-    private fun handleAIIntent() {
-        val aiDestination = intent.getStringExtra("AI_DESTINATION")
-        val aiVoice = intent.getBooleanExtra("AI_VOICE", false)
-        
-        if (aiDestination != null) {
-            // جستجوی خودکار مقصد
-            lifecycleScope.launch {
-                try {
-                    val results = com.persianai.assistant.api.NeshanAPI.searchLocation(aiDestination)
-                    if (results.isNotEmpty()) {
-                        val dest = results[0]
-                        Toast.makeText(
-                            this@NavigationActivity,
-                            "🗺️ مسیریابی به ${dest.name}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        
-                        if (aiVoice) {
-                            aiPoweredTTS.speak("مسیریابی به ${dest.name} شروع شد")
-                        }
-                        
-                        // شروع مسیریابی (فقط اگر قبلا مسیر محاسبه شده)
-                        // TODO: باید از nessanMapsAPI.getRoute استفاده کنیم
-                        currentLocation?.let {
-                            Toast.makeText(
-                                this@NavigationActivity,
-                                "📍 موقعیت شما: ${it.latitude}, ${it.longitude}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    } else {
-                        Toast.makeText(
-                            this@NavigationActivity,
-                            "❌ مقصد '‎$aiDestination' پیدا نشد",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("NavigationActivity", "AI Intent error", e)
-                }
-            }
-        }
-    }
-    
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
-    }
-    
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1001 && grantResults.isNotEmpty() && 
-            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startLocationUpdates()
-        }
     }
 }
