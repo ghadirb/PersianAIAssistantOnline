@@ -5,7 +5,7 @@ import android.util.Log
 import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
-import com.persianai.assistant.models.AIModelManager
+import com.persianai.assistant.api.AIModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
