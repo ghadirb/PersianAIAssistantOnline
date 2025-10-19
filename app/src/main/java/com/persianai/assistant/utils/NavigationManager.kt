@@ -61,34 +61,9 @@ class NavigationManager(private val context: Context) {
         endLng: Double,
         routeType: RouteType = RouteType.DRIVING
     ): com.persianai.assistant.navigation.models.NavigationRoute = withContext(Dispatchers.IO) {
-        try {
-            val origin = com.google.maps.model.LatLng(startLat, startLng)
-            val destination = com.google.maps.model.LatLng(endLat, endLng)
-            
-            val request = DirectionsApi.newRequest(geoApiContext)
-                .origin(origin)
-                .destination(destination)
-                .mode(convertTravelMode(routeType))
-                .language("fa")
-            
-            // اعمال تنظیمات مسیریابی
-            if (navigationSettings.avoidTolls) {
-                request.avoidTolls()
-            }
-            if (navigationSettings.avoidHighways) {
-                request.avoidHighways()
-            }
-            if (navigationSettings.avoidFerries) {
-                request.avoidFerries()
-            }
-            
-            val result = request.await()
-            convertToNavigationRoute(result, routeType)
-            
-        } catch (e: Exception) {
-            // ایجاد مسیر پیش‌فرض در صورت خطا
-            createDefaultRoute(startLat, startLng, endLat, endLng)
-        }
+        // TODO: Implement Google Directions API integration
+        // For now, return a simple default route
+        createDefaultRoute(startLat, startLng, endLat, endLng)
     }
     
     /**
@@ -100,33 +75,21 @@ class NavigationManager(private val context: Context) {
         endLat: Double,
         endLng: Double
     ): List<com.persianai.assistant.navigation.models.NavigationRoute> = withContext(Dispatchers.IO) {
-        try {
-            val request = DirectionsApi.newRequest(geoApiContext)
-                .origin(com.google.maps.model.LatLng(startLat, startLng))
-                .destination(com.google.maps.model.LatLng(endLat, endLng))
-                .alternatives(true)
-                .mode(TravelMode.DRIVING)
-            
-            val result = request.await()
-            result.routes.map { route ->
-                convertToNavigationRoute(route, RouteType.DRIVING)
-            }
-            
-        } catch (e: Exception) {
-            emptyList()
-        }
+        // TODO: Implement alternative routes
+        emptyList()
     }
     
     /**
      * دریافت مرحله فعلی مسیر
      */
-    fun getCurrentStep(route: com.persianai.assistant.navigation.models.NavigationRoute, currentLocation: android.location.Location): com.persianai.assistant.navigation.models.NavigationStep? {
-        val currentLatLng = LatLng(currentLocation.latitude, currentLocation.longitude)
-        
-        return route.steps.minByOrNull { step ->
-            distanceBetween(currentLatLng, step.startLocation)
-        }
-    }
+    // TODO: Implement when NavigationStep is added to NavigationRoute
+    // fun getCurrentStep(route: com.persianai.assistant.navigation.models.NavigationRoute, currentLocation: android.location.Location): com.persianai.assistant.navigation.models.NavigationStep? {
+    //     val currentLatLng = LatLng(currentLocation.latitude, currentLocation.longitude)
+    //     
+    //     return route.steps.minByOrNull { step ->
+    //         distanceBetween(currentLatLng, step.startLocation)
+    //     }
+    // }
     
     /**
      * بررسی رسیدن به مقصد
