@@ -65,18 +65,20 @@ class VoiceNavigationHelper(private val context: Context) : TextToSpeech.OnInitL
                 speak("ناوبری شروع شد. به سمت مقصد حرکت کنید.")
                 delay(2000)
                 
+                // TODO: NavigationRoute doesn't have steps property
                 // خواندن دستورالعمل‌ها
-                route.steps.forEachIndexed { index, step ->
-                    if (!isMuted) {
-                        speakNavigationInstruction(step, index == 0)
-                        
-                        // انتظار برای رسیدن به مرحله بعد
-                        delay(step.duration * 1000 / route.steps.size)
-                    }
-                }
+                // route.steps.forEachIndexed { index, step ->
+                //     if (!isMuted) {
+                //         speakNavigationInstruction(step, index == 0)
+                //         
+                //         // انتظار برای رسیدن به مرحله بعد
+                //         delay(step.duration * 1000 / route.steps.size)
+                //     }
+                // }
                 
                 // اعلام رسیدن به مقصد
                 if (!isMuted) {
+                    delay(route.duration * 1000)
                     speak("شما به مقصد رسیدید.")
                 }
                 
