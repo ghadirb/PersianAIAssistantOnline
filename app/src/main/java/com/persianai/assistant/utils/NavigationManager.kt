@@ -7,8 +7,10 @@ import com.google.maps.GeoApiContext
 import com.google.maps.model.DirectionsResult
 import com.google.maps.model.TravelMode
 import com.persianai.assistant.navigation.models.*
+import com.persianai.assistant.navigation.models.RouteType
 import com.persianai.assistant.models.*
 import kotlinx.coroutines.Dispatchers
+import org.osmdroid.util.GeoPoint as OsmGeoPoint
 import kotlinx.coroutines.withContext
 import java.util.*
 

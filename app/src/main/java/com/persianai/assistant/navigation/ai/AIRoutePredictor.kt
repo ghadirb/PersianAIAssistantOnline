@@ -190,7 +190,7 @@ class AIRoutePredictor(private val context: Context) {
      */
     private fun calculateTrafficScore(route: NavigationRoute, trafficFactor: Float): Float {
         // مسیرهای طولانی‌تر در ترافیک بیشتر آسیب می‌بینند
-        return route.distance * trafficFactor
+        return route.distance.toFloat() * trafficFactor
     }
     
     /**

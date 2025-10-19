@@ -87,7 +87,7 @@ class RouteCache(private val context: Context) {
     ): String {
         val originStr = "${origin.latitude},${origin.longitude}"
         val destStr = "${destination.latitude},${destination.longitude}"
-        return "${originStr}_$destStr_${routeType.name}"
+        return "${originStr}_${destStr}_${routeType.name}"
     }
     
     /**
