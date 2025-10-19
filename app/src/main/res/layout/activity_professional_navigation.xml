@@ -204,7 +204,7 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/distanceText"
+                    android:id="@+id/mainDistanceText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="۰ کیلومتر"
@@ -213,7 +213,7 @@
                     android:textColor="#333333" />
 
                 <TextView
-                    android:id="@+id/durationText"
+                    android:id="@+id/mainDurationText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="۰ دقیقه"
@@ -223,7 +223,7 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/trafficText"
+                android:id="@+id/mainTrafficText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="ترافیک روان"
