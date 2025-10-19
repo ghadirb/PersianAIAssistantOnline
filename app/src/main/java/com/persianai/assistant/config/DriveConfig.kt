@@ -15,9 +15,9 @@ object DriveConfig {
     
     /**
      * ID پوشه عمومی Google Drive
-     * IMPORTANT: این مقدار را با ID پوشه واقعی خود جایگزین کنید
+     * لینک کامل: https://drive.google.com/drive/folders/1bp1Ay9kmK_bjWq_PznRfkPvhhjdhSye1?usp=drive_link
      */
-    const val PUBLIC_FOLDER_ID = "REPLACE_WITH_YOUR_FOLDER_ID"
+    const val PUBLIC_FOLDER_ID = "1bp1Ay9kmK_bjWq_PznRfkPvhhjdhSye1"
     
     /**
      * لینک کامل پوشه عمومی

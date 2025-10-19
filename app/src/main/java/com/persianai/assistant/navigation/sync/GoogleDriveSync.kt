@@ -3,6 +3,7 @@ package com.persianai.assistant.navigation.sync
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import com.persianai.assistant.config.DriveConfig
 import com.persianai.assistant.navigation.models.LearnedRoute
 import kotlinx.coroutines.*
 import java.io.File
@@ -18,23 +19,15 @@ class GoogleDriveSync(private val context: Context) {
     
     companion object {
         private const val TAG = "GoogleDriveSync"
-        private const val SYNC_FILE_NAME = "shared_routes.json"
         private const val MAX_RETRY_ATTEMPTS = 3
-        private const val FOLDER_NAME = "PersianAI_Routes"
         private const val SCOPES = "https://www.googleapis.com/auth/drive.file"
-        private const val PUBLIC_FOLDER_ID = "1234567890_REPLACE_WITH_ACTUAL_FOLDER_ID"
-        private const val PUBLIC_FOLDER_LINK = "https://drive.google.com/drive/folders/$PUBLIC_FOLDER_ID"
-        private const val SYNC_INTERVAL = 30 * 60 * 1000L // 30 دقیقه
-        
-        // لینک عمومی Google Drive (باید توسط کاربر تنظیم شود)
-        private const val DEFAULT_DRIVE_URL = "https://docs.google.com/uc?export=download&id=YOUR_FILE_ID"
     }
     
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val syncFile = File(context.filesDir, SYNC_FILE_NAME)
+    private val syncFile = File(context.filesDir, DriveConfig.ROUTES_FILE_NAME)
     
-    private var driveUrl: String = DEFAULT_DRIVE_URL
+    private var driveUrl: String = DriveConfig.PUBLIC_FOLDER_LINK
     private var lastSyncTime: Long = 0
     private var isSyncing = false
     
@@ -287,11 +280,11 @@ class GoogleDriveSync(private val context: Context) {
     private fun startPeriodicSync() {
         scope.launch {
             while (true) {
-                delay(SYNC_INTERVAL)
+                delay(DriveConfig.SYNC_INTERVAL)
                 
                 // بررسی نیاز به همگام‌سازی
                 val timeSinceLastSync = System.currentTimeMillis() - lastSyncTime
-                if (timeSinceLastSync >= SYNC_INTERVAL) {
+                if (timeSinceLastSync >= DriveConfig.SYNC_INTERVAL) {
                     Log.d(TAG, "Starting periodic sync")
                     syncRoutes()
                 }
@@ -314,7 +307,7 @@ class GoogleDriveSync(private val context: Context) {
      */
     fun getSyncStatus(): SyncStatus {
         val timeSinceLastSync = System.currentTimeMillis() - lastSyncTime
-        val needsSync = timeSinceLastSync >= SYNC_INTERVAL
+        val needsSync = timeSinceLastSync >= DriveConfig.SYNC_INTERVAL
         
         return SyncStatus(
             isSyncing = isSyncing,
