@@ -126,7 +126,8 @@ class DashboardActivity : AppCompatActivity() {
                 it.postDelayed({
                     try {
                         val intent = Intent(this, WeatherActivity::class.java)
-                        binding.weatherCard.visibility = View.GONE
+                        // TODO: Add weatherCard to layout
+                        // binding.weatherCard?.visibility = View.GONE
                         startActivity(intent)
                         overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                     } catch (e: Exception) {

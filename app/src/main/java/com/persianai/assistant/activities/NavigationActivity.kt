@@ -261,32 +261,34 @@ class NavigationActivity : AppCompatActivity() {
                             GeoPoint(dest.latitude, dest.longitude)
                         )
                         
-                        currentNavigationRoute = route
-                        routeStartTime = System.currentTimeMillis()
-                        isNavigationActive = true
-                        
-                        // نمایش مسیر روی نقشه
-                        val routePoints = route.waypoints.joinToString(",") { 
-                            "new L.LatLng(${it.latitude}, ${it.longitude})"
-                        }
-                        webView.evaluateJavascript("showRoute([$routePoints]);", null)
-                        
-                        // شروع یادگیری مسیر
-                        routeLearningSystem.startLearningRoute(route)
-                        
-                        // فعال کردن هشدارها
-                        enableAlerts()
-                        
-                        // نمایش کارت‌های سرعت و اطلاعات مسیر
-                        binding.speedCard.visibility = View.VISIBLE
-                        binding.routeInfoCard.visibility = View.VISIBLE
-                        
-                        runOnUiThread {
-                            Toast.makeText(
-                                this@NavigationActivity,
-                                "🧭 مسیریابی شروع شد (طول: ${route.distanceKm} کیلومتر)",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        route?.let { validRoute ->
+                            currentNavigationRoute = validRoute
+                            routeStartTime = System.currentTimeMillis()
+                            isNavigationActive = true
+                            
+                            // نمایش مسیر روی نقشه
+                            val routePoints = validRoute.waypoints.joinToString(",") { 
+                                "new L.LatLng(${it.latitude}, ${it.longitude})"
+                            }
+                            webView.evaluateJavascript("showRoute([$routePoints]);", null)
+                            
+                            // شروع یادگیری مسیر
+                            routeLearningSystem.startLearningRoute(validRoute)
+                            
+                            // فعال کردن هشدارها
+                            enableAlerts()
+                            
+                            // نمایش کارت‌های سرعت و اطلاعات مسیر
+                            binding.speedCard.visibility = View.VISIBLE
+                            binding.routeInfoCard.visibility = View.VISIBLE
+                            
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@NavigationActivity,
+                                    "🧭 مسیریابی شروع شد (طول: ${String.format("%.1f", validRoute.distance / 1000)} کیلومتر)",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                         
                     } catch (e: Exception) {
