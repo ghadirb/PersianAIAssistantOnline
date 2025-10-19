@@ -1,6 +1,7 @@
 package com.persianai.assistant.activities
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -302,7 +303,7 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         
         placesClient.findAutocompletePredictions(request)
             .addOnSuccessListener { response ->
-                val suggestions = response.map { prediction ->
+                val suggestions = response.autocompletePredictions.map { prediction ->
                     PlaceSuggestion(
                         placeId = prediction.placeId,
                         description = prediction.getFullText(null).toString(),
@@ -336,7 +337,7 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         currentLocation?.let { current ->
             lifecycleScope.launch {
                 try {
-                    val route = navigationManager.calculateRoute(
+                    val route = navigationManager.getRoute(
                         current.latitude,
                         current.longitude,
                         destination.latitude,
@@ -360,7 +361,7 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         
         // نمایش مسیر
         val polylineOptions = PolylineOptions()
-            .addAll(route.points.map { LatLng(it.latitude, it.longitude) })
+            .addAll(route.waypoints.map { LatLng(it.latitude, it.longitude) })
             .color(ContextCompat.getColor(this, R.color.primary_blue))
             .width(12f)
             .geodesic(true)
@@ -378,7 +379,7 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
         
         // حرکت دوربین برای نمایش کل مسیر
         val boundsBuilder = LatLngBounds.builder()
-        route.points.forEach { point ->
+        route.waypoints.forEach { point ->
             boundsBuilder.include(LatLng(point.latitude, point.longitude))
         }
         val bounds = boundsBuilder.build()
@@ -388,9 +389,10 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun showRouteInfo(route: NavigationRoute) {
         binding.routeInfoLayout.visibility = View.VISIBLE
         
-        binding.distanceText.text = "${String.format("%.1f", route.distance / 1000)} کیلومتر"
-        binding.durationText.text = "${route.duration / 60} دقیقه"
-        binding.trafficText.text = getTrafficStatus(route.trafficLevel)
+        // TODO: Add distanceText, durationText, trafficText to layout
+        // binding.distanceText?.text = "${String.format("%.1f", route.distance / 1000)} کیلومتر"
+        // binding.durationText?.text = "${route.duration / 60} دقیقه"
+        // binding.trafficText?.text = getTrafficStatus(route.trafficInfo?.trafficLevel)
         
         binding.startNavigationButton.visibility = View.VISIBLE
         binding.stopNavigationButton.visibility = View.GONE
@@ -414,10 +416,11 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
             // شروع ناوبری صوتی
             voiceNavigation.startNavigation(route)
             
+            // TODO: NavigationRoute doesn't have steps property
             // نمایش دستورالعمل اول
-            if (route.steps.isNotEmpty()) {
-                showNextInstruction(route.steps[0])
-            }
+            // if (route.steps.isNotEmpty()) {
+            //     showNextInstruction(route.steps[0])
+            // }
         }
     }
     
@@ -439,31 +442,34 @@ class ProfessionalNavigationActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun toggleVoiceNavigation() {
         voiceNavigation.toggleMute()
         val icon = if (voiceNavigation.isMuted()) R.drawable.ic_volume_off else R.drawable.ic_volume_on
-        binding.voiceNavigationButton.setImageResource(icon)
+        // TODO: Add voiceNavigationButton to layout
+        // binding.voiceNavigationButton?.setImageResource(icon)
     }
     
     private fun updateNavigation(location: Location) {
         currentRoute?.let { route ->
+            // TODO: Implement getCurrentStep and hasReachedDestination in NavigationManager
             // به‌روزرسانی موقعیت روی مسیر
-            val currentStep = navigationManager.getCurrentStep(route, location)
-            currentStep?.let { step ->
-                showNextInstruction(step)
-            }
+            // val currentStep = navigationManager.getCurrentStep(route, location)
+            // currentStep?.let { step ->
+            //     showNextInstruction(step)
+            // }
             
             // بررسی رسیدن به مقصد
-            if (navigationManager.hasReachedDestination(route, location)) {
-                Toast.makeText(this, "به مقصد رسیدید!", Toast.LENGTH_LONG).show()
-                stopNavigation()
-            }
+            // if (navigationManager.hasReachedDestination(route, location)) {
+            //     Toast.makeText(this, "به مقصد رسیدید!", Toast.LENGTH_LONG).show()
+            //     stopNavigation()
+            // }
         }
     }
     
-    private fun showNextInstruction(step: NavigationStep) {
-        binding.instructionText.text = step.instruction
-        binding.instructionDistance.text = "${String.format("%.0f", step.distance)} متر"
+    private fun showNextInstruction(step: Any) {
+        // TODO: NavigationStep class and properties needed
+        // binding.instructionText?.text = step.instruction
+        // binding.instructionDistance?.text = "${String.format("%.0f", step.distance)} متر"
         
         // به‌روزرسانی مارکر موقعیت فعلی
-        updateCurrentLocationMarker(location)
+        // updateCurrentLocationMarker(step.location)
     }
     
     private fun updateCurrentLocationMarker(location: Location) {
