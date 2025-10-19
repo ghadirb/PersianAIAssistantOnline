@@ -1,7 +1,8 @@
 package com.persianai.assistant.utils
 
 import android.content.Context
-import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLng as GoogleLatLng
+import com.persianai.assistant.models.LatLng
 import com.google.maps.DirectionsApi
 import com.google.maps.GeoApiContext
 import com.google.maps.model.DirectionsResult
