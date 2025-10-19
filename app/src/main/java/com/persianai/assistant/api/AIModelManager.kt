@@ -371,6 +371,48 @@ class AIModelManager(private val context: Context) {
     }
     
     /**
+     * بررسی وجود کلید API
+     */
+    fun hasApiKey(): Boolean {
+        val openAIKey = prefs.getString("openai_api_key", null)
+        val claudeKey = prefs.getString("claude_api_key", null)
+        val openRouterKey = prefs.getString("openrouter_api_key", null)
+        val aimlKey = prefs.getString("aiml_api_key", null)
+        
+        return !openAIKey.isNullOrEmpty() || !claudeKey.isNullOrEmpty() || 
+               !openRouterKey.isNullOrEmpty() || !aimlKey.isNullOrEmpty()
+    }
+    
+    /**
+     * تولید متن با استفاده از AI (متد ساده)
+     */
+    suspend fun generateText(prompt: String): String = withContext(Dispatchers.IO) {
+        val models = getAvailableModels()
+        if (models.isEmpty()) {
+            return@withContext "خطا: کلید API تنظیم نشده است"
+        }
+        
+        val model = models.first()
+        var result = ""
+        
+        try {
+            sendMessage(
+                model = model,
+                message = prompt,
+                onResponse = { result = it },
+                onError = { result = "خطا: $it" }
+            )
+            
+            // Wait a bit for async completion (not ideal but simple)
+            kotlinx.coroutines.delay(2000)
+        } catch (e: Exception) {
+            result = "خطا: ${e.message}"
+        }
+        
+        return@withContext result
+    }
+    
+    /**
      * بررسی اعتبار کلید API
      */
     suspend fun validateApiKey(

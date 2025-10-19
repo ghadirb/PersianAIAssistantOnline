@@ -262,3 +262,38 @@ data class NavigationStats(
     val tollsPaid: Double,
     val stopsCount: Int
 )
+
+// تنظیمات مسیریابی
+data class NavigationSettings(
+    val avoidTolls: Boolean = false,
+    val avoidHighways: Boolean = false,
+    val avoidFerries: Boolean = false,
+    val voiceEnabled: Boolean = true,
+    val speedAlerts: Boolean = true
+)
+
+// اطلاعات پارکینگ
+data class ParkingInfo(
+    val name: String,
+    val location: LatLng,
+    val capacity: Int,
+    val availableSpots: Int,
+    val pricePerHour: Double
+)
+
+// اطلاعات پمپ بنزین
+data class GasStationInfo(
+    val name: String,
+    val location: LatLng,
+    val fuelTypes: List<String>,
+    val isOpen: Boolean,
+    val pricePerLiter: Double
+)
+
+// رویداد مسیر
+data class RouteEvent(
+    val type: String,
+    val timestamp: Long,
+    val location: LatLng,
+    val description: String
+)

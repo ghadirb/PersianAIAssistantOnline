@@ -7,6 +7,7 @@ import com.google.maps.GeoApiContext
 import com.google.maps.model.DirectionsResult
 import com.google.maps.model.TravelMode
 import com.persianai.assistant.navigation.models.*
+import com.persianai.assistant.models.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
@@ -141,12 +142,12 @@ class NavigationManager(private val context: Context) {
         try {
             // TODO: پیاده‌سازی دریافت اطلاعات ترافیک واقعی
             com.persianai.assistant.navigation.models.TrafficInfo(
-                level = com.persianai.assistant.navigation.models.TrafficLevel.MEDIUM,
+                trafficLevel = com.persianai.assistant.navigation.models.TrafficLevel.MEDIUM,
                 estimatedDelay = 300
             )
         } catch (e: Exception) {
             com.persianai.assistant.navigation.models.TrafficInfo(
-                level = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
+                trafficLevel = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
                 estimatedDelay = 0
             )
         }
@@ -381,7 +382,7 @@ class NavigationManager(private val context: Context) {
             duration = leg.duration.inSeconds,
             routeType = routeType,
             trafficInfo = com.persianai.assistant.navigation.models.TrafficInfo(
-                level = com.persianai.assistant.navigation.models.TrafficLevel.values()[estimateTrafficLevel(leg.duration.inSeconds, leg.distance.inMeters)],
+                trafficLevel = com.persianai.assistant.navigation.models.TrafficLevel.values()[estimateTrafficLevel(leg.duration.inSeconds.toInt(), leg.distance.inMeters.toInt())],
                 estimatedDelay = 0
             )
         )
@@ -436,7 +437,7 @@ class NavigationManager(private val context: Context) {
             duration = duration,
             routeType = RouteType.DRIVING,
             trafficInfo = com.persianai.assistant.navigation.models.TrafficInfo(
-                level = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
+                trafficLevel = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
                 estimatedDelay = 0
             )
         )
