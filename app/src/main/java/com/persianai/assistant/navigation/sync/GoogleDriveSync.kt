@@ -21,6 +21,7 @@ class GoogleDriveSync(private val context: Context) {
         private const val TAG = "GoogleDriveSync"
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val SCOPES = "https://www.googleapis.com/auth/drive.file"
+        private const val DEFAULT_DRIVE_URL = "https://drive.google.com/drive/folders/1bp1Ay9kmK_bjWq_PznRfkPvhhjdhSye1"
     }
     
     private val gson = Gson()

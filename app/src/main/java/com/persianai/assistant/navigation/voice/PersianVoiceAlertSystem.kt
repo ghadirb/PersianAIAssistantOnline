@@ -3,7 +3,7 @@ package com.persianai.assistant.navigation.voice
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
-import com.persianai.assistant.ai.AIModelManager
+import com.persianai.assistant.api.AIModelManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

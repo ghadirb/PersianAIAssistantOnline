@@ -4,7 +4,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.util.Log
-import com.persianai.assistant.ai.AIModelManager
+import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.navigation.models.GeoPoint
 import com.persianai.assistant.navigation.voice.PersianVoiceAlertSystem
 import kotlinx.coroutines.Dispatchers

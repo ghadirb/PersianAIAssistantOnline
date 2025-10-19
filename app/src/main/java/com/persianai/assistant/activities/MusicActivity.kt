@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -205,9 +206,9 @@ class MusicActivity : AppCompatActivity() {
         }
     }
     
-    private fun playTrack(track: MusicPlaylistManager.Track) {
+    private fun playTrack(track: MusicPlaylistManager.MusicTrack) {
         exoPlayer?.let { player ->
-            val mediaItem = MediaItem.fromUri(track.uri)
+            val mediaItem = MediaItem.fromUri(Uri.parse(track.path))
             player.setMediaItem(mediaItem)
             player.prepare()
             player.play()

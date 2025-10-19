@@ -120,25 +120,24 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         
-        binding.weatherCard?.setOnClickListener {
-            try {
-                AnimationHelper.clickAnimation(it)
-                it.postDelayed({
-                    try {
-                        val intent = Intent(this, WeatherActivity::class.java)
-                        // TODO: Add weatherCard to layout
-                        // binding.weatherCard?.visibility = View.GONE
-                        startActivity(intent)
-                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                    } catch (e: Exception) {
-                        android.util.Log.e("DashboardActivity", "Error opening weather", e)
-                        Toast.makeText(this, "خطا در باز کردن آب و هوا", Toast.LENGTH_SHORT).show()
-                    }
-                }, 150)
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardActivity", "Click error", e)
-            }
-        }
+        // TODO: Add weatherCard to layout
+        // binding.weatherCard?.setOnClickListener {
+            // try {
+                // AnimationHelper.clickAnimation(it)
+                // it.postDelayed({
+                    // try {
+                        // val intent = Intent(this, WeatherActivity::class.java)
+                        // startActivity(intent)
+                        // overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    // } catch (e: Exception) {
+                        // android.util.Log.e("DashboardActivity", "Error opening weather", e)
+                        // Toast.makeText(this, "خطا در باز کردن آب و هوا", Toast.LENGTH_SHORT).show()
+                    // }
+                // }, 150)
+            // } catch (e: Exception) {
+                // android.util.Log.e("DashboardActivity", "Click error", e)
+            // }
+        // }
         
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
@@ -187,13 +186,14 @@ class DashboardActivity : AppCompatActivity() {
     private fun loadWeather() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
-        // نمایش فوری cache برای جلوگیری از چشمک زدن
-        val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-        val savedIcon = prefs.getString("weather_icon_$city", null)
-        if (savedTemp != -999f && !savedIcon.isNullOrEmpty()) {
-            binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-            binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
-        }
+        // TODO: Add weatherTempText and weatherIcon to layout
+        // // نمایش فوری cache برای جلوگیری از چشمک زدن
+        // val savedTemp = prefs.getFloat("current_temp_$city", -999f)
+        // val savedIcon = prefs.getString("weather_icon_$city", null)
+        // if (savedTemp != -999f && !savedIcon.isNullOrEmpty()) {
+        //     binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+        //     binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
+        // }
         
         lifecycleScope.launch {
             try {
@@ -202,8 +202,8 @@ class DashboardActivity : AppCompatActivity() {
                 
                 if (weatherData != null) {
                     android.util.Log.d("DashboardActivity", "Live weather from WorldWeather: ${weatherData.temp}°C for $city")
-                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
-                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
+                    // binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
+                    // binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
                     
                     // ذخیره دما برای استفاده در WeatherActivity
                     prefs.edit().putFloat("current_temp_$city", weatherData.temp.toFloat()).apply()
@@ -215,16 +215,16 @@ class DashboardActivity : AppCompatActivity() {
                     // استفاده از داده‌های ذخیره شده
                     val savedTemp = prefs.getFloat("current_temp_$city", 25f)
                     val savedIcon = prefs.getString("weather_icon_$city", "113")
-                    binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
+                    // binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+                    // binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
                 // استفاده از داده ذخیره شده
                 val savedTemp = prefs.getFloat("current_temp_$city", 25f)
                 val savedIcon = prefs.getString("weather_icon_$city", "113")
-                binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
+                // binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+                // binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
             }
         }
         
@@ -243,38 +243,40 @@ class DashboardActivity : AppCompatActivity() {
     private fun loadWeatherButtons() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
-        // دکمه پیش‌بینی ساعتی - با جلوگیری از کرش
-        binding.hourlyBtn?.setOnClickListener {
-            android.util.Log.d("DashboardActivity", "Hourly button clicked")
-            it.postDelayed({
-                try {
-                    val intent = Intent(this, WeatherActivity::class.java)
-                    intent.putExtra("SHOW_HOURLY", true)
-                    intent.putExtra("city", city)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                } catch (e: Exception) {
-                    android.util.Log.e("DashboardActivity", "Error opening hourly weather", e)
-                    Toast.makeText(this, "خطا در نمایش پیش‌بینی ساعتی", Toast.LENGTH_SHORT).show()
-                }
-            }, 100)
-        }
+        // TODO: Add hourlyBtn to layout
+        // // دکمه پیش‌بینی ساعتی - با جلوگیری از کرش
+        // binding.hourlyBtn?.setOnClickListener {
+        //     android.util.Log.d("DashboardActivity", "Hourly button clicked")
+        //     it.postDelayed({
+        //         try {
+        //             val intent = Intent(this, WeatherActivity::class.java)
+        //             intent.putExtra("SHOW_HOURLY", true)
+        //             intent.putExtra("city", city)
+        //             startActivity(intent)
+        //             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+        //         } catch (e: Exception) {
+        //             android.util.Log.e("DashboardActivity", "Error opening hourly weather", e)
+        //             Toast.makeText(this, "خطا در نمایش پیش‌بینی ساعتی", Toast.LENGTH_SHORT).show()
+        //         }
+        //     }, 100)
+        // }
         
-        // دکمه پیش‌بینی هفتگی - با جلوگیری از کرش
-        binding.weeklyBtn?.setOnClickListener {
-            android.util.Log.d("DashboardActivity", "Weekly button clicked")
-            it.postDelayed({
-                try {
-                    val intent = Intent(this, WeatherForecastActivity::class.java)
-                    intent.putExtra("city", city)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                } catch (e: Exception) {
-                    android.util.Log.e("DashboardActivity", "Error opening weekly forecast", e)
-                    Toast.makeText(this, "خطا در نمایش پیش‌بینی هفتگی", Toast.LENGTH_SHORT).show()
-                }
-            }, 100)
-        }
+        // TODO: Add weeklyBtn to layout
+        // // دکمه پیش‌بینی هفتگی - با جلوگیری از کرش
+        // binding.weeklyBtn?.setOnClickListener {
+        //     android.util.Log.d("DashboardActivity", "Weekly button clicked")
+        //     it.postDelayed({
+        //         try {
+        //             val intent = Intent(this, WeatherForecastActivity::class.java)
+        //             intent.putExtra("city", city)
+        //             startActivity(intent)
+        //             overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+        //         } catch (e: Exception) {
+        //             android.util.Log.e("DashboardActivity", "Error opening weekly forecast", e)
+        //             Toast.makeText(this, "خطا در نمایش پیش‌بینی هفتگی", Toast.LENGTH_SHORT).show()
+        //         }
+        //     }, 100)
+        // }
     }
     
     private fun showAboutDialog() {
