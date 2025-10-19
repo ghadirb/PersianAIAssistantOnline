@@ -187,7 +187,8 @@ class NavigationManager(private val context: Context) {
     /**
      * دریافت رویدادهای مسیر (تصادف، ساخت‌وساز و...)
      */
-    suspend fun getRouteEvents(route: NavigationRoute): List<RouteEvent> = withContext(Dispatchers.IO) {
+    // TODO: Fix NavigationRoute ambiguity
+    suspend fun getRouteEvents(route: com.persianai.assistant.navigation.models.NavigationRoute): List<RouteEvent> = withContext(Dispatchers.IO) {
         try {
             // TODO: پیاده‌سازی دریافت رویدادهای مسیر
             emptyList()
@@ -199,7 +200,7 @@ class NavigationManager(private val context: Context) {
     /**
      * محاسبه آمار سفر
      */
-    fun calculateTripStats(route: NavigationRoute, actualTime: Long): NavigationStats {
+    fun calculateTripStats(route: com.persianai.assistant.navigation.models.NavigationRoute, actualTime: Long): NavigationStats {
         val averageSpeed = if (actualTime > 0) (route.distance / actualTime) * 3.6 else 0.0 // km/h
         val fuelConsumed = estimateFuelConsumption(route.distance)
         val co2Emissions = fuelConsumed * 2.31 // kg CO2 per liter gasoline
@@ -259,18 +260,18 @@ class NavigationManager(private val context: Context) {
     /**
      * ذخیره تاریخچه مسیرها
      */
-    suspend fun saveRouteHistory(route: NavigationRoute, startAddress: String, endAddress: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun saveRouteHistory(route: com.persianai.assistant.navigation.models.NavigationRoute, startAddress: String, endAddress: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val history = RouteHistory(
                 id = UUID.randomUUID().toString(),
                 startAddress = startAddress,
                 endAddress = endAddress,
-                startLocation = route.points.first(),
-                endLocation = route.points.last(),
+                startLocation = com.persianai.assistant.models.LatLng(route.origin.latitude, route.origin.longitude),
+                endLocation = com.persianai.assistant.models.LatLng(route.destination.latitude, route.destination.longitude),
                 distance = route.distance,
                 duration = route.duration,
                 date = System.currentTimeMillis(),
-                routeType = RouteType.DRIVING
+                routeType = com.persianai.assistant.models.RouteType.DRIVING
             )
             
             val histories = getRouteHistory().toMutableList()
@@ -305,16 +306,16 @@ class NavigationManager(private val context: Context) {
     
     // توابع کمکی
     
-    private fun convertTravelMode(routeType: RouteType): TravelMode {
+    private fun toTravelMode(routeType: com.persianai.assistant.navigation.models.RouteType): TravelMode {
         return when (routeType) {
-            RouteType.DRIVING -> TravelMode.DRIVING
-            RouteType.WALKING -> TravelMode.WALKING
-            RouteType.CYCLING -> TravelMode.BICYCLING
-            RouteType.TRANSIT -> TravelMode.TRANSIT
+            com.persianai.assistant.navigation.models.RouteType.DRIVING -> TravelMode.DRIVING
+            com.persianai.assistant.navigation.models.RouteType.WALKING -> TravelMode.WALKING
+            com.persianai.assistant.navigation.models.RouteType.CYCLING -> TravelMode.BICYCLING
+            com.persianai.assistant.navigation.models.RouteType.TRANSIT -> TravelMode.TRANSIT
         }
     }
     
-    private fun convertToNavigationRoute(result: DirectionsResult, routeType: RouteType): NavigationRoute {
+    private fun convertToNavigationRoute(result: DirectionsResult, routeType: com.persianai.assistant.navigation.models.RouteType): com.persianai.assistant.navigation.models.NavigationRoute {
         val route = result.routes[0]
         val leg = route.legs[0]
         
@@ -354,7 +355,7 @@ class NavigationManager(private val context: Context) {
         )
     }
     
-    private fun convertToNavigationRoute(route: com.google.maps.model.Route, routeType: RouteType): com.persianai.assistant.navigation.models.NavigationRoute {
+    private fun convertToNavigationRoute(route: com.google.maps.model.Route, routeType: com.persianai.assistant.navigation.models.RouteType): com.persianai.assistant.navigation.models.NavigationRoute {
         // پیاده‌سازی مشابه بالا
         return createDefaultRoute(0.0, 0.0, 0.0, 0.0)
     }
@@ -401,7 +402,7 @@ class NavigationManager(private val context: Context) {
             waypoints = points.map { com.persianai.assistant.navigation.models.GeoPoint(it.latitude, it.longitude) },
             distance = distance,
             duration = duration,
-            routeType = RouteType.DRIVING,
+            routeType = com.persianai.assistant.navigation.models.RouteType.DRIVING,
             trafficInfo = com.persianai.assistant.navigation.models.TrafficInfo(
                 trafficLevel = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
                 estimatedDelay = 0
@@ -424,12 +425,12 @@ class NavigationManager(private val context: Context) {
         return (distance / 1000) * 0.08
     }
     
-    private fun estimateMaxSpeed(route: NavigationRoute): Double {
+    private fun estimateMaxSpeed(route: com.persianai.assistant.navigation.models.NavigationRoute): Double {
         // تخمین حداکثر سرعت بر اساس نوع مسیر
         return 80.0 // km/h
     }
     
-    private fun estimateTolls(route: NavigationRoute): Double {
+    private fun estimateTolls(route: com.persianai.assistant.navigation.models.NavigationRoute): Double {
         // تخمین هزینه عوارض
         return 0.0
     }
@@ -453,7 +454,7 @@ class NavigationManager(private val context: Context) {
             avoidHighways = prefs.getBoolean("avoid_highways", false),
             avoidFerries = prefs.getBoolean("avoid_ferries", false),
             avoidUnpavedRoads = prefs.getBoolean("avoid_unpaved", true),
-            preferredRouteType = RouteType.valueOf(prefs.getString("preferred_type", "DRIVING") ?: "DRIVING"),
+            preferredRouteType = com.persianai.assistant.navigation.models.RouteType.valueOf(prefs.getString("preferred_type", "DRIVING") ?: "DRIVING"),
             voiceNavigation = prefs.getBoolean("voice_navigation", true),
             autoReroute = prefs.getBoolean("auto_reroute", true),
             showTraffic = prefs.getBoolean("show_traffic", true),
