@@ -34,6 +34,7 @@ import com.persianai.assistant.navigation.detectors.SpeedCameraDetector
 import com.persianai.assistant.navigation.analyzers.TrafficAnalyzer
 import com.persianai.assistant.navigation.analyzers.RoadConditionAnalyzer
 import com.persianai.assistant.navigation.ai.AIRoutePredictor
+import com.persianai.assistant.navigation.ai.AIRoadLimitDetector
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
@@ -58,6 +59,7 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var trafficAnalyzer: TrafficAnalyzer
     private lateinit var roadConditionAnalyzer: RoadConditionAnalyzer
     private lateinit var aiRoutePredictor: AIRoutePredictor
+    private lateinit var aiRoadLimitDetector: AIRoadLimitDetector
     
     private var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
@@ -98,6 +100,19 @@ class NavigationActivity : AppCompatActivity() {
                 // بررسی وضعیت جاده
                 roadConditionAnalyzer.checkLocation(OsmGeoPoint(location.latitude, location.longitude))
                 
+                // تشخیص هوشمند محدودیت سرعت جاده با AI
+                val currentSpeed = (location.speed * 3.6).toDouble() // تبدیل m/s به km/h
+                val geoPoint = com.persianai.assistant.navigation.models.GeoPoint(
+                    location.latitude, 
+                    location.longitude
+                )
+                val result = aiRoadLimitDetector.detectSpeedLimit(geoPoint, currentSpeed)
+                
+                // نمایش محدودیت سرعت در UI
+                runOnUiThread {
+                    binding.speedLimitText?.text = "${result.speedLimit} km/h"
+                }
+                
             } catch (e: Exception) {
                 Log.e("NavigationActivity", "Error checking alerts", e)
             }
@@ -130,6 +145,7 @@ class NavigationActivity : AppCompatActivity() {
             trafficAnalyzer = TrafficAnalyzer(this)
             roadConditionAnalyzer = RoadConditionAnalyzer(this)
             aiRoutePredictor = AIRoutePredictor(this)
+            aiRoadLimitDetector = AIRoadLimitDetector(this)
             
             // تنظیم کلید API نشان
             val neshanApiKey = "service.649ba7521ba04da595c5ab56413b3c84"
@@ -341,12 +357,16 @@ class NavigationActivity : AppCompatActivity() {
         
         // فعال کردن تحلیلگر وضعیت جاده
         roadConditionAnalyzer.enable()
+        
+        // فعال کردن تشخیص هوشمند محدودیت سرعت با AI
+        aiRoadLimitDetector.enable()
     }
     
     private fun disableAlerts() {
         speedCameraDetector.disable()
         trafficAnalyzer.disable()
         roadConditionAnalyzer.disable()
+        aiRoadLimitDetector.disable()
     }
     
     private fun showAlertSettingsDialog() {
@@ -355,9 +375,10 @@ class NavigationActivity : AppCompatActivity() {
             "هشدار دوربین‌های کنترل سرعت",
             "هشدار ترافیک",
             "هشدار وضعیت جاده",
+            "تشخیص هوشمند محدودیت جاده با AI",
             "هشدارهای صوتی"
         )
-        val checkedItems = booleanArrayOf(true, true, true, true, true)
+        val checkedItems = booleanArrayOf(true, true, true, true, true, true)
         
         MaterialAlertDialogBuilder(this)
             .setTitle("تنظیمات هشدارها")
@@ -368,7 +389,8 @@ class NavigationActivity : AppCompatActivity() {
                     1 -> speedCameraDetector.setCameraAlertsEnabled(isChecked)
                     2 -> trafficAnalyzer.setEnabled(isChecked)
                     3 -> roadConditionAnalyzer.setEnabled(isChecked)
-                    4 -> {
+                    4 -> if (isChecked) aiRoadLimitDetector.enable() else aiRoadLimitDetector.disable()
+                    5 -> {
                         speedCameraDetector.setVoiceAlertsEnabled(isChecked)
                         trafficAnalyzer.setVoiceAlertsEnabled(isChecked)
                         roadConditionAnalyzer.setVoiceAlertsEnabled(isChecked)
