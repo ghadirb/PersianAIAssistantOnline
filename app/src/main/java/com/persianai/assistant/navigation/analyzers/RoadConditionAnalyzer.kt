@@ -443,6 +443,43 @@ class RoadConditionAnalyzer(private val context: Context) {
         saveRoadConditions()
         Log.d(TAG, "All road condition data cleared")
     }
+    
+    // Settings Methods
+    
+    private var isEnabled = true
+    private var voiceAlertsEnabled = true
+    
+    /**
+     * فعال کردن تحلیلگر
+     */
+    fun enable() {
+        isEnabled = true
+        Log.d(TAG, "Road condition analyzer enabled")
+    }
+    
+    /**
+     * غیرفعال کردن تحلیلگر
+     */
+    fun disable() {
+        isEnabled = false
+        Log.d(TAG, "Road condition analyzer disabled")
+    }
+    
+    /**
+     * تنظیم فعال/غیرفعال
+     */
+    fun setEnabled(enabled: Boolean) {
+        isEnabled = enabled
+        Log.d(TAG, "Road condition analyzer: $enabled")
+    }
+    
+    /**
+     * تنظیم هشدارهای صوتی
+     */
+    fun setVoiceAlertsEnabled(enabled: Boolean) {
+        voiceAlertsEnabled = enabled
+        Log.d(TAG, "Voice alerts: $enabled")
+    }
 }
 
 /**

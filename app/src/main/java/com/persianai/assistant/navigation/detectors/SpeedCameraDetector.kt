@@ -24,6 +24,8 @@ class SpeedCameraDetector(private val context: Context) {
         private const val WARNING_DISTANCE = 200 // متر
         private const val CRITICAL_DISTANCE = 50 // متر
         private const val UPDATE_DISTANCE = 10 // متر برای به‌روزرسانی موقعیت
+        private const val DETECTION_RADIUS = 1000 // متر
+        private const val ALERT_DISTANCE = 500 // متر
     }
     
     private val gson = Gson()
@@ -34,8 +36,17 @@ class SpeedCameraDetector(private val context: Context) {
     private var speedCameras: MutableList<SpeedCamera> = mutableListOf()
     private var speedBumps: MutableList<SpeedBump> = mutableListOf()
     private var currentRoute: NavigationRoute? = null
-    private var isDetecting = false
+    
+    // Settings
+    private var isEnabled = true
+    private var speedBumpAlertsEnabled = true
+    private var cameraAlertsEnabled = true
+    private var voiceAlertsEnabled = true
+    
+    private var lastAlertedCamera: SpeedCamera? = null
     private var lastLocation: Location? = null
+    
+    private var isDetecting = false
     
     init {
         loadData()
@@ -520,6 +531,53 @@ class SpeedCameraDetector(private val context: Context) {
         saveData()
         Log.d(TAG, "All data cleared")
     }
+    
+    // Settings Methods
+    
+    /**
+     * فعال کردن تشخیص
+     */
+    fun enable() {
+        isEnabled = true
+        Log.d(TAG, "Speed camera detector enabled")
+    }
+    
+    /**
+     * غیرفعال کردن تشخیص
+     */
+    fun disable() {
+        isEnabled = false
+        Log.d(TAG, "Speed camera detector disabled")
+    }
+    
+    /**
+     * تنظیم هشدار سرعت‌گیرها
+     */
+    fun setSpeedBumpAlertsEnabled(enabled: Boolean) {
+        speedBumpAlertsEnabled = enabled
+        Log.d(TAG, "Speed bump alerts: $enabled")
+    }
+    
+    /**
+     * تنظیم هشدار دوربین‌ها
+     */
+    fun setCameraAlertsEnabled(enabled: Boolean) {
+        cameraAlertsEnabled = enabled
+        Log.d(TAG, "Camera alerts: $enabled")
+    }
+    
+    /**
+     * تنظیم هشدارهای صوتی
+     */
+    fun setVoiceAlertsEnabled(enabled: Boolean) {
+        voiceAlertsEnabled = enabled
+        Log.d(TAG, "Voice alerts: $enabled")
+    }
+    
+    /**
+     * بررسی فعال بودن
+     */
+    fun isEnabled(): Boolean = isEnabled
 }
 
 /**

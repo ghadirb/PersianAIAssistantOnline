@@ -20,6 +20,10 @@ class GoogleDriveSync(private val context: Context) {
         private const val TAG = "GoogleDriveSync"
         private const val SYNC_FILE_NAME = "shared_routes.json"
         private const val MAX_RETRY_ATTEMPTS = 3
+        private const val FOLDER_NAME = "PersianAI_Routes"
+        private const val SCOPES = "https://www.googleapis.com/auth/drive.file"
+        private const val PUBLIC_FOLDER_ID = "1234567890_REPLACE_WITH_ACTUAL_FOLDER_ID"
+        private const val PUBLIC_FOLDER_LINK = "https://drive.google.com/drive/folders/$PUBLIC_FOLDER_ID"
         private const val SYNC_INTERVAL = 30 * 60 * 1000L // 30 دقیقه
         
         // لینک عمومی Google Drive (باید توسط کاربر تنظیم شود)

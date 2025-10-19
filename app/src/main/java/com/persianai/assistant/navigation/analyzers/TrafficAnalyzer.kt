@@ -403,6 +403,43 @@ class TrafficAnalyzer(private val context: Context) {
             estimatedDelay = estimatedDelay
         )
     }
+    
+    // Settings Methods
+    
+    private var isEnabled = true
+    private var voiceAlertsEnabled = true
+    
+    /**
+     * فعال کردن تحلیلگر
+     */
+    fun enable() {
+        isEnabled = true
+        Log.d(TAG, "Traffic analyzer enabled")
+    }
+    
+    /**
+     * غیرفعال کردن تحلیلگر
+     */
+    fun disable() {
+        isEnabled = false
+        Log.d(TAG, "Traffic analyzer disabled")
+    }
+    
+    /**
+     * تنظیم فعال/غیرفعال
+     */
+    fun setEnabled(enabled: Boolean) {
+        isEnabled = enabled
+        Log.d(TAG, "Traffic analyzer: $enabled")
+    }
+    
+    /**
+     * تنظیم هشدارهای صوتی
+     */
+    fun setVoiceAlertsEnabled(enabled: Boolean) {
+        voiceAlertsEnabled = enabled
+        Log.d(TAG, "Voice alerts: $enabled")
+    }
 }
 
 /**

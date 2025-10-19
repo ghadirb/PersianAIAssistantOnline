@@ -333,22 +333,20 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun enableAlerts() {
-        // TODO: Implement enable methods in detectors/analyzers
         // فعال کردن هشدار سرعت‌گیرها و دوربین‌ها
-        // speedCameraDetector.enable()
+        speedCameraDetector.enable()
         
         // فعال کردن تحلیلگر ترافیک
-        // trafficAnalyzer.enable()
+        trafficAnalyzer.enable()
         
         // فعال کردن تحلیلگر وضعیت جاده
-        // roadConditionAnalyzer.enable()
+        roadConditionAnalyzer.enable()
     }
     
     private fun disableAlerts() {
-        // TODO: Implement disable methods in detectors/analyzers
-        // speedCameraDetector.disable()
-        // trafficAnalyzer.disable()
-        // roadConditionAnalyzer.disable()
+        speedCameraDetector.disable()
+        trafficAnalyzer.disable()
+        roadConditionAnalyzer.disable()
     }
     
     private fun showAlertSettingsDialog() {
@@ -364,19 +362,18 @@ class NavigationActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("تنظیمات هشدارها")
             .setMultiChoiceItems(alertTypes, checkedItems) { _, which, isChecked ->
-                // TODO: Implement setter methods in detectors/analyzers
                 // ذخیره تنظیمات
-                // when (which) {
-                //     0 -> speedCameraDetector.setSpeedBumpAlertsEnabled(isChecked)
-                //     1 -> speedCameraDetector.setCameraAlertsEnabled(isChecked)
-                //     2 -> trafficAnalyzer.setEnabled(isChecked)
-                //     3 -> roadConditionAnalyzer.setEnabled(isChecked)
-                //     4 -> {
-                //         speedCameraDetector.setVoiceAlertsEnabled(isChecked)
-                //         trafficAnalyzer.setVoiceAlertsEnabled(isChecked)
-                //         roadConditionAnalyzer.setVoiceAlertsEnabled(isChecked)
-                //     }
-                // }
+                when (which) {
+                    0 -> speedCameraDetector.setSpeedBumpAlertsEnabled(isChecked)
+                    1 -> speedCameraDetector.setCameraAlertsEnabled(isChecked)
+                    2 -> trafficAnalyzer.setEnabled(isChecked)
+                    3 -> roadConditionAnalyzer.setEnabled(isChecked)
+                    4 -> {
+                        speedCameraDetector.setVoiceAlertsEnabled(isChecked)
+                        trafficAnalyzer.setVoiceAlertsEnabled(isChecked)
+                        roadConditionAnalyzer.setVoiceAlertsEnabled(isChecked)
+                    }
+                }
             }
             .setPositiveButton("ذخیره", null)
             .setNegativeButton("لغو", null)
