@@ -10,7 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
-import com.persianai.assistant.databinding.ActivityMainDashboardBinding
+import com.persianai.assistant.databinding.ActivityDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
 import com.persianai.assistant.utils.SharedDataManager
@@ -24,13 +24,13 @@ import kotlin.math.roundToInt
 
 class DashboardActivity : AppCompatActivity() {
     
-    private lateinit var binding: ActivityMainDashboardBinding
+    private lateinit var binding: ActivityDashboardBinding
     private lateinit var prefs: SharedPreferences
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        binding = ActivityMainDashboardBinding.inflate(layoutInflater)
+        binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
         prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)

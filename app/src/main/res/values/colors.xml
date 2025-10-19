@@ -25,4 +25,9 @@
     <color name="income_green">#4CAF50</color>
     <color name="expense_red">#F44336</color>
     <color name="neutral_gray">#9E9E9E</color>
+    
+    <!-- Additional status colors -->
+    <color name="success_green">#4CAF50</color>
+    <color name="warning_orange">#FF9800</color>
+    <color name="error_red">#F44336</color>
 </resources>

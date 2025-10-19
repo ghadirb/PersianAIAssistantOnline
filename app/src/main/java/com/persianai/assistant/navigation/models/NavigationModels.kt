@@ -143,6 +143,17 @@ enum class AlertType {
 }
 
 /**
+ * هشدار سرعت
+ */
+data class SpeedAlert(
+    val currentSpeed: Int,
+    val speedLimit: Int,
+    val distanceToCamera: Int,
+    val message: String,
+    val alertType: AlertType
+)
+
+/**
  * مسیر یادگرفته شده
  */
 data class LearnedRoute(

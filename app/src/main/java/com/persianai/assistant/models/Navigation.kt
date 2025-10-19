@@ -262,14 +262,3 @@ data class NavigationStats(
     val tollsPaid: Double,
     val stopsCount: Int
 )
-
-// دسته‌بندی مکان‌های مورد علاقه
-enum class FavoriteCategory {
-    HOME,
-    WORK,
-    SCHOOL,
-    RESTAURANT,
-    SHOPPING,
-    ENTERTAINMENT,
-    OTHER
-}

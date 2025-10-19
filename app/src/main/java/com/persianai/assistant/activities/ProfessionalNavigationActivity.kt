@@ -29,6 +29,8 @@ import com.google.android.libraries.places.api.model.TypeFilter
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.material.tabs.TabLayout
+import android.text.Editable
+import android.text.TextWatcher
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityProfessionalNavigationBinding
 import com.persianai.assistant.navigation.models.NavigationRoute

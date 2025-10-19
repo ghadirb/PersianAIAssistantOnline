@@ -89,13 +89,13 @@ class NavigationActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 // بررسی هشدار سرعت‌گیرها و دوربین‌ها
-                speedCameraDetector.checkLocation(GeoPoint(location.latitude, location.longitude))
+                speedCameraDetector.checkLocation(OsmGeoPoint(location.latitude, location.longitude))
                 
                 // بررسی هشدار ترافیک
-                trafficAnalyzer.checkLocation(GeoPoint(location.latitude, location.longitude))
+                trafficAnalyzer.checkLocation(OsmGeoPoint(location.latitude, location.longitude))
                 
                 // بررسی وضعیت جاده
-                roadConditionAnalyzer.checkLocation(GeoPoint(location.latitude, location.longitude))
+                roadConditionAnalyzer.checkLocation(OsmGeoPoint(location.latitude, location.longitude))
                 
             } catch (e: Exception) {
                 Log.e("NavigationActivity", "Error checking alerts", e)

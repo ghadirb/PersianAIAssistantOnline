@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.persianai.assistant.navigation.models.*
+import kotlinx.coroutines.*
 import org.osmdroid.util.GeoPoint as OsmGeoPoint
+import org.osmdroid.util.GeoPoint
 import java.io.File
 import java.util.*
 
@@ -138,10 +140,10 @@ class TrafficAnalyzer(private val context: Context) {
             // به‌روزرسانی اطلاعات ترافیک مسیر
             val updatedTrafficInfo = route.trafficInfo?.copy(
                 trafficLevel = averageLevel,
-                estimatedDelay = estimateDelay(averageLevel, 0)
+                estimatedDelay = estimateDelay(averageLevel, 0.0)
             ) ?: TrafficInfo(
                 trafficLevel = averageLevel,
-                estimatedDelay = estimateDelay(averageLevel, 0)
+                estimatedDelay = estimateDelay(averageLevel, 0.0)
             )
             
             Log.d(TAG, "Traffic analysis completed for route: ${route.id}, Level: $averageLevel")
@@ -161,7 +163,7 @@ class TrafficAnalyzer(private val context: Context) {
         
         for ((areaKey, pattern) in trafficData) {
             val areaLocation = parseAreaKey(areaKey)
-            val distance = location.distanceToAsDouble(areaLocation)
+            val distance = location.distanceTo(areaLocation)
             
             if (distance <= searchRadius) {
                 val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -320,7 +322,7 @@ class TrafficAnalyzer(private val context: Context) {
         val tehranCenter = generateAreaKey(GeoPoint(35.6892, 51.3890))
         trafficData[tehranCenter] = TrafficPattern(
             areaKey = tehranCenter,
-            hourlyPatterns = mapOf(
+            hourlyPatterns = mutableMapOf(
                 0 to TrafficLevel.LOW, 1 to TrafficLevel.LOW, 2 to TrafficLevel.LOW,
                 3 to TrafficLevel.LOW, 4 to TrafficLevel.LOW, 5 to TrafficLevel.LOW,
                 6 to TrafficLevel.MEDIUM, 7 to TrafficLevel.HIGH, 8 to TrafficLevel.HIGH,
@@ -379,7 +381,7 @@ class TrafficAnalyzer(private val context: Context) {
         }
         
         val averageLevel = calculateAverageTrafficLevel(trafficLevels)
-        val estimatedDelay = estimateDelay(averageLevel, 0)
+        val estimatedDelay = estimateDelay(averageLevel, 0.0)
         
         return TrafficInfo(
             trafficLevel = averageLevel,

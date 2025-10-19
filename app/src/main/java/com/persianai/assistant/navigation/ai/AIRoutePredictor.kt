@@ -6,6 +6,7 @@ import com.persianai.assistant.navigation.learning.RouteLearningSystem
 import com.persianai.assistant.navigation.models.*
 import kotlinx.coroutines.*
 import org.osmdroid.util.GeoPoint
+import java.io.File
 import kotlin.math.*
 
 /**
@@ -91,10 +92,11 @@ class AIRoutePredictor(private val context: Context) {
     ): LearnedRoute? {
         
         return when (routeType) {
-            RouteType.FASTEST -> routes.minByOrNull { it.travelTime }
-            RouteType.SHORTEST -> routes.minByOrNull { it.distance }
-            RouteType.AVOID_TRAFFIC -> routes.maxByOrNull { it.rating } // مسیرهای با رتبه بالاتر معمولا کمتر ترافیک دارند
-            RouteType.SCENIC -> routes.filter { it.tags.contains("زیبا") }.maxByOrNull { it.rating }
+            RouteType.DRIVING -> routes.minByOrNull { it.travelTime }
+            RouteType.WALKING -> routes.minByOrNull { it.distance }
+            RouteType.CYCLING -> routes.filter { it.tags.contains("دوچرخه") }.minByOrNull { it.distance }
+            RouteType.TRANSIT -> routes.minByOrNull { it.travelTime }
+            else -> routes.minByOrNull { it.travelTime }
         }
     }
     
@@ -231,25 +233,28 @@ class AIRoutePredictor(private val context: Context) {
         var score = 0f
         
         when (routeType) {
-            RouteType.FASTEST -> {
+            RouteType.DRIVING -> {
                 score += (1f / (route.duration / 60f)) * 0.4f // وزن زمان
                 score += (1f / (route.distance / 1000f)) * 0.3f // وزن مسافت
                 score += route.confidence * 0.3f // وزن اطمینان
             }
-            RouteType.SHORTEST -> {
+            RouteType.WALKING -> {
                 score += (1f / (route.distance / 1000f)) * 0.5f // وزن مسافت
                 score += route.confidence * 0.3f // وزن اطمینان
                 score += (1f / (route.duration / 60f)) * 0.2f // وزن زمان
             }
-            RouteType.AVOID_TRAFFIC -> {
+            RouteType.CYCLING -> {
                 score += route.confidence * 0.5f // وزن اطمینان (مسیرهای یادگرفته شده)
                 score += (1f / (route.distance / 1000f)) * 0.3f
                 score += (1f / (route.duration / 60f)) * 0.2f
             }
-            RouteType.SCENIC -> {
-                // مسیرهای زیبا معمولا طولانی‌تر هستند
-                score += (route.distance / 1000f) * 0.4f // مسافت بیشتر بهتر است
-                score += route.confidence * 0.4f
+            RouteType.TRANSIT -> {
+                score += (1f / (route.duration / 60f)) * 0.6f // وزن زمان برای حمل و نقل عمومی
+                score += route.confidence * 0.4f // وزن اطمینان
+            }
+            else -> {
+                score += route.confidence * 0.5f
+                score += (1f / (route.distance / 1000f)) * 0.3f
                 score += (1f / (route.duration / 60f)) * 0.2f
             }
         }

@@ -13,7 +13,10 @@ import com.persianai.assistant.navigation.analyzers.TrafficAnalyzer
 import com.persianai.assistant.navigation.analyzers.RoadConditionAnalyzer
 import com.persianai.assistant.navigation.ai.AIRoutePredictor
 import com.persianai.assistant.navigation.learning.RouteLearningSystem
+import com.persianai.assistant.navigation.models.*
+import com.persianai.assistant.navigation.models.NavigationRoute
 import com.persianai.assistant.navigation.utils.RouteCache
+import com.persianai.assistant.navigation.sync.GoogleDriveSync
 import java.io.File
 import java.util.*
 
@@ -121,7 +124,7 @@ class AdvancedNavigationSystem(private val context: Context) {
     suspend fun getRouteWithAI(
         origin: GeoPoint,
         destination: GeoPoint,
-        routeType: RouteType = RouteType.FASTEST
+        routeType: RouteType = RouteType.DRIVING
     ): NavigationRoute? = withContext(Dispatchers.IO) {
         
         // اول از کش بررسی کن
