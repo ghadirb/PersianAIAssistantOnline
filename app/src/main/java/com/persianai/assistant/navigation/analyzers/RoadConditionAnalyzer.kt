@@ -64,6 +64,19 @@ class RoadConditionAnalyzer(private val context: Context) {
     }
     
     /**
+     * بررسی موقعیت برای تحلیل وضعیت جاده
+     */
+    fun checkLocation(location: GeoPoint) {
+        scope.launch {
+            try {
+                checkRoadCondition(location)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking location", e)
+            }
+        }
+    }
+    
+    /**
      * بررسی هشدار وضعیت جاده برای موقعیت فعلی
      */
     suspend fun checkRoadCondition(location: GeoPoint): RoadConditionAlert? = withContext(Dispatchers.IO) {

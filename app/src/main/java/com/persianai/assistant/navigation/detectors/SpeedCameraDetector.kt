@@ -181,6 +181,25 @@ class SpeedCameraDetector(private val context: Context) {
     }
     
     /**
+     * بررسی موقعیت برای هشدار سرعت‌گیر و دوربین
+     */
+    fun checkLocation(location: GeoPoint) {
+        val androidLocation = Location("").apply {
+            latitude = location.latitude
+            longitude = location.longitude
+        }
+        
+        scope.launch {
+            try {
+                checkSpeedAlert(androidLocation)
+                checkCameraAlert(androidLocation)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking location", e)
+            }
+        }
+    }
+    
+    /**
      * تولید پیام هشدار سرعت
      */
     private fun generateSpeedMessage(currentSpeed: Int, speedLimit: Int, distance: Int): String {

@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityNavigationBinding
+import com.persianai.assistant.navigation.models.NavigationRoute
 import com.persianai.assistant.navigation.SavedLocationsManager
 import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.ml.LocationHistoryManager

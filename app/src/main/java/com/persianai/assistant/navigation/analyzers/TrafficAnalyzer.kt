@@ -4,8 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.persianai.assistant.navigation.models.*
-import kotlinx.coroutines.*
-import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.GeoPoint as OsmGeoPoint
 import java.io.File
 import java.util.*
 
@@ -56,6 +55,19 @@ class TrafficAnalyzer(private val context: Context) {
         isAnalyzing = false
         currentRoute = null
         Log.d(TAG, "Stopped traffic analysis")
+    }
+    
+    /**
+     * بررسی موقعیت برای تحلیل ترافیک
+     */
+    fun checkLocation(location: GeoPoint) {
+        scope.launch {
+            try {
+                checkTrafficAlert(location)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking location", e)
+            }
+        }
     }
     
     /**
@@ -166,6 +178,17 @@ class TrafficAnalyzer(private val context: Context) {
     }
     
     /**
+     * دریافت سطح ترافیک پیش‌فرض بر اساس ساعت
+     */
+    private fun getDefaultTrafficLevel(hour: Int): TrafficLevel {
+        return when (hour) {
+            in 6..9, in 16..19 -> TrafficLevel.HIGH     // ساعت‌های اوج ترافیک
+            in 10..11, in 14..15, in 20..21 -> TrafficLevel.MEDIUM  // ترافیک متوسط
+            else -> TrafficLevel.LOW      // ترافیک روان
+        }
+    }
+    
+    /**
      * تخمین تاخیر ترافیک
      */
     private fun estimateDelay(trafficLevel: TrafficLevel, distance: Double): Long {
@@ -228,20 +251,6 @@ class TrafficAnalyzer(private val context: Context) {
         }
     }
     
-    /**
-     * دریافت سطح ترافیک پیش‌فرض بر اساس ساعت
-     */
-    private fun getDefaultTrafficLevel(hour: Int): TrafficLevel {
-        return when (hour) {
-            in 7..9, in 17..19 -> TrafficLevel.HIGH // ساعت اوج ترافیک
-            in 10..16, in 20..22 -> TrafficLevel.MEDIUM // ساعت متوسط
-            else -> TrafficLevel.LOW // ساعت کم ترافیک
-        }
-    }
-    
-    /**
-     * محاسبه میانگین سطح ترافیک
-     */
     private fun calculateAverageTrafficLevel(levels: List<TrafficLevel>): TrafficLevel {
         if (levels.isEmpty()) return TrafficLevel.LOW
         
@@ -361,7 +370,7 @@ class TrafficAnalyzer(private val context: Context) {
     fun getTrafficPrediction(route: NavigationRoute, departureTime: Long): TrafficInfo {
         val calendar = Calendar.getInstance()
         calendar.timeInMillis = departureTime
-        val hour = calendar.get(Calendar.HOUR_OF_HOUR)
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
         
         val trafficLevels = route.waypoints.takeLast(10).map { point ->
             val areaKey = generateAreaKey(point)

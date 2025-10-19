@@ -19,4 +19,10 @@
     <color name="error_light">#FFEBEE</color>
     <color name="warning_light">#FFF3E0</color>
     <color name="info_light">#E3F2FD</color>
+    
+    <!-- Persian AI Assistant Colors -->
+    <color name="primary_blue">#2196F3</color>
+    <color name="income_green">#4CAF50</color>
+    <color name="expense_red">#F44336</color>
+    <color name="neutral_gray">#9E9E9E</color>
 </resources>

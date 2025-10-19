@@ -6,7 +6,7 @@ import com.google.maps.DirectionsApi
 import com.google.maps.GeoApiContext
 import com.google.maps.model.DirectionsResult
 import com.google.maps.model.TravelMode
-import com.persianai.assistant.models.*
+import com.persianai.assistant.navigation.models.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
@@ -50,13 +50,13 @@ class NavigationManager(private val context: Context) {
     /**
      * محاسبه مسیر بین دو نقطه
      */
-    suspend fun calculateRoute(
+    suspend fun getRoute(
         startLat: Double,
         startLng: Double,
         endLat: Double,
         endLng: Double,
         routeType: RouteType = RouteType.DRIVING
-    ): NavigationRoute = withContext(Dispatchers.IO) {
+    ): com.persianai.assistant.navigation.models.NavigationRoute = withContext(Dispatchers.IO) {
         try {
             val origin = com.google.maps.model.LatLng(startLat, startLng)
             val destination = com.google.maps.model.LatLng(endLat, endLng)
@@ -95,7 +95,7 @@ class NavigationManager(private val context: Context) {
         startLng: Double,
         endLat: Double,
         endLng: Double
-    ): List<NavigationRoute> = withContext(Dispatchers.IO) {
+    ): List<com.persianai.assistant.navigation.models.NavigationRoute> = withContext(Dispatchers.IO) {
         try {
             val request = DirectionsApi.newRequest(geoApiContext)
                 .origin(com.google.maps.model.LatLng(startLat, startLng))
@@ -116,7 +116,7 @@ class NavigationManager(private val context: Context) {
     /**
      * دریافت مرحله فعلی مسیر
      */
-    fun getCurrentStep(route: NavigationRoute, currentLocation: android.location.Location): NavigationStep? {
+    fun getCurrentStep(route: com.persianai.assistant.navigation.models.NavigationRoute, currentLocation: android.location.Location): com.persianai.assistant.navigation.models.NavigationStep? {
         val currentLatLng = LatLng(currentLocation.latitude, currentLocation.longitude)
         
         return route.steps.minByOrNull { step ->
@@ -127,31 +127,27 @@ class NavigationManager(private val context: Context) {
     /**
      * بررسی رسیدن به مقصد
      */
-    fun hasReachedDestination(route: NavigationRoute, currentLocation: android.location.Location): Boolean {
+    fun hasReachedDestination(route: com.persianai.assistant.navigation.models.NavigationRoute, currentLocation: android.location.Location): Boolean {
         val currentLatLng = LatLng(currentLocation.latitude, currentLocation.longitude)
-        val destination = route.points.last()
+        val destination = route.waypoints.last()
         
-        return distanceBetween(currentLatLng, destination) < 50 // ۵۰ متر به مقصد
+        return distanceBetween(currentLatLng, LatLng(destination.latitude, destination.longitude)) < 50 // ۵۰ متر به مقصد
     }
     
     /**
      * دریافت اطلاعات ترافیک مسیر
      */
-    suspend fun getTrafficInfo(route: NavigationRoute): TrafficInfo = withContext(Dispatchers.IO) {
+    suspend fun getTrafficInfo(route: com.persianai.assistant.navigation.models.NavigationRoute): com.persianai.assistant.navigation.models.TrafficInfo = withContext(Dispatchers.IO) {
         try {
             // TODO: پیاده‌سازی دریافت اطلاعات ترافیک واقعی
-            TrafficInfo(
-                level = TrafficLevel.MODERATE,
-                description = "ترافیک متوسط",
-                delayInSeconds = 300,
-                color = "#FFC107"
+            com.persianai.assistant.navigation.models.TrafficInfo(
+                level = com.persianai.assistant.navigation.models.TrafficLevel.MEDIUM,
+                estimatedDelay = 300
             )
         } catch (e: Exception) {
-            TrafficInfo(
-                level = TrafficLevel.LOW,
-                description = "اطلاعاتی موجود نیست",
-                delayInSeconds = 0,
-                color = "#4CAF50"
+            com.persianai.assistant.navigation.models.TrafficInfo(
+                level = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
+                estimatedDelay = 0
             )
         }
     }
@@ -360,12 +356,12 @@ class NavigationManager(private val context: Context) {
         }
         
         val steps = leg.steps.map { step ->
-            NavigationStep(
+            com.persianai.assistant.navigation.models.NavigationStep(
                 instruction = step.htmlInstructions.removeHtmlTags(),
                 distance = step.distance.inMeters.toDouble(),
                 duration = step.duration.inSeconds,
-                startLocation = LatLng(step.startLocation.lat, step.startLocation.lng),
-                endLocation = LatLng(step.endLocation.lat, step.endLocation.lng),
+                startLocation = com.persianai.assistant.navigation.models.GeoPoint(step.startLocation.lat, step.startLocation.lng),
+                endLocation = com.persianai.assistant.navigation.models.GeoPoint(step.endLocation.lat, step.endLocation.lng),
                 maneuver = convertManeuver(step.maneuver),
                 polyline = step.polyline.encodedPath
             )
@@ -376,32 +372,38 @@ class NavigationManager(private val context: Context) {
             southwest = LatLng(route.bounds.southwest.lat, route.bounds.southwest.lng)
         )
         
-        return NavigationRoute(
+        return com.persianai.assistant.navigation.models.NavigationRoute(
             id = UUID.randomUUID().toString(),
+            origin = com.persianai.assistant.navigation.models.GeoPoint(leg.startLocation.lat, leg.startLocation.lng),
+            destination = com.persianai.assistant.navigation.models.GeoPoint(leg.endLocation.lat, leg.endLocation.lng),
+            waypoints = points.map { com.persianai.assistant.navigation.models.GeoPoint(it.latitude, it.longitude) },
             distance = leg.distance.inMeters.toDouble(),
             duration = leg.duration.inSeconds,
-            trafficLevel = estimateTrafficLevel(leg.duration.inSeconds, leg.distance.inMeters),
-            points = points,
-            steps = steps,
-            bounds = bounds,
-            overviewPolyline = route.overviewPolyline.encodedPath
+            routeType = routeType,
+            trafficInfo = com.persianai.assistant.navigation.models.TrafficInfo(
+                level = com.persianai.assistant.navigation.models.TrafficLevel.values()[estimateTrafficLevel(leg.duration.inSeconds, leg.distance.inMeters)],
+                estimatedDelay = 0
+            )
         )
     }
     
-    private fun convertToNavigationRoute(route: com.google.maps.model.Route, routeType: RouteType): NavigationRoute {
+    private fun convertToNavigationRoute(route: com.google.maps.model.Route, routeType: RouteType): com.persianai.assistant.navigation.models.NavigationRoute {
         // پیاده‌سازی مشابه بالا
         return createDefaultRoute(0.0, 0.0, 0.0, 0.0)
     }
     
-    private fun convertManeuver(maneuver: com.google.maps.model.DirectionsStep.Maneuver?): Maneuver {
+    private fun convertManeuver(maneuver: com.google.maps.model.DirectionsStep.Maneuver?): String {
         return when (maneuver) {
-            com.google.maps.model.DirectionsStep.Maneuver.TURN_LEFT -> Maneuver.TURN_LEFT
-            com.google.maps.model.DirectionsStep.Maneuver.TURN_RIGHT -> Maneuver.TURN_RIGHT
-            com.google.maps.model.DirectionsStep.Maneuver.TURN_SLIGHT_LEFT -> Maneuver.TURN_SLIGHT_LEFT
-            com.google.maps.model.DirectionsStep.Maneuver.TURN_SLIGHT_RIGHT -> Maneuver.TURN_SLIGHT_RIGHT
-            com.google.maps.model.DirectionsStep.Maneuver.STRAIGHT -> Maneuver.STRAIGHT
-            com.google.maps.model.DirectionsStep.Maneuver.UTURN -> Maneuver.U_TURN
-            else -> Maneuver.STRAIGHT
+            com.google.maps.model.DirectionsStep.Maneuver.TURN_LEFT -> "چپ گرد"
+            com.google.maps.model.DirectionsStep.Maneuver.TURN_RIGHT -> "راست گرد"
+            com.google.maps.model.DirectionsStep.Maneuver.STRAIGHT -> "مستقیم"
+            com.google.maps.model.DirectionsStep.Maneuver.SLIGHT_LEFT -> "کم چپ"
+            com.google.maps.model.DirectionsStep.Maneuver.SLIGHT_RIGHT -> "کم راست"
+            com.google.maps.model.DirectionsStep.Maneuver.SHARP_LEFT -> "تند چپ"
+            com.google.maps.model.DirectionsStep.Maneuver.SHARP_RIGHT -> "تند راست"
+            com.google.maps.model.DirectionsStep.Maneuver.UTURN_LEFT -> "گردش به عقب چپ"
+            com.google.maps.model.DirectionsStep.Maneuver.UTURN_RIGHT -> "گردش به عقب راست"
+            else -> "مستقیم"
         }
     }
     
@@ -416,7 +418,7 @@ class NavigationManager(private val context: Context) {
         }
     }
     
-    private fun createDefaultRoute(startLat: Double, startLng: Double, endLat: Double, endLng: Double): NavigationRoute {
+    private fun createDefaultRoute(startLat: Double, startLng: Double, endLat: Double, endLng: Double): com.persianai.assistant.navigation.models.NavigationRoute {
         val points = listOf(
             LatLng(startLat, startLng),
             LatLng(endLat, endLng)
@@ -425,28 +427,18 @@ class NavigationManager(private val context: Context) {
         val distance = distanceBetween(points[0], points[1])
         val duration = (distance / 50 * 3600).toLong() // فرض سرعت ۵۰ کیلومتر بر ساعت
         
-        return NavigationRoute(
+        return com.persianai.assistant.navigation.models.NavigationRoute(
             id = UUID.randomUUID().toString(),
+            origin = com.persianai.assistant.navigation.models.GeoPoint(startLat, startLng),
+            destination = com.persianai.assistant.navigation.models.GeoPoint(endLat, endLng),
+            waypoints = points.map { com.persianai.assistant.navigation.models.GeoPoint(it.latitude, it.longitude) },
             distance = distance,
             duration = duration,
-            trafficLevel = 0,
-            points = points,
-            steps = listOf(
-                NavigationStep(
-                    instruction = "حرکت به سمت مقصد",
-                    distance = distance,
-                    duration = duration,
-                    startLocation = points[0],
-                    endLocation = points[1],
-                    maneuver = Maneuver.STRAIGHT,
-                    polyline = ""
-                )
-            ),
-            bounds = LatLngBounds(
-                northeast = LatLng(maxOf(startLat, endLat), maxOf(startLng, endLng)),
-                southwest = LatLng(minOf(startLat, endLat), minOf(startLng, endLng))
-            ),
-            overviewPolyline = ""
+            routeType = RouteType.DRIVING,
+            trafficInfo = com.persianai.assistant.navigation.models.TrafficInfo(
+                level = com.persianai.assistant.navigation.models.TrafficLevel.LOW,
+                estimatedDelay = 0
+            )
         )
     }
     

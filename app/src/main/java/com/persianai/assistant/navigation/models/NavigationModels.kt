@@ -216,3 +216,44 @@ enum class RoadType {
 enum class SurfaceType {
     ASPHALT, CONCRETE, GRAVEL, DIRT, COBBLESTONE
 }
+
+/**
+ * مرحله ناوبری
+ */
+data class NavigationStep(
+    val instruction: String,
+    val distance: Double, // متر
+    val duration: Long, // ثانیه
+    val startLocation: GeoPoint,
+    val endLocation: GeoPoint,
+    val maneuver: String,
+    val polyline: String
+)
+
+/**
+ * نقطه جغرافیایی
+ */
+data class GeoPoint(
+    val latitude: Double,
+    val longitude: Double
+)
+
+/**
+ * نوع مسیر
+ */
+enum class RouteType {
+    DRIVING,
+    WALKING,
+    CYCLING,
+    TRANSIT
+}
+
+/**
+ * کادر محاطی برای محدوده جغرافیایی
+ */
+data class BoundingBox(
+    val minLat: Double,
+    val minLon: Double,
+    val maxLat: Double,
+    val maxLon: Double
+)

@@ -31,7 +31,7 @@ import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.material.tabs.TabLayout
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityProfessionalNavigationBinding
-import com.persianai.assistant.models.NavigationRoute
+import com.persianai.assistant.navigation.models.NavigationRoute
 import com.persianai.assistant.models.PlaceSuggestion
 import com.persianai.assistant.utils.NavigationManager
 import com.persianai.assistant.utils.VoiceNavigationHelper

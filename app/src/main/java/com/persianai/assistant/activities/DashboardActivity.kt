@@ -46,21 +46,15 @@ class DashboardActivity : AppCompatActivity() {
         
         setupDate()
         setupClickListeners()
-<<<<<<< HEAD
-=======
         loadWeather()
         loadWeatherButtons()
         loadSharedData()
->>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
         animateCards()
     }
     
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
-<<<<<<< HEAD
-=======
         binding.navigationCard?.alpha = 0f
->>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
@@ -126,9 +120,6 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         
-<<<<<<< HEAD
-        // Weather card listener removed
-=======
         binding.weatherCard?.setOnClickListener {
             try {
                 AnimationHelper.clickAnimation(it)
@@ -147,7 +138,6 @@ class DashboardActivity : AppCompatActivity() {
                 android.util.Log.e("DashboardActivity", "Click error", e)
             }
         }
->>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
         
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
@@ -193,9 +183,6 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
     
-<<<<<<< HEAD
-    // Weather related methods removed
-=======
     private fun loadWeather() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
@@ -288,7 +275,6 @@ class DashboardActivity : AppCompatActivity() {
             }, 100)
         }
     }
->>>>>>> 3b4298da2de833a86dd29f013b92c19bf89323a5
     
     private fun showAboutDialog() {
         MaterialAlertDialogBuilder(this)

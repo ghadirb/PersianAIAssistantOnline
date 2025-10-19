@@ -8,6 +8,12 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.*
 import org.osmdroid.util.GeoPoint
+import com.persianai.assistant.navigation.detectors.SpeedCameraDetector
+import com.persianai.assistant.navigation.analyzers.TrafficAnalyzer
+import com.persianai.assistant.navigation.analyzers.RoadConditionAnalyzer
+import com.persianai.assistant.navigation.ai.AIRoutePredictor
+import com.persianai.assistant.navigation.learning.RouteLearningSystem
+import com.persianai.assistant.navigation.utils.RouteCache
 import java.io.File
 import java.util.*
 

@@ -4,8 +4,8 @@ import android.content.Context
 import android.media.AudioManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import com.persianai.assistant.models.NavigationRoute
-import com.persianai.assistant.models.NavigationStep
+import com.persianai.assistant.navigation.models.NavigationRoute
+import com.persianai.assistant.navigation.models.NavigationStep
 import kotlinx.coroutines.*
 import java.util.*
 
