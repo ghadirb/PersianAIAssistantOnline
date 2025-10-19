@@ -117,9 +117,10 @@ class MusicActivity : AppCompatActivity() {
         }
         
         // Previous button
-        binding.previousButton?.setOnClickListener {
-            playPreviousTrack()
-        }
+        // TODO: Add previousButton to layout
+        // binding.previousButton?.setOnClickListener {
+        //     playPreviousTrack()
+        // }
         
         // Seek bar
         binding.seekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -139,9 +140,10 @@ class MusicActivity : AppCompatActivity() {
         })
         
         // AI Chat button
-        binding.aiChatButton?.setOnClickListener {
-            showMusicAIChat()
-        }
+        // TODO: Add aiChatButton to layout
+        // binding.aiChatButton?.setOnClickListener {
+        //     showMusicAIChat()
+        // }
         
         // Setup player listener
         exoPlayer?.addListener(object : Player.Listener {
@@ -167,8 +169,9 @@ class MusicActivity : AppCompatActivity() {
     private fun loadPlaylists() {
         lifecycleScope.launch {
             try {
-                val playlists = musicManager.getAllPlaylists()
-                setupPlaylistChips(playlists)
+                // TODO: Add playlistChipGroup to layout
+                // val playlists = musicManager.getAllPlaylists()
+                // setupPlaylistChips(playlists)
             } catch (e: Exception) {
                 Toast.makeText(this@MusicActivity, "خطا در بارگذاری پلی‌لیست‌ها", Toast.LENGTH_SHORT).show()
             }
@@ -176,19 +179,20 @@ class MusicActivity : AppCompatActivity() {
     }
     
     private fun setupPlaylistChips(playlists: List<MusicPlaylistManager.Playlist>) {
-        binding.playlistChipGroup?.removeAllViews()
-        
-        playlists.forEach { playlist ->
-            val chip = Chip(this)
-            chip.text = playlist.name
-            chip.isCheckable = true
-            chip.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    loadPlaylist(playlist)
-                }
-            }
-            binding.playlistChipGroup?.addView(chip)
-        }
+        // TODO: Add playlistChipGroup to layout
+        // binding.playlistChipGroup?.removeAllViews()
+        // 
+        // playlists.forEach { playlist ->
+        //     val chip = Chip(this)
+        //     chip.text = playlist.name
+        //     chip.isCheckable = true
+        //     chip.setOnCheckedChangeListener { _, isChecked ->
+        //         if (isChecked) {
+        //             loadPlaylist(playlist)
+        //         }
+        //     }
+        //     binding.playlistChipGroup?.addView(chip)
+        // }
     }
     
     private fun loadPlaylist(playlist: MusicPlaylistManager.Playlist) {
@@ -209,8 +213,9 @@ class MusicActivity : AppCompatActivity() {
             player.play()
             
             // Update UI
-            binding.trackTitleText?.text = track.title
-            binding.artistText?.text = track.artist
+            // TODO: Add trackTitleText and artistText to layout
+            // binding.trackTitleText?.text = track.title
+            // binding.artistText?.text = track.artist
         }
     }
     
@@ -240,8 +245,9 @@ class MusicActivity : AppCompatActivity() {
                 while (player.isPlaying) {
                     if (!isUserSeeking) {
                         binding.seekBar?.progress = player.currentPosition.toInt()
-                        binding.currentTimeText?.text = formatTime(player.currentPosition)
-                        binding.totalTimeText?.text = formatTime(player.duration)
+                        // TODO: Add currentTimeText and totalTimeText to layout
+                        // binding.currentTimeText?.text = formatTime(player.currentPosition)
+                        // binding.totalTimeText?.text = formatTime(player.duration)
                     }
                     kotlinx.coroutines.delay(1000)
                 }
