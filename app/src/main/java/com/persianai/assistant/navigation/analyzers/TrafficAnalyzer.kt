@@ -9,6 +9,21 @@ import org.osmdroid.util.GeoPoint as OsmGeoPoint
 import org.osmdroid.util.GeoPoint
 import java.io.File
 import java.util.*
+import kotlin.math.*
+
+/**
+ * Helper extension function برای محاسبه فاصله بین دو GeoPoint
+ */
+private fun GeoPoint.distanceTo(other: GeoPoint): Double {
+    val earthRadius = 6371000.0 // متر
+    val dLat = Math.toRadians(other.latitude - this.latitude)
+    val dLon = Math.toRadians(other.longitude - this.longitude)
+    val a = sin(dLat / 2) * sin(dLat / 2) +
+            cos(Math.toRadians(this.latitude)) * cos(Math.toRadians(other.latitude)) *
+            sin(dLon / 2) * sin(dLon / 2)
+    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return earthRadius * c
+}
 
 /**
  * تحلیلگر ترافیک - وضعیت ترافیک را بر اساس الگوهای زمانی و مکانی تحلیل می‌کند

@@ -19,6 +19,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityNavigationBinding
 import com.persianai.assistant.navigation.models.NavigationRoute
 import com.persianai.assistant.navigation.SavedLocationsManager
+import org.osmdroid.util.GeoPoint as OsmGeoPoint
 import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.ml.LocationHistoryManager
 import com.persianai.assistant.ml.RoutePredictor

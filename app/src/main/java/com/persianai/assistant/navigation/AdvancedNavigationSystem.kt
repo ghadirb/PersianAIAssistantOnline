@@ -15,6 +15,7 @@ import com.persianai.assistant.navigation.ai.AIRoutePredictor
 import com.persianai.assistant.navigation.learning.RouteLearningSystem
 import com.persianai.assistant.navigation.models.*
 import com.persianai.assistant.navigation.models.NavigationRoute
+import com.persianai.assistant.navigation.models.RouteType
 import com.persianai.assistant.navigation.utils.RouteCache
 import com.persianai.assistant.navigation.sync.GoogleDriveSync
 import java.io.File

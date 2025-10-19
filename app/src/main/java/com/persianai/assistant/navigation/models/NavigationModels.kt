@@ -96,17 +96,6 @@ enum class SeverityLevel {
 }
 
 /**
- * هشدار سرعت
- */
-data class SpeedAlert(
-    val currentSpeed: Int,
-    val speedLimit: Int,
-    val distanceToCamera: Int,
-    val message: String,
-    val alertType: AlertType
-)
-
-/**
  * هشدار دوربین
  */
 data class CameraAlert(

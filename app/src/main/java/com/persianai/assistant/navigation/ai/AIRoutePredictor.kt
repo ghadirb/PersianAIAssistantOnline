@@ -117,7 +117,7 @@ class AIRoutePredictor(private val context: Context) {
                 waypoints = learnedRoute.waypoints,
                 distance = learnedRoute.distance,
                 duration = learnedRoute.travelTime,
-                routeType = RouteType.FASTEST,
+                routeType = RouteType.DRIVING,
                 confidence = calculateConfidence(learnedRoute),
                 trafficInfo = TrafficInfo(
                     trafficLevel = TrafficLevel.LOW,
@@ -234,28 +234,28 @@ class AIRoutePredictor(private val context: Context) {
         
         when (routeType) {
             RouteType.DRIVING -> {
-                score += (1f / (route.duration / 60f)) * 0.4f // وزن زمان
-                score += (1f / (route.distance / 1000f)) * 0.3f // وزن مسافت
+                score += (1f / (route.duration.toFloat() / 60f)) * 0.4f // وزن زمان
+                score += (1f / (route.distance.toFloat() / 1000f)) * 0.3f // وزن مسافت
                 score += route.confidence * 0.3f // وزن اطمینان
             }
             RouteType.WALKING -> {
-                score += (1f / (route.distance / 1000f)) * 0.5f // وزن مسافت
+                score += (1f / (route.distance.toFloat() / 1000f)) * 0.5f // وزن مسافت
                 score += route.confidence * 0.3f // وزن اطمینان
-                score += (1f / (route.duration / 60f)) * 0.2f // وزن زمان
+                score += (1f / (route.duration.toFloat() / 60f)) * 0.2f // وزن زمان
             }
             RouteType.CYCLING -> {
                 score += route.confidence * 0.5f // وزن اطمینان (مسیرهای یادگرفته شده)
-                score += (1f / (route.distance / 1000f)) * 0.3f
-                score += (1f / (route.duration / 60f)) * 0.2f
+                score += (1f / (route.distance.toFloat() / 1000f)) * 0.3f
+                score += (1f / (route.duration.toFloat() / 60f)) * 0.2f
             }
             RouteType.TRANSIT -> {
-                score += (1f / (route.duration / 60f)) * 0.6f // وزن زمان برای حمل و نقل عمومی
+                score += (1f / (route.duration.toFloat() / 60f)) * 0.6f // وزن زمان برای حمل و نقل عمومی
                 score += route.confidence * 0.4f // وزن اطمینان
             }
             else -> {
                 score += route.confidence * 0.5f
-                score += (1f / (route.distance / 1000f)) * 0.3f
-                score += (1f / (route.duration / 60f)) * 0.2f
+                score += (1f / (route.distance.toFloat() / 1000f)) * 0.3f
+                score += (1f / (route.duration.toFloat() / 60f)) * 0.2f
             }
         }
         
@@ -298,7 +298,7 @@ class AIRoutePredictor(private val context: Context) {
             waypoints = waypoints,
             distance = distance,
             duration = duration,
-            routeType = RouteType.FASTEST,
+            routeType = RouteType.DRIVING,
             confidence = 0.3f // اطمینان کم برای مسیرهای تولید شده
         )
     }
@@ -402,7 +402,7 @@ class AIRoutePredictor(private val context: Context) {
             waypoints = waypoints,
             distance = distance,
             duration = duration,
-            routeType = RouteType.FASTEST,
+            routeType = RouteType.DRIVING,
             confidence = 0.2f
         )
     }
@@ -550,7 +550,7 @@ class AIRoutePredictor(private val context: Context) {
         val suggestions = mutableListOf<RouteSuggestion>()
         
         // مسیر سریع‌ترین
-        val fastestRoute = predictRoute(origin, destination, RouteType.FASTEST)
+        val fastestRoute = predictRoute(origin, destination, RouteType.DRIVING)
         fastestRoute?.let {
             suggestions.add(RouteSuggestion(
                 route = it,
@@ -561,7 +561,7 @@ class AIRoutePredictor(private val context: Context) {
         }
         
         // مسیر کوتاه‌ترین
-        val shortestRoute = predictRoute(origin, destination, RouteType.SHORTEST)
+        val shortestRoute = predictRoute(origin, destination, RouteType.WALKING)
         shortestRoute?.let {
             suggestions.add(RouteSuggestion(
                 route = it,
@@ -572,7 +572,7 @@ class AIRoutePredictor(private val context: Context) {
         }
         
         // مسیر کمترافیک
-        val avoidTrafficRoute = predictRoute(origin, destination, RouteType.AVOID_TRAFFIC)
+        val avoidTrafficRoute = predictRoute(origin, destination, RouteType.CYCLING)
         avoidTrafficRoute?.let {
             suggestions.add(RouteSuggestion(
                 route = it,
