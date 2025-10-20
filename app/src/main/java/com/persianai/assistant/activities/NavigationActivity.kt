@@ -463,7 +463,8 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun setupBottomTabs() {
-        binding.bottomTabLayout?.apply {
+        val tabLayout = findViewById<com.google.android.material.tabs.TabLayout>(R.id.bottomTabLayout)
+        tabLayout?.apply {
             // اضافه کردن 4 تب
             addTab(newTab().setText("نقشه").setIcon(android.R.drawable.ic_dialog_map))
             addTab(newTab().setText("جستجو").setIcon(android.R.drawable.ic_menu_search))
