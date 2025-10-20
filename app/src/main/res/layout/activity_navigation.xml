@@ -325,14 +325,17 @@
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/bottomTabLayout"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="60dp"
         android:layout_gravity="bottom"
-        android:background="?attr/colorSurface"
+        android:background="#FFFFFF"
+        android:elevation="8dp"
         app:tabMode="fixed"
         app:tabGravity="fill"
-        app:tabTextColor="?attr/colorOnSurface"
-        app:tabSelectedTextColor="?attr/colorPrimary"
-        app:tabIndicatorColor="?attr/colorPrimary" />
+        app:tabTextColor="#666666"
+        app:tabSelectedTextColor="#2196F3"
+        app:tabIndicatorColor="#2196F3"
+        app:tabIndicatorHeight="3dp"
+        app:tabTextAppearance="@android:style/TextAppearance.Small" />
 
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
