@@ -346,22 +346,22 @@ class NavigationManager(private val context: Context) {
         )
     }
     
-    private fun convertToNavigationRoute(route: com.google.maps.model.Route, routeType: com.persianai.assistant.navigation.models.RouteType): com.persianai.assistant.navigation.models.NavigationRoute {
-        // پیاده‌سازی مشابه بالا
-        return createDefaultRoute(0.0, 0.0, 0.0, 0.0)
-    }
+    // TODO: Implement when Google Maps SDK is properly configured
+    // private fun convertToNavigationRoute(route: com.google.maps.model.Route, routeType: com.persianai.assistant.navigation.models.RouteType): com.persianai.assistant.navigation.models.NavigationRoute {
+    //     return createDefaultRoute(0.0, 0.0, 0.0, 0.0)
+    // }
     
-    private fun convertManeuver(maneuver: com.google.maps.model.DirectionsStep.Maneuver?): String {
+    private fun convertManeuver(maneuver: String?): String {
         return when (maneuver) {
-            com.google.maps.model.DirectionsStep.Maneuver.TURN_LEFT -> "چپ گرد"
-            com.google.maps.model.DirectionsStep.Maneuver.TURN_RIGHT -> "راست گرد"
-            com.google.maps.model.DirectionsStep.Maneuver.STRAIGHT -> "مستقیم"
-            com.google.maps.model.DirectionsStep.Maneuver.SLIGHT_LEFT -> "کم چپ"
-            com.google.maps.model.DirectionsStep.Maneuver.SLIGHT_RIGHT -> "کم راست"
-            com.google.maps.model.DirectionsStep.Maneuver.SHARP_LEFT -> "تند چپ"
-            com.google.maps.model.DirectionsStep.Maneuver.SHARP_RIGHT -> "تند راست"
-            com.google.maps.model.DirectionsStep.Maneuver.UTURN_LEFT -> "گردش به عقب چپ"
-            com.google.maps.model.DirectionsStep.Maneuver.UTURN_RIGHT -> "گردش به عقب راست"
+            "turn-left" -> "چپ گرد"
+            "turn-right" -> "راست گرد"
+            "straight" -> "مستقیم"
+            "slight-left" -> "کم چپ"
+            "slight-right" -> "کم راست"
+            "sharp-left" -> "تند چپ"
+            "sharp-right" -> "تند راست"
+            "uturn-left" -> "گردش به عقب چپ"
+            "uturn-right" -> "گردش به عقب راست"
             else -> "مستقیم"
         }
     }
