@@ -220,7 +220,8 @@ class NavigationActivity : AppCompatActivity() {
             showSavedLocations()
         }
 
-        // تب‌های پایین
+        // تب‌های پایین - موقتاً غیرفعال برای بررسی build
+        /*
         binding.bottomNavigation?.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_map -> true
@@ -240,6 +241,7 @@ class NavigationActivity : AppCompatActivity() {
                 else -> false
             }
         }
+        */
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
