@@ -55,24 +55,24 @@ class AdvancedNavigationSystem(private val context: Context) {
     private val roadConditionAnalyzer = RoadConditionAnalyzer(context)
     private val aiRoutePredictor = AIRoutePredictor(context)
     
-    // وضعیت سرویس‌ها
-    private var isNavigationEnabled: Boolean
+    // وضعیت سرویس‌ها (public برای دسترسی از خارج)
+    var isNavigationEnabled: Boolean
         get() = prefs.getBoolean(KEY_NAVIGATION_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_NAVIGATION_ENABLED, value).apply()
     
-    private var areSpeedAlertsEnabled: Boolean
+    var areSpeedAlertsEnabled: Boolean
         get() = prefs.getBoolean(KEY_SPEED_ALERTS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_SPEED_ALERTS_ENABLED, value).apply()
     
-    private var areCameraAlertsEnabled: Boolean
+    var areCameraAlertsEnabled: Boolean
         get() = prefs.getBoolean(KEY_CAMERA_ALERTS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_CAMERA_ALERTS_ENABLED, value).apply()
     
-    private var areTrafficAlertsEnabled: Boolean
+    var areTrafficAlertsEnabled: Boolean
         get() = prefs.getBoolean(KEY_TRAFFIC_ALERTS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_TRAFFIC_ALERTS_ENABLED, value).apply()
     
-    private var areRoadConditionAlertsEnabled: Boolean
+    var areRoadConditionAlertsEnabled: Boolean
         get() = prefs.getBoolean(KEY_ROAD_CONDITION_ALERTS, true)
         set(value) = prefs.edit().putBoolean(KEY_ROAD_CONDITION_ALERTS, value).apply()
     
@@ -295,26 +295,13 @@ class AdvancedNavigationSystem(private val context: Context) {
     
     /**
      * تنظیمات مسیریاب
+     * توجه: برای تنظیم مستقیماً از property ها استفاده کنید:
+     * - isNavigationEnabled
+     * - areSpeedAlertsEnabled
+     * - areCameraAlertsEnabled
+     * - areTrafficAlertsEnabled
+     * - areRoadConditionAlertsEnabled
      */
-    fun setNavigationEnabled(enabled: Boolean) {
-        isNavigationEnabled = enabled
-    }
-    
-    fun setSpeedAlertsEnabled(enabled: Boolean) {
-        areSpeedAlertsEnabled = enabled
-    }
-    
-    fun setCameraAlertsEnabled(enabled: Boolean) {
-        areCameraAlertsEnabled = enabled
-    }
-    
-    fun setTrafficAlertsEnabled(enabled: Boolean) {
-        areTrafficAlertsEnabled = enabled
-    }
-    
-    fun setRoadConditionAlertsEnabled(enabled: Boolean) {
-        areRoadConditionAlertsEnabled = enabled
-    }
     
     /**
      * دریافت وضعیت مصرف API
