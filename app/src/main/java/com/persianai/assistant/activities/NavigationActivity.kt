@@ -183,33 +183,10 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun setupButtons() {
-        // جستجوی AI
+        // جستجوی AI - TODO: پیاده‌سازی کامل
         binding.searchInput?.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                val query = v.text.toString()
-                lifecycleScope.launch {
-                    try {
-                        val result = aiAssistant.processNavigationQuery(query)
-                        if (result.destination != null) {
-                            selectedDestination = result.destination
-                            webView.evaluateJavascript(
-                                "addMarker(${result.destination.latitude}, ${result.destination.longitude});",
-                                null
-                            )
-                            Toast.makeText(
-                                this@NavigationActivity,
-                                "مقصد پیدا شد: ${result.locationName}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@NavigationActivity,
-                            "خطا در جستجو: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+                Toast.makeText(this, "جستجو: ${v.text}", Toast.LENGTH_SHORT).show()
                 true
             } else false
         }
@@ -243,25 +220,25 @@ class NavigationActivity : AppCompatActivity() {
             showSavedLocations()
         }
 
-        // تب‌های پایین
-        binding.bottomNavigation?.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_map -> true
-                R.id.nav_chat -> {
-                    showAIChat()
-                    true
-                }
-                R.id.nav_accounting -> {
-                    Toast.makeText(this, "حسابداری", Toast.LENGTH_SHORT).show()
-                    true
-                }
-                R.id.nav_reminders -> {
-                    Toast.makeText(this, "یادآورها", Toast.LENGTH_SHORT).show()
-                    true
-                }
-                else -> false
-            }
-        }
+        // تب‌های پایین - TODO: فعال‌سازی بعد از تکمیل menu
+        // binding.bottomNavigation?.setOnItemSelectedListener { item ->
+        //     when (item.itemId) {
+        //         R.id.nav_map -> true
+        //         R.id.nav_chat -> {
+        //             showAIChat()
+        //             true
+        //         }
+        //         R.id.nav_accounting -> {
+        //             Toast.makeText(this, "حسابداری", Toast.LENGTH_SHORT).show()
+        //             true
+        //         }
+        //         R.id.nav_reminders -> {
+        //             Toast.makeText(this, "یادآورها", Toast.LENGTH_SHORT).show()
+        //             true
+        //         }
+        //         else -> false
+        //     }
+        // }
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
@@ -270,12 +247,12 @@ class NavigationActivity : AppCompatActivity() {
             }
         }
         
-        binding.searchDestinationButton.setOnClickListener {
+        binding.searchDestinationButton?.setOnClickListener {
             val intent = Intent(this, SearchDestinationActivity::class.java)
             startActivityForResult(intent, 1001)
         }
         
-        binding.savedLocationsButton.setOnClickListener {
+        binding.savedLocationsButton?.setOnClickListener {
             showSavedLocations()
         }
         
@@ -283,13 +260,13 @@ class NavigationActivity : AppCompatActivity() {
             showPOIDialog()
         }
         
-        binding.saveCurrentLocationButton.setOnClickListener {
+        binding.saveCurrentLocationButton?.setOnClickListener {
             currentLocation?.let { loc ->
                 showSaveLocationDialog(LatLng(loc.latitude, loc.longitude))
             } ?: Toast.makeText(this, "⚠️ در حال دریافت موقعیت...", Toast.LENGTH_SHORT).show()
         }
         
-        binding.startNavigationButton.setOnClickListener {
+        binding.startNavigationButton?.setOnClickListener {
             if (selectedDestination != null && currentLocation != null) {
                 startNavigation()
             } else {
@@ -297,15 +274,15 @@ class NavigationActivity : AppCompatActivity() {
             }
         }
         
-        binding.stopNavigationButton.setOnClickListener {
+        binding.stopNavigationButton?.setOnClickListener {
             stopNavigation()
         }
         
-        binding.addWaypointButton.setOnClickListener {
+        binding.addWaypointButton?.setOnClickListener {
             Toast.makeText(this, "📍 مقصد میانی", Toast.LENGTH_SHORT).show()
         }
         
-        binding.aiChatFab.setOnClickListener {
+        binding.aiChatFab?.setOnClickListener {
             showAIChat()
         }
         
