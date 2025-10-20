@@ -60,8 +60,9 @@ class DashboardActivity : AppCompatActivity() {
         binding.expensesCard?.alpha = 0f
         binding.remindersCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
+        // TODO: Add weatherCard to layout
         // مخفی کردن کارت آب و هوا
-        binding.weatherCard?.visibility = View.GONE
+        // binding.weatherCard?.visibility = View.GONE
     }
     
     private fun setupDate() {

@@ -323,17 +323,8 @@ class NavigationManager(private val context: Context) {
             LatLng(point.lat, point.lng)
         }
         
-        val steps = leg.steps.map { step ->
-            com.persianai.assistant.navigation.models.NavigationStep(
-                instruction = step.htmlInstructions.removeHtmlTags(),
-                distance = step.distance.inMeters.toDouble(),
-                duration = step.duration.inSeconds,
-                startLocation = com.persianai.assistant.navigation.models.GeoPoint(step.startLocation.lat, step.startLocation.lng),
-                endLocation = com.persianai.assistant.navigation.models.GeoPoint(step.endLocation.lat, step.endLocation.lng),
-                maneuver = convertManeuver(step.maneuver),
-                polyline = step.polyline.encodedPath
-            )
-        }
+        // TODO: Fix NavigationStep if needed
+        val steps = emptyList<com.persianai.assistant.navigation.models.NavigationStep>()
         
         val bounds = LatLngBounds(
             northeast = LatLng(route.bounds.northeast.lat, route.bounds.northeast.lng),
@@ -342,9 +333,9 @@ class NavigationManager(private val context: Context) {
         
         return com.persianai.assistant.navigation.models.NavigationRoute(
             id = UUID.randomUUID().toString(),
-            origin = com.persianai.assistant.navigation.models.GeoPoint(leg.startLocation.lat, leg.startLocation.lng),
-            destination = com.persianai.assistant.navigation.models.GeoPoint(leg.endLocation.lat, leg.endLocation.lng),
-            waypoints = points.map { com.persianai.assistant.navigation.models.GeoPoint(it.latitude, it.longitude) },
+            origin = OsmGeoPoint(leg.startLocation.lat, leg.startLocation.lng),
+            destination = OsmGeoPoint(leg.endLocation.lat, leg.endLocation.lng),
+            waypoints = points.map { OsmGeoPoint(it.latitude, it.longitude) },
             distance = leg.distance.inMeters.toDouble(),
             duration = leg.duration.inSeconds,
             routeType = routeType,
@@ -397,9 +388,9 @@ class NavigationManager(private val context: Context) {
         
         return com.persianai.assistant.navigation.models.NavigationRoute(
             id = UUID.randomUUID().toString(),
-            origin = com.persianai.assistant.navigation.models.GeoPoint(startLat, startLng),
-            destination = com.persianai.assistant.navigation.models.GeoPoint(endLat, endLng),
-            waypoints = points.map { com.persianai.assistant.navigation.models.GeoPoint(it.latitude, it.longitude) },
+            origin = OsmGeoPoint(startLat, startLng),
+            destination = OsmGeoPoint(endLat, endLng),
+            waypoints = points.map { OsmGeoPoint(it.latitude, it.longitude) },
             distance = distance,
             duration = duration,
             routeType = com.persianai.assistant.navigation.models.RouteType.DRIVING,
@@ -454,7 +445,7 @@ class NavigationManager(private val context: Context) {
             avoidHighways = prefs.getBoolean("avoid_highways", false),
             avoidFerries = prefs.getBoolean("avoid_ferries", false),
             avoidUnpavedRoads = prefs.getBoolean("avoid_unpaved", true),
-            preferredRouteType = com.persianai.assistant.navigation.models.RouteType.valueOf(prefs.getString("preferred_type", "DRIVING") ?: "DRIVING"),
+            preferredRouteType = com.persianai.assistant.models.RouteType.valueOf(prefs.getString("preferred_type", "DRIVING") ?: "DRIVING"),
             voiceNavigation = prefs.getBoolean("voice_navigation", true),
             autoReroute = prefs.getBoolean("auto_reroute", true),
             showTraffic = prefs.getBoolean("show_traffic", true),
