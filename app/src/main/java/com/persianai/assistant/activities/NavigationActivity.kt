@@ -220,25 +220,25 @@ class NavigationActivity : AppCompatActivity() {
             showSavedLocations()
         }
 
-        // تب‌های پایین - TODO: فعال‌سازی بعد از تکمیل menu
-        // binding.bottomNavigation?.setOnItemSelectedListener { item ->
-        //     when (item.itemId) {
-        //         R.id.nav_map -> true
-        //         R.id.nav_chat -> {
-        //             showAIChat()
-        //             true
-        //         }
-        //         R.id.nav_accounting -> {
-        //             Toast.makeText(this, "حسابداری", Toast.LENGTH_SHORT).show()
-        //             true
-        //         }
-        //         R.id.nav_reminders -> {
-        //             Toast.makeText(this, "یادآورها", Toast.LENGTH_SHORT).show()
-        //             true
-        //         }
-        //         else -> false
-        //     }
-        // }
+        // تب‌های پایین
+        binding.bottomNavigation?.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_map -> true
+                R.id.nav_chat -> {
+                    showAIChat()
+                    true
+                }
+                R.id.nav_accounting -> {
+                    Toast.makeText(this, "حسابداری", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.nav_reminders -> {
+                    Toast.makeText(this, "یادآورها", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
