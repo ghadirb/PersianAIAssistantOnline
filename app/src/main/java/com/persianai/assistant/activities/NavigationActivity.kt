@@ -124,10 +124,6 @@ class NavigationActivity : AppCompatActivity() {
         binding = ActivityNavigationBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "🗺️ مسیریاب"
-        
         try {
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
             savedLocationsManager = SavedLocationsManager(this)

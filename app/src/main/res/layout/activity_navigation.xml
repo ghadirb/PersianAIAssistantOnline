@@ -6,25 +6,71 @@
     android:layout_height="match_parent"
     tools:context=".activities.NavigationActivity">
 
-    <!-- Neshan Map WebView -->
-    <WebView
-        android:id="@+id/mapWebView"
+    <!-- Map Container -->
+    <FrameLayout
+        android:id="@+id/mapContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
 
-    <!-- Top Bar -->
-    <com.google.android.material.appbar.AppBarLayout
+        <WebView
+            android:id="@+id/mapWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Selected Location Marker -->
+        <ImageView
+            android:id="@+id/selectedMarker"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:src="@android:drawable/ic_menu_mylocation"
+            android:visibility="gone"
+            android:tint="#F44336" />
+    </FrameLayout>
+
+    <!-- Top Search Bar -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+        android:layout_margin="16dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/primaryColor"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
-    </com.google.android.material.appbar.AppBarLayout>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_search"
+                android:layout_marginStart="8dp"
+                android:tint="#666666" />
+
+            <EditText
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="جستجو با هوش مصنوعی..."
+                android:background="@null"
+                android:padding="12dp"
+                android:textSize="16sp"
+                android:imeOptions="actionSearch"
+                android:inputType="text" />
+
+            <ImageView
+                android:id="@+id/voiceSearchBtn"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_btn_speak_now"
+                android:layout_marginEnd="8dp"
+                android:tint="#1976D2" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Speed Card (Bottom Right - فقط در حین مسیریابی) -->
     <com.google.android.material.card.MaterialCardView
@@ -247,18 +293,52 @@
         android:visibility="gone"
         android:indeterminateTint="@color/primaryColor" />
 
-    <!-- AI Chat Button -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/aiChatFab"
+    <!-- Floating Action Buttons (Right Side) -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:layout_marginTop="80dp"
-        android:layout_marginStart="16dp"
-        android:src="@android:drawable/ic_dialog_email"
-        android:contentDescription="چت AI"
-        app:backgroundTint="#9C27B0"
-        app:tint="@android:color/white" />
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="16dp"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/myLocationFab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:fabSize="normal"
+            app:tint="@android:color/white" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/trafficToggleFab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:src="@android:drawable/ic_dialog_info"
+            app:fabSize="normal"
+            app:backgroundTint="#4CAF50"
+            app:tint="@android:color/white" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/savedLocationsFab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_save"
+            app:fabSize="normal"
+            app:backgroundTint="#FF9800"
+            app:tint="@android:color/white" />
+    </LinearLayout>
+
+    <!-- Bottom Navigation Tabs -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:menu="@menu/navigation_bottom_menu"
+        app:labelVisibilityMode="labeled" />
 
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
