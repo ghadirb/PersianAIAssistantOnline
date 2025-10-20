@@ -219,8 +219,8 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین - موقتاً غیرفعال
-        // binding.bottomNavigation?.visibility = View.GONE
+        // تب‌های پایین با TabLayout
+        setupBottomTabs()
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
@@ -460,6 +460,46 @@ class NavigationActivity : AppCompatActivity() {
                 Toast.makeText(this, layers[which], Toast.LENGTH_SHORT).show()
             }
             .show()
+    }
+    
+    private fun setupBottomTabs() {
+        binding.bottomTabLayout?.apply {
+            // اضافه کردن 4 تب
+            addTab(newTab().setText("نقشه").setIcon(android.R.drawable.ic_dialog_map))
+            addTab(newTab().setText("جستجو").setIcon(android.R.drawable.ic_menu_search))
+            addTab(newTab().setText("ذخیره").setIcon(android.R.drawable.ic_menu_save))
+            addTab(newTab().setText("سایر").setIcon(android.R.drawable.ic_menu_more))
+            
+            // انتخاب تب اول (نقشه)
+            selectTab(getTabAt(0))
+            
+            // Listener برای تغییر تب
+            addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+                override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                    when (tab?.position) {
+                        0 -> {
+                            // نقشه - هیچ کاری نمی‌کنه
+                        }
+                        1 -> {
+                            // جستجو
+                            val intent = Intent(this@NavigationActivity, SearchDestinationActivity::class.java)
+                            startActivityForResult(intent, 1001)
+                        }
+                        2 -> {
+                            // ذخیره‌ها
+                            showSavedLocations()
+                        }
+                        3 -> {
+                            // سایر
+                            showMoreOptions()
+                        }
+                    }
+                }
+                
+                override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+                override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            })
+        }
     }
     
     private fun showMoreOptions() {

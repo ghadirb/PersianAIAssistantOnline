@@ -322,13 +322,17 @@
     </LinearLayout>
 
     <!-- Bottom Navigation Tabs -->
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavigation"
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/bottomTabLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:layout_gravity="bottom"
-        app:menu="@menu/navigation_bottom_menu"
-        app:labelVisibilityMode="labeled" />
+        android:background="?attr/colorSurface"
+        app:tabMode="fixed"
+        app:tabGravity="fill"
+        app:tabTextColor="?attr/colorOnSurface"
+        app:tabSelectedTextColor="?attr/colorPrimary"
+        app:tabIndicatorColor="?attr/colorPrimary" />
 
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
