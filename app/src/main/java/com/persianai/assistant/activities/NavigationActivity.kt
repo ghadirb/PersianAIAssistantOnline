@@ -8,6 +8,7 @@ import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
 import android.webkit.JavascriptInterface
 import android.widget.EditText
@@ -182,7 +183,88 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun setupButtons() {
-        binding.myLocationButton.setOnClickListener {
+        // جستجوی AI
+        binding.searchInput?.setOnEditorActionListener { v, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                val query = v.text.toString()
+                lifecycleScope.launch {
+                    try {
+                        val result = aiAssistant.processNavigationQuery(query)
+                        if (result.destination != null) {
+                            selectedDestination = result.destination
+                            webView.evaluateJavascript(
+                                "addMarker(${result.destination.latitude}, ${result.destination.longitude});",
+                                null
+                            )
+                            Toast.makeText(
+                                this@NavigationActivity,
+                                "مقصد پیدا شد: ${result.locationName}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@NavigationActivity,
+                            "خطا در جستجو: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+                true
+            } else false
+        }
+
+        // دکمه مکان من (FAB)
+        binding.myLocationFab?.setOnClickListener {
+            currentLocation?.let { loc ->
+                webView.evaluateJavascript(
+                    "map.setView([${loc.latitude}, ${loc.longitude}], 15);",
+                    null
+                )
+            }
+        }
+
+        // Toggle ترافیک
+        binding.trafficToggleFab?.setOnClickListener {
+            isTrafficEnabled = !isTrafficEnabled
+            webView.evaluateJavascript(
+                "toggleTraffic($isTrafficEnabled);",
+                null
+            )
+            Toast.makeText(
+                this,
+                if (isTrafficEnabled) "ترافیک فعال شد" else "ترافیک غیرفعال شد",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        // مکان‌های ذخیره شده
+        binding.savedLocationsFab?.setOnClickListener {
+            showSavedLocations()
+        }
+
+        // تب‌های پایین
+        binding.bottomNavigation?.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_map -> true
+                R.id.nav_chat -> {
+                    showAIChat()
+                    true
+                }
+                R.id.nav_accounting -> {
+                    Toast.makeText(this, "حسابداری", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.nav_reminders -> {
+                    Toast.makeText(this, "یادآورها", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        // دکمه‌های قدیمی
+        binding.myLocationButton?.setOnClickListener {
             currentLocation?.let { loc ->
                 webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
             }
