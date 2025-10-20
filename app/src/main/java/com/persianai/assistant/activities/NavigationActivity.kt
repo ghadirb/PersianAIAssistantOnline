@@ -219,26 +219,8 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین
-        binding.bottomNavigation?.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.bottom_nav_map -> true
-                R.id.bottom_nav_search -> {
-                    val intent = Intent(this, SearchDestinationActivity::class.java)
-                    startActivityForResult(intent, 1001)
-                    true
-                }
-                R.id.bottom_nav_saved -> {
-                    showSavedLocations()
-                    true
-                }
-                R.id.bottom_nav_more -> {
-                    showMoreOptions()
-                    true
-                }
-                else -> false
-            }
-        }
+        // تب‌های پایین - موقتاً غیرفعال
+        // binding.bottomNavigation?.visibility = View.GONE
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
@@ -688,68 +670,10 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showSuggestedRoutes(destination: LatLng) {
-        currentLocation?.let { loc ->
-            lifecycleScope.launch {
-                try {
-                    Toast.makeText(this@NavigationActivity, "🤖 در حال تحلیل مسیرها با AI...", Toast.LENGTH_SHORT).show()
-                    
-                    // تبدیل به OsmGeoPoint
-                    val origin = OsmGeoPoint(loc.latitude, loc.longitude)
-                    val dest = OsmGeoPoint(destination.latitude, destination.longitude)
-                    
-                    // دریافت 3 نوع مسیر از AI
-                    val fastestRoute = aiRoutePredictor.predictRoute(
-                        origin, dest, 
-                        com.persianai.assistant.navigation.ai.RouteType.FASTEST
-                    )
-                    val shortestRoute = aiRoutePredictor.predictRoute(
-                        origin, dest,
-                        com.persianai.assistant.navigation.ai.RouteType.SHORTEST
-                    )
-                    val balancedRoute = aiRoutePredictor.predictRoute(
-                        origin, dest,
-                        com.persianai.assistant.navigation.ai.RouteType.BALANCED
-                    )
-                    
-                    val routes = listOfNotNull(fastestRoute, shortestRoute, balancedRoute)
-                    
-                    if (routes.isNotEmpty()) {
-                        val routeNames = routes.map { route ->
-                            val distanceKm = String.format("%.1f", route.distance / 1000.0)
-                            val durationMin = route.duration / 60
-                            "${route.name} - $distanceKm کیلومتر - $durationMin دقیقه"
-                        }.toTypedArray()
-                        
-                        MaterialAlertDialogBuilder(this@NavigationActivity)
-                            .setTitle("🛣️ مسیرهای پیشنهادی AI")
-                            .setItems(routeNames) { _, which: Int ->
-                                val selectedRoute = routes[which]
-                                selectedDestination = destination
-                                
-                                // ذخیره انتخاب کاربر برای یادگیری
-                                routeLearningSystem.recordRouteSelection(selectedRoute)
-                                
-                                Toast.makeText(
-                                    this@NavigationActivity,
-                                    "✅ مسیر ${selectedRoute.name} انتخاب شد",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                startNavigation()
-                            }
-                            .setNegativeButton("بستن", null)
-                            .show()
-                    } else {
-                        Toast.makeText(this@NavigationActivity, "مسیری یافت نشد", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e("NavigationActivity", "Route prediction error", e)
-                    Toast.makeText(this@NavigationActivity, "خطا در پیشنهاد مسیر: ${e.message}", Toast.LENGTH_SHORT).show()
-                    // در صورت خطا، مسیریابی مستقیم
-                    selectedDestination = destination
-                    startNavigation()
-                }
-            }
-        } ?: Toast.makeText(this, "⚠️ مکان شما در دسترس نیست", Toast.LENGTH_SHORT).show()
+        // شروع مسیریابی مستقیم
+        selectedDestination = destination
+        Toast.makeText(this, "🚗 شروع مسیریابی...", Toast.LENGTH_SHORT).show()
+        startNavigation()
     }
     
     private fun showSaveLocationDialog(latLng: LatLng) {
