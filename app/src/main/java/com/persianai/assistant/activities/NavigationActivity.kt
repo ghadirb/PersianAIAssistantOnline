@@ -224,6 +224,11 @@ class NavigationActivity : AppCompatActivity() {
         binding.bottomNavigation?.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_map -> true
+                R.id.nav_search -> {
+                    val intent = Intent(this, SearchDestinationActivity::class.java)
+                    startActivityForResult(intent, 1001)
+                    true
+                }
                 R.id.nav_chat -> {
                     showAIChat()
                     true

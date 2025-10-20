@@ -5,6 +5,10 @@
         android:icon="@android:drawable/ic_dialog_map"
         android:title="نقشه" />
     <item
+        android:id="@+id/nav_search"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="جستجو" />
+    <item
         android:id="@+id/nav_chat"
         android:icon="@android:drawable/ic_menu_send"
         android:title="چت AI" />
