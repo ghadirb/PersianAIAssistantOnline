@@ -219,8 +219,7 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین - موقتاً غیرفعال
-        /*
+        // تب‌های پایین
         binding.bottomNavigation?.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.bottom_nav_map -> true
@@ -234,13 +233,12 @@ class NavigationActivity : AppCompatActivity() {
                     true
                 }
                 R.id.bottom_nav_more -> {
-                    showPOIDialog()
+                    showMoreOptions()
                     true
                 }
                 else -> false
             }
         }
-        */
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
@@ -482,6 +480,84 @@ class NavigationActivity : AppCompatActivity() {
             .show()
     }
     
+    private fun showMoreOptions() {
+        val options = arrayOf(
+            "🔍 مکان‌های نزدیک",
+            "⚙️ تنظیمات",
+            "💬 چت AI"
+        )
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("سایر")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showPOIDialog()
+                    1 -> showSettingsDialog()
+                    2 -> showAIChat()
+                }
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun showSettingsDialog() {
+        val settings = arrayOf(
+            "🔊 هشدارهای صوتی",
+            "📢 هشدار محدودیت سرعت",
+            "📷 هشدار دوربین",
+            "🚦 هشدار سرعت‌گیر"
+        )
+        
+        val prefs = getSharedPreferences("NavigationSettings", MODE_PRIVATE)
+        val checkedItems = booleanArrayOf(
+            prefs.getBoolean("voice_alerts", true),
+            prefs.getBoolean("speed_limit_alert", true),
+            prefs.getBoolean("camera_alert", true),
+            prefs.getBoolean("speed_camera_alert", true)
+        )
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("⚙️ تنظیمات")
+            .setMultiChoiceItems(settings, checkedItems) { _, which, isChecked ->
+                checkedItems[which] = isChecked
+            }
+            .setPositiveButton("ذخیره") { _, _ ->
+                prefs.edit().apply {
+                    putBoolean("voice_alerts", checkedItems[0])
+                    putBoolean("speed_limit_alert", checkedItems[1])
+                    putBoolean("camera_alert", checkedItems[2])
+                    putBoolean("speed_camera_alert", checkedItems[3])
+                    apply()
+                }
+                
+                // اعمال تنظیمات
+                applyVoiceSettings(checkedItems)
+                Toast.makeText(this, "✅ تنظیمات ذخیره شد", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+    
+    private fun applyVoiceSettings(settings: BooleanArray) {
+        // فعال/غیرفعال کردن هشدارهای صوتی
+        if (settings[0]) {
+            // فعال کردن هشدارهای صوتی
+            Toast.makeText(this, "🔊 هشدارهای صوتی فعال شد", Toast.LENGTH_SHORT).show()
+        }
+        
+        if (settings[1]) {
+            aiRoadLimitDetector.enable()
+        } else {
+            aiRoadLimitDetector.disable()
+        }
+        
+        if (settings[2] || settings[3]) {
+            speedCameraDetector.enable()
+        } else {
+            speedCameraDetector.disable()
+        }
+    }
+    
     private fun showPOIDialog() {
         val poiTypes = arrayOf(
             "⛽ پمپ بنزین",
@@ -612,31 +688,47 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showSuggestedRoutes(destination: LatLng) {
-        // موقتاً ساده شده
-        selectedDestination = destination
-        startNavigation()
-        /*
         currentLocation?.let { loc ->
             lifecycleScope.launch {
                 try {
                     Toast.makeText(this@NavigationActivity, "🤖 در حال تحلیل مسیرها با AI...", Toast.LENGTH_SHORT).show()
                     
-                    // استفاده از AI برای پیشنهاد مسیر
-                    val routes = aiRoutePredictor.predictBestRoutes(
-                        LatLng(loc.latitude, loc.longitude),
-                        destination
+                    // تبدیل به OsmGeoPoint
+                    val origin = OsmGeoPoint(loc.latitude, loc.longitude)
+                    val dest = OsmGeoPoint(destination.latitude, destination.longitude)
+                    
+                    // دریافت 3 نوع مسیر از AI
+                    val fastestRoute = aiRoutePredictor.predictRoute(
+                        origin, dest, 
+                        com.persianai.assistant.navigation.ai.RouteType.FASTEST
                     )
+                    val shortestRoute = aiRoutePredictor.predictRoute(
+                        origin, dest,
+                        com.persianai.assistant.navigation.ai.RouteType.SHORTEST
+                    )
+                    val balancedRoute = aiRoutePredictor.predictRoute(
+                        origin, dest,
+                        com.persianai.assistant.navigation.ai.RouteType.BALANCED
+                    )
+                    
+                    val routes = listOfNotNull(fastestRoute, shortestRoute, balancedRoute)
                     
                     if (routes.isNotEmpty()) {
                         val routeNames = routes.map { route ->
-                            "${route.name} - ${route.distance} کیلومتر - ${route.duration} دقیقه"
+                            val distanceKm = String.format("%.1f", route.distance / 1000.0)
+                            val durationMin = route.duration / 60
+                            "${route.name} - $distanceKm کیلومتر - $durationMin دقیقه"
                         }.toTypedArray()
                         
                         MaterialAlertDialogBuilder(this@NavigationActivity)
                             .setTitle("🛣️ مسیرهای پیشنهادی AI")
-                            .setItems(routeNames) { _, which ->
+                            .setItems(routeNames) { _, which: Int ->
                                 val selectedRoute = routes[which]
                                 selectedDestination = destination
+                                
+                                // ذخیره انتخاب کاربر برای یادگیری
+                                routeLearningSystem.recordRouteSelection(selectedRoute)
+                                
                                 Toast.makeText(
                                     this@NavigationActivity,
                                     "✅ مسیر ${selectedRoute.name} انتخاب شد",
@@ -650,11 +742,14 @@ class NavigationActivity : AppCompatActivity() {
                         Toast.makeText(this@NavigationActivity, "مسیری یافت نشد", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(this@NavigationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("NavigationActivity", "Route prediction error", e)
+                    Toast.makeText(this@NavigationActivity, "خطا در پیشنهاد مسیر: ${e.message}", Toast.LENGTH_SHORT).show()
+                    // در صورت خطا، مسیریابی مستقیم
+                    selectedDestination = destination
+                    startNavigation()
                 }
             }
         } ?: Toast.makeText(this, "⚠️ مکان شما در دسترس نیست", Toast.LENGTH_SHORT).show()
-        */
     }
     
     private fun showSaveLocationDialog(latLng: LatLng) {
