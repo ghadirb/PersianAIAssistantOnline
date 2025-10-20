@@ -9,11 +9,7 @@
         android:icon="@android:drawable/ic_menu_send"
         android:title="چت AI" />
     <item
-        android:id="@+id/nav_accounting"
-        android:icon="@android:drawable/ic_menu_gallery"
-        android:title="حسابداری" />
-    <item
-        android:id="@+id/nav_reminders"
-        android:icon="@android:drawable/ic_menu_my_calendar"
-        android:title="یادآورها" />
+        android:id="@+id/nav_saved"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="ذخیره‌ها" />
 </menu>

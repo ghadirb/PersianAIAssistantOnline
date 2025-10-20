@@ -228,12 +228,8 @@ class NavigationActivity : AppCompatActivity() {
                     showAIChat()
                     true
                 }
-                R.id.nav_accounting -> {
-                    Toast.makeText(this, "حسابداری", Toast.LENGTH_SHORT).show()
-                    true
-                }
-                R.id.nav_reminders -> {
-                    Toast.makeText(this, "یادآورها", Toast.LENGTH_SHORT).show()
+                R.id.nav_saved -> {
+                    showSavedLocations()
                     true
                 }
                 else -> false
