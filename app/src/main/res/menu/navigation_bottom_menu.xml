@@ -5,15 +5,15 @@
         android:icon="@android:drawable/ic_dialog_map"
         android:title="نقشه" />
     <item
-        android:id="@+id/nav_saved"
-        android:icon="@android:drawable/ic_menu_save"
-        android:title="ذخیره‌ها" />
+        android:id="@+id/nav_chat"
+        android:icon="@android:drawable/ic_menu_send"
+        android:title="چت AI" />
     <item
-        android:id="@+id/nav_nearby"
-        android:icon="@android:drawable/ic_menu_search"
-        android:title="نزدیک" />
+        android:id="@+id/nav_accounting"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:title="حسابداری" />
     <item
-        android:id="@+id/nav_more"
-        android:icon="@android:drawable/ic_menu_more"
-        android:title="سایر" />
+        android:id="@+id/nav_reminders"
+        android:icon="@android:drawable/ic_menu_my_calendar"
+        android:title="یادآورها" />
 </menu>
