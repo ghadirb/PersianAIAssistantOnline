@@ -219,7 +219,8 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین
+        // تب‌های پایین - موقتاً غیرفعال
+        /*
         binding.bottomNavigation?.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.bottom_nav_map -> true
@@ -239,6 +240,7 @@ class NavigationActivity : AppCompatActivity() {
                 else -> false
             }
         }
+        */
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
@@ -586,46 +588,34 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showLocationOptionsBottomSheet(lat: Double, lng: Double) {
-        val bottomSheetDialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_location_options, null)
+        val options = arrayOf("💾 ذخیره مکان", "🛣️ مسیرهای پیشنهادی", "🚗 بزن بریم")
         
-        val locationName = view.findViewById<TextView>(R.id.locationName)
-        val locationAddress = view.findViewById<TextView>(R.id.locationAddress)
-        val saveButton = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.saveLocationButton)
-        val routesButton = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.showRoutesButton)
-        val navigationButton = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.startNavigationFromSheet)
-        
-        locationName.text = "مکان انتخاب شده"
-        locationAddress.text = "${String.format("%.6f", lat)}, ${String.format("%.6f", lng)}"
-        
-        // دکمه ذخیره مکان
-        saveButton.setOnClickListener {
-            bottomSheetDialog.dismiss()
-            showSaveLocationDialog(LatLng(lat, lng))
-        }
-        
-        // دکمه مسیرهای پیشنهادی
-        routesButton.setOnClickListener {
-            bottomSheetDialog.dismiss()
-            showSuggestedRoutes(LatLng(lat, lng))
-        }
-        
-        // دکمه بزن بریم
-        navigationButton.setOnClickListener {
-            bottomSheetDialog.dismiss()
-            if (currentLocation != null) {
-                selectedDestination = LatLng(lat, lng)
-                startNavigation()
-            } else {
-                Toast.makeText(this, "⚠️ در حال دریافت موقعیت...", Toast.LENGTH_SHORT).show()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📍 مکان انتخاب شده")
+            .setMessage("${String.format("%.6f", lat)}, ${String.format("%.6f", lng)}")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showSaveLocationDialog(LatLng(lat, lng))
+                    1 -> showSuggestedRoutes(LatLng(lat, lng))
+                    2 -> {
+                        if (currentLocation != null) {
+                            selectedDestination = LatLng(lat, lng)
+                            startNavigation()
+                        } else {
+                            Toast.makeText(this, "⚠️ در حال دریافت موقعیت...", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
-        }
-        
-        bottomSheetDialog.setContentView(view)
-        bottomSheetDialog.show()
+            .setNegativeButton("بستن", null)
+            .show()
     }
     
     private fun showSuggestedRoutes(destination: LatLng) {
+        // موقتاً ساده شده
+        selectedDestination = destination
+        startNavigation()
+        /*
         currentLocation?.let { loc ->
             lifecycleScope.launch {
                 try {
@@ -664,6 +654,7 @@ class NavigationActivity : AppCompatActivity() {
                 }
             }
         } ?: Toast.makeText(this, "⚠️ مکان شما در دسترس نیست", Toast.LENGTH_SHORT).show()
+        */
     }
     
     private fun showSaveLocationDialog(latLng: LatLng) {
