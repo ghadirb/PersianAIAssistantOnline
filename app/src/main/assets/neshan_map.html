@@ -55,6 +55,7 @@
         var userMarker = null;
         var selectedMarker = null;
         var poiMarkers = [];
+        var autoCenterEnabled = false; // جلوگیری از برگشت خودکار
         
         function switchToNeshan() {
             if (currentLayer) map.removeLayer(currentLayer);
@@ -92,11 +93,59 @@
                     fillOpacity: 1
                 }).addTo(map);
             }
-            map.setView([lat, lng], map.getZoom());
+            // فقط اگر auto-center فعال باشه نقشه رو center کن
+            if (autoCenterEnabled) {
+                map.setView([lat, lng], map.getZoom());
+            }
         }
         
+        function enableAutoCenter() {
+            autoCenterEnabled = true;
+        }
+        
+        function disableAutoCenter() {
+            autoCenterEnabled = false;
+        }
+        
+        var longPressTimer = null;
+        var isLongPress = false;
+        
+        map.on('mousedown touchstart', function(e) {
+            isLongPress = false;
+            longPressTimer = setTimeout(function() {
+                isLongPress = true;
+                var latlng = e.latlng;
+                
+                // اضافه کردن marker روی نقشه
+                if (selectedMarker) {
+                    map.removeLayer(selectedMarker);
+                }
+                selectedMarker = L.marker([latlng.lat, latlng.lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34]
+                    })
+                }).addTo(map);
+                
+                // نمایش Bottom Sheet در Android
+                if (window.Android) {
+                    window.Android.onLocationLongPress(latlng.lat, latlng.lng);
+                }
+            }, 500); // 500ms برای long press
+        });
+        
+        map.on('mouseup touchend', function() {
+            clearTimeout(longPressTimer);
+        });
+        
+        map.on('mousemove touchmove', function() {
+            clearTimeout(longPressTimer);
+        });
+        
         map.on('click', function(e) {
-            if (window.Android) {
+            if (!isLongPress && window.Android) {
                 window.Android.onMapClick(e.latlng.lat, e.latlng.lng);
             }
         });

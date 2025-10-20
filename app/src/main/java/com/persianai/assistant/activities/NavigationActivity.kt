@@ -12,6 +12,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
 import android.webkit.JavascriptInterface
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -194,10 +195,13 @@ class NavigationActivity : AppCompatActivity() {
         // دکمه مکان من (FAB)
         binding.myLocationFab?.setOnClickListener {
             currentLocation?.let { loc ->
+                // فعال کردن auto-center
+                webView.evaluateJavascript("enableAutoCenter();", null)
                 webView.evaluateJavascript(
                     "map.setView([${loc.latitude}, ${loc.longitude}], 15);",
                     null
                 )
+                Toast.makeText(this, "📍 برگشت به مکان فعلی", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -521,7 +525,16 @@ class NavigationActivity : AppCompatActivity() {
         @JavascriptInterface
         fun onMapClick(lat: Double, lng: Double) {
             runOnUiThread {
-                showSaveLocationDialog(LatLng(lat, lng))
+                // غیرفعال کردن auto-center وقتی روی نقشه کلیک می‌شه
+                webView.evaluateJavascript("disableAutoCenter();", null)
+            }
+        }
+        
+        @JavascriptInterface
+        fun onLocationLongPress(lat: Double, lng: Double) {
+            runOnUiThread {
+                selectedDestination = LatLng(lat, lng)
+                showLocationOptionsBottomSheet(lat, lng)
             }
         }
     }
@@ -570,6 +583,87 @@ class NavigationActivity : AppCompatActivity() {
             }
             .setNegativeButton("بستن", null)
             .show()
+    }
+    
+    private fun showLocationOptionsBottomSheet(lat: Double, lng: Double) {
+        val bottomSheetDialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_location_options, null)
+        
+        val locationName = view.findViewById<TextView>(R.id.locationName)
+        val locationAddress = view.findViewById<TextView>(R.id.locationAddress)
+        val saveButton = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.saveLocationButton)
+        val routesButton = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.showRoutesButton)
+        val navigationButton = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.startNavigationFromSheet)
+        
+        locationName.text = "مکان انتخاب شده"
+        locationAddress.text = "${String.format("%.6f", lat)}, ${String.format("%.6f", lng)}"
+        
+        // دکمه ذخیره مکان
+        saveButton.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            showSaveLocationDialog(LatLng(lat, lng))
+        }
+        
+        // دکمه مسیرهای پیشنهادی
+        routesButton.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            showSuggestedRoutes(LatLng(lat, lng))
+        }
+        
+        // دکمه بزن بریم
+        navigationButton.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            if (currentLocation != null) {
+                selectedDestination = LatLng(lat, lng)
+                startNavigation()
+            } else {
+                Toast.makeText(this, "⚠️ در حال دریافت موقعیت...", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        bottomSheetDialog.setContentView(view)
+        bottomSheetDialog.show()
+    }
+    
+    private fun showSuggestedRoutes(destination: LatLng) {
+        currentLocation?.let { loc ->
+            lifecycleScope.launch {
+                try {
+                    Toast.makeText(this@NavigationActivity, "🤖 در حال تحلیل مسیرها با AI...", Toast.LENGTH_SHORT).show()
+                    
+                    // استفاده از AI برای پیشنهاد مسیر
+                    val routes = aiRoutePredictor.predictBestRoutes(
+                        LatLng(loc.latitude, loc.longitude),
+                        destination
+                    )
+                    
+                    if (routes.isNotEmpty()) {
+                        val routeNames = routes.map { route ->
+                            "${route.name} - ${route.distance} کیلومتر - ${route.duration} دقیقه"
+                        }.toTypedArray()
+                        
+                        MaterialAlertDialogBuilder(this@NavigationActivity)
+                            .setTitle("🛣️ مسیرهای پیشنهادی AI")
+                            .setItems(routeNames) { _, which ->
+                                val selectedRoute = routes[which]
+                                selectedDestination = destination
+                                Toast.makeText(
+                                    this@NavigationActivity,
+                                    "✅ مسیر ${selectedRoute.name} انتخاب شد",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                startNavigation()
+                            }
+                            .setNegativeButton("بستن", null)
+                            .show()
+                    } else {
+                        Toast.makeText(this@NavigationActivity, "مسیری یافت نشد", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this@NavigationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } ?: Toast.makeText(this, "⚠️ مکان شما در دسترس نیست", Toast.LENGTH_SHORT).show()
     }
     
     private fun showSaveLocationDialog(latLng: LatLng) {
