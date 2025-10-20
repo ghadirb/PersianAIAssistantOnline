@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/white">
+
+    <!-- Handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="#CCCCCC" />
+
+    <!-- Location Name -->
+    <TextView
+        android:id="@+id/locationName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="مکان انتخاب شده"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Location Address -->
+    <TextView
+        android:id="@+id/locationAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="آدرس"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Save Location Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/saveLocationButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="💾 ذخیره مکان"
+        android:textSize="16sp"
+        app:cornerRadius="8dp"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Show Routes Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/showRoutesButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🛣️ مسیرهای پیشنهادی"
+        android:textSize="16sp"
+        app:cornerRadius="8dp"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Start Navigation Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/startNavigationFromSheet"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:text="🚗 بزن بریم"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:cornerRadius="12dp"
+        android:backgroundTint="#4CAF50"
+        style="@style/Widget.Material3.Button" />
+
+</LinearLayout>

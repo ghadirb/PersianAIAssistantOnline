@@ -215,33 +215,26 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // مکان‌های ذخیره شده
-        binding.savedLocationsFab?.setOnClickListener {
-            showSavedLocations()
-        }
-
-        // تب‌های پایین - موقتاً غیرفعال برای بررسی build
-        /*
+        // تب‌های پایین
         binding.bottomNavigation?.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_map -> true
-                R.id.nav_search -> {
+                R.id.bottom_nav_map -> true
+                R.id.bottom_nav_search -> {
                     val intent = Intent(this, SearchDestinationActivity::class.java)
                     startActivityForResult(intent, 1001)
                     true
                 }
-                R.id.nav_chat -> {
-                    showAIChat()
+                R.id.bottom_nav_saved -> {
+                    showSavedLocations()
                     true
                 }
-                R.id.nav_saved -> {
-                    showSavedLocations()
+                R.id.bottom_nav_more -> {
+                    showPOIDialog()
                     true
                 }
                 else -> false
             }
         }
-        */
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {
