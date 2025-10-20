@@ -282,10 +282,6 @@ class NavigationActivity : AppCompatActivity() {
             Toast.makeText(this, "📍 مقصد میانی", Toast.LENGTH_SHORT).show()
         }
         
-        binding.aiChatFab?.setOnClickListener {
-            showAIChat()
-        }
-        
         // دکمه تنظیمات هشدارها
         // TODO: Add alertSettingsButton to layout
         // binding.alertSettingsButton?.setOnClickListener {
