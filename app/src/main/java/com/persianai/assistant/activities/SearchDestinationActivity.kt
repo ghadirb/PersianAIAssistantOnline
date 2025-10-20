@@ -82,15 +82,18 @@ class SearchDestinationActivity : AppCompatActivity() {
     private fun performSearch(query: String) {
         binding.progressBar.visibility = View.VISIBLE
         
-        val city = binding.citySpinner.selectedItem.toString()
-        
         lifecycleScope.launch {
             try {
-                val searchResults = searchAPI.search(query, city)
+                // جستجوی کلی بدون فیلتر شهر - جستجو در همه جا
+                val searchResults = searchAPI.searchGlobal(query)
                 results.clear()
                 results.addAll(searchResults)
                 adapter.notifyDataSetChanged()
                 binding.progressBar.visibility = View.GONE
+                
+                if (searchResults.isEmpty()) {
+                    Toast.makeText(this@SearchDestinationActivity, "نتیجه‌ای یافت نشد", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
                 binding.progressBar.visibility = View.GONE
                 Toast.makeText(this@SearchDestinationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()

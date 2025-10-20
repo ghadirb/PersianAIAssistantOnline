@@ -20,6 +20,8 @@ class NeshanSearchAPI(private val context: Context) {
         val category: String = ""
     )
     
+    suspend fun searchGlobal(query: String): List<SearchResult> = search(query, "")
+    
     suspend fun search(query: String, city: String = "تهران"): List<SearchResult> {
         return withContext(Dispatchers.IO) {
             try {
