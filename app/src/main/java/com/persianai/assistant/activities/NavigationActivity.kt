@@ -279,7 +279,7 @@ class NavigationActivity : AppCompatActivity() {
             showSavedLocations()
         }
         
-        binding.poiButton.setOnClickListener {
+        binding.poiButton?.setOnClickListener {
             showPOIDialog()
         }
         
