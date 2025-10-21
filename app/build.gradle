@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 10
-        versionName "2.8.0-DEBUG-SHEET"
+        versionCode 11
+        versionName "2.9.0-SIMPLE-CLICK"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

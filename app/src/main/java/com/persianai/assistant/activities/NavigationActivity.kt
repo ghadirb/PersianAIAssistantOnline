@@ -135,7 +135,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v2.8 - Debug + تست Sheet", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v2.9 - کلیک ساده روی نقشه!", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -665,8 +665,14 @@ class NavigationActivity : AppCompatActivity() {
         @JavascriptInterface
         fun onMapClick(lat: Double, lng: Double) {
             runOnUiThread {
-                // غیرفعال کردن auto-center وقتی روی نقشه کلیک می‌شه
+                // غیرفعال کردن auto-center
                 webView.evaluateJavascript("disableAutoCenter();", null)
+                
+                // نمایش Bottom Sheet با یک کلیک ساده
+                selectedDestination = LatLng(lat, lng)
+                webView.evaluateJavascript("showDestinationMarker($lat, $lng);", null)
+                routeSheetHelper.showLocationSheet(lat, lng)
+                Toast.makeText(this@NavigationActivity, "📍 مقصد انتخاب شد", Toast.LENGTH_SHORT).show()
             }
         }
         
@@ -950,7 +956,13 @@ class NavigationActivity : AppCompatActivity() {
             .setItems(items) { _, which ->
                 val result = results[which]
                 selectedDestination = LatLng(result.latitude, result.longitude)
-                webView.evaluateJavascript("addMarker(${result.latitude}, ${result.longitude}, '${result.title}');", null)
+                
+                // نمایش marker و حرکت به مکان
+                webView.evaluateJavascript("showDestinationMarker(${result.latitude}, ${result.longitude});", null)
+                webView.evaluateJavascript("map.setView([${result.latitude}, ${result.longitude}], 15);", null)
+                
+                // نمایش Bottom Sheet با گزینه‌های مسیریابی
+                routeSheetHelper.showLocationSheet(result.latitude, result.longitude)
                 Toast.makeText(this, "✅ ${result.title}", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("بستن", null)
