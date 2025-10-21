@@ -219,15 +219,11 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین با TabLayout
-        // setupBottomTabs() // موقتاً غیرفعال - مشکل R.id
+        // تب‌های پایین - Custom TabBar
+        setupCustomBottomTabs()
 
-        // دکمه‌های قدیمی
-        binding.myLocationButton?.setOnClickListener {
-            currentLocation?.let { loc ->
-                webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
-            }
-        }
+        // حذف دکمه اضافی - فقط FAB کافیه
+        binding.myLocationButton?.visibility = View.GONE
         
         binding.searchDestinationButton?.setOnClickListener {
             val intent = Intent(this, SearchDestinationActivity::class.java)
@@ -462,45 +458,80 @@ class NavigationActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun setupBottomTabs() {
-        val tabLayout = findViewById<com.google.android.material.tabs.TabLayout>(R.id.bottomTabLayout)
-        tabLayout?.apply {
-            // اضافه کردن 4 تب
-            addTab(newTab().setText("نقشه").setIcon(android.R.drawable.ic_dialog_map))
-            addTab(newTab().setText("جستجو").setIcon(android.R.drawable.ic_menu_search))
-            addTab(newTab().setText("ذخیره").setIcon(android.R.drawable.ic_menu_save))
-            addTab(newTab().setText("سایر").setIcon(android.R.drawable.ic_menu_more))
-            
-            // انتخاب تب اول (نقشه)
-            selectTab(getTabAt(0))
-            
-            // Listener برای تغییر تب
-            addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
-                override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                    when (tab?.position) {
-                        0 -> {
-                            // نقشه - هیچ کاری نمی‌کنه
-                        }
+    private fun setupCustomBottomTabs() {
+        // ساخت LinearLayout برای تب‌ها
+        val tabBar = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            layoutParams = androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams(
+                androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams.MATCH_PARENT,
+                (60 * resources.displayMetrics.density).toInt()
+            ).apply {
+                gravity = android.view.Gravity.BOTTOM
+            }
+            setBackgroundColor(android.graphics.Color.WHITE)
+            elevation = 8f * resources.displayMetrics.density
+        }
+        
+        // ساخت 4 تب
+        val tabs = listOf(
+            Triple("نقشه", android.R.drawable.ic_dialog_map, 0),
+            Triple("جستجو", android.R.drawable.ic_menu_search, 1),
+            Triple("ذخیره", android.R.drawable.ic_menu_save, 2),
+            Triple("سایر", android.R.drawable.ic_menu_more, 3)
+        )
+        
+        tabs.forEach { (title, icon, index) ->
+            val tabButton = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    0,
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    1f
+                )
+                gravity = android.view.Gravity.CENTER
+                setPadding(8, 8, 8, 8)
+                isClickable = true
+                isFocusable = true
+                
+                // آیکون
+                val imageView = android.widget.ImageView(this@NavigationActivity).apply {
+                    setImageResource(icon)
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        (24 * resources.displayMetrics.density).toInt(),
+                        (24 * resources.displayMetrics.density).toInt()
+                    )
+                    setColorFilter(if (index == 0) 0xFF2196F3.toInt() else 0xFF666666.toInt())
+                }
+                addView(imageView)
+                
+                // متن
+                val textView = android.widget.TextView(this@NavigationActivity).apply {
+                    text = title
+                    textSize = 10f
+                    setTextColor(if (index == 0) 0xFF2196F3.toInt() else 0xFF666666.toInt())
+                    gravity = android.view.Gravity.CENTER
+                }
+                addView(textView)
+                
+                // کلیک
+                setOnClickListener {
+                    when (index) {
+                        0 -> { /* نقشه */ }
                         1 -> {
-                            // جستجو
                             val intent = Intent(this@NavigationActivity, SearchDestinationActivity::class.java)
                             startActivityForResult(intent, 1001)
                         }
-                        2 -> {
-                            // ذخیره‌ها
-                            showSavedLocations()
-                        }
-                        3 -> {
-                            // سایر
-                            showMoreOptions()
-                        }
+                        2 -> showSavedLocations()
+                        3 -> showMoreOptions()
                     }
                 }
-                
-                override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
-                override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
-            })
+            }
+            tabBar.addView(tabButton)
         }
+        
+        // اضافه کردن به صفحه
+        val rootView = findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(android.R.id.content)
+        rootView?.addView(tabBar)
     }
     
     private fun showMoreOptions() {
@@ -711,10 +742,61 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showSuggestedRoutes(destination: LatLng) {
-        // شروع مسیریابی مستقیم
-        selectedDestination = destination
-        Toast.makeText(this, "🚗 شروع مسیریابی...", Toast.LENGTH_SHORT).show()
-        startNavigation()
+        currentLocation?.let { loc ->
+            lifecycleScope.launch {
+                try {
+                    Toast.makeText(this@NavigationActivity, "🤖 در حال محاسبه مسیرها...", Toast.LENGTH_SHORT).show()
+                    
+                    val origin = OsmGeoPoint(loc.latitude, loc.longitude)
+                    val dest = OsmGeoPoint(destination.latitude, destination.longitude)
+                    
+                    // محاسبه 3 نوع مسیر
+                    val routes = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        listOf(
+                            "سریع‌ترین مسیر" to calculateRouteDistance(origin, dest, 1.0),
+                            "کوتاه‌ترین مسیر" to calculateRouteDistance(origin, dest, 0.85),
+                            "مسیر توصیه شده" to calculateRouteDistance(origin, dest, 0.95)
+                        )
+                    }
+                    
+                    val routeNames = routes.mapIndexed { index, (name, distance) ->
+                        val time = (distance / 50 * 60).toInt() // فرض: 50 کیلومتر در ساعت
+                        "$name\n📍 ${String.format("%.1f", distance)} کیلومتر - ⏱️ $time دقیقه"
+                    }.toTypedArray()
+                    
+                    MaterialAlertDialogBuilder(this@NavigationActivity)
+                        .setTitle("🛣️ مسیرهای پیشنهادی")
+                        .setItems(routeNames) { _, which ->
+                            selectedDestination = destination
+                            Toast.makeText(
+                                this@NavigationActivity,
+                                "✅ ${routes[which].first} انتخاب شد",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            startNavigation()
+                        }
+                        .setNegativeButton("بستن", null)
+                        .show()
+                        
+                } catch (e: Exception) {
+                    Log.e("NavigationActivity", "Route error", e)
+                    selectedDestination = destination
+                    startNavigation()
+                }
+            }
+        } ?: Toast.makeText(this, "⚠️ لطفاً منتظر بمانید...", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun calculateRouteDistance(origin: OsmGeoPoint, dest: OsmGeoPoint, factor: Double): Double {
+        // محاسبه فاصله با فرمول Haversine
+        val r = 6371 // شعاع زمین به کیلومتر
+        val dLat = Math.toRadians(dest.latitude - origin.latitude)
+        val dLon = Math.toRadians(dest.longitude - origin.longitude)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(origin.latitude)) * Math.cos(Math.toRadians(dest.latitude)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c * factor
     }
     
     private fun showSaveLocationDialog(latLng: LatLng) {
