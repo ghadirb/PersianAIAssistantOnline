@@ -135,7 +135,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v2.6 - زبان طبیعی + تهران", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v2.7 - جستجوی سراسری (OSM)", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
