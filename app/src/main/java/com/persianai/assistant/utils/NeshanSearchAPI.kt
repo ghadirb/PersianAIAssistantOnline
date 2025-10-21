@@ -23,9 +23,9 @@ class NeshanSearchAPI(private val context: Context) {
     suspend fun searchGlobal(query: String): List<SearchResult> {
         return withContext(Dispatchers.IO) {
             try {
-                // جستجوی global - بدون شهر، مرکز ایران
+                // جستجوی global - مرکز تهران برای نتایج بهتر
                 val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                val urlString = "https://api.neshan.org/v1/search?term=$encodedQuery&lat=32.4279&lng=53.6880"
+                val urlString = "https://api.neshan.org/v1/search?term=$encodedQuery&lat=35.699739&lng=51.338097"
                 android.util.Log.d("NeshanSearch", "Searching for: $query")
                 android.util.Log.d("NeshanSearch", "URL: $urlString")
                 

@@ -72,8 +72,10 @@ class AIChatActivity : AppCompatActivity() {
         val navActivity = NavigationActivity.instance
         
         return when {
-            // جستجوی مکان و مسیریابی مستقیم
-            message.contains("برو ") || message.contains("مسیر ") -> {
+            // جستجوی مکان و مسیریابی مستقیم - همه حالات
+            message.contains("برو") || message.contains("مسیر") || 
+            message.contains("مسیریابی") || message.contains("تا ") ||
+            message.contains("ببر") -> {
                 val location = extractLocation(message)
                 if (location.isNotEmpty() && navActivity != null) {
                     navActivity.runOnUiThread {
@@ -127,8 +129,9 @@ class AIChatActivity : AppCompatActivity() {
     
     private fun extractLocation(message: String): String {
         return message.replace("برو", "")
-            .replace("مسیر", "")
-            .replace("به", "")
+            .replace("مسیر", "").replace("مسیریابی", "")
+            .replace("به", "").replace("تا", "")
+            .replace("ببر", "").replace("بردن", "")
             .trim()
     }
     

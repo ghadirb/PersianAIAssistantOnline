@@ -138,7 +138,7 @@
                     console.log('window.Android is not available');
                     alert('Long press at: ' + latlng.lat.toFixed(4) + ', ' + latlng.lng.toFixed(4));
                 }
-            }, 500); // 500ms برای long press
+            }, 300); // 300ms برای long press سریع‌تر
         });
         
         map.on('mouseup touchend', function() {
