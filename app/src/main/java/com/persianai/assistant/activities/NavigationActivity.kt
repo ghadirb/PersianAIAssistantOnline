@@ -219,8 +219,8 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین - Custom TabBar
-        setupCustomBottomTabs()
+        // تب‌های پایین - از XML
+        setupBottomTabsFromXml()
 
         // دکمه‌ها فعال هستن
         binding.myLocationButton?.setOnClickListener {
@@ -464,91 +464,24 @@ class NavigationActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun setupCustomBottomTabs() {
-        // ساخت LinearLayout برای تب‌ها
-        val tabBar = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            layoutParams = androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams(
-                androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams.MATCH_PARENT,
-                (60 * resources.displayMetrics.density).toInt()
-            ).apply {
-                gravity = android.view.Gravity.BOTTOM
-            }
-            setBackgroundColor(android.graphics.Color.WHITE)
-            elevation = 8f * resources.displayMetrics.density
+    private fun setupBottomTabsFromXml() {
+        // تب‌ها از XML لود شدن، فقط click listener اضافه می‌کنیم
+        findViewById<View>(R.id.tabMap)?.setOnClickListener {
+            // نقشه - در حال حاضر هیچ کاری نمی‌کنه
+            Toast.makeText(this, "🗺️ نقشه", Toast.LENGTH_SHORT).show()
         }
         
-        // ساخت 4 تب
-        val tabs = listOf(
-            Triple("نقشه", android.R.drawable.ic_dialog_map, 0),
-            Triple("جستجو", android.R.drawable.ic_menu_search, 1),
-            Triple("ذخیره", android.R.drawable.ic_menu_save, 2),
-            Triple("سایر", android.R.drawable.ic_menu_more, 3)
-        )
-        
-        tabs.forEach { (title, icon, index) ->
-            val tabButton = android.widget.LinearLayout(this).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
-                layoutParams = android.widget.LinearLayout.LayoutParams(
-                    0,
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                    1f
-                )
-                gravity = android.view.Gravity.CENTER
-                setPadding(8, 8, 8, 8)
-                isClickable = true
-                isFocusable = true
-                
-                // آیکون
-                val imageView = android.widget.ImageView(this@NavigationActivity).apply {
-                    setImageResource(icon)
-                    layoutParams = android.widget.LinearLayout.LayoutParams(
-                        (24 * resources.displayMetrics.density).toInt(),
-                        (24 * resources.displayMetrics.density).toInt()
-                    )
-                    setColorFilter(if (index == 0) 0xFF2196F3.toInt() else 0xFF666666.toInt())
-                }
-                addView(imageView)
-                
-                // متن
-                val textView = android.widget.TextView(this@NavigationActivity).apply {
-                    text = title
-                    textSize = 10f
-                    setTextColor(if (index == 0) 0xFF2196F3.toInt() else 0xFF666666.toInt())
-                    gravity = android.view.Gravity.CENTER
-                }
-                addView(textView)
-                
-                // کلیک
-                setOnClickListener {
-                    when (index) {
-                        0 -> { /* نقشه */ }
-                        1 -> {
-                            val intent = Intent(this@NavigationActivity, SearchDestinationActivity::class.java)
-                            startActivityForResult(intent, 1001)
-                        }
-                        2 -> showSavedLocations()
-                        3 -> showMoreOptions()
-                    }
-                }
-            }
-            tabBar.addView(tabButton)
+        findViewById<View>(R.id.tabSearch)?.setOnClickListener {
+            val intent = Intent(this, SearchDestinationActivity::class.java)
+            startActivityForResult(intent, 1001)
         }
         
-        // اضافه کردن به صفحه - استفاده از binding
-        try {
-            val coordinator = window.decorView.findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(
-                resources.getIdentifier("coordinator", "id", packageName)
-            )
-            if (coordinator != null) {
-                coordinator.addView(tabBar)
-            } else {
-                // اگر نتونستیم پیدا کنیم، به root اضافه می‌کنیم
-                val root = window.decorView.findViewById<android.view.ViewGroup>(android.R.id.content)
-                root?.addView(tabBar)
-            }
-        } catch (e: Exception) {
-            Log.e("NavigationActivity", "Error adding tab bar", e)
+        findViewById<View>(R.id.tabSaved)?.setOnClickListener {
+            showSavedLocations()
+        }
+        
+        findViewById<View>(R.id.tabMore)?.setOnClickListener {
+            showMoreOptions()
         }
     }
     
