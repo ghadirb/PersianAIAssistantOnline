@@ -126,6 +126,10 @@ class NavigationActivity : AppCompatActivity() {
         binding = ActivityNavigationBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
+        // نمایش نسخه جدید - برای تست
+        Toast.makeText(this, "✅ نسخه 2.0 - با تب‌های پایین", Toast.LENGTH_LONG).show()
+
+        webView = binding.mapWebView
         try {
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
             savedLocationsManager = SavedLocationsManager(this)
