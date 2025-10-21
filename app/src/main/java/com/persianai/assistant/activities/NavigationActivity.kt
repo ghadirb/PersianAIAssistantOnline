@@ -40,10 +40,12 @@ import com.persianai.assistant.navigation.ai.AIRoadLimitDetector
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
+import com.persianai.assistant.navigation.RouteSheetHelper
 
 class NavigationActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityNavigationBinding
+    private lateinit var routeSheetHelper: RouteSheetHelper
     private lateinit var webView: WebView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var savedLocationsManager: SavedLocationsManager
@@ -63,7 +65,7 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var aiRoutePredictor: AIRoutePredictor
     private lateinit var aiRoadLimitDetector: AIRoadLimitDetector
     
-    private var currentLocation: Location? = null
+    var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
     private var currentNavigationRoute: NavigationRoute? = null
     private val routeWaypoints = mutableListOf<LatLng>()
@@ -127,7 +129,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ نسخه 2.1 - تب‌ها فعال + جستجوی واقعی", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ نسخه 2.2 - مسیریابی کامل مانند Neshan", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -138,6 +140,7 @@ class NavigationActivity : AppCompatActivity() {
             routeLearningSys = RouteLearningSys(this)
             searchAPI = NeshanSearchAPI(this)
             aiAssistant = ContextualAIAssistant(this)
+            routeSheetHelper = RouteSheetHelper(this)
             
             // مقداردهی سیستم مسیریاب پیشرفته
             navigationSystem = AdvancedNavigationSystem(this)
@@ -647,7 +650,7 @@ class NavigationActivity : AppCompatActivity() {
         fun onLocationLongPress(lat: Double, lng: Double) {
             runOnUiThread {
                 selectedDestination = LatLng(lat, lng)
-                showLocationOptionsBottomSheet(lat, lng)
+                routeSheetHelper.showLocationSheet(lat, lng)
             }
         }
     }
@@ -780,7 +783,12 @@ class NavigationActivity : AppCompatActivity() {
         return r * c * factor
     }
     
-    private fun showSaveLocationDialog(latLng: LatLng) {
+    fun startNavigationTo(destLat: Double, destLng: Double) {
+        selectedDestination = LatLng(destLat, destLng)
+        startNavigation()
+    }
+    
+    fun showSaveLocationDialog(latLng: LatLng) {
         val input = EditText(this)
         input.hint = "نام مکان"
         
