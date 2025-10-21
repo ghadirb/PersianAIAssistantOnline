@@ -50,6 +50,12 @@ class AIChatActivity : AppCompatActivity() {
             try {
                 val response = getAIResponse(message)
                 addMessage(response, false)
+                
+                // بستن چت بعد از اجرای دستور
+                if (message.contains("برو ") || message.contains("مسیر ") || message.contains("جستجو ")) {
+                    kotlinx.coroutines.delay(1000)
+                    finish()
+                }
             } catch (e: Exception) {
                 addMessage("متأسفم، خطایی رخ داد.", false)
             }
@@ -63,17 +69,40 @@ class AIChatActivity : AppCompatActivity() {
     }
     
     private suspend fun getAIResponse(message: String): String {
-        // دسترسی به NavigationActivity
         val navActivity = NavigationActivity.instance
         
-        // پاسخ‌های هوشمند با کنترل واقعی
         return when {
-            message.contains("مسیر") || message.contains("ناوبری") || message.contains("جاده") -> {
+            // جستجوی مکان و مسیریابی مستقیم
+            message.contains("برو ") || message.contains("مسیر ") -> {
+                val location = extractLocation(message)
+                if (location.isNotEmpty() && navActivity != null) {
+                    navActivity.runOnUiThread {
+                        navActivity.searchAndNavigateTo(location)
+                    }
+                    "🚗 در حال جستجو و مسیریابی به '$location'..."
+                } else {
+                    "⚠️ لطفاً نام مکان را مشخص کنید. مثل:\n• 'برو میدان آزادی'\n• 'مسیر برج میلاد'"
+                }
+            }
+            
+            message.contains("جستجو ") -> {
+                val query = message.replace("جستجو", "").trim()
+                if (query.isNotEmpty() && navActivity != null) {
+                    navActivity.runOnUiThread {
+                        navActivity.performDirectSearch(query)
+                    }
+                    "🔍 در حال جستجو برای '$query'..."
+                } else {
+                    "⚠️ لطفاً چیزی برای جستجو بنویسید"
+                }
+            }
+            
+            message.contains("مکان فعلی") -> {
                 val loc = navActivity?.currentLocation
                 if (loc != null) {
-                    "✅ مکان فعلی شما: ${String.format("%.4f, %.4f", loc.latitude, loc.longitude)}\nبرای مسیریابی، روی نقشه Long Press کنید."
+                    "📍 مکان فعلی شما:\n${String.format("%.6f, %.6f", loc.latitude, loc.longitude)}"
                 } else {
-                    "⚠️ در حال دریافت مکان شما... لطفاً چند لحظه صبر کنید."
+                    "⚠️ در حال دریافت مکان..."
                 }
             }
             
@@ -94,6 +123,13 @@ class AIChatActivity : AppCompatActivity() {
             
             else -> "متوجه نشدم. می‌تونید سوالتون رو واضح‌تر بپرسید یا کلمه 'راهنما' رو تایپ کنید."
         }
+    }
+    
+    private fun extractLocation(message: String): String {
+        return message.replace("برو", "")
+            .replace("مسیر", "")
+            .replace("به", "")
+            .trim()
     }
     
     data class ChatMessage(val text: String, val isUser: Boolean)

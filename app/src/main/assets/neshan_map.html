@@ -130,8 +130,13 @@
                 }).addTo(map);
                 
                 // نمایش Bottom Sheet در Android
+                console.log('Long press detected at: ' + latlng.lat + ', ' + latlng.lng);
                 if (window.Android) {
+                    console.log('Calling Android.onLocationLongPress');
                     window.Android.onLocationLongPress(latlng.lat, latlng.lng);
+                } else {
+                    console.log('window.Android is not available');
+                    alert('Long press at: ' + latlng.lat.toFixed(4) + ', ' + latlng.lng.toFixed(4));
                 }
             }, 500); // 500ms برای long press
         });

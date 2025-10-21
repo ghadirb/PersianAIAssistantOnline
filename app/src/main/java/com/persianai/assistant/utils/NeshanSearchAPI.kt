@@ -25,17 +25,33 @@ class NeshanSearchAPI(private val context: Context) {
             try {
                 // جستجوی global - بدون شهر، مرکز ایران
                 val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                val url = URL("https://api.neshan.org/v1/search?term=$encodedQuery&lat=32.4279&lng=53.6880")
+                val urlString = "https://api.neshan.org/v1/search?term=$encodedQuery&lat=32.4279&lng=53.6880"
+                android.util.Log.d("NeshanSearch", "Searching for: $query")
+                android.util.Log.d("NeshanSearch", "URL: $urlString")
+                
+                val url = URL(urlString)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.setRequestProperty("Api-Key", apiKey)
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 10000
                 connection.readTimeout = 10000
                 
-                val response = connection.inputStream.bufferedReader().readText()
-                parseSearchResults(response)
+                val responseCode = connection.responseCode
+                android.util.Log.d("NeshanSearch", "Response code: $responseCode")
+                
+                if (responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().readText()
+                    android.util.Log.d("NeshanSearch", "Response: ${response.take(200)}")
+                    val results = parseSearchResults(response)
+                    android.util.Log.d("NeshanSearch", "Found ${results.size} results")
+                    results
+                } else {
+                    val error = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
+                    android.util.Log.e("NeshanSearch", "Error response: $error")
+                    emptyList()
+                }
             } catch (e: Exception) {
-                android.util.Log.e("NeshanSearch", "Error: ${e.message}", e)
+                android.util.Log.e("NeshanSearch", "Exception: ${e.message}", e)
                 emptyList()
             }
         }

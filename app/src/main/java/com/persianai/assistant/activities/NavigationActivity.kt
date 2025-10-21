@@ -135,7 +135,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v2.4 - چت متصل + جستجو فعال", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v2.5 - چت هوشمند + Debug فعال", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -168,7 +168,19 @@ class NavigationActivity : AppCompatActivity() {
             
             webView = binding.mapWebView
             webView.settings.javaScriptEnabled = true
+            webView.settings.domStorageEnabled = true
             webView.addJavascriptInterface(MapInterface(), "Android")
+            
+            // Enable console.log debugging
+            webView.webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onConsoleMessage(message: android.webkit.ConsoleMessage?): Boolean {
+                    message?.let {
+                        Log.d("WebView", "${it.message()} -- From line ${it.lineNumber()} of ${it.sourceId()}")
+                    }
+                    return true
+                }
+            }
+            
             webView.loadUrl("file:///android_asset/neshan_map.html")
             
             checkPermissions()
@@ -936,6 +948,58 @@ class NavigationActivity : AppCompatActivity() {
     private fun showAIChat() {
         val intent = Intent(this, AIChatActivity::class.java)
         startActivity(intent)
+    }
+    
+    fun searchAndNavigateTo(locationName: String) {
+        lifecycleScope.launch {
+            try {
+                binding.progressBar?.visibility = View.VISIBLE
+                val results = searchAPI.searchGlobal(locationName)
+                
+                runOnUiThread {
+                    binding.progressBar?.visibility = View.GONE
+                    if (results.isNotEmpty()) {
+                        val first = results[0]
+                        selectedDestination = LatLng(first.latitude, first.longitude)
+                        webView.evaluateJavascript("showDestinationMarker(${first.latitude}, ${first.longitude});", null)
+                        webView.evaluateJavascript("map.setView([${first.latitude}, ${first.longitude}], 15);", null)
+                        
+                        routeSheetHelper.showLocationSheet(first.latitude, first.longitude)
+                        Toast.makeText(this@NavigationActivity, "✅ ${first.title}", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this@NavigationActivity, "❌ مکان '$locationName' پیدا نشد", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.progressBar?.visibility = View.GONE
+                    Toast.makeText(this@NavigationActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+    
+    fun performDirectSearch(query: String) {
+        lifecycleScope.launch {
+            try {
+                binding.progressBar?.visibility = View.VISIBLE
+                val results = searchAPI.searchGlobal(query)
+                
+                runOnUiThread {
+                    binding.progressBar?.visibility = View.GONE
+                    if (results.isNotEmpty()) {
+                        showSearchResults(results)
+                    } else {
+                        Toast.makeText(this@NavigationActivity, "❌ نتیجه‌ای برای '$query' پیدا نشد", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.progressBar?.visibility = View.GONE
+                    Toast.makeText(this@NavigationActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
     
     private fun checkPermissions() {
