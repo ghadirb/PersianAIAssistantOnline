@@ -751,22 +751,22 @@ class NavigationActivity : AppCompatActivity() {
                     val dest = OsmGeoPoint(destination.latitude, destination.longitude)
                     
                     // محاسبه 3 نوع مسیر
-                    val routes = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        listOf(
-                            "سریع‌ترین مسیر" to calculateRouteDistance(origin, dest, 1.0),
-                            "کوتاه‌ترین مسیر" to calculateRouteDistance(origin, dest, 0.85),
-                            "مسیر توصیه شده" to calculateRouteDistance(origin, dest, 0.95)
-                        )
-                    }
+                    val routes = listOf(
+                        Pair("سریع‌ترین مسیر", calculateRouteDistance(origin, dest, 1.0)),
+                        Pair("کوتاه‌ترین مسیر", calculateRouteDistance(origin, dest, 0.85)),
+                        Pair("مسیر توصیه شده", calculateRouteDistance(origin, dest, 0.95))
+                    )
                     
-                    val routeNames = routes.mapIndexed { index, (name, distance) ->
+                    val routeNames = routes.map { pair ->
+                        val name = pair.first
+                        val distance = pair.second
                         val time = (distance / 50 * 60).toInt() // فرض: 50 کیلومتر در ساعت
                         "$name\n📍 ${String.format("%.1f", distance)} کیلومتر - ⏱️ $time دقیقه"
                     }.toTypedArray()
                     
                     MaterialAlertDialogBuilder(this@NavigationActivity)
                         .setTitle("🛣️ مسیرهای پیشنهادی")
-                        .setItems(routeNames) { _, which ->
+                        .setItems(routeNames) { dialog, which: Int ->
                             selectedDestination = destination
                             Toast.makeText(
                                 this@NavigationActivity,
