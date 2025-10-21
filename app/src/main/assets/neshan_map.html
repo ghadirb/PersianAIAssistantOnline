@@ -156,6 +156,22 @@
                 .openPopup();
             map.setView([lat, lng], 15);
         }
+        
+        var destinationMarker = null;
+        function showDestinationMarker(lat, lng) {
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+            }
+            
+            var redIcon = L.icon({
+                iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjRjQ0MzM2Ij48cGF0aCBkPSJNMTIgMkM4LjEzIDIgNSA1LjEzIDUgOWMwIDUuMjUgNyAxMyA3IDEzczctNy43NSA3LTEzYzAtMy44Ny0zLjEzLTctNy03em0wIDkuNWMtMS4zOCAwLTIuNS0xLjEyLTIuNS0yLjVzMS4xMi0yLjUgMi41LTIuNSAyLjUgMS4xMiAyLjUgMi41LTEuMTIgMi41LTIuNSAyLjV6Ii8+PC9zdmc+',
+                iconSize: [32, 32],
+                iconAnchor: [16, 32]
+            });
+            
+            destinationMarker = L.marker([lat, lng], {icon: redIcon}).addTo(map);
+            destinationMarker.bindPopup('📍 مقصد انتخابی').openPopup();
+        }
     </script>
 </body>
 </html>

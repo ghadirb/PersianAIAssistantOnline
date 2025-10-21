@@ -79,6 +79,7 @@ class NavigationActivity : AppCompatActivity() {
             result.lastLocation?.let { loc ->
                 currentLocation = loc
                 webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
+                webView.evaluateJavascript("disableAutoCenter();", null)
                 binding.currentSpeedText.text = "${(loc.speed * 3.6f).toInt()} km/h"
                 
                 // ثبت مکان برای یادگیری
@@ -129,7 +130,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ نسخه 2.2 - مسیریابی کامل مانند Neshan", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v2.3 - Long Press + چت واقعی", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -931,37 +932,8 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showAIChat() {
-        val input = EditText(this).apply {
-            hint = "دستور خود را بنویسید..."
-            setPadding(32, 32, 32, 32)
-        }
-        
-        MaterialAlertDialogBuilder(this)
-            .setTitle("🤖 دستیار مسیریابی")
-            .setView(input)
-            .setPositiveButton("اجرا") { _, _ ->
-                val userMessage = input.text.toString()
-                if (userMessage.isNotEmpty()) {
-                    lifecycleScope.launch {
-                        try {
-                            val response = aiAssistant.processNavigationCommand(userMessage)
-                            runOnUiThread {
-                                MaterialAlertDialogBuilder(this@NavigationActivity)
-                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ پاسخ")
-                                    .setMessage(response.message)
-                                    .setPositiveButton("باشه", null)
-                                    .show()
-                            }
-                        } catch (e: Exception) {
-                            runOnUiThread {
-                                Toast.makeText(this@NavigationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                }
-            }
-            .setNegativeButton("لغو", null)
-            .show()
+        val intent = Intent(this, AIChatActivity::class.java)
+        startActivity(intent)
     }
     
     private fun checkPermissions() {

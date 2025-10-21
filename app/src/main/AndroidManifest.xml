@@ -190,6 +190,13 @@
             android:exported="false"
             android:parentActivityName=".activities.NavigationActivity" />
 
+        <!-- AI Chat Activity -->
+        <activity
+            android:name=".activities.AIChatActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.NavigationActivity"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Google Maps API Key - فعلاً ندارید، از Neshan استفاده می‌شود -->
         <!-- <meta-data
             android:name="com.google.android.geo.API_KEY"
