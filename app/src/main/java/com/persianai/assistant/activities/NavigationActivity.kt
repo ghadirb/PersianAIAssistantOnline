@@ -135,7 +135,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v2.7 - جستجوی سراسری (OSM)", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v2.8 - Debug + تست Sheet", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -227,6 +227,15 @@ class NavigationActivity : AppCompatActivity() {
             }
         }
 
+        // دکمه تست Long Press (موقت - برای debug)
+        binding.searchInput?.setOnLongClickListener {
+            currentLocation?.let { loc ->
+                Toast.makeText(this, "🧪 تست Bottom Sheet", Toast.LENGTH_SHORT).show()
+                routeSheetHelper.showLocationSheet(loc.latitude, loc.longitude)
+            }
+            true
+        }
+        
         // Toggle ترافیک
         binding.trafficToggleFab?.setOnClickListener {
             isTrafficEnabled = !isTrafficEnabled
@@ -663,8 +672,11 @@ class NavigationActivity : AppCompatActivity() {
         
         @JavascriptInterface
         fun onLocationLongPress(lat: Double, lng: Double) {
+            Log.d("NavigationActivity", "🔴 Long Press detected: $lat, $lng")
             runOnUiThread {
+                Toast.makeText(this@NavigationActivity, "📍 Long Press: ${String.format("%.4f, %.4f", lat, lng)}", Toast.LENGTH_SHORT).show()
                 selectedDestination = LatLng(lat, lng)
+                webView.evaluateJavascript("showDestinationMarker($lat, $lng);", null)
                 routeSheetHelper.showLocationSheet(lat, lng)
             }
         }

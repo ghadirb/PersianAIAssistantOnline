@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 class RouteSheetHelper(private val activity: NavigationActivity) {
     
     fun showLocationSheet(lat: Double, lng: Double) {
+        android.util.Log.d("RouteSheetHelper", "🟢 Showing bottom sheet for: $lat, $lng")
+        Toast.makeText(activity, "🗺️ نمایش گزینه‌ها...", Toast.LENGTH_SHORT).show()
+        
         val sheet = BottomSheetDialog(activity)
         val view = LayoutInflater.from(activity).inflate(R.layout.bottom_sheet_location_options, null)
         
