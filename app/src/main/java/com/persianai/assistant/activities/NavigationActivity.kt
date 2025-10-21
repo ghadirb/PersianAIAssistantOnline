@@ -222,8 +222,14 @@ class NavigationActivity : AppCompatActivity() {
         // تب‌های پایین - Custom TabBar
         setupCustomBottomTabs()
 
-        // حذف دکمه اضافی - فقط FAB کافیه
-        binding.myLocationButton?.visibility = View.GONE
+        // دکمه‌ها فعال هستن
+        binding.myLocationButton?.setOnClickListener {
+            currentLocation?.let { loc ->
+                webView.evaluateJavascript("enableAutoCenter();", null)
+                webView.evaluateJavascript("map.setView([${loc.latitude}, ${loc.longitude}], 15);", null)
+                Toast.makeText(this, "📍 برگشت به مکان فعلی", Toast.LENGTH_SHORT).show()
+            }
+        }
         
         binding.searchDestinationButton?.setOnClickListener {
             val intent = Intent(this, SearchDestinationActivity::class.java)
@@ -529,9 +535,21 @@ class NavigationActivity : AppCompatActivity() {
             tabBar.addView(tabButton)
         }
         
-        // اضافه کردن به صفحه
-        val rootView = findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(android.R.id.content)
-        rootView?.addView(tabBar)
+        // اضافه کردن به صفحه - استفاده از binding
+        try {
+            val coordinator = window.decorView.findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(
+                resources.getIdentifier("coordinator", "id", packageName)
+            )
+            if (coordinator != null) {
+                coordinator.addView(tabBar)
+            } else {
+                // اگر نتونستیم پیدا کنیم، به root اضافه می‌کنیم
+                val root = window.decorView.findViewById<android.view.ViewGroup>(android.R.id.content)
+                root?.addView(tabBar)
+            }
+        } catch (e: Exception) {
+            Log.e("NavigationActivity", "Error adding tab bar", e)
+        }
     }
     
     private fun showMoreOptions() {
