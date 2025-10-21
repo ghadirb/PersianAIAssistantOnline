@@ -220,7 +220,7 @@ class NavigationActivity : AppCompatActivity() {
         }
 
         // تب‌های پایین با TabLayout
-        setupBottomTabs()
+        // setupBottomTabs() // موقتاً غیرفعال - مشکل R.id
 
         // دکمه‌های قدیمی
         binding.myLocationButton?.setOnClickListener {

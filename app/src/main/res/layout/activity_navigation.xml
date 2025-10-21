@@ -299,7 +299,6 @@
         android:layout_height="wrap_content"
         android:layout_gravity="end|center_vertical"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="70dp"
         android:orientation="vertical"
         android:gravity="center">
 
@@ -322,21 +321,8 @@
             app:tint="@android:color/white" />
     </LinearLayout>
 
-    <!-- Bottom Navigation Tabs -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/bottomTabLayout"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_gravity="bottom"
-        android:background="#FFFFFF"
-        android:elevation="8dp"
-        app:tabMode="fixed"
-        app:tabGravity="fill"
-        app:tabTextColor="#666666"
-        app:tabSelectedTextColor="#2196F3"
-        app:tabIndicatorColor="#2196F3"
-        app:tabIndicatorHeight="3dp"
-        app:tabTextAppearance="@android:style/TextAppearance.Small" />
+    <!-- Bottom Navigation Tabs - Removed temporarily -->
+    <!-- TabLayout causes R.id build issues -->
 
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
