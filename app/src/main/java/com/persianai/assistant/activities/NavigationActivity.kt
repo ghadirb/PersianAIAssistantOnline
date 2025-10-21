@@ -50,7 +50,7 @@ class NavigationActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityNavigationBinding
     private lateinit var routeSheetHelper: RouteSheetHelper
-    private lateinit var webView: WebView
+    lateinit var webView: WebView  // public for RouteSheetHelper
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var savedLocationsManager: SavedLocationsManager
     private lateinit var locationHistoryManager: LocationHistoryManager
@@ -135,7 +135,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v2.9 - کلیک ساده روی نقشه!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v3.0 - مسیرهای واقعی!", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {

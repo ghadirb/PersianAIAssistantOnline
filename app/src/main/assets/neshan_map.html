@@ -137,6 +137,27 @@
             destinationMarker = L.marker([lat, lng], {icon: redIcon}).addTo(map);
             destinationMarker.bindPopup('📍 مقصد انتخابی').openPopup();
         }
+        
+        var routeLine = null;
+        function drawRoute(originLat, originLng, destLat, destLng) {
+            // حذف مسیر قبلی
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+            
+            // کشیدن خط مسیر
+            routeLine = L.polyline([
+                [originLat, originLng],
+                [destLat, destLng]
+            ], {
+                color: '#4285F4',
+                weight: 5,
+                opacity: 0.7
+            }).addTo(map);
+            
+            // تنظیم نمای نقشه برای نمایش کل مسیر
+            map.fitBounds(routeLine.getBounds(), {padding: [50, 50]});
+        }
     </script>
 </body>
 </html>
