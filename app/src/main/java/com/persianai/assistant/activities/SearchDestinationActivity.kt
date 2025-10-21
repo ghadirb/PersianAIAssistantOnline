@@ -81,22 +81,28 @@ class SearchDestinationActivity : AppCompatActivity() {
     
     private fun performSearch(query: String) {
         binding.progressBar.visibility = View.VISIBLE
+        android.util.Log.d("SearchDestination", "Starting search for: $query")
         
         lifecycleScope.launch {
             try {
                 // جستجوی کلی بدون فیلتر شهر - جستجو در همه جا
                 val searchResults = searchAPI.searchGlobal(query)
+                android.util.Log.d("SearchDestination", "Got ${searchResults.size} results")
+                
                 results.clear()
                 results.addAll(searchResults)
                 adapter.notifyDataSetChanged()
                 binding.progressBar.visibility = View.GONE
                 
                 if (searchResults.isEmpty()) {
-                    Toast.makeText(this@SearchDestinationActivity, "نتیجه‌ای یافت نشد", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SearchDestinationActivity, "❌ نتیجه‌ای یافت نشد برای: $query", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@SearchDestinationActivity, "✅ ${searchResults.size} نتیجه پیدا شد", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
+                android.util.Log.e("SearchDestination", "Search error", e)
                 binding.progressBar.visibility = View.GONE
-                Toast.makeText(this@SearchDestinationActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@SearchDestinationActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }

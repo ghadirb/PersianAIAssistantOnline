@@ -7,6 +7,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.persianai.assistant.databinding.ActivityAichatBinding
 import kotlinx.coroutines.launch
+import com.google.android.gms.maps.model.LatLng
 
 class AIChatActivity : AppCompatActivity() {
     
@@ -62,10 +63,19 @@ class AIChatActivity : AppCompatActivity() {
     }
     
     private suspend fun getAIResponse(message: String): String {
-        // پاسخ‌های ساده برای تست
+        // دسترسی به NavigationActivity
+        val navActivity = NavigationActivity.instance
+        
+        // پاسخ‌های هوشمند با کنترل واقعی
         return when {
-            message.contains("مسیر") || message.contains("ناوبری") || message.contains("جاده") -> 
-                "برای مسیریابی، می‌تونید روی نقشه Long Press کنید و مقصدتون رو انتخاب کنید. سپس از گزینه 'مسیرهای پیشنهادی' بهترین مسیر رو انتخاب کنید."
+            message.contains("مسیر") || message.contains("ناوبری") || message.contains("جاده") -> {
+                val loc = navActivity?.currentLocation
+                if (loc != null) {
+                    "✅ مکان فعلی شما: ${String.format("%.4f, %.4f", loc.latitude, loc.longitude)}\nبرای مسیریابی، روی نقشه Long Press کنید."
+                } else {
+                    "⚠️ در حال دریافت مکان شما... لطفاً چند لحظه صبر کنید."
+                }
+            }
             
             message.contains("ذخیره") || message.contains("save") ->
                 "برای ذخیره یک مکان، بعد از Long Press روی نقشه، گزینه 'ذخیره مکان' رو بزنید."

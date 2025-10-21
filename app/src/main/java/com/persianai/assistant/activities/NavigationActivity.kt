@@ -44,6 +44,10 @@ import com.persianai.assistant.navigation.RouteSheetHelper
 
 class NavigationActivity : AppCompatActivity() {
     
+    companion object {
+        var instance: NavigationActivity? = null
+    }
+    
     private lateinit var binding: ActivityNavigationBinding
     private lateinit var routeSheetHelper: RouteSheetHelper
     private lateinit var webView: WebView
@@ -126,11 +130,12 @@ class NavigationActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
         binding = ActivityNavigationBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v2.3 - Long Press + چت واقعی", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v2.4 - چت متصل + جستجو فعال", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -202,14 +207,11 @@ class NavigationActivity : AppCompatActivity() {
 
         // دکمه مکان من (FAB)
         binding.myLocationFab?.setOnClickListener {
-            currentLocation?.let { loc ->
-                // فعال کردن auto-center
-                webView.evaluateJavascript("enableAutoCenter();", null)
-                webView.evaluateJavascript(
-                    "map.setView([${loc.latitude}, ${loc.longitude}], 15);",
-                    null
-                )
-                Toast.makeText(this, "📍 برگشت به مکان فعلی", Toast.LENGTH_SHORT).show()
+            if (currentLocation != null) {
+                webView.evaluateJavascript("map.setView([${currentLocation!!.latitude}, ${currentLocation!!.longitude}], 16);", null)
+                Toast.makeText(this, "✅ مکان فعلی", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "⚠️ در حال دریافت مکان...", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -974,6 +976,7 @@ class NavigationActivity : AppCompatActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
+        instance = null
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 }
