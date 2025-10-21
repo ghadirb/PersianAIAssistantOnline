@@ -127,7 +127,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ نسخه 2.0 - با تب‌های پایین", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ نسخه 2.1 - تب‌ها فعال + جستجوی واقعی", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {

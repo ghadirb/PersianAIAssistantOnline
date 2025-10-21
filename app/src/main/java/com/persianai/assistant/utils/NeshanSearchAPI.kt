@@ -20,7 +20,26 @@ class NeshanSearchAPI(private val context: Context) {
         val category: String = ""
     )
     
-    suspend fun searchGlobal(query: String): List<SearchResult> = search(query, "")
+    suspend fun searchGlobal(query: String): List<SearchResult> {
+        return withContext(Dispatchers.IO) {
+            try {
+                // جستجوی global - بدون شهر، مرکز ایران
+                val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                val url = URL("https://api.neshan.org/v1/search?term=$encodedQuery&lat=32.4279&lng=53.6880")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.setRequestProperty("Api-Key", apiKey)
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+                
+                val response = connection.inputStream.bufferedReader().readText()
+                parseSearchResults(response)
+            } catch (e: Exception) {
+                android.util.Log.e("NeshanSearch", "Error: ${e.message}", e)
+                emptyList()
+            }
+        }
+    }
     
     suspend fun search(query: String, city: String = "تهران"): List<SearchResult> {
         return withContext(Dispatchers.IO) {

@@ -158,7 +158,7 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Bottom Control Panel -->
+    <!-- Bottom Control Panel - HIDDEN -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -166,7 +166,8 @@
         android:orientation="vertical"
         android:background="@android:color/white"
         android:elevation="16dp"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:visibility="gone">
 
         <!-- Search & Location Buttons -->
         <LinearLayout
