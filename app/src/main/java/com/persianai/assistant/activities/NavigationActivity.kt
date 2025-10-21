@@ -219,8 +219,11 @@ class NavigationActivity : AppCompatActivity() {
             ).show()
         }
 
-        // تب‌های پایین - از XML
-        setupBottomTabsFromXml()
+        // تب‌های پایین - از XML (موقتاً غیرفعال به دلیل R.id)
+        // setupBottomTabsFromXml()
+        
+        // استفاده از روش دیگه برای تب‌ها
+        setupBottomTabsWithoutRId()
 
         // دکمه‌ها فعال هستن
         binding.myLocationButton?.setOnClickListener {
@@ -464,25 +467,48 @@ class NavigationActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun setupBottomTabsFromXml() {
-        // تب‌ها از XML لود شدن، فقط click listener اضافه می‌کنیم
-        findViewById<View>(R.id.tabMap)?.setOnClickListener {
-            // نقشه - در حال حاضر هیچ کاری نمی‌کنه
-            Toast.makeText(this, "🗺️ نقشه", Toast.LENGTH_SHORT).show()
-        }
+    private fun setupBottomTabsWithoutRId() {
+        // پیدا کردن bottomNavBar از XML بدون استفاده از R.id
+        val rootView = window.decorView.findViewById<android.view.ViewGroup>(android.R.id.content)
+        val bottomNavBar = findViewByTag(rootView, "bottomNavBar")
         
-        findViewById<View>(R.id.tabSearch)?.setOnClickListener {
-            val intent = Intent(this, SearchDestinationActivity::class.java)
-            startActivityForResult(intent, 1001)
+        if (bottomNavBar is android.widget.LinearLayout) {
+            // bottomNavBar پیدا شد، حالا تب‌ها رو پیدا می‌کنیم
+            if (bottomNavBar.childCount >= 4) {
+                // تب 0: نقشه
+                bottomNavBar.getChildAt(0)?.setOnClickListener {
+                    Toast.makeText(this, "🗺️ نقشه", Toast.LENGTH_SHORT).show()
+                }
+                
+                // تب 1: جستجو
+                bottomNavBar.getChildAt(1)?.setOnClickListener {
+                    val intent = Intent(this, SearchDestinationActivity::class.java)
+                    startActivityForResult(intent, 1001)
+                }
+                
+                // تب 2: ذخیره
+                bottomNavBar.getChildAt(2)?.setOnClickListener {
+                    showSavedLocations()
+                }
+                
+                // تب 3: سایر
+                bottomNavBar.getChildAt(3)?.setOnClickListener {
+                    showMoreOptions()
+                }
+            }
         }
-        
-        findViewById<View>(R.id.tabSaved)?.setOnClickListener {
-            showSavedLocations()
+    }
+    
+    private fun findViewByTag(parent: android.view.View, tag: String): android.view.View? {
+        if (parent.tag == tag) return parent
+        if (parent is android.view.ViewGroup) {
+            for (i in 0 until parent.childCount) {
+                val child = parent.getChildAt(i)
+                val found = findViewByTag(child, tag)
+                if (found != null) return found
+            }
         }
-        
-        findViewById<View>(R.id.tabMore)?.setOnClickListener {
-            showMoreOptions()
-        }
+        return null
     }
     
     private fun showMoreOptions() {
