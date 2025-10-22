@@ -51,8 +51,14 @@ class RealNavigationActivity : AppCompatActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         voiceAlerts = PersianVoiceAlerts(this)
         
-        // شروع ناوبری با هشدار صوتی فارسی
-        voiceAlerts.speak("مسیریابی شروع شد. مسافت ${String.format("%.1f", routeDistance)} کیلومتر، زمان تقریبی $routeDuration دقیقه")
+        // شروع ناوبری با هشدارهای صوتی فارسی - مثل نشان
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            voiceAlerts.speak("شروع به حرکت کنید")
+        }, 1000)
+        
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            voiceAlerts.speak("مسافت ${String.format("%.0f", routeDistance)} کیلومتر، زمان تقریبی $routeDuration دقیقه")
+        }, 4000)
         
         // TODO: Load map in WebView
         // TODO: Update location real-time

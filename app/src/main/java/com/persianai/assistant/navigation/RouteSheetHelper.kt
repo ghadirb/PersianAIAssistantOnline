@@ -46,6 +46,10 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
             return
         }
         
+        // تست صدا
+        val voice = com.persianai.assistant.voice.PersianVoiceAlerts(activity)
+        voice.speak("در حال محاسبه مسیرها")
+        
         Toast.makeText(activity, "🔄 محاسبه و کشیدن مسیرها...", Toast.LENGTH_LONG).show()
         
         activity.lifecycleScope.launch {
@@ -68,6 +72,14 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
                     routes.forEachIndexed { index, route ->
                         val color = colors.getOrNull(index) ?: "#999999"
                         val poly = route.polyline.replace("'", "\\'")
+                        
+                        android.util.Log.d("RouteSheet", "Route $index polyline length: ${route.polyline.length}")
+                        android.util.Log.d("RouteSheet", "Route $index polyline sample: ${route.polyline.take(100)}")
+                        
+                        if (route.polyline.isEmpty()) {
+                            android.util.Log.e("RouteSheet", "❌ Polyline is EMPTY for route $index!")
+                        }
+                        
                         activity.webView.evaluateJavascript(
                             "drawClickableRoute($index, '$poly', '$color');",
                             null
