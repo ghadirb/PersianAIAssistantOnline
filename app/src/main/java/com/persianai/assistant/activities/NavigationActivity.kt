@@ -136,7 +136,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v4.2 - دکمه‌ها درست شد!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v4.3 - ناوبری واقعی!", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -963,9 +963,9 @@ class NavigationActivity : AppCompatActivity() {
     private fun showSearchResults(results: List<NeshanSearchAPI.SearchResult>) {
         val items = results.map { "📍 ${it.title}\n${it.address}" }.toTypedArray()
         
-        MaterialAlertDialogBuilder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("🔍 نتایج جستجو (${results.size})")
-            .setItems(items) { dialog, which ->
+            .setItems(items) { _, which ->
                 val result = results[which]
                 selectedDestination = LatLng(result.latitude, result.longitude)
                 
@@ -973,16 +973,21 @@ class NavigationActivity : AppCompatActivity() {
                 webView.evaluateJavascript("showDestinationMarker(${result.latitude}, ${result.longitude});", null)
                 webView.evaluateJavascript("map.setView([${result.latitude}, ${result.longitude}], 15);", null)
                 
-                // بستن dialog
-                dialog.dismiss()
+                Log.d("NavigationActivity", "✅ Search result selected: ${result.title}")
                 
-                // نمایش Bottom Sheet بعد از 200ms
-                webView.postDelayed({
+                // نمایش Bottom Sheet فوری
+                runOnUiThread {
                     routeSheetHelper.showLocationSheet(result.latitude, result.longitude)
-                }, 200)
+                }
             }
             .setNegativeButton("بستن", null)
-            .show()
+            .create()
+        
+        dialog.show()
+        // Auto-dismiss بعد از انتخاب
+        dialog.setOnDismissListener {
+            Log.d("NavigationActivity", "Dialog dismissed")
+        }
     }
     
     private fun showAIChat() {

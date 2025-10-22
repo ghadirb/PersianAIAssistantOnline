@@ -97,7 +97,7 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         Toast.makeText(activity, "✅ مسیر ${route.duration} دقیقه انتخاب شد", Toast.LENGTH_SHORT).show()
         
         val options = arrayOf(
-            "🚗 بزن بریم (نشان + هشدارهای فارسی)",
+            "🚗 بزن بریم",
             "🗺️ Google Maps"
         )
         
@@ -115,14 +115,18 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
     }
     
     private fun startNavigation(lat: Double, lng: Double, route: NeshanDirectionAPI.RouteInfo) {
-        Toast.makeText(activity, "🚗 ناوبری شروع شد! مسافت: ${String.format("%.1f", route.distance)} کم", Toast.LENGTH_LONG).show()
+        android.util.Log.d("Navigation", "🚗 Starting real navigation to: $lat, $lng")
         
-        // نمایش اطلاعات مسیر در لاگ برای debug
-        android.util.Log.d("Navigation", "Route: ${route.summary}")
-        android.util.Log.d("Navigation", "Distance: ${route.distance} km")
-        android.util.Log.d("Navigation", "Duration: ${route.duration} min")
+        // باز کردن Activity ناوبری واقعی
+        val intent = android.content.Intent(activity, com.persianai.assistant.activities.RealNavigationActivity::class.java)
+        intent.putExtra("DEST_LAT", lat)
+        intent.putExtra("DEST_LNG", lng)
+        intent.putExtra("DISTANCE", route.distance)
+        intent.putExtra("DURATION", route.duration)
+        intent.putExtra("POLYLINE", route.polyline)
         
-        activity.startNavigationTo(lat, lng)
+        activity.startActivity(intent)
+        Toast.makeText(activity, "🚗 ناوبری با هشدارهای فارسی", Toast.LENGTH_SHORT).show()
     }
     
     private fun startGoogleMapsNavigation(lat: Double, lng: Double) {

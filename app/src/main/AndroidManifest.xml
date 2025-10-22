@@ -171,6 +171,13 @@
             android:name=".activities.NavigationActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
+        
+        <!-- Real Navigation Activity -->
+        <activity
+            android:name=".activities.RealNavigationActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".activities.NavigationActivity" />
 
         <!-- Accounting Activity -->
         <activity
