@@ -33,11 +33,6 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
             showRoutes(lat, lng)
         }
         
-        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.startNavigationFromSheet)?.setOnClickListener {
-            sheet.dismiss()
-            activity.startNavigationTo(lat, lng)
-        }
-        
         sheet.setContentView(view)
         sheet.show()
     }
