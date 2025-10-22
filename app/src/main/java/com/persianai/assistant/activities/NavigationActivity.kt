@@ -68,6 +68,7 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var roadConditionAnalyzer: RoadConditionAnalyzer
     private lateinit var aiRoutePredictor: AIRoutePredictor
     private lateinit var aiRoadLimitDetector: AIRoadLimitDetector
+    private lateinit var voiceGuide: com.persianai.assistant.voice.NavigationVoiceGuide
     
     var currentLocation: Location? = null
     private var selectedDestination: LatLng? = null
@@ -135,7 +136,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v3.2 - Neshan واقعی + بزن بریم!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v3.4 - هشدارهای صوتی فارسی!", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -157,6 +158,7 @@ class NavigationActivity : AppCompatActivity() {
             roadConditionAnalyzer = RoadConditionAnalyzer(this)
             aiRoutePredictor = AIRoutePredictor(this)
             aiRoadLimitDetector = AIRoadLimitDetector(this)
+            voiceGuide = com.persianai.assistant.voice.NavigationVoiceGuide(this)
             
             // تنظیم کلید API نشان
             val neshanApiKey = "service.649ba7521ba04da595c5ab56413b3c84"
