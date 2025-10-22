@@ -58,20 +58,28 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
                 )
                 
                 activity.runOnUiThread {
-                    MaterialAlertDialogBuilder(activity)
-                        .setTitle("🗺️ مسیرها از مکان شما")
-                        .setItems(routes) { _, which ->
-                            Toast.makeText(activity, "✅ مسیر ${which + 1} انتخاب شد", Toast.LENGTH_SHORT).show()
-                            
-                            // کشیدن مسیر روی نقشه
-                            activity.webView.evaluateJavascript(
-                                "drawRoute(${currentLoc.latitude}, ${currentLoc.longitude}, $lat, $lng);",
-                                null
-                            )
-                            
-                            // شروع ناوبری
-                            activity.startNavigationTo(lat, lng)
+                    if (routes.isEmpty()) {
+                        Toast.makeText(activity, "❌ مسیری یافت نشد", Toast.LENGTH_SHORT).show()
+                        return@runOnUiThread
+                    }
+                    
+                    // تبدیل به آیتم‌های قابل نمایش
+                    val routeItems = routes.mapIndexed { index, route ->
+                        val icon = when(index) {
+                            0 -> "🚗 سریع‌ترین"
+                            1 -> "🛣️ کوتاه‌ترین"
+                            else -> "🌳 آرام‌ترین"
                         }
+                        "$icon: ${route.duration} دقیقه، ${String.format("%.1f", route.distance)} کم"
+                    }.toTypedArray()
+                    
+                    MaterialAlertDialogBuilder(activity)
+                        .setTitle("🗺️ ${routes.size} مسیر واقعی")
+                        .setItems(routeItems) { _, which ->
+                            selectedRoute = routes[which]
+                            showStartButton(lat, lng, routes[which])
+                        }
+                        .setNegativeButton("بستن", null)
                         .show()
                 }
             } catch (e: Exception) {
@@ -82,14 +90,28 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         }
     }
     
-    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val R = 6371.0 // شعاع زمین به کیلومتر
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2)
-        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        return R * c
+    private fun showStartButton(lat: Double, lng: Double, route: NeshanDirectionAPI.RouteInfo) {
+        // کشیدن مسیر واقعی روی نقشه با polyline
+        val polyline = route.polyline.replace("'", "\\'")  // escape quotes
+        activity.webView.evaluateJavascript("drawRealRoute('$polyline');", null)
+        
+        Toast.makeText(activity, "✅ مسیر ${route.duration} دقیقه‌ای انتخاب شد", Toast.LENGTH_SHORT).show()
+        
+        // نمایش دیالوگ بزن بریم
+        MaterialAlertDialogBuilder(activity)
+            .setTitle("🚗 آماده شروع؟")
+            .setMessage("مسیر ${String.format("%.1f", route.distance)} کیلومتری\\nزمان تقریبی: ${route.duration} دقیقه")
+            .setPositiveButton("🚀 بزن بریم") { _, _ ->
+                startNavigation(lat, lng, route)
+            }
+            .setNegativeButton("بستن", null)
+            .show()
+    }
+    
+    private fun startNavigation(lat: Double, lng: Double, route: NeshanDirectionAPI.RouteInfo) {
+        Toast.makeText(activity, "🚗 مسیریابی شروع شد!", Toast.LENGTH_LONG).show()
+        // TODO: Open RealNavigationActivity with route data
+        activity.startNavigationTo(lat, lng)
     }
 }
+
