@@ -74,7 +74,9 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
                         )
                     }
                     
-                    Toast.makeText(activity, "✅ ${routes.size} مسیر روی نقشه - روی مسیر بزنید", Toast.LENGTH_LONG).show()
+                    // نمایش پیام راهنما
+                    android.util.Log.d("RouteSheet", "✅ ${routes.size} routes drawn on map")
+                    Toast.makeText(activity, "🎯 روی خط مسیر دلخواه کلیک کنید\n🔵آبی 🟢سبز 🟠نارنجی", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 activity.runOnUiThread {

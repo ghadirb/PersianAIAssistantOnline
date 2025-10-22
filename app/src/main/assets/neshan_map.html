@@ -109,6 +109,10 @@
         
         // کلیک ساده برای انتخاب مقصد
         map.on('click', function(e) {
+            if (!mapClicksEnabled) {
+                console.log('⚠️ Map clicks are disabled - routes mode');
+                return;
+            }
             console.log('Map clicked at: ' + e.latlng.lat + ', ' + e.latlng.lng);
             if (window.Android) {
                 window.Android.onMapClick(e.latlng.lat, e.latlng.lng);
@@ -208,17 +212,42 @@
         }
         
         var clickableRoutes = [];
+        var mapClicksEnabled = true;
+        
+        function disableMapClicks() {
+            mapClicksEnabled = false;
+            console.log('🔴 Map clicks DISABLED');
+        }
+        
+        function enableMapClicks() {
+            mapClicksEnabled = true;
+            console.log('🟢 Map clicks ENABLED');
+        }
+        
         function drawClickableRoute(index, polylineEncoded, color) {
             var points = decodePolyline(polylineEncoded);
             var route = L.polyline(points, {
                 color: color,
-                weight: 8,
-                opacity: 0.7,
-                smoothFactor: 1
+                weight: 12,              // ضخیم‌تر برای کلیک راحت‌تر
+                opacity: 0.8,
+                smoothFactor: 1,
+                className: 'clickable-route'
             }).addTo(map);
             
-            route.on('click', function() {
-                Android.onRouteClick(index);
+            route.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);  // جلوگیری از کلیک نقشه
+                console.log('🎯 Route ' + index + ' clicked!');
+                if (window.Android) {
+                    Android.onRouteClick(index);
+                }
+            });
+            
+            // افزودن hover effect
+            route.on('mouseover', function() {
+                route.setStyle({weight: 14, opacity: 1.0});
+            });
+            route.on('mouseout', function() {
+                route.setStyle({weight: 12, opacity: 0.8});
             });
             
             clickableRoutes.push(route);
@@ -226,11 +255,17 @@
             if (index === 0) {
                 map.fitBounds(route.getBounds(), {padding: [50, 50]});
             }
+            
+            // غیرفعال کردن کلیک نقشه
+            if (index === 0) {
+                disableMapClicks();
+            }
         }
         
         function clearAllRoutes() {
             clickableRoutes.forEach(r => map.removeLayer(r));
             clickableRoutes = [];
+            enableMapClicks();
         }
     </script>
 </body>
