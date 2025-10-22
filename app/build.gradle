@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 20
-        versionName "4.4.0-VOICE-FIX"
+        versionCode 21
+        versionName "4.5.0-API-KEYS"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
