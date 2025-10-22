@@ -52,14 +52,9 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         
         activity.lifecycleScope.launch {
             try {
-                // محاسبه فاصله تقریبی
-                val distance = calculateDistance(currentLoc.latitude, currentLoc.longitude, lat, lng)
-                val duration = (distance / 50.0 * 60).toInt() // فرض: 50 کیلومتر در ساعت
-                
-                val routes = arrayOf(
-                    "🚗 مسیر سریع: ${duration} دقیقه، ${String.format("%.1f", distance)} کیلومتر",
-                    "🛣️ مسیر کوتاه: ${duration + 5} دقیقه، ${String.format("%.1f", distance - 1)} کیلومتر",
-                    "🌳 مسیر آرام: ${duration + 10} دقیقه، ${String.format("%.1f", distance + 2)} کیلومتر"
+                // دریافت مسیرهای واقعی از Neshan
+                val routes = directionAPI.getDirection(
+                    currentLoc.latitude, currentLoc.longitude, lat, lng
                 )
                 
                 activity.runOnUiThread {
