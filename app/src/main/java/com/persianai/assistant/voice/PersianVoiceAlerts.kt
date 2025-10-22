@@ -17,10 +17,27 @@ class PersianVoiceAlerts(private val context: Context) {
     private fun initTTS() {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val result = tts?.setLanguage(Locale("fa", "IR"))
+                // تلاش برای تنظیم زبان فارسی
+                var result = tts?.setLanguage(Locale("fa", "IR"))
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // تلاش با فقط کد زبان
+                    result = tts?.setLanguage(Locale("fa"))
+                }
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // تلاش با Persian
+                    result = tts?.setLanguage(Locale("per"))
+                }
+                
                 isReady = result != TextToSpeech.LANG_MISSING_DATA && 
                          result != TextToSpeech.LANG_NOT_SUPPORTED
-                Log.d("PersianVoice", "TTS Ready: $isReady")
+                
+                if (isReady) {
+                    tts?.setPitch(1.0f)
+                    tts?.setSpeechRate(0.9f)
+                    Log.d("PersianVoice", "✅ TTS Persian Ready")
+                } else {
+                    Log.e("PersianVoice", "❌ TTS Persian NOT available")
+                }
             }
         }
     }

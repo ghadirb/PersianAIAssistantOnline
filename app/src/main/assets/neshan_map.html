@@ -192,12 +192,10 @@
         }
         
         function drawRealRoute(polylineEncoded) {
-            // حذف مسیر قبلی
             if (routeLine) {
                 map.removeLayer(routeLine);
             }
             
-            // Decode و کشیدن مسیر واقعی
             var points = decodePolyline(polylineEncoded);
             routeLine = L.polyline(points, {
                 color: '#4285F4',
@@ -206,8 +204,33 @@
                 smoothFactor: 1
             }).addTo(map);
             
-            // تنظیم نمای نقشه
             map.fitBounds(routeLine.getBounds(), {padding: [50, 50]});
+        }
+        
+        var clickableRoutes = [];
+        function drawClickableRoute(index, polylineEncoded, color) {
+            var points = decodePolyline(polylineEncoded);
+            var route = L.polyline(points, {
+                color: color,
+                weight: 8,
+                opacity: 0.7,
+                smoothFactor: 1
+            }).addTo(map);
+            
+            route.on('click', function() {
+                Android.onRouteClick(index);
+            });
+            
+            clickableRoutes.push(route);
+            
+            if (index === 0) {
+                map.fitBounds(route.getBounds(), {padding: [50, 50]});
+            }
+        }
+        
+        function clearAllRoutes() {
+            clickableRoutes.forEach(r => map.removeLayer(r));
+            clickableRoutes = [];
         }
     </script>
 </body>

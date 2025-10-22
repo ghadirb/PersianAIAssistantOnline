@@ -136,7 +136,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v3.5 - Neshan + Google Maps!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v4.0 - همه مشکلات حل شد!", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -686,6 +686,16 @@ class NavigationActivity : AppCompatActivity() {
                 selectedDestination = LatLng(lat, lng)
                 webView.evaluateJavascript("showDestinationMarker($lat, $lng);", null)
                 routeSheetHelper.showLocationSheet(lat, lng)
+            }
+        }
+        
+        @JavascriptInterface
+        fun onRouteClick(routeIndex: Int) {
+            Log.d("NavigationActivity", "🎯 Route clicked: $routeIndex")
+            runOnUiThread {
+                selectedDestination?.let { dest ->
+                    routeSheetHelper.onRouteClicked(routeIndex, dest.latitude, dest.longitude)
+                }
             }
         }
     }

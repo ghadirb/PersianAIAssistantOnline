@@ -37,6 +37,8 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         sheet.show()
     }
     
+    private val cachedRoutes = mutableListOf<NeshanDirectionAPI.RouteInfo>()
+    
     private fun showRoutes(lat: Double, lng: Double) {
         val currentLoc = activity.currentLocation
         if (currentLoc == null) {
@@ -44,11 +46,10 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
             return
         }
         
-        Toast.makeText(activity, "🔄 در حال محاسبه مسیر واقعی...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(activity, "🔄 محاسبه و کشیدن مسیرها...", Toast.LENGTH_LONG).show()
         
         activity.lifecycleScope.launch {
             try {
-                // دریافت مسیرهای واقعی از Neshan
                 val routes = directionAPI.getDirection(
                     currentLoc.latitude, currentLoc.longitude, lat, lng
                 )
@@ -59,48 +60,48 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
                         return@runOnUiThread
                     }
                     
-                    // تبدیل به آیتم‌های قابل نمایش
-                    val routeItems = routes.mapIndexed { index, route ->
-                        val icon = when(index) {
-                            0 -> "🚗 سریع‌ترین"
-                            1 -> "🛣️ کوتاه‌ترین"
-                            else -> "🌳 آرام‌ترین"
-                        }
-                        "$icon: ${route.duration} دقیقه، ${String.format("%.1f", route.distance)} کم"
-                    }.toTypedArray()
+                    cachedRoutes.clear()
+                    cachedRoutes.addAll(routes)
                     
-                    MaterialAlertDialogBuilder(activity)
-                        .setTitle("🗺️ ${routes.size} مسیر واقعی")
-                        .setItems(routeItems) { _, which ->
-                            selectedRoute = routes[which]
-                            showStartButton(lat, lng, routes[which])
-                        }
-                        .setNegativeButton("بستن", null)
-                        .show()
+                    // کشیدن همه مسیرها روی نقشه
+                    val colors = listOf("#4285F4", "#34A853", "#FBBC04")
+                    routes.forEachIndexed { index, route ->
+                        val color = colors.getOrNull(index) ?: "#999999"
+                        val poly = route.polyline.replace("'", "\\'")
+                        activity.webView.evaluateJavascript(
+                            "drawClickableRoute($index, '$poly', '$color');",
+                            null
+                        )
+                    }
+                    
+                    Toast.makeText(activity, "✅ ${routes.size} مسیر روی نقشه - روی مسیر بزنید", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 activity.runOnUiThread {
-                    Toast.makeText(activity, "❌ خطا در محاسبه مسیر", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
     
-    private fun showStartButton(lat: Double, lng: Double, route: NeshanDirectionAPI.RouteInfo) {
-        // کشیدن مسیر واقعی روی نقشه با polyline
-        val polyline = route.polyline.replace("'", "\\'")  // escape quotes
-        activity.webView.evaluateJavascript("drawRealRoute('$polyline');", null)
+    fun onRouteClicked(routeIndex: Int, lat: Double, lng: Double) {
+        if (routeIndex < cachedRoutes.size) {
+            selectedRoute = cachedRoutes[routeIndex]
+            showNavigationChoice(lat, lng, cachedRoutes[routeIndex])
+        }
+    }
+    
+    private fun showNavigationChoice(lat: Double, lng: Double, route: NeshanDirectionAPI.RouteInfo) {
+        Toast.makeText(activity, "✅ مسیر ${route.duration} دقیقه انتخاب شد", Toast.LENGTH_SHORT).show()
         
-        Toast.makeText(activity, "✅ مسیر ${route.duration} دقیقه‌ای انتخاب شد", Toast.LENGTH_SHORT).show()
-        
-        // نمایش دیالوگ بزن بریم
         val options = arrayOf(
-            "🚗 نشان (هشدارهای صوتی فارسی)",
-            "🗺️ Google Maps + هشدارهای فارسی"
+            "🚗 بزن بریم (نشان + هشدارهای فارسی)",
+            "🗺️ Google Maps"
         )
         
         MaterialAlertDialogBuilder(activity)
-            .setTitle("انتخاب موتور مسیریابی")
+            .setTitle("شروع مسیریابی")
+            .setMessage("مسافت: ${String.format("%.1f", route.distance)} کم\\nزمان: ${route.duration} دقیقه")
             .setItems(options) { _, which ->
                 if (which == 0) {
                     startNavigation(lat, lng, route)
