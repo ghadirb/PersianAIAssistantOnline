@@ -139,13 +139,45 @@
         }
         
         var routeLine = null;
+        
+        // Decode Google Polyline
+        function decodePolyline(encoded) {
+            var points = [];
+            var index = 0, len = encoded.length;
+            var lat = 0, lng = 0;
+            
+            while (index < len) {
+                var b, shift = 0, result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+                
+                shift = 0;
+                result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+                
+                points.push([lat / 1e5, lng / 1e5]);
+            }
+            return points;
+        }
+        
         function drawRoute(originLat, originLng, destLat, destLng) {
             // حذف مسیر قبلی
             if (routeLine) {
                 map.removeLayer(routeLine);
             }
             
-            // کشیدن خط مسیر
+            // کشیدن خط مسیر ساده (موقت)
             routeLine = L.polyline([
                 [originLat, originLng],
                 [destLat, destLng]
@@ -156,6 +188,25 @@
             }).addTo(map);
             
             // تنظیم نمای نقشه برای نمایش کل مسیر
+            map.fitBounds(routeLine.getBounds(), {padding: [50, 50]});
+        }
+        
+        function drawRealRoute(polylineEncoded) {
+            // حذف مسیر قبلی
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+            
+            // Decode و کشیدن مسیر واقعی
+            var points = decodePolyline(polylineEncoded);
+            routeLine = L.polyline(points, {
+                color: '#4285F4',
+                weight: 6,
+                opacity: 0.8,
+                smoothFactor: 1
+            }).addTo(map);
+            
+            // تنظیم نمای نقشه
             map.fitBounds(routeLine.getBounds(), {padding: [50, 50]});
         }
     </script>

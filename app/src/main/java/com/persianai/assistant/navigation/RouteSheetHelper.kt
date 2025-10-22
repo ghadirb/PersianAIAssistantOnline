@@ -7,9 +7,13 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.activities.NavigationActivity
+import com.persianai.assistant.utils.NeshanDirectionAPI
 import kotlinx.coroutines.launch
 
 class RouteSheetHelper(private val activity: NavigationActivity) {
+    
+    private val directionAPI = NeshanDirectionAPI()
+    private var selectedRoute: NeshanDirectionAPI.RouteInfo? = null
     
     fun showLocationSheet(lat: Double, lng: Double) {
         android.util.Log.d("RouteSheetHelper", "🟢 Showing bottom sheet for: $lat, $lng")
