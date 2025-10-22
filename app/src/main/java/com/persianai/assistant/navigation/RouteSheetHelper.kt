@@ -14,6 +14,7 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
     
     private val directionAPI = NeshanDirectionAPI()
     private var selectedRoute: NeshanDirectionAPI.RouteInfo? = null
+    private val settings = com.persianai.assistant.settings.NavigationSettings(activity)
     
     fun showLocationSheet(lat: Double, lng: Double) {
         android.util.Log.d("RouteSheetHelper", "🟢 Showing bottom sheet for: $lat, $lng")
@@ -98,11 +99,19 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         Toast.makeText(activity, "✅ مسیر ${route.duration} دقیقه‌ای انتخاب شد", Toast.LENGTH_SHORT).show()
         
         // نمایش دیالوگ بزن بریم
+        val options = arrayOf(
+            "🚗 نشان (هشدارهای صوتی فارسی)",
+            "🗺️ Google Maps + هشدارهای فارسی"
+        )
+        
         MaterialAlertDialogBuilder(activity)
-            .setTitle("🚗 آماده شروع؟")
-            .setMessage("مسیر ${String.format("%.1f", route.distance)} کیلومتری\\nزمان تقریبی: ${route.duration} دقیقه")
-            .setPositiveButton("🚀 بزن بریم") { _, _ ->
-                startNavigation(lat, lng, route)
+            .setTitle("انتخاب موتور مسیریابی")
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    startNavigation(lat, lng, route)
+                } else {
+                    startGoogleMapsNavigation(lat, lng)
+                }
             }
             .setNegativeButton("بستن", null)
             .show()
@@ -118,5 +127,13 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         
         activity.startNavigationTo(lat, lng)
     }
+    
+    private fun startGoogleMapsNavigation(lat: Double, lng: Double) {
+        try {
+            com.persianai.assistant.maps.GoogleMapsHelper.openGoogleMaps(activity, lat, lng)
+            Toast.makeText(activity, "🗺️ باز شد در Google Maps با هشدارهای فارسی", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(activity, "❌ Google Maps نصب نیست", Toast.LENGTH_SHORT).show()
+        }
+    }
 }
-

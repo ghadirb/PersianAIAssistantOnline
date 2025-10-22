@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 14
-        versionName "3.4.0-VOICE-ALERTS"
+        versionCode 15
+        versionName "3.5.0-GOOGLE-MAPS"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
