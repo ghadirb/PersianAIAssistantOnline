@@ -102,8 +102,7 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
         )
         
         MaterialAlertDialogBuilder(activity)
-            .setTitle("شروع مسیریابی")
-            .setMessage("مسافت: ${String.format("%.1f", route.distance)} کم\\nزمان: ${route.duration} دقیقه")
+            .setTitle("مسافت: ${String.format("%.1f", route.distance)} کم، زمان: ${route.duration} دقیقه")
             .setItems(options) { _, which ->
                 if (which == 0) {
                     startNavigation(lat, lng, route)

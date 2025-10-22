@@ -136,7 +136,7 @@ class NavigationActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // نمایش نسخه جدید - برای تست
-        Toast.makeText(this, "✅ v4.1 - مسیرها قابل کلیک!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "✅ v4.2 - دکمه‌ها درست شد!", Toast.LENGTH_LONG).show()
 
         webView = binding.mapWebView
         try {
@@ -963,9 +963,9 @@ class NavigationActivity : AppCompatActivity() {
     private fun showSearchResults(results: List<NeshanSearchAPI.SearchResult>) {
         val items = results.map { "📍 ${it.title}\n${it.address}" }.toTypedArray()
         
-        val dialog = MaterialAlertDialogBuilder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("🔍 نتایج جستجو (${results.size})")
-            .setItems(items) { _, which ->
+            .setItems(items) { dialog, which ->
                 val result = results[which]
                 selectedDestination = LatLng(result.latitude, result.longitude)
                 
@@ -973,17 +973,16 @@ class NavigationActivity : AppCompatActivity() {
                 webView.evaluateJavascript("showDestinationMarker(${result.latitude}, ${result.longitude});", null)
                 webView.evaluateJavascript("map.setView([${result.latitude}, ${result.longitude}], 15);", null)
                 
-                Toast.makeText(this, "✅ ${result.title}", Toast.LENGTH_SHORT).show()
+                // بستن dialog
+                dialog.dismiss()
                 
-                // بعد از 300ms نمایش Bottom Sheet
+                // نمایش Bottom Sheet بعد از 200ms
                 webView.postDelayed({
                     routeSheetHelper.showLocationSheet(result.latitude, result.longitude)
-                }, 300)
+                }, 200)
             }
             .setNegativeButton("بستن", null)
-            .create()
-        
-        dialog.show()
+            .show()
     }
     
     private fun showAIChat() {
