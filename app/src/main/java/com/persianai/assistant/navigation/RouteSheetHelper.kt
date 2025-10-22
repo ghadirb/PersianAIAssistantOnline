@@ -109,8 +109,13 @@ class RouteSheetHelper(private val activity: NavigationActivity) {
     }
     
     private fun startNavigation(lat: Double, lng: Double, route: NeshanDirectionAPI.RouteInfo) {
-        Toast.makeText(activity, "🚗 مسیریابی شروع شد!", Toast.LENGTH_LONG).show()
-        // TODO: Open RealNavigationActivity with route data
+        Toast.makeText(activity, "🚗 ناوبری شروع شد! مسافت: ${String.format("%.1f", route.distance)} کم", Toast.LENGTH_LONG).show()
+        
+        // نمایش اطلاعات مسیر در لاگ برای debug
+        android.util.Log.d("Navigation", "Route: ${route.summary}")
+        android.util.Log.d("Navigation", "Distance: ${route.distance} km")
+        android.util.Log.d("Navigation", "Duration: ${route.duration} min")
+        
         activity.startNavigationTo(lat, lng)
     }
 }
