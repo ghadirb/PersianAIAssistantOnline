@@ -112,7 +112,10 @@ dependencies {
     implementation 'com.google.maps:google-maps-services:2.2.0'
     implementation 'org.slf4j:slf4j-simple:1.7.25'
     
-    // ONNX Runtime for Offline TTS
+    // Sherpa-ONNX for Offline Persian TTS (صدای حانیه)
+    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.30'
+    
+    // ONNX Runtime (backup)
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
     
     // OpenStreetMap (OSM) - Alternative navigation solution
