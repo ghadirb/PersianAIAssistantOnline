@@ -4,11 +4,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          onerror="console.error('❌ Failed to load Leaflet CSS')" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            onerror="console.error('❌ Failed to load Leaflet JS')"></script>
     <style>
-        body { margin: 0; padding: 0; }
-        #map { width: 100%; height: 100vh; }
+        body { margin: 0; padding: 0; background: #f0f0f0; }
+        #map { width: 100%; height: 100vh; background: #e0e0e0; }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #333;
+            text-align: center;
+            z-index: 9999;
+        }
         .map-switcher {
             position: absolute;
             top: 10px;
@@ -44,11 +56,24 @@
     </style>
 </head>
 <body>
+    <div id="loading">🗺️ در حال بارگذاری نقشه...</div>
     <div class="map-switcher">
         <button id="neshanBtn" onclick="switchToNeshan()">نشان</button>
         <button id="osmBtn" class="active" onclick="switchToOSM()">OSM</button>
     </div>
     <div id="map"></div>
+    <script>
+        console.log('✅ HTML loaded');
+        
+        // Check if Leaflet loaded
+        if (typeof L === 'undefined') {
+            console.error('❌ Leaflet not loaded!');
+            document.getElementById('loading').innerHTML = '❌ خطا: Leaflet بارگذاری نشد<br>نیاز به اینترنت دارید';
+        } else {
+            console.log('✅ Leaflet loaded');
+            document.getElementById('loading').style.display = 'none';
+        }
+    </script>
     <script>
         var map = L.map('map').setView([35.699739, 51.338097], 14);
         var currentLayer;

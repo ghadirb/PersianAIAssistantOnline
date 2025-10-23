@@ -97,6 +97,34 @@ class RealNavigationActivity : AppCompatActivity() {
         }
     }
     
+    override fun onBackPressed() {
+        // دیالوگ خروج مثل نشان
+        val options = arrayOf(
+            "❌ پایان مسیریابی",
+            "🔙 خروج (ادامه مسیریابی)"
+        )
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("مسیریابی")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        // پایان مسیریابی - قطع کامل
+                        voiceAlerts.speak("مسیریابی پایان یافت")
+                        finish()
+                    }
+                    1 -> {
+                        // خروج ولی ادامه مسیریابی در پس‌زمینه
+                        voiceAlerts.speak("مسیریابی در پس زمینه ادامه دارد")
+                        // TODO: شروع service برای ادامه navigation
+                        finish()
+                    }
+                }
+            }
+            .setNegativeButton("بازگشت", null)
+            .show()
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
         voiceAlerts.shutdown()
