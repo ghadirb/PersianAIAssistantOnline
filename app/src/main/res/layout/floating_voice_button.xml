@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/floating_button_background"
+        android:padding="12dp"
+        android:elevation="8dp">
+        
+        <ImageView
+            android:id="@+id/floatingButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_voice_assistant"
+            android:contentDescription="دستیار صوتی"
+            android:padding="12dp"
+            android:background="@drawable/floating_button_circle"
+            android:elevation="4dp" />
+        
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="فعال"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:layout_gravity="center"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>
