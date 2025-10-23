@@ -1,14 +1,19 @@
 package com.persianai.assistant.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.PixelFormat
+import android.location.Location
 import android.os.Build
 import android.os.IBinder
+import android.os.Looper
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -17,8 +22,11 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import com.google.android.gms.location.*
 import com.persianai.assistant.R
+import java.util.*
 
 /**
  * سرویس شناور برای هشدارهای صوتی فارسی در Google Maps
@@ -31,6 +39,17 @@ class FloatingVoiceService : Service() {
     private lateinit var windowManager: WindowManager
     private var floatingView: View? = null
     private var isFloatingViewActive = false
+    
+    // Location tracking
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationCallback: LocationCallback? = null
+    private var lastLocation: Location? = null
+    private var currentSpeed: Float = 0f
+    private var isNavigating = false
+    
+    // TTS Engine
+    private var tts: TextToSpeech? = null
+    private var isTTSReady = false
     
     companion object {
         const val CHANNEL_ID = "FloatingVoiceChannel"
@@ -45,7 +64,118 @@ class FloatingVoiceService : Service() {
         Log.d("FloatingVoice", "🎤 Service created")
         
         createNotificationChannel()
+        initTTS()
+        initLocationTracking()
         showFloatingButton()
+    }
+    
+    private fun initTTS() {
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = tts?.setLanguage(Locale("fa", "IR"))
+                isTTSReady = result != TextToSpeech.LANG_MISSING_DATA && 
+                            result != TextToSpeech.LANG_NOT_SUPPORTED
+                
+                if (isTTSReady) {
+                    tts?.setPitch(1.0f)
+                    tts?.setSpeechRate(0.9f)
+                    Log.d("FloatingVoice", "✅ TTS Ready")
+                    speak("دستیار صوتی فعال شد")
+                } else {
+                    Log.e("FloatingVoice", "❌ TTS فارسی موجود نیست")
+                }
+            }
+        }
+    }
+    
+    private fun initLocationTracking() {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    onLocationUpdate(location)
+                }
+            }
+        }
+        
+        startLocationUpdates()
+    }
+    
+    private fun startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.e("FloatingVoice", "❌ No location permission")
+            return
+        }
+        
+        val locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            5000L // 5 seconds
+        ).build()
+        
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback!!,
+            Looper.getMainLooper()
+        )
+        
+        Log.d("FloatingVoice", "📍 Location tracking started")
+    }
+    
+    private fun onLocationUpdate(location: Location) {
+        lastLocation = location
+        currentSpeed = location.speed * 3.6f // m/s to km/h
+        
+        // تشخیص مسیریابی: اگه سرعت > 5 km/h
+        val wasNavigating = isNavigating
+        isNavigating = currentSpeed > 5f
+        
+        // اگه مسیریابی شروع شد
+        if (isNavigating && !wasNavigating) {
+            onNavigationStarted()
+        }
+        
+        // اگه مسیریابی تموم شد
+        if (!isNavigating && wasNavigating) {
+            onNavigationStopped()
+        }
+        
+        // Update UI
+        updateFloatingButton()
+        
+        Log.d("FloatingVoice", "📍 Speed: ${currentSpeed.toInt()} km/h, Navigating: $isNavigating")
+    }
+    
+    private fun onNavigationStarted() {
+        Log.d("FloatingVoice", "🚗 Navigation started!")
+        speak("مسیریابی شروع شد. با احتیاط رانندگی کنید")
+    }
+    
+    private fun onNavigationStopped() {
+        Log.d("FloatingVoice", "⏹️ Navigation stopped")
+    }
+    
+    private fun speak(text: String) {
+        if (isTTSReady) {
+            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, null)
+            Log.d("FloatingVoice", "🔊 Speaking: $text")
+        } else {
+            Log.w("FloatingVoice", "⚠️ TTS not ready, cannot speak")
+        }
+    }
+    
+    private fun updateFloatingButton() {
+        val statusText = floatingView?.findViewById<TextView>(R.id.statusText)
+        statusText?.text = if (isNavigating) {
+            "${currentSpeed.toInt()} km/h"
+        } else {
+            "آماده"
+        }
+        statusText?.visibility = if (isNavigating) View.VISIBLE else View.GONE
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -148,11 +278,22 @@ class FloatingVoiceService : Service() {
     }
     
     private fun stopFloatingVoice() {
+        // Stop location tracking
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+        }
+        
+        // Stop TTS
+        tts?.stop()
+        tts?.shutdown()
+        
+        // Remove floating view
         if (floatingView != null && isFloatingViewActive) {
             windowManager.removeView(floatingView)
             floatingView = null
             isFloatingViewActive = false
         }
+        
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
         Log.d("FloatingVoice", "⏹️ Service stopped")

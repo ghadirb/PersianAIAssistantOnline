@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 23
-        versionName "4.7.0-EXIT-DIALOG"
+        versionCode 25
+        versionName "4.9.0-SMART-VOICE"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -111,6 +111,9 @@ dependencies {
     implementation 'com.google.maps.android:android-maps-utils:2.3.0'
     implementation 'com.google.maps:google-maps-services:2.2.0'
     implementation 'org.slf4j:slf4j-simple:1.7.25'
+    
+    // ONNX Runtime for Offline TTS
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
     
     // OpenStreetMap (OSM) - Alternative navigation solution
     implementation 'org.osmdroid:osmdroid-android:6.1.17'

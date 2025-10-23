@@ -219,6 +219,11 @@ class NavigationActivity : AppCompatActivity() {
             } else false
         }
 
+        // دکمه دستیار صوتی (FAB)
+        binding.voiceAssistantFab?.setOnClickListener {
+            startVoiceAssistant()
+        }
+        
         // دکمه مکان من (FAB)
         binding.myLocationFab?.setOnClickListener {
             if (currentLocation != null) {
@@ -991,6 +996,67 @@ class NavigationActivity : AppCompatActivity() {
     private fun showAIChat() {
         val intent = Intent(this, AIChatActivity::class.java)
         startActivity(intent)
+    }
+    
+    private fun startVoiceAssistant() {
+        // چک کردن permission برای overlay
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (!android.provider.Settings.canDrawOverlays(this)) {
+                // درخواست permission
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("🎤 دستیار صوتی")
+                    .setMessage("برای نمایش دستیار صوتی روی نقشه، نیاز به مجوز 'نمایش روی برنامه‌های دیگر' است.")
+                    .setPositiveButton("تنظیمات") { _, _ ->
+                        val intent = Intent(
+                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:$packageName")
+                        )
+                        startActivityForResult(intent, 1234)
+                    }
+                    .setNegativeButton("انصراف", null)
+                    .show()
+                return
+            }
+        }
+        
+        // شروع سرویس شناور
+        val intent = Intent(this, com.persianai.assistant.service.FloatingVoiceService::class.java)
+        intent.action = com.persianai.assistant.service.FloatingVoiceService.ACTION_START
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        
+        Toast.makeText(
+            this,
+            "🎤 دستیار صوتی فعال شد!\nℹ️ می‌توانید Google Maps را باز کنید",
+            Toast.LENGTH_LONG
+        ).show()
+        
+        // نمایش دیالوگ اختیاری برای باز کردن Google Maps
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🗺️ Google Maps")
+            .setMessage("آیا می‌خواهید Google Maps را الان باز کنید؟")
+            .setPositiveButton("بله") { _, _ ->
+                openGoogleMaps()
+            }
+            .setNegativeButton("خیر", null)
+            .show()
+    }
+    
+    private fun openGoogleMaps() {
+        try {
+            val intent = packageManager.getLaunchIntentForPackage("com.google.android.apps.maps")
+            if (intent != null) {
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "❌ Google Maps نصب نیست", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "❌ خطا در باز کردن Google Maps", Toast.LENGTH_SHORT).show()
+        }
     }
     
     fun searchAndNavigateTo(locationName: String) {

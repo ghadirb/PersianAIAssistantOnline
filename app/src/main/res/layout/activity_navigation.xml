@@ -306,6 +306,17 @@
         android:gravity="center">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/voiceAssistantFab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:src="@drawable/ic_voice_assistant"
+            android:contentDescription="دستیار صوتی"
+            app:fabSize="normal"
+            app:backgroundTint="#4CAF50"
+            app:tint="@android:color/white" />
+        
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/myLocationFab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
