@@ -965,7 +965,7 @@ class NavigationActivity : AppCompatActivity() {
         
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("🔍 نتایج جستجو (${results.size})")
-            .setItems(items) { _, which ->
+            .setItems(items) { dialogInterface, which ->
                 val result = results[which]
                 selectedDestination = LatLng(result.latitude, result.longitude)
                 
@@ -975,19 +975,17 @@ class NavigationActivity : AppCompatActivity() {
                 
                 Log.d("NavigationActivity", "✅ Search result selected: ${result.title}")
                 
-                // نمایش Bottom Sheet فوری
-                runOnUiThread {
+                // بستن dialog
+                dialogInterface.dismiss()
+                
+                // نمایش Bottom Sheet بعد از تاخیر کوتاه
+                webView.postDelayed({
+                    Log.d("NavigationActivity", "🔹 Showing bottom sheet...")
                     routeSheetHelper.showLocationSheet(result.latitude, result.longitude)
-                }
+                }, 300)
             }
             .setNegativeButton("بستن", null)
-            .create()
-        
-        dialog.show()
-        // Auto-dismiss بعد از انتخاب
-        dialog.setOnDismissListener {
-            Log.d("NavigationActivity", "Dialog dismissed")
-        }
+            .show()
     }
     
     private fun showAIChat() {

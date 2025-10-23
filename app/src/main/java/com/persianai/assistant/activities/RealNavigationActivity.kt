@@ -37,6 +37,7 @@ class RealNavigationActivity : AppCompatActivity() {
         routeDuration = intent.getIntExtra("DURATION", 0)
         
         // مقداردهی Views
+        webView = findViewById(R.id.navigationMapWebView)
         tvNextTurn = findViewById(R.id.tvNextTurn)
         tvDistance = findViewById(R.id.tvDistance)
         tvTime = findViewById(R.id.tvTime)
@@ -45,7 +46,10 @@ class RealNavigationActivity : AppCompatActivity() {
         // نمایش اطلاعات مسیر
         tvDistance.text = "مسافت: ${String.format("%.1f", routeDistance)} کم"
         tvTime.text = "زمان: $routeDuration دقیقه"
-        tvNextTurn.text = "🚗 در حال مسیریابی به مقصد..."
+        tvNextTurn.text = "🚗 شروع به حرکت کنید"
+        
+        // تنظیم WebView
+        setupWebView()
         
         // مقداردهی
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -54,15 +58,43 @@ class RealNavigationActivity : AppCompatActivity() {
         // شروع ناوبری با هشدارهای صوتی فارسی - مثل نشان
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             voiceAlerts.speak("شروع به حرکت کنید")
-        }, 1000)
+            tvNextTurn.text = "🚗 در حال حرکت به سمت مقصد"
+        }, 1500)
         
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             voiceAlerts.speak("مسافت ${String.format("%.0f", routeDistance)} کیلومتر، زمان تقریبی $routeDuration دقیقه")
-        }, 4000)
+        }, 4500)
+    }
+    
+    @android.annotation.SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+        }
         
-        // TODO: Load map in WebView
-        // TODO: Update location real-time
-        // TODO: Voice turn-by-turn guidance
+        webView.webViewClient = android.webkit.WebViewClient()
+        
+        // بارگذاری نقشه نشان
+        webView.loadUrl("file:///android_asset/neshan_map.html")
+        
+        // بعد از بارگذاری، نمایش مسیر
+        webView.webViewClient = object : android.webkit.WebViewClient() {
+            override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                // نمایش مسیر روی نقشه
+                val polyline = intent.getStringExtra("POLYLINE") ?: ""
+                if (polyline.isNotEmpty()) {
+                    webView.evaluateJavascript(
+                        "drawClickableRoute(0, '${polyline.replace("'", "\\'")}', '#4285F4');",
+                        null
+                    )
+                }
+                
+                // مرکز نقشه روی مسیر
+                webView.evaluateJavascript("map.setView([$destLat, $destLng], 13);", null)
+            }
+        }
     }
     
     override fun onDestroy() {
