@@ -13,7 +13,6 @@ import android.location.Location
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
-import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -26,7 +25,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.*
 import com.persianai.assistant.R
-import java.util.*
 
 /**
  * سرویس شناور برای هشدارهای صوتی فارسی در Google Maps
@@ -47,8 +45,8 @@ class FloatingVoiceService : Service() {
     private var currentSpeed: Float = 0f
     private var isNavigating = false
     
-    // TTS Engine
-    private var tts: TextToSpeech? = null
+    // TTS Engine (Hybrid: Google + Offline)
+    private var tts: com.persianai.assistant.tts.HybridTTS? = null
     private var isTTSReady = false
     
     companion object {
@@ -70,21 +68,18 @@ class FloatingVoiceService : Service() {
     }
     
     private fun initTTS() {
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val result = tts?.setLanguage(Locale("fa", "IR"))
-                isTTSReady = result != TextToSpeech.LANG_MISSING_DATA && 
-                            result != TextToSpeech.LANG_NOT_SUPPORTED
-                
+        try {
+            tts = com.persianai.assistant.tts.HybridTTS(this)
+            // صبر کمی برای آماده شدن
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                isTTSReady = tts?.isReady == true
                 if (isTTSReady) {
-                    tts?.setPitch(1.0f)
-                    tts?.setSpeechRate(0.9f)
-                    Log.d("FloatingVoice", "✅ TTS Ready")
+                    Log.d("FloatingVoice", "✅ Hybrid TTS Ready")
                     speak("دستیار صوتی فعال شد")
-                } else {
-                    Log.e("FloatingVoice", "❌ TTS فارسی موجود نیست")
                 }
-            }
+            }, 1000)
+        } catch (e: Exception) {
+            Log.e("FloatingVoice", "❌ TTS init failed", e)
         }
     }
     
@@ -161,10 +156,10 @@ class FloatingVoiceService : Service() {
     
     private fun speak(text: String) {
         if (isTTSReady) {
-            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, null)
+            tts?.speak(text)
             Log.d("FloatingVoice", "🔊 Speaking: $text")
         } else {
-            Log.w("FloatingVoice", "⚠️ TTS not ready, cannot speak")
+            Log.w("FloatingVoice", "⚠️ TTS not ready")
         }
     }
     
@@ -284,7 +279,6 @@ class FloatingVoiceService : Service() {
         }
         
         // Stop TTS
-        tts?.stop()
         tts?.shutdown()
         
         // Remove floating view
