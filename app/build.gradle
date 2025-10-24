@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 27
-        versionName "5.1.0-HYBRID-TTS"
+        versionCode 28
+        versionName "5.2.0-GOOGLE-TTS"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -113,10 +113,11 @@ dependencies {
     implementation 'org.slf4j:slf4j-simple:1.7.25'
     
     // Sherpa-ONNX for Offline Persian TTS (صدای حانیه)
-    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.30'
+    // TODO: Fix dependency issue
+    // implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.27'
     
-    // ONNX Runtime (backup)
-    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
+    // ONNX Runtime (backup) - for future offline TTS
+    // implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
     
     // OpenStreetMap (OSM) - Alternative navigation solution
     implementation 'org.osmdroid:osmdroid-android:6.1.17'

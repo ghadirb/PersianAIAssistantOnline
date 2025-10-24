@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   android-workflow:
     name: Android Build
     instance_type: mac_mini_m1
@@ -9,7 +9,8 @@
       - name: Build APK
         script: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
+          echo "Build completed with exit code: $?"
     artifacts:
       - app/build/outputs/**/*.apk
     publishing:
