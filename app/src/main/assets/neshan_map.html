@@ -53,10 +53,58 @@
             top: 0;
             left: 10px;
         }
+        /* Navigation Panel */
+        .nav-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            padding: 16px;
+            z-index: 1000;
+            display: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .nav-panel.active {
+            display: block;
+        }
+        .nav-distance {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1976D2;
+            margin-bottom: 4px;
+        }
+        .nav-instruction {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 12px;
+            direction: rtl;
+        }
+        .nav-eta {
+            font-size: 14px;
+            color: #666;
+            direction: rtl;
+        }
+        .nav-arrow {
+            font-size: 48px;
+            text-align: center;
+            margin: 8px 0;
+        }
     </style>
 </head>
 <body>
     <div id="loading">🗺️ در حال بارگذاری نقشه...</div>
+    
+    <!-- Navigation Panel -->
+    <div id="navPanel" class="nav-panel">
+        <div class="nav-arrow" id="navArrow">⬆️</div>
+        <div class="nav-distance" id="navDistance">500 متر</div>
+        <div class="nav-instruction" id="navInstruction">در پیچ بعدی به راست بپیچید</div>
+        <div class="nav-eta" id="navETA">⏱️ 5 دقیقه • 🚗 2.3 کیلومتر</div>
+    </div>
+    
     <div class="map-switcher">
         <button id="neshanBtn" onclick="switchToNeshan()">نشان</button>
         <button id="osmBtn" class="active" onclick="switchToOSM()">OSM</button>
@@ -308,6 +356,41 @@
             clickableRoutes.forEach(r => map.removeLayer(r));
             clickableRoutes = [];
             enableMapClicks();
+        }
+        
+        // ================== Navigation Panel Functions ==================
+        
+        function showNavigationPanel() {
+            document.getElementById('navPanel').classList.add('active');
+            console.log('✅ Navigation panel shown');
+        }
+        
+        function hideNavigationPanel() {
+            document.getElementById('navPanel').classList.remove('active');
+            console.log('🔴 Navigation panel hidden');
+        }
+        
+        function updateNavigationUI(distance, instruction, eta, totalDistance, arrow) {
+            document.getElementById('navDistance').textContent = distance || '500 متر';
+            document.getElementById('navInstruction').textContent = instruction || 'مستقیم بروید';
+            document.getElementById('navETA').textContent = eta || '⏱️ 5 دقیقه • 🚗 2.3 کیلومتر';
+            document.getElementById('navArrow').textContent = arrow || '⬆️';
+            
+            // Auto show panel when navigation starts
+            showNavigationPanel();
+        }
+        
+        // Start navigation mode (called from Android)
+        function startNavigationMode() {
+            showNavigationPanel();
+            updateNavigationUI('500 متر', 'مسیریابی شروع شد', '⏱️ در حال محاسبه...', '', '🧭');
+            console.log('🚗 Navigation mode activated');
+        }
+        
+        // Stop navigation mode
+        function stopNavigationMode() {
+            hideNavigationPanel();
+            console.log('🛑 Navigation mode stopped');
         }
     </script>
 </body>

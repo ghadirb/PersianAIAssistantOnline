@@ -364,6 +364,9 @@ class NavigationActivity : AppCompatActivity() {
                             }
                             webView.evaluateJavascript("showRoute([$routePoints]);", null)
                             
+                            // فعال کردن Navigation Panel
+                            webView.evaluateJavascript("startNavigationMode();", null)
+                            
                             // شروع یادگیری مسیر
                             routeLearningSystem.startLearningRoute(validRoute)
                             
@@ -414,6 +417,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         
         webView.evaluateJavascript("clearRoute();", null)
+        webView.evaluateJavascript("stopNavigationMode();", null)
         currentNavigationRoute = null
         disableAlerts()
         
@@ -1005,7 +1009,13 @@ class NavigationActivity : AppCompatActivity() {
                 // درخواست permission
                 MaterialAlertDialogBuilder(this)
                     .setTitle("🎤 دستیار صوتی")
-                    .setMessage("برای نمایش دستیار صوتی روی نقشه، نیاز به مجوز 'نمایش روی برنامه‌های دیگر' است.")
+                    .setMessage(
+                        "📌 برای نمایش دستیار صوتی روی Google Maps:\n\n" +
+                        "۱. روی 'تنظیمات' بزنید\n" +
+                        "۲. برنامه 'Persian AI Assistant' را پیدا کنید\n" +
+                        "۳. گزینه 'نمایش روی برنامه‌های دیگر' را فعال کنید\n" +
+                        "۴. برگردید و دوباره دکمه دستیار صوتی را بزنید"
+                    )
                     .setPositiveButton("تنظیمات") { _, _ ->
                         val intent = Intent(
                             android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -1029,20 +1039,21 @@ class NavigationActivity : AppCompatActivity() {
             startService(intent)
         }
         
-        Toast.makeText(
-            this,
-            "🎤 دستیار صوتی فعال شد!\nℹ️ می‌توانید Google Maps را باز کنید",
-            Toast.LENGTH_LONG
-        ).show()
-        
-        // نمایش دیالوگ اختیاری برای باز کردن Google Maps
+        // نمایش دیالوگ موفقیت
         MaterialAlertDialogBuilder(this)
-            .setTitle("🗺️ Google Maps")
-            .setMessage("آیا می‌خواهید Google Maps را الان باز کنید؟")
-            .setPositiveButton("بله") { _, _ ->
+            .setTitle("✅ دستیار صوتی فعال شد!")
+            .setMessage(
+                "🎉 دستیار صوتی در حال اجراست!\n\n" +
+                "📍 حالا:\n" +
+                "۱. Google Maps را باز کنید\n" +
+                "۲. مسیریابی را شروع کنید\n" +
+                "۳. دستیار صوتی به صورت خودکار هشدارهای فارسی می‌دهد\n\n" +
+                "💡 یک دکمه سبز شناور در کنار نقشه نمایش داده می‌شود"
+            )
+            .setPositiveButton("باز کردن Google Maps") { _, _ ->
                 openGoogleMaps()
             }
-            .setNegativeButton("خیر", null)
+            .setNegativeButton("بعداً", null)
             .show()
     }
     
