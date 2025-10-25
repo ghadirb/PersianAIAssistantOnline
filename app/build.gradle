@@ -113,11 +113,10 @@ dependencies {
     implementation 'org.slf4j:slf4j-simple:1.7.25'
     
     // Sherpa-ONNX for Offline Persian TTS (صدای حانیه)
-    // TODO: Fix dependency issue
-    // implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.27'
+    implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.27'
     
-    // ONNX Runtime (backup) - for future offline TTS
-    // implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
+    // ONNX Runtime (fallback)
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
     
     // OpenStreetMap (OSM) - Alternative navigation solution
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
