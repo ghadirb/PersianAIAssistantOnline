@@ -29,14 +29,13 @@ import com.persianai.assistant.R
 /**
  * سرویس شناور برای هشدارهای صوتی فارسی در Google Maps
  * - شناور و سبک
- * - در پس‌زمینه اجرا
  * - هشدارهای صوتی آفلاین
  */
 class FloatingVoiceService : Service() {
     
-    private lateinit var windowManager: WindowManager
-    private var floatingView: View? = null
-    private var isFloatingViewActive = false
+    private lateinit var notificationManager: NotificationManager
+    private var isVoiceAlertsEnabled = true
+    private var isSpeedLimitEnabled = true
     
     // Location tracking
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -50,11 +49,13 @@ class FloatingVoiceService : Service() {
     private var isTTSReady = false
     
     companion object {
-        const val CHANNEL_ID = "FloatingVoiceChannel"
-        const val NOTIFICATION_ID = 1001
-        
+        const val CHANNEL_ID = "floating_voice_channel"
+        const val NOTIFICATION_ID = 100
         const val ACTION_START = "START_FLOATING_VOICE"
         const val ACTION_STOP = "STOP_FLOATING_VOICE"
+        const val ACTION_TOGGLE_VOICE = "TOGGLE_VOICE_ALERTS"
+        const val ACTION_TOGGLE_SPEED = "TOGGLE_SPEED_LIMIT"
+        const val ACTION_TEST = "TEST_VOICE"
     }
     
     override fun onCreate() {
@@ -64,7 +65,7 @@ class FloatingVoiceService : Service() {
         createNotificationChannel()
         initTTS()
         initLocationTracking()
-        showFloatingButton()
+        showNavigationNotification()
     }
     
     private fun initTTS() {
@@ -137,10 +138,8 @@ class FloatingVoiceService : Service() {
         // اگه مسیریابی تموم شد
         if (!isNavigating && wasNavigating) {
             onNavigationStopped()
+            updateNotification()
         }
-        
-        // Update UI
-        updateFloatingButton()
         
         Log.d("FloatingVoice", "📍 Speed: ${currentSpeed.toInt()} km/h, Navigating: $isNavigating")
     }
@@ -163,155 +162,88 @@ class FloatingVoiceService : Service() {
         }
     }
     
-    private fun updateFloatingButton() {
-        val statusText = floatingView?.findViewById<TextView>(R.id.statusText)
-        statusText?.text = if (isNavigating) {
-            "${currentSpeed.toInt()} km/h"
-        } else {
-            "آماده"
-        }
-        statusText?.visibility = if (isNavigating) View.VISIBLE else View.GONE
+    private fun showNavigationNotification() {
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        val notification = buildInteractiveNotification()
+        notificationManager?.notify(NOTIFICATION_ID, notification)
+        
+        Log.d("FloatingVoice", "✅ Interactive notification shown")
+    }
+    
+    private fun buildInteractiveNotification(): Notification {
+        // PendingIntents for buttons
+        val voicePI = PendingIntent.getService(this, 1,
+            Intent(this, FloatingVoiceService::class.java).apply { action = ACTION_TOGGLE_VOICE },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        
+        val speedPI = PendingIntent.getService(this, 2,
+            Intent(this, FloatingVoiceService::class.java).apply { action = ACTION_TOGGLE_SPEED },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        
+        val testPI = PendingIntent.getService(this, 3,
+            Intent(this, FloatingVoiceService::class.java).apply { action = ACTION_TEST },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        
+        val stopPI = PendingIntent.getService(this, 4,
+            Intent(this, FloatingVoiceService::class.java).apply { action = ACTION_STOP },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        
+        val status = if (isNavigating) "🚗 ${currentSpeed.toInt()} km/h" else "آماده"
+        val voiceTxt = if (isVoiceAlertsEnabled) "هشدار ON" else "هشدار OFF"
+        val speedTxt = if (isSpeedLimitEnabled) "سرعت ON" else "سرعت OFF"
+        
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("🧭 دستیار مسیریابی فارسی")
+            .setContentText("$status • هشدارهای فارسی فعال")
+            .setSmallIcon(android.R.drawable.ic_dialog_map)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .addAction(android.R.drawable.ic_lock_silent_mode_off, voiceTxt, voicePI)
+            .addAction(android.R.drawable.ic_menu_sort_by_size, speedTxt, speedPI)
+            .addAction(android.R.drawable.ic_btn_speak_now, "تست", testPI)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "بستن", stopPI)
+            .build()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, createNotification())
-                Log.d("FloatingVoice", "✅ Floating voice started")
+                startForeground(NOTIFICATION_ID, buildInteractiveNotification())
+                speak("شروع به سفر کنید. دستیار فارسی فعال است")
             }
-            ACTION_STOP -> {
-                stopFloatingVoice()
+            ACTION_TOGGLE_VOICE -> {
+                isVoiceAlertsEnabled = !isVoiceAlertsEnabled
+                updateNotification()
+                if (isVoiceAlertsEnabled) speak("هشدار فعال")
             }
+            ACTION_TOGGLE_SPEED -> {
+                isSpeedLimitEnabled = !isSpeedLimitEnabled
+                updateNotification()
+            }
+            ACTION_TEST -> speak("تست صدا. دستیار فارسی فعال است")
+            ACTION_STOP -> stopFloatingVoice()
         }
         return START_STICKY
     }
     
-    private fun showFloatingButton() {
-        if (isFloatingViewActive) return
-        
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        
-        // Inflate floating view
-        floatingView = LayoutInflater.from(this).inflate(
-            R.layout.floating_voice_button,
-            null
-        )
-        
-        // Параметры для floating window
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-        
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-        
-        params.gravity = Gravity.TOP or Gravity.START
-        params.x = 100
-        params.y = 100
-        
-        // Add view to window
-        windowManager.addView(floatingView, params)
-        isFloatingViewActive = true
-        
-        // Setup drag and click
-        setupFloatingViewActions(params)
-        
-        Log.d("FloatingVoice", "✅ Floating button shown")
-    }
-    
-    private fun setupFloatingViewActions(params: WindowManager.LayoutParams) {
-        val panel = floatingView?.findViewById<View>(R.id.floatingPanel)
-        val closeButton = floatingView?.findViewById<ImageView>(R.id.closeButton)
-        val testButton = floatingView?.findViewById<ImageView>(R.id.testButton)
-        val settingsButton = floatingView?.findViewById<ImageView>(R.id.settingsButton)
-        
-        // Close button
-        closeButton?.setOnClickListener {
-            stopFloatingVoice()
-            stopSelf()
-        }
-        
-        // Test button - تست صدا
-        testButton?.setOnClickListener {
-            speak("سلام! دستیار صوتی فارسی فعال است. شروع به حرکت کنید")
-            Log.d("FloatingVoice", "🔊 Test voice triggered")
-        }
-        
-        // Settings button
-        settingsButton?.setOnClickListener {
-            // TODO: Show settings dialog
-            speak("تنظیمات در نسخه بعدی")
-        }
-        
-        // Make panel draggable
-        var initialX = 0
-        var initialY = 0
-        var initialTouchX = 0f
-        var initialTouchY = 0f
-        
-        panel?.setOnTouchListener { view, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = params.x
-                    initialY = params.y
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager.updateViewLayout(floatingView, params)
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    val deltaX = event.rawX - initialTouchX
-                    val deltaY = event.rawY - initialTouchY
-                    
-                    // اگه حرکت کوچک بود، کلیک محسوب میشه
-                    if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
-                        onFloatingButtonClick()
-                    }
-                    true
-                }
-                else -> false
-            }
-        }
-    }
-    
-    private fun onFloatingButtonClick() {
-        Log.d("FloatingVoice", "🔘 Floating button clicked")
-        // TODO: تست صدا
-        // voiceEngine.speak("هشدار صوتی فعال است")
+    private fun updateNotification() {
+        notificationManager.notify(NOTIFICATION_ID, buildInteractiveNotification())
     }
     
     private fun stopFloatingVoice() {
-        // Stop location tracking
-        locationCallback?.let {
-            fusedLocationClient.removeLocationUpdates(it)
+        try {
+            speak("دستیار مسیریابی متوقف شد")
+            notificationManager?.cancel(NOTIFICATION_ID)
+            locationCallback?.let {
+                fusedLocationClient.removeLocationUpdates(it)
+            }
+            tts?.shutdown()
+            stopForeground(true)
+            Log.d("FloatingVoice", "🛑 Navigation service stopped")
+        } catch (e: Exception) {
+            Log.e("FloatingVoice", "Error stopping", e)
         }
-        
-        // Stop TTS
-        tts?.shutdown()
-        
-        // Remove floating view
-        if (floatingView != null && isFloatingViewActive) {
-            windowManager.removeView(floatingView)
-            floatingView = null
-            isFloatingViewActive = false
-        }
-        
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
-        Log.d("FloatingVoice", "⏹️ Service stopped")
     }
     
     private fun createNotificationChannel() {
