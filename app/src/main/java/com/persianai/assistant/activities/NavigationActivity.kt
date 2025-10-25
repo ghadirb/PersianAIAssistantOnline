@@ -87,8 +87,16 @@ class NavigationActivity : AppCompatActivity() {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { loc ->
                 currentLocation = loc
+                // Update user location on map
                 webView.evaluateJavascript("setUserLocation(${loc.latitude}, ${loc.longitude});", null)
-                webView.evaluateJavascript("disableAutoCenter();", null)
+                
+                // Auto-center during navigation
+                if (isNavigationActive) {
+                    webView.evaluateJavascript("map.setView([${loc.latitude}, ${loc.longitude}], 17);", null)
+                } else {
+                    webView.evaluateJavascript("disableAutoCenter();", null)
+                }
+                
                 binding.currentSpeedText.text = "${(loc.speed * 3.6f).toInt()} km/h"
                 
                 // ثبت مکان برای یادگیری
@@ -97,6 +105,7 @@ class NavigationActivity : AppCompatActivity() {
                 // اگر در حال مسیریابی هستیم، هشدارها را بررسی کن
                 if (isNavigationActive) {
                     checkAlerts(loc)
+                    updateNavigationProgress(loc)
                     
                     // هشدار صوتی سرعت
                     val speed = (loc.speed * 3.6f).toInt()
@@ -1196,6 +1205,49 @@ class NavigationActivity : AppCompatActivity() {
             Log.d("NavigationActivity", "🔊 Speaking: $text")
         } else {
             Log.w("NavigationActivity", "⚠️ TTS not ready")
+        }
+    }
+    
+    private fun updateNavigationProgress(location: Location) {
+        currentNavigationRoute?.let { route ->
+            // محاسبه فاصله تا مقصد
+            val destination = route.waypoints.lastOrNull() ?: return
+            val results = FloatArray(1)
+            Location.distanceBetween(
+                location.latitude, location.longitude,
+                destination.latitude, destination.longitude,
+                results
+            )
+            
+            val distanceMeters = results[0]
+            val distanceText = if (distanceMeters > 1000) {
+                "${String.format("%.1f", distanceMeters / 1000)} کیلومتر"
+            } else {
+                "${distanceMeters.toInt()} متر"
+            }
+            
+            // محاسبه زمان تقریبی
+            val speed = location.speed * 3.6f // km/h
+            val eta = if (speed > 5) {
+                val timeMinutes = (distanceMeters / 1000) / speed * 60
+                "${timeMinutes.toInt()} دقیقه"
+            } else {
+                "در حال محاسبه..."
+            }
+            
+            // Update Navigation Panel
+            webView.evaluateJavascript(
+                "updateNavigationUI('$distanceText', 'مستقیم بروید', '⏱️ $eta', '', '⬆️');",
+                null
+            )
+            
+            // هشدار صوتی در فواصل مشخص
+            if (distanceMeters < 100 && distanceMeters > 50) {
+                speak("صد متر دیگر به مقصد می‌رسید")
+            } else if (distanceMeters < 50) {
+                speak("به مقصد رسیدید")
+                stopNavigation()
+            }
         }
     }
     

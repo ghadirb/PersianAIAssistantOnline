@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
+import com.persianai.assistant.weather.WeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
