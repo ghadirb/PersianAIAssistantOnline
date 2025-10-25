@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 29
-        versionName "5.3.0-NAVIGATION-UI"
+        versionCode 30
+        versionName "5.5.0-VOICE-ALERTS"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

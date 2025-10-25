@@ -79,6 +79,10 @@ class NavigationActivity : AppCompatActivity() {
     private var currentMapLayer = "normal"
     private var isNavigationActive = false
     
+    // TTS Engine
+    private var tts: com.persianai.assistant.tts.HybridTTS? = null
+    private var isTTSReady = false
+    
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { loc ->
@@ -93,6 +97,12 @@ class NavigationActivity : AppCompatActivity() {
                 // اگر در حال مسیریابی هستیم، هشدارها را بررسی کن
                 if (isNavigationActive) {
                     checkAlerts(loc)
+                    
+                    // هشدار صوتی سرعت
+                    val speed = (loc.speed * 3.6f).toInt()
+                    if (speed > 100) {
+                        speak("سرعت بالا: $speed کیلومتر بر ساعت")
+                    }
                 }
             }
         }
@@ -159,6 +169,9 @@ class NavigationActivity : AppCompatActivity() {
             aiRoutePredictor = AIRoutePredictor(this)
             aiRoadLimitDetector = AIRoadLimitDetector(this)
             voiceGuide = com.persianai.assistant.voice.NavigationVoiceGuide(this)
+            
+            // Initialize TTS for voice alerts
+            initTTS()
             
             // تنظیم کلید API نشان
             val neshanApiKey = "service.649ba7521ba04da595c5ab56413b3c84"
@@ -366,6 +379,11 @@ class NavigationActivity : AppCompatActivity() {
                             
                             // فعال کردن Navigation Panel
                             webView.evaluateJavascript("startNavigationMode();", null)
+                            
+                            // هشدار صوتی شروع مسیریابی
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                speak("مسیریابی شروع شد. شروع به حرکت کنید. مسافت ${String.format("%.1f", validRoute.distance / 1000)} کیلومتر است")
+                            }, 500)
                             
                             // شروع یادگیری مسیر
                             routeLearningSystem.startLearningRoute(validRoute)
@@ -1158,8 +1176,32 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
     
+    private fun initTTS() {
+        try {
+            tts = com.persianai.assistant.tts.HybridTTS(this)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                isTTSReady = tts?.isReady == true
+                if (isTTSReady) {
+                    Log.d("NavigationActivity", "✅ TTS Ready")
+                }
+            }, 1500)
+        } catch (e: Exception) {
+            Log.e("NavigationActivity", "❌ TTS init failed", e)
+        }
+    }
+    
+    private fun speak(text: String) {
+        if (isTTSReady) {
+            tts?.speak(text)
+            Log.d("NavigationActivity", "🔊 Speaking: $text")
+        } else {
+            Log.w("NavigationActivity", "⚠️ TTS not ready")
+        }
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
+        tts?.shutdown()
         instance = null
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
