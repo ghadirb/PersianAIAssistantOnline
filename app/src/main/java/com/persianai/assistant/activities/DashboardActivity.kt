@@ -61,9 +61,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.expensesCard?.alpha = 0f
         binding.remindersCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
-        // TODO: Add weatherCard to layout
-        // مخفی کردن کارت آب و هوا
-        // binding.weatherCard?.visibility = View.GONE
+        binding.weatherCard?.alpha = 0f
     }
     
     private fun setupDate() {
@@ -122,24 +120,23 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         
-        // TODO: Add weatherCard to layout
-        // binding.weatherCard?.setOnClickListener {
-            // try {
-                // AnimationHelper.clickAnimation(it)
-                // it.postDelayed({
-                    // try {
-                        // val intent = Intent(this, WeatherActivity::class.java)
-                        // startActivity(intent)
-                        // overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                    // } catch (e: Exception) {
-                        // android.util.Log.e("DashboardActivity", "Error opening weather", e)
-                        // Toast.makeText(this, "خطا در باز کردن آب و هوا", Toast.LENGTH_SHORT).show()
-                    // }
-                // }, 150)
-            // } catch (e: Exception) {
-                // android.util.Log.e("DashboardActivity", "Click error", e)
-            // }
-        // }
+        binding.weatherCard?.setOnClickListener {
+            try {
+                AnimationHelper.clickAnimation(it)
+                it.postDelayed({
+                    try {
+                        val intent = Intent(this, WeatherActivity::class.java)
+                        startActivity(intent)
+                        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                    } catch (e: Exception) {
+                        android.util.Log.e("DashboardActivity", "Error opening weather", e)
+                        Toast.makeText(this, "خطا در باز کردن آب و هوا", Toast.LENGTH_SHORT).show()
+                    }
+                }, 150)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Click error", e)
+            }
+        }
         
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
@@ -188,14 +185,13 @@ class DashboardActivity : AppCompatActivity() {
     private fun loadWeather() {
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
-        // TODO: Add weatherTempText and weatherIcon to layout
-        // // نمایش فوری cache برای جلوگیری از چشمک زدن
-        // val savedTemp = prefs.getFloat("current_temp_$city", -999f)
-        // val savedIcon = prefs.getString("weather_icon_$city", null)
-        // if (savedTemp != -999f && !savedIcon.isNullOrEmpty()) {
-        //     binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-        //     binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
-        // }
+        // نمایش فوری cache برای جلوگیری از چشمک زدن
+        val savedTemp = prefs.getFloat("current_temp_$city", -999f)
+        val savedIcon = prefs.getString("weather_icon_$city", null)
+        if (savedTemp != -999f && !savedIcon.isNullOrEmpty()) {
+            binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+            binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
+        }
         
         lifecycleScope.launch {
             try {
@@ -204,8 +200,8 @@ class DashboardActivity : AppCompatActivity() {
                 
                 if (weatherData != null) {
                     android.util.Log.d("DashboardActivity", "Live weather from WorldWeather: ${weatherData.temp}°C for $city")
-                    // binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
-                    // binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
+                    binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
+                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
                     
                     // ذخیره دما برای استفاده در WeatherActivity
                     prefs.edit().putFloat("current_temp_$city", weatherData.temp.toFloat()).apply()
@@ -217,16 +213,16 @@ class DashboardActivity : AppCompatActivity() {
                     // استفاده از داده‌های ذخیره شده
                     val savedTemp = prefs.getFloat("current_temp_$city", 25f)
                     val savedIcon = prefs.getString("weather_icon_$city", "113")
-                    // binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                    // binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
+                    binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
                 // استفاده از داده ذخیره شده
                 val savedTemp = prefs.getFloat("current_temp_$city", 25f)
                 val savedIcon = prefs.getString("weather_icon_$city", "113")
-                // binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                // binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
+                binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
+                binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
             }
         }
         
@@ -352,6 +348,7 @@ class DashboardActivity : AppCompatActivity() {
         // Staggered fade in animation for cards
         val cards = listOfNotNull(
             binding.calendarCard,
+            binding.weatherCard,
             binding.navigationCard,
             binding.aiChatCard,
             binding.musicCard,
