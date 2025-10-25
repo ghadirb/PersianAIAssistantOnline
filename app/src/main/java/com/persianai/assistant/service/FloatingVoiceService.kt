@@ -228,15 +228,36 @@ class FloatingVoiceService : Service() {
     }
     
     private fun setupFloatingViewActions(params: WindowManager.LayoutParams) {
-        val button = floatingView?.findViewById<ImageView>(R.id.floatingButton)
-        val statusText = floatingView?.findViewById<TextView>(R.id.statusText)
+        val panel = floatingView?.findViewById<View>(R.id.floatingPanel)
+        val closeButton = floatingView?.findViewById<ImageView>(R.id.closeButton)
+        val testButton = floatingView?.findViewById<ImageView>(R.id.testButton)
+        val settingsButton = floatingView?.findViewById<ImageView>(R.id.settingsButton)
         
+        // Close button
+        closeButton?.setOnClickListener {
+            stopFloatingVoice()
+            stopSelf()
+        }
+        
+        // Test button - تست صدا
+        testButton?.setOnClickListener {
+            speak("سلام! دستیار صوتی فارسی فعال است. شروع به حرکت کنید")
+            Log.d("FloatingVoice", "🔊 Test voice triggered")
+        }
+        
+        // Settings button
+        settingsButton?.setOnClickListener {
+            // TODO: Show settings dialog
+            speak("تنظیمات در نسخه بعدی")
+        }
+        
+        // Make panel draggable
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
         
-        button?.setOnTouchListener { view, event ->
+        panel?.setOnTouchListener { view, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = params.x

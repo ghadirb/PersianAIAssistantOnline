@@ -1,0 +1,14 @@
+﻿private fun updateFloatingButton() {
+    val statusText = floatingView?.findViewById<TextView>(R.id.statusText)
+    val speedText = floatingView?.findViewById<TextView>(R.id.speedText)
+    
+    if (isNavigating) {
+        statusText?.text = \"🚗 در حال مسیریابی\"
+        statusText?.setTextColor(android.graphics.Color.parseColor(\"#4CAF50\"))
+        speedText?.text = \"\ km/h\"
+    } else {
+        statusText?.text = \"🟢 آماده\"
+        statusText?.setTextColor(android.graphics.Color.parseColor(\"#2196F3\"))
+        speedText?.text = \"0 km/h\"
+    }
+}

@@ -1,35 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#DD000000"
+    android:padding="16dp"
+    android:elevation="16dp"
+    android:id="@+id/floatingPanel">
     
+    <!-- Header -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/floating_button_background"
-        android:padding="12dp"
-        android:elevation="8dp">
-        
-        <ImageView
-            android:id="@+id/floatingButton"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:src="@drawable/ic_voice_assistant"
-            android:contentDescription="دستیار صوتی"
-            android:padding="12dp"
-            android:background="@drawable/floating_button_circle"
-            android:elevation="4dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
         
         <TextView
-            android:id="@+id/statusText"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="فعال"
+            android:layout_weight="1"
+            android:text="🎤 دستیار صوتی"
             android:textColor="@android:color/white"
-            android:textSize="12sp"
-            android:layout_gravity="center"
-            android:layout_marginTop="4dp"
-            android:visibility="gone" />
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        
+        <ImageView
+            android:id="@+id/closeButton"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:padding="4dp"
+            android:contentDescription="بستن" />
     </LinearLayout>
-</FrameLayout>
+    
+    <!-- Status Display -->
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🟢 آماده"
+        android:textColor="#4CAF50"
+        android:textSize="14sp"
+        android:layout_marginTop="12dp"
+        android:gravity="center" />
+    
+    <TextView
+        android:id="@+id/speedText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0 km/h"
+        android:textColor="@android:color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:gravity="center" />
+    
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:gravity="center">
+        
+        <ImageView
+            android:id="@+id/testButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="تست صدا"
+            android:layout_marginEnd="8dp" />
+        
+        <ImageView
+            android:id="@+id/settingsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_preferences"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="تنظیمات"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+</LinearLayout>
