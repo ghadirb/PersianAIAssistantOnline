@@ -11,8 +11,8 @@ android {
         applicationId "com.persianai.assistant"
         minSdk 26
         targetSdk 34
-        versionCode 33
-        versionName "5.9.1-STABLE"
+        versionCode 34
+        versionName "5.10-WEATHER"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
