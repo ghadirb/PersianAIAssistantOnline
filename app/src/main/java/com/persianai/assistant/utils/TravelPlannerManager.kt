@@ -361,13 +361,15 @@ class TravelPlannerManager(private val context: Context) {
     private fun scheduleReminder(time: Long, title: String, message: String) {
         try {
             // استفاده از NotificationHelper برای تنظیم یادآور
-            val notificationHelper = NotificationHelper(context)
-            notificationHelper.scheduleNotification(
-                title = title,
-                message = message,
-                time = time,
-                channelId = "travel_reminders"
-            )
+            scope.launch {
+                val notificationHelper = NotificationHelper(context)
+                notificationHelper.scheduleNotification(
+                    title = title,
+                    message = message,
+                    time = time,
+                    channelId = "travel_reminders"
+                )
+            }
             
             Log.i("TravelPlannerManager", "✅ یادآور تنظیم شد: $title")
         } catch (e: Exception) {

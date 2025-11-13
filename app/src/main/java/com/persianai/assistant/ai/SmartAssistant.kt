@@ -2,7 +2,7 @@ package com.persianai.assistant.ai
 
 import android.content.Context
 import android.content.Intent
-import com.persianai.assistant.activities.MusicActivity
+import com.persianai.assistant.activities.ImprovedMusicActivity
 import com.persianai.assistant.activities.NavigationActivity
 
 /**
@@ -38,7 +38,7 @@ object SmartAssistant {
             else -> "تصادفی"
         }
         
-        val intent = Intent(context, MusicActivity::class.java).apply {
+        val intent = Intent(context, ImprovedMusicActivity::class.java).apply {
             putExtra("AI_MOOD", mood)
             putExtra("AUTO_START", true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK

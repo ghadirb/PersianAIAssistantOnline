@@ -26,6 +26,11 @@
     <color name="expense_red">#F44336</color>
     <color name="neutral_gray">#9E9E9E</color>
     
+    <!-- Purple colors for music player -->
+    <color name="purple_200">#BB86FC</color>
+    <color name="purple_100">#F1E9FF</color>
+    <color name="purple_700">#6200EE</color>
+    
     <!-- Additional status colors -->
     <color name="success_green">#4CAF50</color>
     <color name="warning_orange">#FF9800</color>

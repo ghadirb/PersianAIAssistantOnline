@@ -169,4 +169,18 @@ JSON ONLY."""
             OfflineModelType.BASIC
         }
     }
+    
+    /**
+     * دریافت مقدار Integer
+     */
+    fun getInt(key: String, defaultValue: Int): Int {
+        return prefs.getInt(key, defaultValue)
+    }
+    
+    /**
+     * دریافت مقدار Double
+     */
+    fun getDouble(key: String, defaultValue: Double): Double {
+        return prefs.getFloat(key, defaultValue.toFloat()).toDouble()
+    }
 }

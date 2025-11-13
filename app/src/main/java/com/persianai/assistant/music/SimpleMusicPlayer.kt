@@ -6,9 +6,6 @@ import android.net.Uri
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
@@ -324,6 +321,20 @@ class SimpleMusicPlayer(private val context: Context) {
     fun setRepeatMode(mode: RepeatMode) {
         repeatMode = mode
         Log.d(TAG, "Repeat mode set to: $mode")
+    }
+    
+    /**
+     * دریافت حالت تکرار فعلی
+     */
+    fun getRepeatMode(): RepeatMode {
+        return repeatMode
+    }
+    
+    /**
+     * بررسی وضعیت پخش تصادفی
+     */
+    fun isShuffleEnabled(): Boolean {
+        return isShuffle
     }
     
     /**

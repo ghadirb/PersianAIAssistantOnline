@@ -150,7 +150,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.musicCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, MusicActivity::class.java)
+                val intent = Intent(this, ImprovedMusicActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 150)

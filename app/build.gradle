@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.6.0'
 }
 
 android {
@@ -62,6 +63,9 @@ dependencies {
     
     // JSON
     implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // Kotlin Serialization
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
     
     // Database - Temporarily disabled for initial build
     // Will be re-added with KSP in next version
