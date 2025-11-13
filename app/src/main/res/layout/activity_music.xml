@@ -65,6 +65,18 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Tracks List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/tracksRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                android:clipToPadding="false"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
+
             <!-- Mood Selection Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -230,16 +242,39 @@
                         android:layout_marginBottom="8dp" />
 
                     <!-- Time Display -->
-                    <TextView
-                        android:id="@+id/timeText"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="0:00 / 0:00"
-                        android:textSize="12sp"
-                        android:textColor="@android:color/white"
+                        android:orientation="horizontal"
                         android:gravity="center"
                         android:visibility="gone"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:id="@+id/currentTimeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0:00"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=" / "
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white"
+                            android:layout_marginHorizontal="4dp" />
+
+                        <TextView
+                            android:id="@+id/totalTimeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0:00"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/white" />
+
+                    </LinearLayout>
 
                     <!-- Playback Controls -->
                     <LinearLayout
