@@ -509,10 +509,10 @@ class BankingAssistantManager(private val context: Context) {
      */
     private fun scheduleBillReminder(bill: Bill) {
         try {
-            val notificationHelper = NotificationHelper(context)
             val reminderDate = getReminderDate(bill.dueDate, bill.reminderDays)
             
             scope.launch {
+                val notificationHelper = NotificationHelper(context)
                 notificationHelper.scheduleNotification(
                     title = "یادآور پرداخت قبض",
                     message = "قبض ${bill.title} تا ${bill.reminderDays} روز دیگر سررسید می‌شود",

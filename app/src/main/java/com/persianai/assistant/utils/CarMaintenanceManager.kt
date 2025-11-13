@@ -508,8 +508,8 @@ class CarMaintenanceManager(private val context: Context) {
      */
     private fun sendReminderNotification(reminder: MaintenanceReminder) {
         try {
-            val notificationHelper = NotificationHelper(context)
             scope.launch {
+                val notificationHelper = NotificationHelper(context)
                 notificationHelper.showNotification(
                     title = "🔧 یادآور نگهداری خودرو",
                     message = reminder.description,
@@ -528,8 +528,8 @@ class CarMaintenanceManager(private val context: Context) {
      */
     private fun sendCompletionNotification(reminder: MaintenanceReminder) {
         try {
-            val notificationHelper = NotificationHelper(context)
             scope.launch {
+                val notificationHelper = NotificationHelper(context)
                 notificationHelper.showNotification(
                     title = "✅ تکمیل نگهداری خودرو",
                     message = "${reminder.title} با موفقیت انجام شد",
