@@ -1,0 +1,19 @@
+FROM openjdk:17-jdk-slim
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Make gradlew executable
+RUN chmod +x gradlew
+
+# Build command
+CMD ["./gradlew", "assembleDebug", "--stacktrace"]

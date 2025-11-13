@@ -509,11 +509,13 @@ class CarMaintenanceManager(private val context: Context) {
     private fun sendReminderNotification(reminder: MaintenanceReminder) {
         try {
             val notificationHelper = NotificationHelper(context)
-            notificationHelper.showNotification(
-                title = "🔧 یادآور نگهداری خودرو",
-                message = reminder.description,
-                channelId = "car_maintenance"
-            )
+            scope.launch {
+                notificationHelper.showNotification(
+                    title = "🔧 یادآور نگهداری خودرو",
+                    message = reminder.description,
+                    channelId = "car_maintenance"
+                )
+            }
             
             Log.i("CarMaintenanceManager", "✅ نوتیفیکیشن یادآور ارسال شد: ${reminder.title}")
         } catch (e: Exception) {
@@ -527,11 +529,13 @@ class CarMaintenanceManager(private val context: Context) {
     private fun sendCompletionNotification(reminder: MaintenanceReminder) {
         try {
             val notificationHelper = NotificationHelper(context)
-            notificationHelper.showNotification(
-                title = "✅ تکمیل نگهداری خودرو",
-                message = "${reminder.title} با موفقیت انجام شد",
-                channelId = "car_maintenance"
-            )
+            scope.launch {
+                notificationHelper.showNotification(
+                    title = "✅ تکمیل نگهداری خودرو",
+                    message = "${reminder.title} با موفقیت انجام شد",
+                    channelId = "car_maintenance"
+                )
+            }
         } catch (e: Exception) {
             Log.e("CarMaintenanceManager", "❌ خطا در ارسال نوتیفیکیشن تکمیل: ${e.message}")
         }

@@ -512,12 +512,14 @@ class BankingAssistantManager(private val context: Context) {
             val notificationHelper = NotificationHelper(context)
             val reminderDate = getReminderDate(bill.dueDate, bill.reminderDays)
             
-            notificationHelper.scheduleNotification(
-                title = "یادآور پرداخت قبض",
-                message = "قبض ${bill.title} تا ${bill.reminderDays} روز دیگر سررسید می‌شود",
-                time = reminderDate,
-                channelId = "bill_reminders"
-            )
+            scope.launch {
+                notificationHelper.scheduleNotification(
+                    title = "یادآور پرداخت قبض",
+                    message = "قبض ${bill.title} تا ${bill.reminderDays} روز دیگر سررسید می‌شود",
+                    time = reminderDate,
+                    channelId = "bill_reminders"
+                )
+            }
             
             Log.i("BankingAssistantManager", "✅ یادآور قبض تنظیم شد: ${bill.title}")
         } catch (e: Exception) {

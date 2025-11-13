@@ -182,11 +182,13 @@ class SmartReminderManager(private val context: Context) {
         try {
             // استفاده از NotificationHelper برای ارسال نوتیفیکیشن
             val notificationHelper = NotificationHelper(context)
-            notificationHelper.showNotification(
-                title = "🔔 یادآور هوشمند: ${reminder.title}",
-                message = reminder.message,
-                channelId = "smart_reminders"
-            )
+            scope.launch {
+                notificationHelper.showNotification(
+                    title = "🔔 یادآور هوشمند: ${reminder.title}",
+                    message = reminder.message,
+                    channelId = "smart_reminders"
+                )
+            }
             
             Log.i("SmartReminderManager", "✅ نوتیفیکیشن یادآور ارسال شد: ${reminder.title}")
             
