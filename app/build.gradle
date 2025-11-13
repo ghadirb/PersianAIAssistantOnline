@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.persianai.assistant"
-        minSdk 26
+        minSdk 26  // اندروید 8.0 - کاملاً سازگار با اندروید 10
         targetSdk 34
         versionCode 34
         versionName "5.10-WEATHER"
