@@ -26,9 +26,6 @@ class PersianVoiceAssistant(private val context: Context) {
     private val carMaintenanceManager = CarMaintenanceManager(context)
     private val preferencesManager = PreferencesManager(context)
     
-    // Lazy initialization for NotificationHelper to avoid context issues
-    private val notificationHelper by lazy { NotificationHelper(context) }
-    
     // State flows برای وضعیت دستیار
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening
@@ -533,18 +530,19 @@ class PersianVoiceAssistant(private val context: Context) {
     /**
      * دریافت نام دسته‌بندی
      */
-    private fun getCategoryName(category: BankingAssistantManager.TransactionCategory): String {
+    private fun getCategoryName(category: String): String {
         return when (category) {
-            BankingAssistantManager.TransactionCategory.FOOD -> "خوراک"
-            BankingAssistantManager.TransactionCategory.TRANSPORT -> "حمل و نقل"
-            BankingAssistantManager.TransactionCategory.SHOPPING -> "خرید"
-            BankingAssistantManager.TransactionCategory.ENTERTAINMENT -> "سرگرمی"
-            BankingAssistantManager.TransactionCategory.HEALTH -> "سلامتی"
-            BankingAssistantManager.TransactionCategory.EDUCATION -> "آموزشی"
-            BankingAssistantManager.TransactionCategory.BILLS -> "قبوض"
-            BankingAssistantManager.TransactionCategory.SALARY -> "حقوق"
-            BankingAssistantManager.TransactionCategory.INVESTMENT -> "سرمایه‌گذاری"
-            BankingAssistantManager.TransactionCategory.OTHER -> "سایر"
+            "FOOD" -> "خوراک"
+            "TRANSPORT" -> "حمل و نقل"
+            "SHOPPING" -> "خرید"
+            "ENTERTAINMENT" -> "سرگرمی"
+            "HEALTH" -> "سلامتی"
+            "EDUCATION" -> "آموزشی"
+            "BILLS" -> "قبوض"
+            "SALARY" -> "حقوق"
+            "INVESTMENT" -> "سرمایه‌گذاری"
+            "OTHER" -> "سایر"
+            else -> category
         }
     }
     
