@@ -10,15 +10,6 @@ workflows:
     
     environment:
       java: 17
-      android_signing:
-        - keystore_reference
-      groups:
-        - google_play
-      vars:
-        CM_KEYSTORE: Encrypted(...) # Replace with your actual keystore
-        CM_KEYSTORE_PASSWORD: Encrypted(...)
-        CM_KEY_ALIAS: Encrypted(...)
-        CM_KEY_PASSWORD: Encrypted(...)
       
     triggering:
       events:
@@ -52,13 +43,8 @@ workflows:
       
       - name: Build Release APK (if keystore is available)
         script: |
-          if [ -n "$CM_KEYSTORE" ]; then
-            echo "Building release APK..."
-            ./gradlew assembleRelease --stacktrace --info
-            echo "Release build completed"
-          else
-            echo "No keystore provided, skipping release build"
-          fi
+          echo "Skipping release build - no keystore configured"
+          echo "To enable release builds, configure keystore in Codemagic settings"
       
       - name: Generate build report
         script: |
@@ -80,11 +66,6 @@ workflows:
         notify:
           success: true
           failure: true
-      
-      google_play:
-        track: internal
-        status: completed
-        submit_for_review: false
 
   # Additional workflow for testing
   android-test:
