@@ -17,7 +17,6 @@ import java.util.*
 class SimpleMusicPlayer(private val context: Context) {
     
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val json = Json { ignoreUnknownKeys = true }
     private var mediaPlayer: MediaPlayer? = null
     private var positionUpdateJob: Job? = null
     
@@ -48,7 +47,6 @@ class SimpleMusicPlayer(private val context: Context) {
         private const val TAG = "SimpleMusicPlayer"
     }
     
-    @Serializable
     data class MusicTrack(
         val id: String,
         val title: String,
@@ -334,7 +332,7 @@ class SimpleMusicPlayer(private val context: Context) {
      * بررسی وضعیت پخش تصادفی
      */
     fun isShuffleEnabled(): Boolean {
-        return isShuffle
+        return shuffleMode
     }
     
     /**
@@ -507,7 +505,6 @@ class SimpleMusicPlayer(private val context: Context) {
         )
     }
     
-    @Serializable
     data class MusicStats(
         val totalTracks: Int,
         val totalDuration: Long,
