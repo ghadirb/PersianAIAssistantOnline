@@ -24,8 +24,10 @@ class PersianVoiceAssistant(private val context: Context) {
     private val travelPlannerManager = TravelPlannerManager(context)
     private val bankingAssistantManager = BankingAssistantManager(context)
     private val carMaintenanceManager = CarMaintenanceManager(context)
-    private val notificationHelper = NotificationHelper(context)
     private val preferencesManager = PreferencesManager(context)
+    
+    // Lazy initialization for NotificationHelper to avoid context issues
+    private val notificationHelper by lazy { NotificationHelper(context) }
     
     // State flows برای وضعیت دستیار
     private val _isListening = MutableStateFlow(false)
@@ -292,7 +294,7 @@ class PersianVoiceAssistant(private val context: Context) {
                 if (analysis.isEmpty()) {
                     "هزینه‌ای در ماه جاری ثبت نشده است."
                 } else {
-                    val expenseList = (analysis as Map<String, Double>).take(5).entries.joinToString("\n") { entry ->
+                    val expenseList = (analysis as Map<String, Double>).take(5).entries.joinToString("\n") { entry: Map.Entry<String, Double> ->
                         val (category, amount) = entry
                         "📊 ${getCategoryName(category)}: ${String.format("%,.0f", amount)} تومان"
                     }
