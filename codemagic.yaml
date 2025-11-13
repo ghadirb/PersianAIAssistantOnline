@@ -1,19 +1,111 @@
+---
+# Codemagic configuration for PersianAIAssistant
+# Written for Codemagic 2.0 workflow format
+
 workflows:
   android-workflow:
-    name: Android Build
+    name: Android Build Pipeline
     instance_type: mac_mini_m1
     max_build_duration: 60
+    
     environment:
       java: 17
+      android_signing:
+        - keystore_reference
+      groups:
+        - google_play
+      vars:
+        CM_KEYSTORE: Encrypted(...) # Replace with your actual keystore
+        CM_KEYSTORE_PASSWORD: Encrypted(...)
+        CM_KEY_ALIAS: Encrypted(...)
+        CM_KEY_PASSWORD: Encrypted(...)
+      
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+        - pattern: develop
+          include: true
+          source: true
+    
     scripts:
-      - name: Build APK
+      - name: Set up build environment
         script: |
+          echo "Setting up build environment..."
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
-          echo "Build completed with exit code: $?"
+          ./gradlew --version
+      
+      - name: Clean project
+        script: |
+          echo "Cleaning project..."
+          ./gradlew clean
+      
+      - name: Build Debug APK
+        script: |
+          echo "Building debug APK..."
+          ./gradlew assembleDebug --stacktrace --info
+          echo "Debug build completed"
+      
+      - name: Build Release APK (if keystore is available)
+        script: |
+          if [ -n "$CM_KEYSTORE" ]; then
+            echo "Building release APK..."
+            ./gradlew assembleRelease --stacktrace --info
+            echo "Release build completed"
+          else
+            echo "No keystore provided, skipping release build"
+          fi
+      
+      - name: Generate build report
+        script: |
+          echo "Generating build report..."
+          find app/build/outputs -name "*.apk" -exec ls -lh {} \; > build_report.txt
+          cat build_report.txt
+    
     artifacts:
       - app/build/outputs/**/*.apk
+      - app/build/outputs/**/*.aab
+      - build.log
+      - build_report.txt
+      - app/build/reports/**/*
+    
     publishing:
       email:
         recipients:
-          - your-email@gmail.com
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+      
+      google_play:
+        track: internal
+        status: completed
+        submit_for_review: false
+
+  # Additional workflow for testing
+  android-test:
+    name: Android Test Pipeline
+    instance_type: mac_mini_m1
+    max_build_duration: 30
+    
+    environment:
+      java: 17
+    
+    scripts:
+      - name: Run unit tests
+        script: |
+          echo "Running unit tests..."
+          ./gradlew testDebugUnitTest
+      
+      - name: Run lint checks
+        script: |
+          echo "Running lint checks..."
+          ./gradlew lintDebug
+    
+    artifacts:
+      - app/build/reports/tests/**/*
+      - app/build/reports/lint-results*.*
