@@ -15,6 +15,7 @@ import java.util.*
 class TravelPlannerManager(private val context: Context) {
     
     private val prefs: SharedPreferences = context.getSharedPreferences("travel_planner", Context.MODE_PRIVATE)
+    private val notificationHelper = NotificationHelper(context)
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
@@ -361,7 +362,6 @@ class TravelPlannerManager(private val context: Context) {
     private fun scheduleReminder(time: Long, title: String, message: String) {
         try {
             // استفاده از NotificationHelper برای تنظیم یادآور
-            val notificationHelper = NotificationHelper(context)
             scope.launch {
                 notificationHelper.scheduleNotification(
                     title = title,

@@ -291,8 +291,7 @@ class PersianVoiceAssistant(private val context: Context) {
                 if (analysis.isEmpty()) {
                     "هزینه‌ای در ماه جاری ثبت نشده است."
                 } else {
-                    val expenseList = (analysis as Map<String, Double>).take(5).entries.joinToString("\n") { entry: Map.Entry<String, Double> ->
-                        val (category, amount) = entry
+                    val expenseList = (analysis as Map<String, Double>).take(5).entries.joinToString("\n") { (category, amount) ->
                         "📊 ${getCategoryName(category)}: ${String.format("%,.0f", amount)} تومان"
                     }
                     "تحلیل هزینه‌های ماه جاری:\n$expenseList"

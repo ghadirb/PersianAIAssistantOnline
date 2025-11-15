@@ -15,6 +15,7 @@ import java.util.*
 class SmartReminderManager(private val context: Context) {
     
     private val prefs: SharedPreferences = context.getSharedPreferences("smart_reminders", Context.MODE_PRIVATE)
+    private val notificationHelper = NotificationHelper(context)
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
@@ -182,7 +183,6 @@ class SmartReminderManager(private val context: Context) {
         try {
             // استفاده از NotificationHelper برای ارسال نوتیفیکیشن
             scope.launch {
-                val notificationHelper = NotificationHelper(context)
                 notificationHelper.showNotification(
                     title = "🔔 یادآور هوشمند: ${reminder.title}",
                     message = reminder.message,
