@@ -16,7 +16,6 @@ import java.util.*
 class CarMaintenanceManager(private val context: Context) {
     
     private val prefs: SharedPreferences = context.getSharedPreferences("car_maintenance", Context.MODE_PRIVATE)
-    private val notificationHelper = NotificationHelper(context)
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -510,7 +509,8 @@ class CarMaintenanceManager(private val context: Context) {
     private fun sendReminderNotification(reminder: MaintenanceReminder) {
         try {
             scope.launch {
-                notificationHelper.showNotification(
+                NotificationHelper.showNotification(
+                    context = context,
                     title = "🔧 یادآور نگهداری خودرو",
                     message = reminder.description,
                     channelId = "car_maintenance"
@@ -529,7 +529,8 @@ class CarMaintenanceManager(private val context: Context) {
     private fun sendCompletionNotification(reminder: MaintenanceReminder) {
         try {
             scope.launch {
-                notificationHelper.showNotification(
+                NotificationHelper.showNotification(
+                    context = context,
                     title = "✅ تکمیل نگهداری خودرو",
                     message = "${reminder.title} با موفقیت انجام شد",
                     channelId = "car_maintenance"

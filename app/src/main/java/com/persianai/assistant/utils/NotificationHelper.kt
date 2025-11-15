@@ -158,6 +158,32 @@ object NotificationHelper {
     }
     
     /**
+     * نمایش نوتیفیکیشن (برای استفاده در manager classes)
+     */
+    suspend fun showNotification(
+        context: Context,
+        title: String,
+        message: String,
+        channelId: String = CHANNEL_ID_GENERAL
+    ) {
+        showGeneralNotification(context, title, message)
+    }
+    
+    /**
+     * زمان‌بندی نوتیفیکیشن (برای استفاده در manager classes)
+     */
+    suspend fun scheduleNotification(
+        context: Context,
+        title: String,
+        message: String,
+        time: Long,
+        channelId: String = CHANNEL_ID_REMINDERS
+    ) {
+        // فعلاً نوتیفیکیشن فوری ارسال می‌شود
+        showReminderNotification(context, title, message)
+    }
+    
+    /**
      * لغو نوتیفیکیشن
      */
     fun cancelNotification(context: Context, notificationId: Int) {

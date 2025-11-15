@@ -16,7 +16,6 @@ import java.util.*
 class BankingAssistantManager(private val context: Context) {
     
     private val prefs: SharedPreferences = context.getSharedPreferences("banking_assistant", Context.MODE_PRIVATE)
-    private val notificationHelper = NotificationHelper(context)
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -513,7 +512,8 @@ class BankingAssistantManager(private val context: Context) {
             val reminderDate = getReminderDate(bill.dueDate, bill.reminderDays)
             
             scope.launch {
-                notificationHelper.scheduleNotification(
+                NotificationHelper.scheduleNotification(
+                    context = context,
                     title = "یادآور پرداخت قبض",
                     message = "قبض ${bill.title} تا ${bill.reminderDays} روز دیگر سررسید می‌شود",
                     time = reminderDate,
