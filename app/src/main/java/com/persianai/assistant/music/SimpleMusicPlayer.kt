@@ -96,15 +96,15 @@ class SimpleMusicPlayer(private val context: Context) {
         val tracks = mutableListOf<MusicTrack>()
         
         try {
+            // Only use columns that are guaranteed to exist on all devices
+            // Some OEMs / Android versions don't expose GENRE/YEAR directly on MediaStore.Audio.Media
             val projection = arrayOf(
                 android.provider.MediaStore.Audio.Media._ID,
                 android.provider.MediaStore.Audio.Media.TITLE,
                 android.provider.MediaStore.Audio.Media.ARTIST,
                 android.provider.MediaStore.Audio.Media.ALBUM,
                 android.provider.MediaStore.Audio.Media.DURATION,
-                android.provider.MediaStore.Audio.Media.DATA,
-                android.provider.MediaStore.Audio.Media.GENRE,
-                android.provider.MediaStore.Audio.Media.YEAR
+                android.provider.MediaStore.Audio.Media.DATA
             )
             
             val selection = "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0"
@@ -123,8 +123,6 @@ class SimpleMusicPlayer(private val context: Context) {
                 val albumColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ALBUM)
                 val durationColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DURATION)
                 val dataColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
-                val genreColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.GENRE)
-                val yearColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.YEAR)
                 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn).toString()
@@ -133,8 +131,9 @@ class SimpleMusicPlayer(private val context: Context) {
                     val album = cursor.getString(albumColumn) ?: "Unknown Album"
                     val duration = cursor.getLong(durationColumn)
                     val path = cursor.getString(dataColumn)
-                    val genre = cursor.getString(genreColumn) ?: ""
-                    val year = cursor.getInt(yearColumn)
+                    // Fallbacks for fields that may not be available on all devices
+                    val genre = ""
+                    val year = 0
                     
                     // فقط فایل‌های موجود را اضافه کن
                     if (File(path).exists()) {
