@@ -2,659 +2,492 @@ package com.persianai.assistant.utils
 
 import android.content.Context
 import android.content.SharedPreferences
-import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.util.Log
-import java.text.SimpleDateFormat
-import java.util.*
+import androidx.work.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.persianai.assistant.data.Check
+import com.persianai.assistant.data.Installment
+import java.util.concurrent.TimeUnit
 
 /**
- * مدیر دستیار بانکی و مالی هوشمند
+ * مدیریت امور بانکی و مالی
+ * شامل: چک‌ها، اقساط، هشدارها، نظارت بر تراکنش‌های مشکوک
  */
 class BankingAssistantManager(private val context: Context) {
     
-    private val prefs: SharedPreferences = context.getSharedPreferences("banking_assistant", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true }
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val prefs: SharedPreferences = context.getSharedPreferences("banking_prefs", Context.MODE_PRIVATE)
+    private val gson = Gson()
     
     companion object {
-        private const val TRANSACTIONS_KEY = "transactions"
-        private const val ACCOUNTS_KEY = "accounts"
-        private const val BUDGETS_KEY = "budgets"
-        private const val BILLS_KEY = "bills"
-    }
-    
-    @Serializable
-    data class Transaction(
-        val id: String,
-        val amount: Double,
-        val type: TransactionType,
-        val category: TransactionCategory,
-        val description: String,
-        val date: String,
-        val accountId: String,
-        val tags: List<String> = emptyList(),
-        val isRecurring: Boolean = false,
-        val recurringPeriod: RecurringPeriod? = null
-    )
-    
-    @Serializable
-    data class Account(
-        val id: String,
-        val name: String,
-        val type: AccountType,
-        val balance: Double,
-        val currency: String = "IRR",
-        val bankName: String = "",
-        val cardNumber: String = "",
-        val isActive: Boolean = true
-    )
-    
-    @Serializable
-    data class Budget(
-        val id: String,
-        val category: TransactionCategory,
-        val limit: Double,
-        val spent: Double = 0.0,
-        val period: BudgetPeriod,
-        val startDate: String,
-        val endDate: String,
-        val isActive: Boolean = true
-    )
-    
-    @Serializable
-    data class Bill(
-        val id: String,
-        val title: String,
-        val amount: Double,
-        val dueDate: String,
-        val category: BillCategory,
-        val isPaid: Boolean = false,
-        val isRecurring: Boolean = false,
-        val recurringPeriod: RecurringPeriod? = null,
-        val reminderDays: Int = 3
-    )
-    
-    @Serializable
-    enum class TransactionType {
-        INCOME, // درآمد
-        EXPENSE, // هزینه
-        TRANSFER // انتقال
-    }
-    
-    @Serializable
-    enum class TransactionCategory {
-        FOOD, // خوراک
-        TRANSPORT, // حمل و نقل
-        SHOPPING, // خرید
-        ENTERTAINMENT, // سرگرمی
-        HEALTH, // سلامتی
-        EDUCATION, // آموزش
-        BILLS, // قبوض
-        SALARY, // حقوق
-        INVESTMENT, // سرمایه‌گذاری
-        OTHER // سایر
-    }
-    
-    @Serializable
-    enum class AccountType {
-        CHECKING, // حساب جاری
-        SAVINGS, // حساب پس‌انداز
-        CREDIT_CARD, // کارت اعتباری
-        CASH, // نقدی
-        INVESTMENT // سرمایه‌گذاری
-    }
-    
-    @Serializable
-    enum class BudgetPeriod {
-        WEEKLY, // هفتگی
-        MONTHLY, // ماهانه
-        YEARLY // سالانه
-    }
-    
-    @Serializable
-    enum class BillCategory {
-        ELECTRICITY, // برق
-        WATER, // آب
-        GAS, // گاز
-        PHONE, // تلفن
-        INTERNET, // اینترنت
-        RENT, // اجاره
-        INSURANCE, // بیمه
-        LOAN, // وام
-        OTHER // سایر
-    }
-    
-    @Serializable
-    enum class RecurringPeriod {
-        DAILY, // روزانه
-        WEEKLY, // هفتگی
-        MONTHLY, // ماهانه
-        YEARLY // سالانه
+        private const val TAG = "BankingAssistant"
+        private const val KEY_CHECKS = "checks"
+        private const val KEY_INSTALLMENTS = "installments"
+        private const val KEY_SUSPICIOUS_TRANSACTIONS = "suspicious_transactions"
     }
     
     /**
-     * افزودن تراکنش جدید
+     * ثبت چک جدید
      */
-    fun addTransaction(transaction: Transaction) {
-        try {
-            val transactions = getTransactions().toMutableList()
-            transactions.add(transaction)
-            saveTransactions(transactions)
-            
-            // به‌روزرسانی حساب
-            updateAccountBalance(transaction.accountId, transaction)
-            
-            // به‌روزرسانی بودجه
-            updateBudgetSpending(transaction)
-            
-            Log.i("BankingAssistantManager", "✅ تراکنش جدید اضافه شد: ${transaction.description}")
-            
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در افزودن تراکنش: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام تراکنش‌ها
-     */
-    fun getTransactions(): List<Transaction> {
-        return try {
-            val transactionsJson = prefs.getString(TRANSACTIONS_KEY, null)
-            if (transactionsJson != null) {
-                json.decodeFromString<List<Transaction>>(transactionsJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در دریافت تراکنش‌ها: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * دریافت تراکنش‌های بر اساس نوع
-     */
-    fun getTransactionsByType(type: TransactionType): List<Transaction> {
-        return getTransactions().filter { it.type == type }
-    }
-    
-    /**
-     * دریافت تراکنش‌های بر اساس دسته‌بندی
-     */
-    fun getTransactionsByCategory(category: TransactionCategory): List<Transaction> {
-        return getTransactions().filter { it.category == category }
-    }
-    
-    /**
-     * دریافت تراکنش‌های ماه جاری
-     */
-    fun getCurrentMonthTransactions(): List<Transaction> {
-        val currentMonth = Calendar.getInstance().get(Calendar.MONTH)
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+    fun addCheck(
+        amount: Long,
+        dueDate: Long,
+        recipient: String,
+        bankName: String,
+        checkNumber: String,
+        notes: String = ""
+    ): Check {
+        val check = Check(
+            id = System.currentTimeMillis().toString(),
+            amount = amount,
+            dueDate = dueDate,
+            recipient = recipient,
+            bankName = bankName,
+            checkNumber = checkNumber,
+            notes = notes,
+            isPaid = false,
+            createdAt = System.currentTimeMillis()
+        )
         
-        return getTransactions().filter { transaction ->
-            val calendar = Calendar.getInstance()
-            calendar.time = dateFormat.parse(transaction.date) ?: Date()
-            calendar.get(Calendar.MONTH) == currentMonth && calendar.get(Calendar.YEAR) == currentYear
-        }
+        val checks = getAllChecks().toMutableList()
+        checks.add(check)
+        saveChecks(checks)
+        
+        // تنظیم هشدار
+        scheduleCheckReminder(check)
+        
+        Log.i(TAG, "✅ چک جدید ثبت شد: $checkNumber - مبلغ ${formatAmount(amount)} تومان")
+        
+        return check
     }
     
     /**
-     * افزودن حساب جدید
+     * ثبت قسط جدید
      */
-    fun addAccount(account: Account) {
-        try {
-            val accounts = getAccounts().toMutableList()
-            accounts.add(account)
-            saveAccounts(accounts)
-            Log.i("BankingAssistantManager", "✅ حساب جدید اضافه شد: ${account.name}")
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در افزودن حساب: ${e.message}")
-        }
+    fun addInstallment(
+        title: String,
+        totalAmount: Long,
+        monthlyAmount: Long,
+        startDate: Long,
+        totalMonths: Int,
+        currentMonth: Int = 1,
+        creditor: String = "",
+        notes: String = ""
+    ): Installment {
+        val installment = Installment(
+            id = System.currentTimeMillis().toString(),
+            title = title,
+            totalAmount = totalAmount,
+            monthlyAmount = monthlyAmount,
+            startDate = startDate,
+            totalMonths = totalMonths,
+            currentMonth = currentMonth,
+            creditor = creditor,
+            notes = notes,
+            isCompleted = false,
+            createdAt = System.currentTimeMillis()
+        )
+        
+        val installments = getAllInstallments().toMutableList()
+        installments.add(installment)
+        saveInstallments(installments)
+        
+        // تنظیم هشدار
+        scheduleInstallmentReminder(installment)
+        
+        Log.i(TAG, "✅ قسط جدید ثبت شد: $title - ${formatAmount(monthlyAmount)} تومان/$totalMonths ماه")
+        
+        return installment
     }
     
     /**
-     * دریافت تمام حساب‌ها
+     * دریافت همه چک‌ها
      */
-    fun getAccounts(): List<Account> {
-        return try {
-            val accountsJson = prefs.getString(ACCOUNTS_KEY, null)
-            if (accountsJson != null) {
-                json.decodeFromString<List<Account>>(accountsJson)
-            } else {
-                createDefaultAccounts()
-            }
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در دریافت حساب‌ها: ${e.message}")
-            emptyList()
-        }
+    fun getAllChecks(): List<Check> {
+        val json = prefs.getString(KEY_CHECKS, "[]") ?: "[]"
+        val type = object : TypeToken<List<Check>>() {}.type
+        return gson.fromJson(json, type)
     }
     
     /**
-     * دریافت حساب‌های فعال
+     * دریافت چک‌های سررسید نزدیک (7 روز آینده)
      */
-    fun getActiveAccounts(): List<Account> {
-        return getAccounts().filter { it.isActive }
-    }
-    
-    /**
-     * به‌روزرسانی موجودی حساب
-     */
-    private fun updateAccountBalance(accountId: String, transaction: Transaction) {
-        try {
-            val accounts = getAccounts().toMutableList()
-            val index = accounts.indexOfFirst { it.id == accountId }
-            if (index != -1) {
-                val currentBalance = accounts[index].balance
-                val newBalance = when (transaction.type) {
-                    TransactionType.INCOME -> currentBalance + transaction.amount
-                    TransactionType.EXPENSE -> currentBalance - transaction.amount
-                    TransactionType.TRANSFER -> currentBalance // انتقال بین حساب‌ها نیاز به منطق جداگانه دارد
-                }
-                accounts[index] = accounts[index].copy(balance = newBalance)
-                saveAccounts(accounts)
-            }
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در به‌روزرسانی موجودی حساب: ${e.message}")
-        }
-    }
-    
-    /**
-     * افزودن بودجه
-     */
-    fun addBudget(budget: Budget) {
-        try {
-            val budgets = getBudgets().toMutableList()
-            budgets.add(budget)
-            saveBudgets(budgets)
-            Log.i("BankingAssistantManager", "✅ بودجه جدید اضافه شد: ${budget.category}")
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در افزودن بودجه: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام بودجه‌ها
-     */
-    fun getBudgets(): List<Budget> {
-        return try {
-            val budgetsJson = prefs.getString(BUDGETS_KEY, null)
-            if (budgetsJson != null) {
-                json.decodeFromString<List<Budget>>(budgetsJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در دریافت بودجه‌ها: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * افزودن قبض
-     */
-    fun addBill(bill: Bill) {
-        try {
-            val bills = getBills().toMutableList()
-            bills.add(bill)
-            saveBills(bills)
-            
-            // تنظیم یادآور پرداخت قبض
-            scheduleBillReminder(bill)
-            
-            Log.i("BankingAssistantManager", "✅ قبض جدید اضافه شد: ${bill.title}")
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در افزودن قبض: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام قبوض
-     */
-    fun getBills(): List<Bill> {
-        return try {
-            val billsJson = prefs.getString(BILLS_KEY, null)
-            if (billsJson != null) {
-                json.decodeFromString<List<Bill>>(billsJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در دریافت قبوض: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * دریافت قبوض پرداخت نشده
-     */
-    fun getUnpaidBills(): List<Bill> {
-        return getBills().filter { !it.isPaid }
+    fun getUpcomingChecks(): List<Check> {
+        val now = System.currentTimeMillis()
+        val sevenDaysLater = now + (7 * 24 * 60 * 60 * 1000)
+        
+        return getAllChecks()
+            .filter { !it.isPaid && it.dueDate in now..sevenDaysLater }
             .sortedBy { it.dueDate }
     }
     
     /**
-     * پرداخت قبض
+     * دریافت چک‌های سررسید گذشته
      */
-    fun payBill(billId: String) {
-        try {
-            val bills = getBills().toMutableList()
-            val index = bills.indexOfFirst { it.id == billId }
-            if (index != -1) {
-                bills[index] = bills[index].copy(isPaid = true)
-                saveBills(bills)
-                
-                // افزودن تراکنش پرداخت قبض
-                val bill = bills[index]
-                val transaction = Transaction(
-                    id = "bill_${billId}_${System.currentTimeMillis()}",
-                    amount = bill.amount,
-                    type = TransactionType.EXPENSE,
-                    category = TransactionCategory.BILLS,
-                    description = "پرداخت قبض ${bill.title}",
-                    date = dateFormat.format(Date()),
-                    accountId = getActiveAccounts().firstOrNull()?.id ?: "default"
-                )
-                addTransaction(transaction)
-                
-                Log.i("BankingAssistantManager", "✅ قبض پرداخت شد: ${bill.title}")
-            }
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در پرداخت قبض: ${e.message}")
-        }
+    fun getOverdueChecks(): List<Check> {
+        val now = System.currentTimeMillis()
+        
+        return getAllChecks()
+            .filter { !it.isPaid && it.dueDate < now }
+            .sortedBy { it.dueDate }
     }
     
     /**
-     * محاسبه خلاصه مالی
+     * دریافت همه اقساط
      */
-    fun getFinancialSummary(): FinancialSummary {
-        val currentMonthTransactions = getCurrentMonthTransactions()
-        val income = currentMonthTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val expenses = currentMonthTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-        val totalBalance = getActiveAccounts().sumOf { it.balance }
-        val unpaidBills = getUnpaidBills().sumOf { it.amount }
-        
-        return FinancialSummary(
-            totalIncome = income,
-            totalExpenses = expenses,
-            netIncome = income - expenses,
-            totalBalance = totalBalance,
-            unpaidBills = unpaidBills,
-            savingsRate = if (income > 0) ((income - expenses) / income) * 100 else 0.0
-        )
-    }
-    
-    @Serializable
-    data class FinancialSummary(
-        val totalIncome: Double,
-        val totalExpenses: Double,
-        val netIncome: Double,
-        val totalBalance: Double,
-        val unpaidBills: Double,
-        val savingsRate: Double
-    )
-    
-    /**
-     * دریافت تحلیل هزینه‌ها
-     */
-    fun getExpenseAnalysis(): Map<TransactionCategory, Double> {
-        val currentMonthTransactions = getCurrentMonthTransactions()
-            .filter { it.type == TransactionType.EXPENSE }
-        
-        return currentMonthTransactions
-            .groupBy { it.category }
-            .mapValues { it.value.sumOf { transaction -> transaction.amount } }
+    fun getAllInstallments(): List<Installment> {
+        val json = prefs.getString(KEY_INSTALLMENTS, "[]") ?: "[]"
+        val type = object : TypeToken<List<Installment>>() {}.type
+        return gson.fromJson(json, type)
     }
     
     /**
-     * دریافت هشدارهای مالی
+     * دریافت اقساط فعال
      */
-    fun getFinancialAlerts(): List<FinancialAlert> {
-        val alerts = mutableListOf<FinancialAlert>()
-        
-        // بررسی بودجه‌ها
-        getBudgets().forEach { budget ->
-            if (budget.spent > budget.limit * 0.8) {
-                alerts.add(
-                    FinancialAlert(
-                        type = AlertType.BUDGET_WARNING,
-                        message = "شما ${String.format("%.1f", (budget.spent / budget.limit) * 100)}% از بودجه ${getCategoryName(budget.category)} را مصرف کرده‌اید",
-                        severity = AlertSeverity.WARNING
-                    )
-                )
-            }
-        }
-        
-        // بررسی قبوض نزدیک به سررسید
-        val today = dateFormat.format(Date())
-        getUnpaidBills().forEach { bill ->
-            val daysUntilDue = getDaysBetween(today, bill.dueDate)
-            if (daysUntilDue <= bill.reminderDays && daysUntilDue > 0) {
-                alerts.add(
-                    FinancialAlert(
-                        type = AlertType.BILL_DUE,
-                        message = "قبض ${bill.title} تا ${daysUntilDue} روز دیگر سررسید می‌شود",
-                        severity = if (daysUntilDue <= 1) AlertSeverity.URGENT else AlertSeverity.WARNING
-                    )
-                )
-            }
-        }
-        
-        // بررسی موجودی پایین حساب
-        getActiveAccounts().forEach { account ->
-            if (account.balance < 100000) { // کمتر از ۱۰۰ هزار تومان
-                alerts.add(
-                    FinancialAlert(
-                        type = AlertType.LOW_BALANCE,
-                        message = "موجودی حساب ${account.name} کم است: ${String.format("%,.0f", account.balance)} تومان",
-                        severity = AlertSeverity.WARNING
-                    )
-                )
-            }
-        }
-        
-        return alerts
-    }
-    
-    @Serializable
-    data class FinancialAlert(
-        val type: AlertType,
-        val message: String,
-        val severity: AlertSeverity
-    )
-    
-    @Serializable
-    enum class AlertType {
-        BUDGET_WARNING,
-        BILL_DUE,
-        LOW_BALANCE,
-        OVERDRAFT
-    }
-    
-    @Serializable
-    enum class AlertSeverity {
-        INFO,
-        WARNING,
-        URGENT
+    fun getActiveInstallments(): List<Installment> {
+        return getAllInstallments().filter { !it.isCompleted }
     }
     
     /**
-     * به‌روزرسانی هزینه بودجه
+     * دریافت اقساط سررسید نزدیک
      */
-    private fun updateBudgetSpending(transaction: Transaction) {
-        if (transaction.type == TransactionType.EXPENSE) {
-            try {
-                val budgets = getBudgets().toMutableList()
-                val budgetIndex = budgets.indexOfFirst { 
-                    it.category == transaction.category && it.isActive 
-                }
-                if (budgetIndex != -1) {
-                    budgets[budgetIndex] = budgets[budgetIndex].copy(
-                        spent = budgets[budgetIndex].spent + transaction.amount
-                    )
-                    saveBudgets(budgets)
-                }
-            } catch (e: Exception) {
-                Log.e("BankingAssistantManager", "❌ خطا در به‌روزرسانی هزینه بودجه: ${e.message}")
+    fun getUpcomingInstallments(): List<Installment> {
+        val now = System.currentTimeMillis()
+        val thirtyDaysLater = now + (30 * 24 * 60 * 60 * 1000)
+        
+        return getActiveInstallments()
+            .filter {
+                val nextPaymentDate = calculateNextPaymentDate(it)
+                nextPaymentDate in now..thirtyDaysLater
             }
-        }
+            .sortedBy { calculateNextPaymentDate(it) }
     }
     
     /**
-     * تنظیم یادآور قبض
+     * پرداخت چک
      */
-    private fun scheduleBillReminder(bill: Bill) {
-        try {
-            val reminderDate = getReminderDate(bill.dueDate, bill.reminderDays)
+    fun markCheckAsPaid(checkId: String): Boolean {
+        val checks = getAllChecks().toMutableList()
+        val index = checks.indexOfFirst { it.id == checkId }
+        
+        if (index != -1) {
+            checks[index] = checks[index].copy(isPaid = true)
+            saveChecks(checks)
             
-            scope.launch {
-                NotificationHelper.scheduleNotification(
-                    context = context,
-                    title = "یادآور پرداخت قبض",
-                    message = "قبض ${bill.title} تا ${bill.reminderDays} روز دیگر سررسید می‌شود",
-                    time = reminderDate,
-                    channelId = "bill_reminders"
+            Log.i(TAG, "✅ چک $checkId پرداخت شد")
+            return true
+        }
+        
+        return false
+    }
+    
+    /**
+     * پرداخت قسط
+     */
+    fun payInstallment(installmentId: String): Boolean {
+        val installments = getAllInstallments().toMutableList()
+        val index = installments.indexOfFirst { it.id == installmentId }
+        
+        if (index != -1) {
+            val installment = installments[index]
+            val newCurrentMonth = installment.currentMonth + 1
+            
+            if (newCurrentMonth > installment.totalMonths) {
+                // قسط تمام شد
+                installments[index] = installment.copy(
+                    currentMonth = newCurrentMonth,
+                    isCompleted = true
+                )
+            } else {
+                installments[index] = installment.copy(
+                    currentMonth = newCurrentMonth
                 )
             }
             
-            Log.i("BankingAssistantManager", "✅ یادآور قبض تنظیم شد: ${bill.title}")
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در تنظیم یادآور قبض: ${e.message}")
+            saveInstallments(installments)
+            
+            Log.i(TAG, "✅ قسط $installmentId پرداخت شد (${newCurrentMonth}/${installment.totalMonths})")
+            return true
         }
+        
+        return false
     }
     
     /**
-     * دریافت تاریخ یادآور
+     * حذف چک
      */
-    private fun getReminderDate(dueDate: String, daysBefore: Int): Long {
-        val calendar = Calendar.getInstance()
-        calendar.time = dateFormat.parse(dueDate) ?: Date()
-        calendar.add(Calendar.DAY_OF_MONTH, -daysBefore)
+    fun deleteCheck(checkId: String): Boolean {
+        val checks = getAllChecks().toMutableList()
+        val removed = checks.removeIf { it.id == checkId }
+        
+        if (removed) {
+            saveChecks(checks)
+            Log.i(TAG, "🗑️ چک $checkId حذف شد")
+        }
+        
+        return removed
+    }
+    
+    /**
+     * حذف قسط
+     */
+    fun deleteInstallment(installmentId: String): Boolean {
+        val installments = getAllInstallments().toMutableList()
+        val removed = installments.removeIf { it.id == installmentId }
+        
+        if (removed) {
+            saveInstallments(installments)
+            Log.i(TAG, "🗑️ قسط $installmentId حذف شد")
+        }
+        
+        return removed
+    }
+    
+    /**
+     * محاسبه تاریخ پرداخت بعدی قسط
+     */
+    private fun calculateNextPaymentDate(installment: Installment): Long {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = installment.startDate
+        calendar.add(java.util.Calendar.MONTH, installment.currentMonth)
         return calendar.timeInMillis
     }
     
     /**
-     * محاسبه تعداد روز بین دو تاریخ
+     * ذخیره چک‌ها
      */
-    private fun getDaysBetween(startDate: String, endDate: String): Int {
-        return try {
-            val start = dateFormat.parse(startDate) ?: Date()
-            val end = dateFormat.parse(endDate) ?: Date()
-            val diff = end.time - start.time
-            (diff / (1000 * 60 * 60 * 24)).toInt()
-        } catch (e: Exception) {
-            0
+    private fun saveChecks(checks: List<Check>) {
+        val json = gson.toJson(checks)
+        prefs.edit().putString(KEY_CHECKS, json).apply()
+    }
+    
+    /**
+     * ذخیره اقساط
+     */
+    private fun saveInstallments(installments: List<Installment>) {
+        val json = gson.toJson(installments)
+        prefs.edit().putString(KEY_INSTALLMENTS, json).apply()
+    }
+    
+    /**
+     * تنظیم هشدار برای چک
+     */
+    private fun scheduleCheckReminder(check: Check) {
+        val threeDaysBefore = check.dueDate - (3 * 24 * 60 * 60 * 1000)
+        val now = System.currentTimeMillis()
+        
+        if (threeDaysBefore > now) {
+            val delay = threeDaysBefore - now
+            
+            val data = Data.Builder()
+                .putString("type", "check")
+                .putString("checkId", check.id)
+                .putString("recipient", check.recipient)
+                .putLong("amount", check.amount)
+                .putString("checkNumber", check.checkNumber)
+                .build()
+            
+            val workRequest = OneTimeWorkRequestBuilder<CheckReminderWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(data)
+                .addTag("check_reminder_${check.id}")
+                .build()
+            
+            WorkManager.getInstance(context).enqueue(workRequest)
+            
+            Log.d(TAG, "🔔 هشدار چک تنظیم شد: ${check.checkNumber}")
         }
     }
     
     /**
-     * دریافت نام دسته‌بندی
+     * تنظیم هشدار برای قسط
      */
-    private fun getCategoryName(category: TransactionCategory): String {
-        return when (category) {
-            TransactionCategory.FOOD -> "خوراک"
-            TransactionCategory.TRANSPORT -> "حمل و نقل"
-            TransactionCategory.SHOPPING -> "خرید"
-            TransactionCategory.ENTERTAINMENT -> "سرگرمی"
-            TransactionCategory.HEALTH -> "سلامتی"
-            TransactionCategory.EDUCATION -> "آموزشی"
-            TransactionCategory.BILLS -> "قبوض"
-            TransactionCategory.SALARY -> "حقوق"
-            TransactionCategory.INVESTMENT -> "سرمایه‌گذاری"
-            TransactionCategory.OTHER -> "سایر"
+    private fun scheduleInstallmentReminder(installment: Installment) {
+        val nextPaymentDate = calculateNextPaymentDate(installment)
+        val threeDaysBefore = nextPaymentDate - (3 * 24 * 60 * 60 * 1000)
+        val now = System.currentTimeMillis()
+        
+        if (threeDaysBefore > now) {
+            val delay = threeDaysBefore - now
+            
+            val data = Data.Builder()
+                .putString("type", "installment")
+                .putString("installmentId", installment.id)
+                .putString("title", installment.title)
+                .putLong("amount", installment.monthlyAmount)
+                .putInt("currentMonth", installment.currentMonth)
+                .putInt("totalMonths", installment.totalMonths)
+                .build()
+            
+            val workRequest = OneTimeWorkRequestBuilder<InstallmentReminderWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(data)
+                .addTag("installment_reminder_${installment.id}")
+                .build()
+            
+            WorkManager.getInstance(context).enqueue(workRequest)
+            
+            Log.d(TAG, "🔔 هشدار قسط تنظیم شد: ${installment.title}")
         }
     }
     
     /**
-     * ایجاد حساب‌های پیش‌فرض
+     * تشخیص تراکنش‌های مشکوک
+     * در نسخه آینده: اتصال به API بانک یا دریافت SMS بانکی
      */
-    private fun createDefaultAccounts(): List<Account> {
-        val defaultAccounts = listOf(
-            Account(
-                id = "cash",
-                name = "نقدی",
-                type = AccountType.CASH,
-                balance = 0.0,
-                currency = "IRR"
-            ),
-            Account(
-                id = "main_checking",
-                name = "حساب جاری اصلی",
-                type = AccountType.CHECKING,
-                balance = 0.0,
-                currency = "IRR"
+    fun detectSuspiciousTransaction(
+        amount: Long,
+        description: String,
+        timestamp: Long
+    ): Boolean {
+        // قوانین ساده برای شناسایی تراکنش مشکوک:
+        // 1. مبلغ بالای 50 میلیون تومان
+        // 2. تراکنش در ساعات غیرمعمول (2 صبح تا 6 صبح)
+        // 3. تراکنش‌های پی در پی با فاصله کم
+        
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        
+        val isSuspicious = amount > 50_000_000 || hour in 2..6
+        
+        if (isSuspicious) {
+            saveSuspiciousTransaction(amount, description, timestamp)
+            sendSuspiciousTransactionAlert(amount, description)
+            Log.w(TAG, "⚠️ تراکنش مشکوک شناسایی شد: ${formatAmount(amount)} - $description")
+        }
+        
+        return isSuspicious
+    }
+    
+    /**
+     * ذخیره تراکنش مشکوک
+     */
+    private fun saveSuspiciousTransaction(amount: Long, description: String, timestamp: Long) {
+        val json = prefs.getString(KEY_SUSPICIOUS_TRANSACTIONS, "[]") ?: "[]"
+        val type = object : TypeToken<MutableList<SuspiciousTransaction>>() {}.type
+        val transactions: MutableList<SuspiciousTransaction> = gson.fromJson(json, type)
+        
+        transactions.add(
+            SuspiciousTransaction(
+                id = System.currentTimeMillis().toString(),
+                amount = amount,
+                description = description,
+                timestamp = timestamp,
+                reviewed = false
             )
         )
         
-        saveAccounts(defaultAccounts)
-        return defaultAccounts
+        prefs.edit().putString(KEY_SUSPICIOUS_TRANSACTIONS, gson.toJson(transactions)).apply()
     }
     
     /**
-     * ذخیره تراکنش‌ها
+     * ارسال هشدار تراکنش مشکوک
      */
-    private fun saveTransactions(transactions: List<Transaction>) {
-        try {
-            val transactionsJson = json.encodeToString(transactions)
-            prefs.edit()
-                .putString(TRANSACTIONS_KEY, transactionsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در ذخیره تراکنش‌ها: ${e.message}")
-        }
+    private fun sendSuspiciousTransactionAlert(amount: Long, description: String) {
+        val notificationHelper = NotificationHelper(context)
+        notificationHelper.sendNotification(
+            title = "⚠️ هشدار: تراکنش مشکوک",
+            message = "تراکنش ${formatAmount(amount)} تومان\n$description",
+            channelId = "suspicious_transactions"
+        )
     }
     
     /**
-     * ذخیره حساب‌ها
+     * فرمت مبلغ به صورت خوانا
      */
-    private fun saveAccounts(accounts: List<Account>) {
-        try {
-            val accountsJson = json.encodeToString(accounts)
-            prefs.edit()
-                .putString(ACCOUNTS_KEY, accountsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در ذخیره حساب‌ها: ${e.message}")
-        }
+    private fun formatAmount(amount: Long): String {
+        return String.format("%,d", amount)
     }
     
     /**
-     * ذخیره بودجه‌ها
+     * دریافت گزارش مالی
      */
-    private fun saveBudgets(budgets: List<Budget>) {
-        try {
-            val budgetsJson = json.encodeToString(budgets)
-            prefs.edit()
-                .putString(BUDGETS_KEY, budgetsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در ذخیره بودجه‌ها: ${e.message}")
-        }
+    fun getFinancialReport(): FinancialReport {
+        val checks = getAllChecks()
+        val installments = getAllInstallments()
+        
+        val totalCheckAmount = checks.filter { !it.isPaid }.sumOf { it.amount }
+        val totalInstallmentAmount = installments.filter { !it.isCompleted }
+            .sumOf { (it.totalMonths - it.currentMonth + 1) * it.monthlyAmount }
+        
+        val upcomingChecks = getUpcomingChecks()
+        val overdueChecks = getOverdueChecks()
+        val upcomingInstallments = getUpcomingInstallments()
+        
+        return FinancialReport(
+            totalCheckAmount = totalCheckAmount,
+            totalInstallmentAmount = totalInstallmentAmount,
+            upcomingChecksCount = upcomingChecks.size,
+            overdueChecksCount = overdueChecks.size,
+            activeInstallmentsCount = getActiveInstallments().size,
+            upcomingInstallmentsCount = upcomingInstallments.size
+        )
     }
     
-    /**
-     * ذخیره قبوض
-     */
-    private fun saveBills(bills: List<Bill>) {
-        try {
-            val billsJson = json.encodeToString(bills)
-            prefs.edit()
-                .putString(BILLS_KEY, billsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("BankingAssistantManager", "❌ خطا در ذخیره قبوض: ${e.message}")
-        }
-    }
+    data class SuspiciousTransaction(
+        val id: String,
+        val amount: Long,
+        val description: String,
+        val timestamp: Long,
+        val reviewed: Boolean
+    )
     
-    /**
-     * پاک‌سازی منابع
-     */
-    fun cleanup() {
-        scope.cancel()
-        Log.i("BankingAssistantManager", "🧹 منابع BankingAssistantManager پاک‌سازی شد")
+    data class FinancialReport(
+        val totalCheckAmount: Long,
+        val totalInstallmentAmount: Long,
+        val upcomingChecksCount: Int,
+        val overdueChecksCount: Int,
+        val activeInstallmentsCount: Int,
+        val upcomingInstallmentsCount: Int
+    )
+}
+
+/**
+ * Worker برای هشدار چک
+ */
+class CheckReminderWorker(
+    context: Context,
+    params: WorkerParameters
+) : Worker(context, params) {
+    
+    override fun doWork(): Result {
+        val checkNumber = inputData.getString("checkNumber") ?: ""
+        val recipient = inputData.getString("recipient") ?: ""
+        val amount = inputData.getLong("amount", 0)
+        
+        val notificationHelper = NotificationHelper(applicationContext)
+        notificationHelper.sendNotification(
+            title = "🔔 یادآوری سررسید چک",
+            message = "چک شماره $checkNumber\nگیرنده: $recipient\nمبلغ: ${String.format("%,d", amount)} تومان\n\n3 روز تا سررسید باقی مانده",
+            channelId = "check_reminders"
+        )
+        
+        return Result.success()
+    }
+}
+
+/**
+ * Worker برای هشدار قسط
+ */
+class InstallmentReminderWorker(
+    context: Context,
+    params: WorkerParameters
+) : Worker(context, params) {
+    
+    override fun doWork(): Result {
+        val title = inputData.getString("title") ?: ""
+        val amount = inputData.getLong("amount", 0)
+        val currentMonth = inputData.getInt("currentMonth", 0)
+        val totalMonths = inputData.getInt("totalMonths", 0)
+        
+        val notificationHelper = NotificationHelper(applicationContext)
+        notificationHelper.sendNotification(
+            title = "🔔 یادآوری پرداخت قسط",
+            message = "$title\nمبلغ: ${String.format("%,d", amount)} تومان\nقسط $currentMonth از $totalMonths\n\n3 روز تا موعد پرداخت باقی مانده",
+            channelId = "installment_reminders"
+        )
+        
+        return Result.success()
     }
 }

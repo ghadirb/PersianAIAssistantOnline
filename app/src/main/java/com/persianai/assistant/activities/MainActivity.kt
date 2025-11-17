@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageStorage: MessageStorage
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private lateinit var ttsHelper: com.persianai.assistant.utils.TTSHelper
+    private lateinit var advancedAssistant: com.persianai.assistant.ai.AdvancedPersianAssistant
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
     private val messages = mutableListOf<ChatMessage>()
@@ -71,9 +72,15 @@ class MainActivity : AppCompatActivity() {
     
     private fun isActionCommand(text: String): Boolean {
         val cmd = text.lowercase()
-        val musicKeywords = listOf("آهنگ", "موزیک", "موسیقی", "پخش")
-        val navKeywords = listOf("مسیر", "ببر", "برو", "مسیریابی")
-        return musicKeywords.any { cmd.contains(it) } || navKeywords.any { cmd.contains(it) }
+        // موقتاً غیرفعال: موزیک، مسیریابی، آب و هوا
+        // val musicKeywords = listOf("آهنگ", "موزیک", "موسیقی", "پخش")
+        // val navKeywords = listOf("مسیر", "ببر", "برو", "مسیریابی")
+        // return musicKeywords.any { cmd.contains(it) } || navKeywords.any { cmd.contains(it) }
+        
+        // فعلاً فقط دستورات مالی و یادآوری فعال هستند
+        val financeKeywords = listOf("چک", "قسط", "حساب", "هزینه", "درآمد", "تراکنش")
+        val reminderKeywords = listOf("یادآوری", "یادآور", "یادم باشه", "یاد بده")
+        return financeKeywords.any { cmd.contains(it) } || reminderKeywords.any { cmd.contains(it) }
     }
     
     override fun onDestroy() {
@@ -104,6 +111,9 @@ class MainActivity : AppCompatActivity() {
             // راه‌اندازی TTS
             ttsHelper = com.persianai.assistant.utils.TTSHelper(this)
             ttsHelper.initialize()
+            
+            // راه‌اندازی دستیار پیشرفته
+            advancedAssistant = com.persianai.assistant.ai.AdvancedPersianAssistant(this)
             
             // Initialize Default API Keys if available
             try {
@@ -434,20 +444,26 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        // چک دستورات عملی (موزیک، مسیریابی)
+        // چک دستورات عملی (مالی، یادآوری)
         if (isActionCommand(text)) {
-            val result = com.persianai.assistant.ai.SmartAssistant.processCommand(this, text)
-            val aiMessage = ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = result,
-                timestamp = System.currentTimeMillis()
-            )
+            val response = advancedAssistant.processRequest(text)
+            
             addMessage(ChatMessage(
                 role = MessageRole.USER,
                 content = text,
                 timestamp = System.currentTimeMillis()
             ))
+            
+            val aiMessage = ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = response.text,
+                timestamp = System.currentTimeMillis()
+            )
             addMessage(aiMessage)
+            
+            // اجرای action اگر لازم باشد
+            handleAssistantAction(response)
+            
             binding.messageInput.text?.clear()
             return
         }

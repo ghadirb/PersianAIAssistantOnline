@@ -2,679 +2,377 @@ package com.persianai.assistant.utils
 
 import android.content.Context
 import android.content.SharedPreferences
-import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.util.Log
-import java.text.SimpleDateFormat
-import java.util.*
+import androidx.work.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.util.concurrent.TimeUnit
 
 /**
- * مدیر هوشمند یادآورهای تعمیر و نگهداری خودرو
+ * مدیریت هوشمند خودرو و سرویس‌ها
+ * شامل: تعویض روغن، سرویس دوره‌ای، لاستیک، بازدید فنی، و هشدارهای زمینه‌محور
  */
 class CarMaintenanceManager(private val context: Context) {
     
-    private val prefs: SharedPreferences = context.getSharedPreferences("car_maintenance", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true }
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val prefs: SharedPreferences = context.getSharedPreferences("car_maintenance_prefs", Context.MODE_PRIVATE)
+    private val gson = Gson()
     
     companion object {
-        private const val VEHICLES_KEY = "vehicles"
-        private const val MAINTENANCE_RECORDS_KEY = "maintenance_records"
-        private const val REMINDERS_KEY = "maintenance_reminders"
+        private const val TAG = "CarMaintenance"
+        private const val KEY_SERVICES = "services"
+        private const val KEY_CAR_INFO = "car_info"
+        private const val KEY_CURRENT_KM = "current_km"
     }
     
-    @Serializable
-    data class Vehicle(
-        val id: String,
+    /**
+     * اطلاعات خودرو
+     */
+    data class CarInfo(
         val brand: String,
         val model: String,
         val year: Int,
-        val licensePlate: String,
-        val vin: String = "",
-        val currentMileage: Long = 0,
-        val fuelType: FuelType,
-        val transmissionType: TransmissionType,
-        val purchaseDate: String,
-        val isActive: Boolean = true,
-        val imageUrl: String = ""
+        val plateNumber: String,
+        val engineType: String = "بنزینی" // بنزینی، دیزل، هیبریدی، برقی
     )
     
-    @Serializable
-    data class MaintenanceRecord(
+    /**
+     * نوع سرویس
+     */
+    enum class ServiceType(val displayName: String, val intervalKm: Int, val intervalMonths: Int) {
+        OIL_CHANGE("تعویض روغن", 5000, 6),
+        OIL_FILTER("تعویض فیلتر روغن", 10000, 6),
+        AIR_FILTER("تعویض فیلتر هوا", 20000, 12),
+        TIRE_ROTATION("چرخش لاستیک", 10000, 6),
+        TIRE_REPLACEMENT("تعویض لاستیک", 50000, 24),
+        BRAKE_CHECK("بازدید ترمز", 15000, 12),
+        BRAKE_FLUID("تعویض روغن ترمز", 40000, 24),
+        COOLANT("تعویض کولنت", 40000, 24),
+        BATTERY_CHECK("بازدید باتری", 10000, 6),
+        BATTERY_REPLACEMENT("تعویض باتری", 80000, 36),
+        TIMING_BELT("تسمه تایم", 100000, 60),
+        SPARK_PLUGS("شمع", 30000, 24),
+        INSPECTION("بازدید فنی معاینه", 10000, 12),
+        FULL_SERVICE("سرویس کامل", 10000, 12);
+    }
+    
+    /**
+     * سرویس انجام شده یا برنامه‌ریزی شده
+     */
+    data class ServiceRecord(
         val id: String,
-        val vehicleId: String,
-        val type: MaintenanceType,
-        val description: String,
-        val date: String,
-        val mileage: Long,
-        val cost: Double,
-        val provider: String = "",
+        val type: ServiceType,
+        val kmAtService: Int,
+        val datePerformed: Long,
+        val cost: Long = 0,
         val notes: String = "",
-        val nextDueDate: String? = null,
-        val nextDueMileage: Long? = null,
-        val documents: List<String> = emptyList()
+        val isDone: Boolean = true,
+        val nextDueKm: Int = 0,
+        val nextDueDate: Long = 0
     )
     
-    @Serializable
-    data class MaintenanceReminder(
-        val id: String,
-        val vehicleId: String,
-        val type: MaintenanceType,
-        val title: String,
-        val description: String,
-        val dueDate: String? = null,
-        val dueMileage: Long? = null,
-        val reminderInterval: ReminderInterval,
-        val isActive: Boolean = true,
-        val lastCompletedDate: String? = null,
-        val lastCompletedMileage: Long? = null
-    )
-    
-    @Serializable
-    enum class FuelType {
-        GASOLINE, // بنزین
-        DIESEL, // دیزل
-        HYBRID, // هیبریدی
-        ELECTRIC, // برقی
-        CNG // گاز طبیعی
-    }
-    
-    @Serializable
-    enum class TransmissionType {
-        MANUAL, // دستی
-        AUTOMATIC, // اتوماتیک
-        CVT, // CVT
-        SEMI_AUTOMATIC // نیمه اتوماتیک
-    }
-    
-    @Serializable
-    enum class MaintenanceType {
-        OIL_CHANGE, // تعویض روغن
-        OIL_FILTER, // فیلتر روغن
-        AIR_FILTER, // فیلتر هوا
-        CABIN_FILTER, // فیلتر کابین
-        FUEL_FILTER, // فیلتر سوخت
-        SPARK_PLUGS, // شمع‌ها
-        BRAKE_PADS, // لنت ترمز
-        BRAKE_FLUID, // روغن ترمز
-        COOLANT, // ضد یخ
-        TRANSMISSION_FLUID, // روغن گیربکس
-        TIRE_ROTATION, // چرخش لاستیک‌ها
-        TIRE_REPLACEMENT, // تعویض لاستیک
-        BATTERY, // باتری
-        TIMING_BELT, // تایم بند
-        INSPECTION, // بازرسی فنی
-        INSURANCE, // بیمه
-        OTHER // سایر
-    }
-    
-    @Serializable
-    enum class ReminderInterval {
-        DAILY, // روزانه
-        WEEKLY, // هفتگی
-        MONTHLY, // ماهانه
-        QUARTERLY, // فصلی
-        YEARLY, // سالانه
-        MILEAGE_BASED // بر اساس کیلومتر
+    /**
+     * افزودن/ویرایش اطلاعات خودرو
+     */
+    fun setCarInfo(carInfo: CarInfo) {
+        val json = gson.toJson(carInfo)
+        prefs.edit().putString(KEY_CAR_INFO, json).apply()
+        Log.i(TAG, "✅ اطلاعات خودرو ذخیره شد: ${carInfo.brand} ${carInfo.model}")
     }
     
     /**
-     * افزودن خودروی جدید
+     * دریافت اطلاعات خودرو
      */
-    fun addVehicle(vehicle: Vehicle) {
-        try {
-            val vehicles = getVehicles().toMutableList()
-            vehicles.add(vehicle)
-            saveVehicles(vehicles)
-            
-            // ایجاد یادآورهای پیش‌فرض برای خودرو
-            createDefaultReminders(vehicle)
-            
-            Log.i("CarMaintenanceManager", "✅ خودروی جدید اضافه شد: ${vehicle.brand} ${vehicle.model}")
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در افزودن خودرو: ${e.message}")
-        }
+    fun getCarInfo(): CarInfo? {
+        val json = prefs.getString(KEY_CAR_INFO, null) ?: return null
+        return gson.fromJson(json, CarInfo::class.java)
     }
     
     /**
-     * دریافت تمام خودروها
+     * بروزرسانی کیلومتر فعلی
      */
-    fun getVehicles(): List<Vehicle> {
-        return try {
-            val vehiclesJson = prefs.getString(VEHICLES_KEY, null)
-            if (vehiclesJson != null) {
-                json.decodeFromString<List<Vehicle>>(vehiclesJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در دریافت خودروها: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * دریافت خودروهای فعال
-     */
-    fun getActiveVehicles(): List<Vehicle> {
-        return getVehicles().filter { it.isActive }
-    }
-    
-    /**
-     * به‌روزرسانی کیلومتر خودرو
-     */
-    fun updateVehicleMileage(vehicleId: String, newMileage: Long) {
-        try {
-            val vehicles = getVehicles().toMutableList()
-            val index = vehicles.indexOfFirst { it.id == vehicleId }
-            if (index != -1) {
-                vehicles[index] = vehicles[index].copy(currentMileage = newMileage)
-                saveVehicles(vehicles)
-                
-                // بررسی یادآورهای بر اساس کیلومتر
-                checkMileageBasedReminders(vehicleId, newMileage)
-                
-                Log.i("CarMaintenanceManager", "✅ کیلومتر خودرو به‌روزرسانی شد: $newMileage")
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در به‌روزرسانی کیلومتر خودرو: ${e.message}")
-        }
-    }
-    
-    /**
-     * افزودن سرویس نگهداری
-     */
-    fun addMaintenanceRecord(record: MaintenanceRecord) {
-        try {
-            val records = getMaintenanceRecords().toMutableList()
-            records.add(record)
-            saveMaintenanceRecords(records)
-            
-            // به‌روزرسانی یادآور مربوطه
-            updateReminderAfterMaintenance(record)
-            
-            Log.i("CarMaintenanceManager", "✅ رکورد نگهداری اضافه شد: ${record.type}")
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در افزودن رکورد نگهداری: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام رکوردهای نگهداری
-     */
-    fun getMaintenanceRecords(): List<MaintenanceRecord> {
-        return try {
-            val recordsJson = prefs.getString(MAINTENANCE_RECORDS_KEY, null)
-            if (recordsJson != null) {
-                json.decodeFromString<List<MaintenanceRecord>>(recordsJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در دریافت رکوردهای نگهداری: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * دریافت رکوردهای نگهداری یک خودرو
-     */
-    fun getVehicleMaintenanceRecords(vehicleId: String): List<MaintenanceRecord> {
-        return getMaintenanceRecords().filter { it.vehicleId == vehicleId }
-            .sortedByDescending { it.date }
-    }
-    
-    /**
-     * افزودن یادآور نگهداری
-     */
-    fun addMaintenanceReminder(reminder: MaintenanceReminder) {
-        try {
-            val reminders = getMaintenanceReminders().toMutableList()
-            reminders.add(reminder)
-            saveMaintenanceReminders(reminders)
-            
-            // شروع بررسی دوره‌ای یادآورها
-            startPeriodicReminderCheck()
-            
-            Log.i("CarMaintenanceManager", "✅ یادآور نگهداری اضافه شد: ${reminder.title}")
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در افزودن یادآور نگهداری: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام یادآورهای نگهداری
-     */
-    fun getMaintenanceReminders(): List<MaintenanceReminder> {
-        return try {
-            val remindersJson = prefs.getString(REMINDERS_KEY, null)
-            if (remindersJson != null) {
-                json.decodeFromString<List<MaintenanceReminder>>(remindersJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در دریافت یادآورهای نگهداری: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * دریافت یادآورهای فعال
-     */
-    fun getActiveReminders(): List<MaintenanceReminder> {
-        return getMaintenanceReminders().filter { it.isActive }
-    }
-    
-    /**
-     * دریافت یادآورهای سررسید شده
-     */
-    fun getDueReminders(): List<MaintenanceReminder> {
-        val today = dateFormat.format(Date())
-        val activeVehicles = getActiveVehicles()
-        val vehicleMileageMap = activeVehicles.associateBy { it.id }.mapValues { it.value.currentMileage }
+    fun updateCurrentKm(km: Int) {
+        prefs.edit().putInt(KEY_CURRENT_KM, km).apply()
+        Log.d(TAG, "📍 کیلومتر بروز شد: $km")
         
-        return getActiveReminders().filter { reminder ->
-            val isDateDue = reminder.dueDate?.let { dueDate ->
-                getDaysBetween(today, dueDate) <= 0
-            } ?: false
-            
-            val isMileageDue = reminder.dueMileage?.let { dueMileage ->
-                val currentMileage = vehicleMileageMap[reminder.vehicleId] ?: 0L
-                currentMileage >= dueMileage
-            } ?: false
-            
-            isDateDue || isMileageDue
-        }
+        // بررسی سرویس‌های سررسید
+        checkUpcomingServices()
     }
     
     /**
-     * تکمیل یادآور نگهداری
+     * دریافت کیلومتر فعلی
      */
-    fun completeMaintenanceReminder(reminderId: String, completionDate: String, completionMileage: Long) {
-        try {
-            val reminders = getMaintenanceReminders().toMutableList()
-            val index = reminders.indexOfFirst { it.id == reminderId }
-            if (index != -1) {
-                val reminder = reminders[index]
-                
-                // محاسبه تاریخ سررسید بعدی
-                val nextDueDate = calculateNextDueDate(reminder, completionDate)
-                val nextDueMileage = calculateNextDueMileage(reminder, completionMileage)
-                
-                reminders[index] = reminder.copy(
-                    lastCompletedDate = completionDate,
-                    lastCompletedMileage = completionMileage,
-                    dueDate = nextDueDate,
-                    dueMileage = nextDueMileage
-                )
-                
-                saveMaintenanceReminders(reminders)
-                
-                // ارسال نوتیفیکیشن تکمیل
-                sendCompletionNotification(reminder)
-                
-                Log.i("CarMaintenanceManager", "✅ یادآور نگهداری تکمیل شد: ${reminder.title}")
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در تکمیل یادآور نگهداری: ${e.message}")
-        }
+    fun getCurrentKm(): Int {
+        return prefs.getInt(KEY_CURRENT_KM, 0)
     }
     
     /**
-     * دریافت هزینه‌های نگهداری
+     * ثبت سرویس انجام شده
      */
-    fun getMaintenanceCosts(vehicleId: String? = null): MaintenanceCostSummary {
-        val records = if (vehicleId != null) {
-            getVehicleMaintenanceRecords(vehicleId)
-        } else {
-            getMaintenanceRecords()
-        }
+    fun addServiceRecord(
+        type: ServiceType,
+        kmAtService: Int,
+        datePerformed: Long = System.currentTimeMillis(),
+        cost: Long = 0,
+        notes: String = ""
+    ): ServiceRecord {
+        val nextDueKm = kmAtService + type.intervalKm
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = datePerformed
+        calendar.add(java.util.Calendar.MONTH, type.intervalMonths)
+        val nextDueDate = calendar.timeInMillis
         
-        val totalCost = records.sumOf { it.cost }
-        val costByType = records.groupBy { it.type }
-            .mapValues { it.value.sumOf { record -> record.cost } }
-        
-        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-        val thisYearCosts = records.filter { record ->
-            val calendar = Calendar.getInstance()
-            calendar.time = dateFormat.parse(record.date) ?: Date()
-            calendar.get(Calendar.YEAR) == currentYear
-        }.sumOf { it.cost }
-        
-        return MaintenanceCostSummary(
-            totalCost = totalCost,
-            costByType = costByType,
-            thisYearCost = thisYearCosts,
-            averageMonthlyCost = thisYearCosts / 12.0
+        val record = ServiceRecord(
+            id = System.currentTimeMillis().toString(),
+            type = type,
+            kmAtService = kmAtService,
+            datePerformed = datePerformed,
+            cost = cost,
+            notes = notes,
+            isDone = true,
+            nextDueKm = nextDueKm,
+            nextDueDate = nextDueDate
         )
+        
+        val services = getAllServices().toMutableList()
+        services.add(record)
+        saveServices(services)
+        
+        Log.i(TAG, "✅ سرویس ${type.displayName} ثبت شد (${kmAtService} کیلومتر)")
+        
+        // برنامه‌ریزی هشدار بعدی
+        scheduleServiceReminder(record)
+        
+        return record
     }
     
-    @Serializable
-    data class MaintenanceCostSummary(
-        val totalCost: Double,
-        val costByType: Map<MaintenanceType, Double>,
-        val thisYearCost: Double,
-        val averageMonthlyCost: Double
-    )
+    /**
+     * دریافت تمام سرویس‌ها
+     */
+    fun getAllServices(): List<ServiceRecord> {
+        val json = prefs.getString(KEY_SERVICES, "[]") ?: "[]"
+        val type = object : TypeToken<List<ServiceRecord>>() {}.type
+        return gson.fromJson(json, type)
+    }
     
     /**
-     * دریافت توصیه‌های نگهداری
+     * دریافت سرویس‌های سررسید نزدیک
      */
-    fun getMaintenanceRecommendations(vehicleId: String): List<String> {
-        val vehicle = getVehicles().find { it.id == vehicleId } ?: return emptyList()
-        val records = getVehicleMaintenanceRecords(vehicleId)
-        val recommendations = mutableListOf<String>()
+    fun getUpcomingServices(): List<ServiceRecord> {
+        val currentKm = getCurrentKm()
+        val now = System.currentTimeMillis()
+        val thirtyDaysLater = now + (30 * 24 * 60 * 60 * 1000)
         
-        // بررسی آخرین تعویض روغن
-        val lastOilChange = records.filter { it.type == MaintenanceType.OIL_CHANGE }
-            .maxByOrNull { it.date }
+        val services = getAllServices()
+        val upcoming = mutableListOf<ServiceRecord>()
         
-        if (lastOilChange == null || getDaysBetween(lastOilChange.date, dateFormat.format(Date())) > 90) {
-            recommendations.add("زمان تعویض روغن موتور فرا رسیده است")
-        }
-        
-        // بررسی لاستیک‌ها
-        val lastTireRotation = records.filter { it.type == MaintenanceType.TIRE_ROTATION }
-            .maxByOrNull { it.date }
-        
-        if (lastTireRotation == null || getDaysBetween(lastTireRotation.date, dateFormat.format(Date())) > 180) {
-            recommendations.add("زمان چرخش لاستیک‌ها فرا رسیده است")
-        }
-        
-        // بررسی فیلترها
-        val lastAirFilter = records.filter { it.type == MaintenanceType.AIR_FILTER }
-            .maxByOrNull { it.date }
-        
-        if (lastAirFilter == null || getDaysBetween(lastAirFilter.date, dateFormat.format(Date())) > 365) {
-            recommendations.add("فیلتر هوا نیاز به بررسی دارد")
-        }
-        
-        // توصیه‌های بر اساس کیلومتر
-        if (vehicle.currentMileage > 0) {
-            when {
-                vehicle.currentMileage % 10000 < 1000 -> {
-                    recommendations.add("رسیدگی دوره‌ای ۱۰ هزار کیلومتری توصیه می‌شود")
+        // بررسی آخرین سرویس هر نوع
+        ServiceType.values().forEach { serviceType ->
+            val lastService = services
+                .filter { it.type == serviceType && it.isDone }
+                .maxByOrNull { it.datePerformed }
+            
+            if (lastService != null) {
+                // بررسی بر اساس کیلومتر
+                val kmRemaining = lastService.nextDueKm - currentKm
+                
+                // بررسی بر اساس تاریخ
+                val dateRemaining = lastService.nextDueDate - now
+                
+                // اگر کمتر از 1000 کیلومتر یا کمتر از 30 روز مانده، به لیست اضافه کن
+                if (kmRemaining <= 1000 || dateRemaining <= thirtyDaysLater) {
+                    upcoming.add(lastService)
                 }
-                vehicle.currentMileage % 40000 < 1000 -> {
-                    recommendations.add("سرویس بزرگ ۴۰ هزار کیلومتری ضروری است")
-                }
-                vehicle.currentMileage % 80000 < 1000 -> {
-                    recommendations.add("بررسی تایم بند و سایر قطعات مصرفی مهم است")
+            } else {
+                // اگر این سرویس هنوز انجام نشده، پیشنهاد انجام بده
+                val plannedRecord = ServiceRecord(
+                    id = "planned_${serviceType.name}",
+                    type = serviceType,
+                    kmAtService = currentKm,
+                    datePerformed = now,
+                    isDone = false,
+                    nextDueKm = currentKm + serviceType.intervalKm,
+                    nextDueDate = System.currentTimeMillis()
+                )
+                upcoming.add(plannedRecord)
+            }
+        }
+        
+        return upcoming.sortedBy { 
+            if (it.isDone) it.nextDueKm - currentKm else 0
+        }
+    }
+    
+    /**
+     * دریافت سرویس‌های سررسید گذشته
+     */
+    fun getOverdueServices(): List<ServiceRecord> {
+        val currentKm = getCurrentKm()
+        val now = System.currentTimeMillis()
+        
+        val services = getAllServices()
+        val overdue = mutableListOf<ServiceRecord>()
+        
+        ServiceType.values().forEach { serviceType ->
+            val lastService = services
+                .filter { it.type == serviceType && it.isDone }
+                .maxByOrNull { it.datePerformed }
+            
+            if (lastService != null) {
+                val kmOverdue = currentKm > lastService.nextDueKm
+                val dateOverdue = now > lastService.nextDueDate
+                
+                if (kmOverdue || dateOverdue) {
+                    overdue.add(lastService)
                 }
             }
         }
         
-        return recommendations
+        return overdue.sortedByDescending { currentKm - it.nextDueKm }
     }
     
     /**
-     * ایجاد یادآورهای پیش‌فرض
+     * بررسی سرویس‌های سررسید و ارسال هشدار
      */
-    private fun createDefaultReminders(vehicle: Vehicle) {
-        val defaultReminders = listOf(
-            MaintenanceReminder(
-                id = "oil_change_${vehicle.id}",
-                vehicleId = vehicle.id,
-                type = MaintenanceType.OIL_CHANGE,
-                title = "تعویض روغن موتور",
-                description = "تعویض روغن و فیلتر روغن هر ۵۰۰۰ کیلومتر یا ۳ ماه",
-                dueMileage = 5000,
-                reminderInterval = ReminderInterval.MILEAGE_BASED
-            ),
-            MaintenanceReminder(
-                id = "tire_rotation_${vehicle.id}",
-                vehicleId = vehicle.id,
-                type = MaintenanceType.TIRE_ROTATION,
-                title = "چرخش لاستیک‌ها",
-                description = "چرخش لاستیک‌ها هر ۱۰۰۰۰ کیلومتر",
-                dueMileage = 10000,
-                reminderInterval = ReminderInterval.MILEAGE_BASED
-            ),
-            MaintenanceReminder(
-                id = "air_filter_${vehicle.id}",
-                vehicleId = vehicle.id,
-                type = MaintenanceType.AIR_FILTER,
-                title = "تعویض فیلتر هوا",
-                description = "تعویض فیلتر هوا هر ۲۰۰۰۰ کیلومتر",
-                dueMileage = 20000,
-                reminderInterval = ReminderInterval.MILEAGE_BASED
-            ),
-            MaintenanceReminder(
-                id = "inspection_${vehicle.id}",
-                vehicleId = vehicle.id,
-                type = MaintenanceType.INSPECTION,
-                title = "بازرسی فنی سالانه",
-                description = "بازرسی فنی سالانه خودرو",
-                reminderInterval = ReminderInterval.YEARLY
+    private fun checkUpcomingServices() {
+        val upcoming = getUpcomingServices()
+        val overdue = getOverdueServices()
+        
+        if (upcoming.isNotEmpty()) {
+            Log.i(TAG, "⚠️ ${upcoming.size} سرویس سررسید نزدیک دارد")
+        }
+        
+        if (overdue.isNotEmpty()) {
+            Log.w(TAG, "🚨 ${overdue.size} سرویس سررسید گذشته!")
+            
+            // ارسال نوتیفیکیشن
+            val notificationHelper = NotificationHelper(context)
+            notificationHelper.sendNotification(
+                title = "🚨 هشدار: سرویس سررسید گذشته",
+                message = "${overdue.size} سرویس باید فوری انجام شود:\n${overdue.take(3).joinToString("\n") { "• ${it.type.displayName}" }}",
+                channelId = "car_maintenance"
             )
+        }
+    }
+    
+    /**
+     * دریافت هشدارهای زمینه‌محور بر اساس آب و هوا
+     */
+    fun getWeatherBasedAlerts(temperature: Double, condition: String): List<String> {
+        val alerts = mutableListOf<String>()
+        
+        // هشدارهای سرمایی (زیر 5 درجه)
+        if (temperature < 5) {
+            alerts.add("🥶 هشدار سرما:\n• باتری را چک کنید (باتری در سرما ضعیف می‌شود)\n• ضد یخ رادیاتور را بررسی کنید\n• لاستیک‌ها را چک کنید (فشار باد در سرما کم می‌شود)")
+        }
+        
+        // هشدارهای گرمایی (بالای 40 درجه)
+        if (temperature > 40) {
+            alerts.add("🔥 هشدار گرما:\n• سطح آب رادیاتور را چک کنید\n• فشار باد لاستیک‌ها را کاهش دهید\n• از پارک در آفتاب خودداری کنید")
+        }
+        
+        // هشدار برف و یخبندان
+        if (condition.contains("snow", ignoreCase = true) || condition.contains("ice", ignoreCase = true)) {
+            alerts.add("❄️ هشدار برف:\n• زنجیر چرخ همراه داشته باشید\n• مایع شیشه‌شوی ضد یخ استفاده کنید\n• با سرعت کمتر رانندگی کنید")
+        }
+        
+        // هشدار باران
+        if (condition.contains("rain", ignoreCase = true)) {
+            alerts.add("🌧️ هشدار باران:\n• تیغه برف‌پاک‌کن را چک کنید\n• سیستم ترمز را بررسی کنید\n• چراغ‌ها را روشن کنید")
+        }
+        
+        return alerts
+    }
+    
+    /**
+     * محاسبه هزینه کل سرویس‌ها
+     */
+    fun getTotalMaintenanceCost(): Long {
+        return getAllServices().filter { it.isDone }.sumOf { it.cost }
+    }
+    
+    /**
+     * دریافت گزارش سرویس‌ها
+     */
+    fun getMaintenanceReport(): MaintenanceReport {
+        val services = getAllServices().filter { it.isDone }
+        val upcoming = getUpcomingServices()
+        val overdue = getOverdueServices()
+        
+        return MaintenanceReport(
+            totalServices = services.size,
+            totalCost = getTotalMaintenanceCost(),
+            lastServiceDate = services.maxOfOrNull { it.datePerformed } ?: 0,
+            upcomingServicesCount = upcoming.size,
+            overdueServicesCount = overdue.size,
+            currentKm = getCurrentKm()
+        )
+    }
+    
+    /**
+     * ذخیره سرویس‌ها
+     */
+    private fun saveServices(services: List<ServiceRecord>) {
+        val json = gson.toJson(services)
+        prefs.edit().putString(KEY_SERVICES, json).apply()
+    }
+    
+    /**
+     * برنامه‌ریزی هشدار سرویس
+     */
+    private fun scheduleServiceReminder(record: ServiceRecord) {
+        // هشدار 7 روز قبل از سررسید
+        val reminderDate = record.nextDueDate - (7 * 24 * 60 * 60 * 1000)
+        val now = System.currentTimeMillis()
+        
+        if (reminderDate > now) {
+            val delay = reminderDate - now
+            
+            val data = Data.Builder()
+                .putString("serviceType", record.type.displayName)
+                .putInt("nextDueKm", record.nextDueKm)
+                .build()
+            
+            val workRequest = OneTimeWorkRequestBuilder<ServiceReminderWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(data)
+                .addTag("service_reminder_${record.id}")
+                .build()
+            
+            WorkManager.getInstance(context).enqueue(workRequest)
+            
+            Log.d(TAG, "🔔 هشدار سرویس ${record.type.displayName} تنظیم شد")
+        }
+    }
+    
+    data class MaintenanceReport(
+        val totalServices: Int,
+        val totalCost: Long,
+        val lastServiceDate: Long,
+        val upcomingServicesCount: Int,
+        val overdueServicesCount: Int,
+        val currentKm: Int
+    )
+}
+
+/**
+ * Worker برای هشدار سرویس
+ */
+class ServiceReminderWorker(
+    context: Context,
+    params: WorkerParameters
+) : Worker(context, params) {
+    
+    override fun doWork(): Result {
+        val serviceType = inputData.getString("serviceType") ?: ""
+        val nextDueKm = inputData.getInt("nextDueKm", 0)
+        
+        val notificationHelper = NotificationHelper(applicationContext)
+        notificationHelper.sendNotification(
+            title = "🔧 یادآوری سرویس خودرو",
+            message = "$serviceType\nکیلومتر سررسید: ${String.format("%,d", nextDueKm)}\n\n7 روز تا سررسید باقی مانده",
+            channelId = "car_maintenance"
         )
         
-        defaultReminders.forEach { addMaintenanceReminder(it) }
-    }
-    
-    /**
-     * شروع بررسی دوره‌ای یادآورها
-     */
-    private fun startPeriodicReminderCheck() {
-        scope.launch {
-            while (isActive) {
-                checkAndSendReminders()
-                delay(24 * 60 * 60 * 1000) // بررسی روزانه
-            }
-        }
-    }
-    
-    /**
-     * بررسی و ارسال یادآورها
-     */
-    private fun checkAndSendReminders() {
-        try {
-            val dueReminders = getDueReminders()
-            dueReminders.forEach { reminder ->
-                sendReminderNotification(reminder)
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در بررسی یادآورها: ${e.message}")
-        }
-    }
-    
-    /**
-     * بررسی یادآورهای بر اساس کیلومتر
-     */
-    private fun checkMileageBasedReminders(vehicleId: String, currentMileage: Long) {
-        try {
-            val reminders = getActiveReminders().filter { 
-                it.vehicleId == vehicleId && 
-                it.reminderInterval == ReminderInterval.MILEAGE_BASED &&
-                it.dueMileage != null
-            }
-            
-            reminders.forEach { reminder ->
-                if (currentMileage >= reminder.dueMileage!!) {
-                    sendReminderNotification(reminder)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در بررسی یادآورهای کیلومتری: ${e.message}")
-        }
-    }
-    
-    /**
-     * ارسال نوتیفیکیشن یادآور
-     */
-    private fun sendReminderNotification(reminder: MaintenanceReminder) {
-        try {
-            scope.launch {
-                NotificationHelper.showNotification(
-                    context = context,
-                    title = "🔧 یادآور نگهداری خودرو",
-                    message = reminder.description,
-                    channelId = "car_maintenance"
-                )
-            }
-            
-            Log.i("CarMaintenanceManager", "✅ نوتیفیکیشن یادآور ارسال شد: ${reminder.title}")
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در ارسال نوتیفیکیشن یادآور: ${e.message}")
-        }
-    }
-    
-    /**
-     * ارسال نوتیفیکیشن تکمیل
-     */
-    private fun sendCompletionNotification(reminder: MaintenanceReminder) {
-        try {
-            scope.launch {
-                NotificationHelper.showNotification(
-                    context = context,
-                    title = "✅ تکمیل نگهداری خودرو",
-                    message = "${reminder.title} با موفقیت انجام شد",
-                    channelId = "car_maintenance"
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در ارسال نوتیفیکیشن تکمیل: ${e.message}")
-        }
-    }
-    
-    /**
-     * محاسبه تاریخ سررسید بعدی
-     */
-    private fun calculateNextDueDate(reminder: MaintenanceReminder, completionDate: String): String? {
-        return if (reminder.reminderInterval != ReminderInterval.MILEAGE_BASED) {
-            val calendar = Calendar.getInstance()
-            calendar.time = dateFormat.parse(completionDate) ?: Date()
-            
-            when (reminder.reminderInterval) {
-                ReminderInterval.DAILY -> calendar.add(Calendar.DAY_OF_MONTH, 1)
-                ReminderInterval.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
-                ReminderInterval.MONTHLY -> calendar.add(Calendar.MONTH, 1)
-                ReminderInterval.QUARTERLY -> calendar.add(Calendar.MONTH, 3)
-                ReminderInterval.YEARLY -> calendar.add(Calendar.YEAR, 1)
-                else -> return null
-            }
-            
-            dateFormat.format(calendar.time)
-        } else {
-            null
-        }
-    }
-    
-    /**
-     * محاسبه کیلومتر سررسید بعدی
-     */
-    private fun calculateNextDueMileage(reminder: MaintenanceReminder, completionMileage: Long): Long? {
-        return if (reminder.reminderInterval == ReminderInterval.MILEAGE_BASED) {
-            when (reminder.type) {
-                MaintenanceType.OIL_CHANGE -> completionMileage + 5000
-                MaintenanceType.TIRE_ROTATION -> completionMileage + 10000
-                MaintenanceType.AIR_FILTER -> completionMileage + 20000
-                MaintenanceType.FUEL_FILTER -> completionMileage + 20000
-                MaintenanceType.SPARK_PLUGS -> completionMileage + 20000
-                MaintenanceType.TRANSMISSION_FLUID -> completionMileage + 60000
-                MaintenanceType.COOLANT -> completionMileage + 40000
-                MaintenanceType.TIMING_BELT -> completionMileage + 80000
-                else -> null
-            }
-        } else {
-            null
-        }
-    }
-    
-    /**
-     * به‌روزرسانی یادآور پس از نگهداری
-     */
-    private fun updateReminderAfterMaintenance(record: MaintenanceRecord) {
-        try {
-            val reminders = getMaintenanceReminders().toMutableList()
-            val index = reminders.indexOfFirst { 
-                it.vehicleId == record.vehicleId && it.type == record.type 
-            }
-            
-            if (index != -1) {
-                val reminder = reminders[index]
-                val nextDueDate = record.nextDueDate
-                val nextDueMileage = record.nextDueMileage
-                
-                reminders[index] = reminder.copy(
-                    lastCompletedDate = record.date,
-                    lastCompletedMileage = record.mileage,
-                    dueDate = nextDueDate,
-                    dueMileage = nextDueMileage
-                )
-                
-                saveMaintenanceReminders(reminders)
-            }
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در به‌روزرسانی یادآور پس از نگهداری: ${e.message}")
-        }
-    }
-    
-    /**
-     * محاسبه تعداد روز بین دو تاریخ
-     */
-    private fun getDaysBetween(startDate: String, endDate: String): Int {
-        return try {
-            val start = dateFormat.parse(startDate) ?: Date()
-            val end = dateFormat.parse(endDate) ?: Date()
-            val diff = end.time - start.time
-            (diff / (1000 * 60 * 60 * 24)).toInt()
-        } catch (e: Exception) {
-            0
-        }
-    }
-    
-    /**
-     * ذخیره خودروها
-     */
-    private fun saveVehicles(vehicles: List<Vehicle>) {
-        try {
-            val vehiclesJson = json.encodeToString(vehicles)
-            prefs.edit()
-                .putString(VEHICLES_KEY, vehiclesJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در ذخیره خودروها: ${e.message}")
-        }
-    }
-    
-    /**
-     * ذخیره رکوردهای نگهداری
-     */
-    private fun saveMaintenanceRecords(records: List<MaintenanceRecord>) {
-        try {
-            val recordsJson = json.encodeToString(records)
-            prefs.edit()
-                .putString(MAINTENANCE_RECORDS_KEY, recordsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در ذخیره رکوردهای نگهداری: ${e.message}")
-        }
-    }
-    
-    /**
-     * ذخیره یادآورهای نگهداری
-     */
-    private fun saveMaintenanceReminders(reminders: List<MaintenanceReminder>) {
-        try {
-            val remindersJson = json.encodeToString(reminders)
-            prefs.edit()
-                .putString(REMINDERS_KEY, remindersJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("CarMaintenanceManager", "❌ خطا در ذخیره یادآورهای نگهداری: ${e.message}")
-        }
-    }
-    
-    /**
-     * پاک‌سازی منابع
-     */
-    fun cleanup() {
-        scope.cancel()
-        Log.i("CarMaintenanceManager", "🧹 منابع CarMaintenanceManager پاک‌سازی شد")
+        return Result.success()
     }
 }

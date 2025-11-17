@@ -1,466 +1,402 @@
 package com.persianai.assistant.utils
 
 import android.content.Context
-import android.content.SharedPreferences
-import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.util.Log
+import com.persianai.assistant.api.WorldWeatherAPI
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * مدیر هوشمند برنامه‌ریزی سفر
+ * دستیار هوشمند برنامه‌ریزی سفر
+ * ترکیب آب‌وهوا، تقویم، و حمل‌ونقل برای پیشنهاد بهترین زمان سفر
  */
 class TravelPlannerManager(private val context: Context) {
     
-    private val prefs: SharedPreferences = context.getSharedPreferences("travel_planner", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true }
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val weatherAPI = WorldWeatherAPI(context)
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     
     companion object {
-        private const val TRIPS_KEY = "trips"
-        private const val DESTINATIONS_KEY = "destinations"
+        private const val TAG = "TravelPlanner"
     }
     
-    @Serializable
-    data class TravelTrip(
-        val id: String,
-        val title: String,
+    /**
+     * اطلاعات سفر
+     */
+    data class TripPlan(
         val destination: String,
-        val startDate: Long,
-        val endDate: Long,
-        val budget: Double,
+        val departureDate: Long,
+        val returnDate: Long?,
+        val travelers: Int,
         val transportType: TransportType,
-        val accommodationType: AccommodationType,
-        val activities: List<String>,
-        val notes: String = "",
-        val isCompleted: Boolean = false,
-        val createdAt: Long = System.currentTimeMillis()
+        val accommodation: String = "",
+        val budget: Long = 0,
+        val notes: String = ""
     )
     
-    @Serializable
-    data class Destination(
-        val id: String,
-        val name: String,
-        val country: String,
-        val description: String,
-        val attractions: List<String>,
-        val bestTimeToVisit: String,
-        val averageCost: String,
-        val imageUrl: String = "",
-        val rating: Float = 0.0f
+    /**
+     * نوع وسیله حمل‌ونقل
+     */
+    enum class TransportType(val displayName: String) {
+        CAR("خودرو شخصی"),
+        BUS("اتوبوس"),
+        TRAIN("قطار"),
+        PLANE("هواپیما"),
+        OTHER("سایر")
+    }
+    
+    /**
+     * توصیه‌های سفر
+     */
+    data class TravelRecommendations(
+        val destination: String,
+        val bestDepartureTime: String,
+        val weatherForecast: WeatherInfo,
+        val packingList: List<String>,
+        val warnings: List<String>,
+        val tips: List<String>,
+        val estimatedDuration: String
     )
     
-    @Serializable
-    enum class TransportType {
-        CAR, // ماشین شخصی
-        BUS, // اتوبوس
-        TRAIN, // قطار
-        PLANE, // هواپیما
-        SHIP // کشتی
-    }
-    
-    @Serializable
-    enum class AccommodationType {
-        HOTEL, // هتل
-        APARTMENT, // آپارتمان
-        HOSTEL, // مهمانپذیر
-        COTTAGE, // ویلای جنگلی
-        CAMPING // کمپینگ
-    }
+    /**
+     * اطلاعات آب‌وهوا
+     */
+    data class WeatherInfo(
+        val temperature: String,
+        val condition: String,
+        val humidity: String,
+        val windSpeed: String,
+        val aqi: String,
+        val uvIndex: String
+    )
     
     /**
-     * افزودن سفر جدید
+     * برنامه‌ریزی سفر با توصیه‌های هوشمند
      */
-    fun addTrip(trip: TravelTrip) {
-        try {
-            val trips = getTrips().toMutableList()
-            trips.add(trip)
-            saveTrips(trips)
-            
-            Log.i("TravelPlannerManager", "✅ سفر جدید اضافه شد: ${trip.title}")
-            
-            // تنظیم یادآور برای سفر
-            scheduleTripReminders(trip)
-            
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در افزودن سفر: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام سفرها
-     */
-    fun getTrips(): List<TravelTrip> {
-        return try {
-            val tripsJson = prefs.getString(TRIPS_KEY, null)
-            if (tripsJson != null) {
-                json.decodeFromString<List<TravelTrip>>(tripsJson)
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در دریافت سفرها: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * دریافت سفرهای آینده
-     */
-    fun getUpcomingTrips(): List<TravelTrip> {
-        val now = System.currentTimeMillis()
-        return getTrips().filter { !it.isCompleted && it.startDate > now }
-            .sortedBy { it.startDate }
-    }
-    
-    /**
-     * دریافت سفرهای فعال (در حال انجام)
-     */
-    fun getActiveTrips(): List<TravelTrip> {
-        val now = System.currentTimeMillis()
-        return getTrips().filter { 
-            !it.isCompleted && it.startDate <= now && it.endDate >= now 
-        }
-    }
-    
-    /**
-     * دریافت سفرهای گذشته
-     */
-    fun getCompletedTrips(): List<TravelTrip> {
-        return getTrips().filter { it.isCompleted }
-            .sortedByDescending { it.startDate }
-    }
-    
-    /**
-     * ویرایش سفر
-     */
-    fun updateTrip(trip: TravelTrip) {
-        try {
-            val trips = getTrips().toMutableList()
-            val index = trips.indexOfFirst { it.id == trip.id }
-            if (index != -1) {
-                trips[index] = trip
-                saveTrips(trips)
-                Log.i("TravelPlannerManager", "✅ سفر ویرایش شد: ${trip.title}")
-            }
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در ویرایش سفر: ${e.message}")
-        }
-    }
-    
-    /**
-     * حذف سفر
-     */
-    fun deleteTrip(tripId: String) {
-        try {
-            val trips = getTrips().toMutableList()
-            trips.removeAll { it.id == tripId }
-            saveTrips(trips)
-            Log.i("TravelPlannerManager", "✅ سفر حذف شد: $tripId")
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در حذف سفر: ${e.message}")
-        }
-    }
-    
-    /**
-     * تکمیل سفر
-     */
-    fun completeTrip(tripId: String) {
-        try {
-            val trips = getTrips().toMutableList()
-            val index = trips.indexOfFirst { it.id == tripId }
-            if (index != -1) {
-                trips[index] = trips[index].copy(isCompleted = true)
-                saveTrips(trips)
-                Log.i("TravelPlannerManager", "✅ سفر تکمیل شد: $tripId")
-            }
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در تکمیل سفر: ${e.message}")
-        }
-    }
-    
-    /**
-     * افزودن مقصد جدید
-     */
-    fun addDestination(destination: Destination) {
-        try {
-            val destinations = getDestinations().toMutableList()
-            destinations.add(destination)
-            saveDestinations(destinations)
-            Log.i("TravelPlannerManager", "✅ مقصد جدید اضافه شد: ${destination.name}")
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در افزودن مقصد: ${e.message}")
-        }
-    }
-    
-    /**
-     * دریافت تمام مقاصد
-     */
-    fun getDestinations(): List<Destination> {
-        return try {
-            val destinationsJson = prefs.getString(DESTINATIONS_KEY, null)
-            if (destinationsJson != null) {
-                json.decodeFromString<List<Destination>>(destinationsJson)
-            } else {
-                createDefaultDestinations()
-            }
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در دریافت مقاصد: ${e.message}")
-            emptyList()
-        }
-    }
-    
-    /**
-     * جستجوی مقاصد
-     */
-    fun searchDestinations(query: String): List<Destination> {
-        val destinations = getDestinations()
-        return destinations.filter { destination ->
-            destination.name.contains(query, ignoreCase = true) ||
-            destination.country.contains(query, ignoreCase = true) ||
-            destination.description.contains(query, ignoreCase = true)
-        }
-    }
-    
-    /**
-     * دریافت توصیه‌های سفر
-     */
-    fun getTravelRecommendations(trip: TravelTrip): List<String> {
-        val recommendations = mutableListOf<String>()
+    suspend fun planTrip(
+        destination: String,
+        departureDate: Long,
+        returnDate: Long?,
+        transportType: TransportType
+    ): TravelRecommendations = withContext(Dispatchers.IO) {
         
-        // توصیه بر اساس نوع حمل و نقل
-        when (trip.transportType) {
+        Log.i(TAG, "🗺️ برنامه‌ریزی سفر به $destination")
+        
+        // دریافت پیش‌بینی آب‌وهوا
+        val weatherInfo = getWeatherForecast(destination, departureDate)
+        
+        // بهترین زمان حرکت
+        val bestTime = calculateBestDepartureTime(destination, departureDate, weatherInfo, transportType)
+        
+        // لیست وسایل
+        val packingList = generatePackingList(weatherInfo, transportType)
+        
+        // هشدارها
+        val warnings = generateWarnings(weatherInfo, transportType, departureDate)
+        
+        // نکات مفید
+        val tips = generateTravelTips(destination, weatherInfo, transportType)
+        
+        // مدت زمان تقریبی
+        val duration = estimateTravelDuration(destination, transportType)
+        
+        TravelRecommendations(
+            destination = destination,
+            bestDepartureTime = bestTime,
+            weatherForecast = weatherInfo,
+            packingList = packingList,
+            warnings = warnings,
+            tips = tips,
+            estimatedDuration = duration
+        )
+    }
+    
+    /**
+     * دریافت پیش‌بینی آب‌وهوا
+     */
+    private suspend fun getWeatherForecast(destination: String, date: Long): WeatherInfo {
+        return try {
+            val weather = weatherAPI.getWeatherByCity(destination)
+            
+            WeatherInfo(
+                temperature = "${weather.main.temp}°C",
+                condition = weather.weather.firstOrNull()?.description ?: "نامشخص",
+                humidity = "${weather.main.humidity}%",
+                windSpeed = "${weather.wind.speed} m/s",
+                aqi = weather.aqi?.toString() ?: "نامشخص",
+                uvIndex = weather.uvi?.toString() ?: "نامشخص"
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "خطا در دریافت آب‌وهوا", e)
+            WeatherInfo(
+                temperature = "نامشخص",
+                condition = "نامشخص",
+                humidity = "نامشخص",
+                windSpeed = "نامشخص",
+                aqi = "نامشخص",
+                uvIndex = "نامشخص"
+            )
+        }
+    }
+    
+    /**
+     * محاسبه بهترین زمان حرکت
+     */
+    private fun calculateBestDepartureTime(
+        destination: String,
+        departureDate: Long,
+        weather: WeatherInfo,
+        transportType: TransportType
+    ): String {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = departureDate
+        
+        // بر اساس نوع وسیله
+        val recommendedHour = when (transportType) {
             TransportType.CAR -> {
-                recommendations.add("بیمه ماشین خود را بررسی کنید")
-                recommendations.add("وضعیت فنی خودرو را کنترل نمایید")
-                recommendations.add("مسیرهای جایگزین را در نقشه ذخیره کنید")
+                // برای خودرو: صبح زود یا بعدازظهر (جلوگیری از ترافیک)
+                if (calendar.get(Calendar.DAY_OF_WEEK) in Calendar.SATURDAY..Calendar.THURSDAY) {
+                    6 // صبح زود در روزهای کاری
+                } else {
+                    8 // روزهای تعطیل
+                }
             }
-            TransportType.BUS -> {
-                recommendations.add("بلیط را زودتر رزرو کنید")
-                recommendations.add("از وسایل شخصی برای راحتی استفاده کنید")
+            TransportType.BUS -> 7 // اتوبوس‌ها معمولاً صبح حرکت می‌کنند
+            TransportType.TRAIN -> 8
+            TransportType.PLANE -> {
+                // برای پرواز: ساعت‌های اول صبح کمتر تاخیر دارند
+                6
             }
-            TransportType.TRAIN -> {
-                recommendations.add("ایستگاه‌های مسیر را بررسی کنید")
-                recommendations.add("وسایل ضروری در سفر قطار را آماده کنید")
+            TransportType.OTHER -> 8
+        }
+        
+        calendar.set(Calendar.HOUR_OF_DAY, recommendedHour)
+        calendar.set(Calendar.MINUTE, 0)
+        
+        val timeFormat = SimpleDateFormat("EEEE، d MMMM yyyy - ساعت HH:mm", Locale("fa", "IR"))
+        val bestTime = timeFormat.format(calendar.time)
+        
+        // بررسی شرایط آب‌وهوایی
+        val weatherNote = when {
+            weather.condition.contains("باران", ignoreCase = true) -> "\n⚠️ توجه: احتمال بارش وجود دارد. زودتر حرکت کنید."
+            weather.condition.contains("برف", ignoreCase = true) -> "\n❄️ توجه: احتمال برف‌بارش. حرکت را به تعویق بیندازید."
+            weather.temperature.contains("-") -> "\n🥶 توجه: هوا سرد است. زودتر حرکت کنید."
+            else -> ""
+        }
+        
+        return bestTime + weatherNote
+    }
+    
+    /**
+     * تولید لیست وسایل
+     */
+    private fun generatePackingList(weather: WeatherInfo, transportType: TransportType): List<String> {
+        val list = mutableListOf<String>()
+        
+        // وسایل عمومی
+        list.addAll(listOf(
+            "📱 شارژر موبایل و پاوربانک",
+            "💳 کارت شناسایی و کارت بانکی",
+            "💊 داروهای شخصی",
+            "🧴 لوازم بهداشتی",
+            "🎒 کوله‌پشتی یا چمدان"
+        ))
+        
+        // بر اساس آب‌وهوا
+        val temp = weather.temperature.replace("°C", "").toDoubleOrNull() ?: 20.0
+        
+        when {
+            temp < 10 -> {
+                list.add("🧥 لباس گرم و کت ضخیم")
+                list.add("🧣 شال و کلاه")
+                list.add("🧤 دستکش")
+            }
+            temp > 30 -> {
+                list.add("👕 لباس نازک و راحت")
+                list.add("🕶️ عینک آفتابی")
+                list.add("🧴 کرم ضد آفتاب")
+                list.add("🧢 کلاه آفتابی")
+            }
+            else -> {
+                list.add("👕 لباس مناسب فصل")
+            }
+        }
+        
+        if (weather.condition.contains("باران", ignoreCase = true)) {
+            list.add("☔ چتر یا بارانی")
+        }
+        
+        // بر اساس وسیله حمل‌ونقل
+        when (transportType) {
+            TransportType.CAR -> {
+                list.addAll(listOf(
+                    "🚗 مدارک خودرو",
+                    "🔧 جعبه ابزار و یدک",
+                    "⛽ کارت سوخت",
+                    "🗺️ نقشه یا GPS"
+                ))
             }
             TransportType.PLANE -> {
-                recommendations.add("قوانین بار هوایی را بررسی کنید")
-                recommendations.add("زودتر در فرودگاه حاضر شوید")
-                recommendations.add("مدارک لازم را آماده کنید")
-            }
-            TransportType.SHIP -> {
-                recommendations.add("وضعیت آب و هوا را بررسی کنید")
-                recommendations.add("دارای دریازدگی دارو همراه داشته باشید")
-            }
-        }
-        
-        // توصیه بر اساس نوع اقامت
-        when (trip.accommodationType) {
-            AccommodationType.HOTEL -> {
-                recommendations.add("امکانات هتل را از قبل بررسی کنید")
-                recommendations.add("ساعت تحویل اتاق را هماهنگ کنید")
-            }
-            AccommodationType.APARTMENT -> {
-                recommendations.add("وسایل آشپزخانه ضروری را بررسی کنید")
-                recommendations.add("قوانین آپارتمان را مطالعه کنید")
-            }
-            AccommodationType.COTTAGE -> {
-                recommendations.add("وسایل گرمایشی و سرمایشی را بررسی کنید")
-                recommendations.add("موقعیت دقیق ویلای جنگلی را بررسی کنید")
-            }
-            AccommodationType.CAMPING -> {
-                recommendations.add("وسایل کمپینگ را کامل بررسی کنید")
-                recommendations.add("موقعیت آب و هوایی را بررسی کنید")
+                list.addAll(listOf(
+                    "✈️ بلیط و پاسپورت",
+                    "🎧 هندزفری",
+                    "😷 ماسک"
+                ))
             }
             else -> {}
         }
         
-        // توصیه‌های عمومی
-        recommendations.add("مدارک شناسایی و پاسپورت را بررسی کنید")
-        recommendations.add("داروهای ضروری را همراه داشته باشید")
-        recommendations.add("شامل شارژر موبایل و پاور بانک")
-        recommendations.add("نقشه آفلاین مقصد را دانلود کنید")
-        
-        return recommendations
+        return list
     }
     
     /**
-     * محاسبه هزینه سفر
+     * تولید هشدارها
      */
-    fun calculateTripCost(trip: TravelTrip): TripCostBreakdown {
-        val days = ((trip.endDate - trip.startDate) / (1000 * 60 * 60 * 24)).toInt() + 1
+    private fun generateWarnings(weather: WeatherInfo, transportType: TransportType, departureDate: Long): List<String> {
+        val warnings = mutableListOf<String>()
         
-        val accommodationCost = when (trip.accommodationType) {
-            AccommodationType.HOTEL -> trip.budget * 0.4
-            AccommodationType.APARTMENT -> trip.budget * 0.3
-            AccommodationType.HOSTEL -> trip.budget * 0.2
-            AccommodationType.COTTAGE -> trip.budget * 0.35
-            AccommodationType.CAMPING -> trip.budget * 0.1
+        // هشدارهای آب‌وهوایی
+        val temp = weather.temperature.replace("°C", "").toDoubleOrNull() ?: 20.0
+        
+        if (temp < 0) {
+            warnings.add("🥶 هشدار یخبندان: جاده‌ها ممکن است لغزنده باشند")
         }
         
-        val transportCost = when (trip.transportType) {
-            TransportType.CAR -> trip.budget * 0.2
-            TransportType.BUS -> trip.budget * 0.15
-            TransportType.TRAIN -> trip.budget * 0.25
-            TransportType.PLANE -> trip.budget * 0.3
-            TransportType.SHIP -> trip.budget * 0.35
+        if (weather.condition.contains("باران شدید", ignoreCase = true)) {
+            warnings.add("🌧️ هشدار باران شدید: احتمال آبگرفتگی جاده‌ها")
         }
         
-        val foodCost = trip.budget * 0.25
-        val activitiesCost = trip.budget * 0.15
-        val emergencyCost = trip.budget * 0.05
-        
-        return TripCostBreakdown(
-            totalBudget = trip.budget,
-            accommodation = accommodationCost,
-            transport = transportCost,
-            food = foodCost,
-            activities = activitiesCost,
-            emergency = emergencyCost,
-            dailyAverage = trip.budget / days
-        )
-    }
-    
-    @Serializable
-    data class TripCostBreakdown(
-        val totalBudget: Double,
-        val accommodation: Double,
-        val transport: Double,
-        val food: Double,
-        val activities: Double,
-        val emergency: Double,
-        val dailyAverage: Double
-    )
-    
-    /**
-     * تنظیم یادآورهای سفر
-     */
-    private fun scheduleTripReminders(trip: TravelTrip) {
-        try {
-            // یادآور ۱ هفته قبل از سفر
-            val oneWeekBefore = trip.startDate - (7 * 24 * 60 * 60 * 1000)
-            scheduleReminder(oneWeekBefore, "یادآور سفر", "سفر شما به ${trip.destination} در کمتر از یک هفته شروع می‌شود")
-            
-            // یادآور ۱ روز قبل از سفر
-            val oneDayBefore = trip.startDate - (24 * 60 * 60 * 1000)
-            scheduleReminder(oneDayBefore, "آماده باش سفر", "فردا سفر به ${trip.destination} شروع می‌شود")
-            
-            // یادآور روز شروع سفر
-            scheduleReminder(trip.startDate, "شروع سفر", "سفر به ${trip.destination} امروز شروع می‌شود")
-            
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در تنظیم یادآورهای سفر: ${e.message}")
+        if (weather.condition.contains("برف", ignoreCase = true) && transportType == TransportType.CAR) {
+            warnings.add("❄️ برف‌بارش: حتماً زنجیر چرخ همراه داشته باشید")
         }
+        
+        val aqi = weather.aqi.toIntOrNull() ?: 0
+        if (aqi > 150) {
+            warnings.add("😷 هشدار آلودگی هوا: برای افراد حساس خطرناک است")
+        }
+        
+        // هشدار تعطیلات
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = departureDate
+        if (PersianEvents.isHoliday(calendar)) {
+            warnings.add("📅 روز تعطیل: ترافیک سنگین و جاده‌های شلوغ")
+        }
+        
+        return warnings
     }
     
     /**
-     * تنظیم یادآور
+     * تولید نکات مفید
      */
-    private fun scheduleReminder(time: Long, title: String, message: String) {
-        try {
-            // استفاده از NotificationHelper برای تنظیم یادآور
-            scope.launch {
-                NotificationHelper.scheduleNotification(
-                    context = context,
-                    title = title,
-                    message = message,
-                    time = time,
-                    channelId = "travel_reminders"
-                )
+    private fun generateTravelTips(destination: String, weather: WeatherInfo, transportType: TransportType): List<String> {
+        val tips = mutableListOf<String>()
+        
+        // نکات عمومی
+        tips.addAll(listOf(
+            "💡 قبل از حرکت، خودرو را سرویس کنید",
+            "📱 موقعیت مکانی را با خانواده به اشتراک بگذارید",
+            "⛽ قبل از حرکت، باک را پر کنید"
+        ))
+        
+        // نکات مخصوص وسیله
+        when (transportType) {
+            TransportType.CAR -> {
+                tips.addAll(listOf(
+                    "🚗 فشار باد لاستیک‌ها را چک کنید",
+                    "🔋 باتری خودرو را بررسی کنید",
+                    "🛣️ از برنامه‌های ترافیکی استفاده کنید"
+                ))
+            }
+            TransportType.BUS -> {
+                tips.add("🚌 2 ساعت قبل به ترمینال برسید")
+            }
+            TransportType.TRAIN -> {
+                tips.add("🚆 1 ساعت قبل به ایستگاه برسید")
+            }
+            TransportType.PLANE -> {
+                tips.add("✈️ 3 ساعت قبل به فرودگاه برسید")
+            }
+            else -> {}
+        }
+        
+        // نکات مربوط به آب‌وهوا
+        val temp = weather.temperature.replace("°C", "").toDoubleOrNull() ?: 20.0
+        if (temp < 5) {
+            tips.add("🥶 در سرما، خودرو را 5-10 دقیقه گرم کنید")
+        }
+        
+        return tips
+    }
+    
+    /**
+     * تخمین مدت زمان سفر
+     */
+    private fun estimateTravelDuration(destination: String, transportType: TransportType): String {
+        // این یک تخمین ساده است - در واقعیت باید از API مسیریابی استفاده کرد
+        
+        val baseDistance = when {
+            destination.contains("تهران", ignoreCase = true) -> 0
+            destination.contains("مشهد", ignoreCase = true) -> 900
+            destination.contains("اصفهان", ignoreCase = true) -> 450
+            destination.contains("شیراز", ignoreCase = true) -> 900
+            destination.contains("تبریز", ignoreCase = true) -> 600
+            destination.contains("کرمان", ignoreCase = true) -> 1000
+            else -> 500 // پیش‌فرض
+        }
+        
+        val hours = when (transportType) {
+            TransportType.CAR -> baseDistance / 80 // میانگین 80 km/h
+            TransportType.BUS -> baseDistance / 70
+            TransportType.TRAIN -> baseDistance / 100
+            TransportType.PLANE -> baseDistance / 600 // +2 ساعت برای فرآیندهای فرودگاه
+            else -> baseDistance / 60
+        }
+        
+        return if (hours < 1) {
+            "کمتر از 1 ساعت"
+        } else {
+            "$hours ساعت (تقریبی)"
+        }
+    }
+    
+    /**
+     * چک کردن شرایط مسیر در زمان واقعی
+     */
+    suspend fun checkRouteConditions(destination: String): RouteConditions {
+        return withContext(Dispatchers.IO) {
+            val weather = getWeatherForecast(destination, System.currentTimeMillis())
+            
+            val status = when {
+                weather.condition.contains("برف", ignoreCase = true) -> RouteStatus.DANGEROUS
+                weather.condition.contains("باران شدید", ignoreCase = true) -> RouteStatus.RISKY
+                weather.aqi.toIntOrNull()?.let { it > 150 } == true -> RouteStatus.CAUTION
+                else -> RouteStatus.CLEAR
             }
             
-            Log.i("TravelPlannerManager", "✅ یادآور تنظیم شد: $title")
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در تنظیم یادآور: ${e.message}")
-        }
-    }
-    
-    /**
-     * ایجاد مقاصد پیش‌فرض
-     */
-    private fun createDefaultDestinations(): List<Destination> {
-        val defaultDestinations = listOf(
-            Destination(
-                id = "tehran",
-                name = "تهران",
-                country = "ایران",
-                description = "پایتخت ایران با جاذبه‌های تاریخی و مدرن",
-                attractions = listOf("برج میلاد", "کاخ گلستان", "بازار بزرگ تهران", "موزه ملی ایران"),
-                bestTimeToVisit = "بهار و پاییز",
-                averageCost = "متوسط",
-                rating = 4.2f
-            ),
-            Destination(
-                id = "isfahan",
-                name = "اصفهان",
-                country = "ایران",
-                description = "نصف جهان با معماری اسلامی بی‌نظیر",
-                attractions = listOf("میدان نقش جهان", "سی و سه پل", "کاخ عالی قاپو", "مسجد شیخ لطف‌الله"),
-                bestTimeToVisit = "بهار و پاییز",
-                averageCost = "متوسط",
-                rating = 4.5f
-            ),
-            Destination(
-                id = "shiraz",
-                name = "شیراز",
-                country = "ایران",
-                description = "شهر شعر و ادب و باغ‌های زیبا",
-                attractions = listOf("تخت جمشید", "باغ ارم", "حافظیه", "سعدیه"),
-                bestTimeToVisit = "بهار",
-                averageCost = "متوسط",
-                rating = 4.6f
-            ),
-            Destination(
-                id = "mashhad",
-                name = "مشهد",
-                country = "ایران",
-                description = "پایتخت معنوی ایران با حرم امام رضا",
-                attractions = listOf("حرم امام رضا", "طوس", "آرامگاه نادرشاه", "باغ ملک"),
-                bestTimeToVisit = "بهار و پاییز",
-                averageCost = "پایین",
-                rating = 4.7f
+            RouteConditions(
+                status = status,
+                weather = weather,
+                recommendation = when (status) {
+                    RouteStatus.DANGEROUS -> "⛔ توصیه می‌شود سفر را به تعویق بیندازید"
+                    RouteStatus.RISKY -> "⚠️ با احتیاط بیشتری رانندگی کنید"
+                    RouteStatus.CAUTION -> "💡 از ماسک استفاده کنید"
+                    RouteStatus.CLEAR -> "✅ شرایط مسیر مناسب است"
+                }
             )
-        )
-        
-        saveDestinations(defaultDestinations)
-        return defaultDestinations
-    }
-    
-    /**
-     * ذخیره سفرها
-     */
-    private fun saveTrips(trips: List<TravelTrip>) {
-        try {
-            val tripsJson = json.encodeToString(trips)
-            prefs.edit()
-                .putString(TRIPS_KEY, tripsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در ذخیره سفرها: ${e.message}")
         }
     }
     
-    /**
-     * ذخیره مقاصد
-     */
-    private fun saveDestinations(destinations: List<Destination>) {
-        try {
-            val destinationsJson = json.encodeToString(destinations)
-            prefs.edit()
-                .putString(DESTINATIONS_KEY, destinationsJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("TravelPlannerManager", "❌ خطا در ذخیره مقاصد: ${e.message}")
-        }
+    enum class RouteStatus {
+        CLEAR,      // مسیر باز
+        CAUTION,    // احتیاط
+        RISKY,      // پرخطر
+        DANGEROUS   // خطرناک
     }
     
-    /**
-     * پاک‌سازی منابع
-     */
-    fun cleanup() {
-        scope.cancel()
-        Log.i("TravelPlannerManager", "🧹 منابع TravelPlannerManager پاک‌سازی شد")
-    }
+    data class RouteConditions(
+        val status: RouteStatus,
+        val weather: WeatherInfo,
+        val recommendation: String
+    )
 }

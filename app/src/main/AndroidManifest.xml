@@ -21,18 +21,14 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
-    <!-- Removed to avoid declaring the AD_ID permission when dependencies don't need it -->
     <uses-permission
         android:name="com.google.android.gms.permission.AD_ID"
         tools:node="remove"
         tools:ignore="MissingPermission" />
     
-    <!-- Location permissions for weather -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    
-    <!-- Floating window permission -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
@@ -47,7 +43,6 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
-        <!-- Splash Screen Activity - LAUNCHER -->
         <activity
             android:name=".activities.SplashScreenActivity"
             android:exported="true"
@@ -58,192 +53,185 @@
             </intent-filter>
         </activity>
 
-        <!-- Welcome Activity - First Launch -->
         <activity
             android:name=".activities.WelcomeActivity"
             android:exported="false"
             android:theme="@style/Theme.PersianAIAssistant" />
 
-        <!-- Dashboard Activity -->
         <activity
             android:name=".activities.DashboardActivity"
             android:exported="false"
             android:theme="@style/Theme.PersianAIAssistant" />
 
-        <!-- Main Activity -->
         <activity
             android:name=".activities.MainActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- Old Splash Activity - Disabled -->
         <activity
             android:name=".activities.SplashActivity"
             android:exported="false"
             android:theme="@style/Theme.PersianAIAssistant.Splash" />
 
-        <!-- Settings Activity -->
         <activity
             android:name=".activities.SettingsActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
             
-        <!-- Widget Settings Activity -->
         <activity
             android:name=".activities.WidgetSettingsActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
             
-        <!-- Offline Models Activity -->
         <activity
             android:name=".activities.OfflineModelsActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
             
-        <!-- API Settings Activity -->
         <activity
             android:name=".activities.ApiSettingsActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
 
-        <!-- Reminders Activity -->
         <activity
             android:name=".activities.RemindersActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
-        <!-- Expenses Activity -->
         <activity
             android:name=".activities.ExpensesActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
-        <!-- Weather Activity -->
         <activity
             android:name=".activities.WeatherActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
             
-        <!-- Weather Forecast Activity -->
         <activity
             android:name=".activities.WeatherForecastActivity"
             android:exported="false"
             android:parentActivityName=".activities.WeatherActivity" />
             
-        <!-- Weather Search Activity -->
         <activity
             android:name=".activities.WeatherSearchActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
             
-        <!-- Music Activity -->
         <activity
             android:name=".activities.MusicActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
-        <!-- Calendar Activity -->
         <activity
             android:name=".activities.CalendarActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
-        <!-- Alarm Activity -->
         <activity
             android:name=".activities.AlarmActivity"
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
-        <!-- Conversations Activity -->
         <activity
             android:name=".activities.ConversationsActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
-        <!-- Connected Apps Activity -->
         <activity
             android:name=".activities.ConnectedAppsActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
 
-        <!-- Accessibility Guide Activity -->
         <activity
             android:name=".activities.AccessibilityGuideActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />
 
-        <!-- Navigation Activity -->
         <activity
             android:name=".activities.NavigationActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
         
-        <!-- Real Navigation Activity -->
         <activity
             android:name=".activities.RealNavigationActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:parentActivityName=".activities.NavigationActivity" />
 
-        <!-- Accounting Activity -->
         <activity
             android:name=".activities.AccountingActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
 
-        <!-- Accounting Advanced Activity -->
         <activity
             android:name=".activities.AccountingAdvancedActivity"
             android:exported="false"
             android:parentActivityName=".activities.AccountingActivity" />
+            
+        <!-- ✅ NEW: Checks Management Activity -->
+        <activity
+            android:name=".activities.ChecksManagementActivity"
+            android:exported="false"
+            android:label="مدیریت چک‌ها"
+            android:parentActivityName=".activities.MainActivity" />
+            
+        <!-- ✅ NEW: Installments Management Activity -->
+        <activity
+            android:name=".activities.InstallmentsManagementActivity"
+            android:exported="false"
+            android:label="مدیریت اقساط"
+            android:parentActivityName=".activities.MainActivity" />
+            
+        <!-- ✅ NEW: Finance Advanced Activity -->
+        <activity
+            android:name=".activities.FinanceAdvancedActivity"
+            android:exported="false"
+            android:label="مالی پیشرفته"
+            android:parentActivityName=".activities.MainActivity" />
+            
+        <!-- ✅ NEW: Professional Accounting Activity -->
+        <activity
+            android:name=".activities.ProfessionalAccountingActivity"
+            android:exported="false"
+            android:label="حسابداری حرفه‌ای"
+            android:parentActivityName=".activities.MainActivity" />
 
-        <!-- Search Destination Activity -->
         <activity
             android:name=".activities.SearchDestinationActivity"
             android:exported="false"
             android:parentActivityName=".activities.NavigationActivity" />
 
-        <!-- AI Chat Activity -->
         <activity
             android:name=".activities.AIChatActivity"
             android:exported="false"
             android:parentActivityName=".activities.NavigationActivity"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- Google Maps API Key - فعلاً ندارید، از Neshan استفاده می‌شود -->
-        <!-- <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_API_KEY" /> -->
-
-        <!-- Background Service -->
         <service
             android:name=".services.AIAssistantService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="microphone" />
             
-        <!-- Music Player Service -->
         <service
             android:name=".services.MusicPlayerService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
             
-        <!-- Real Music Service (ExoPlayer based) -->
         <service
             android:name=".music.RealMusicService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <!-- Reminder Receiver -->
         <receiver
             android:name=".services.ReminderReceiver"
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Message Automation Service (Accessibility) -->
         <service
             android:name=".services.MessageAutomationService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -256,7 +244,6 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Work Manager -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -267,20 +254,17 @@
                 android:value="androidx.startup" />
         </provider>
 
-        <!-- Widget Update Service -->
         <service
             android:name=".widgets.WidgetUpdateService"
             android:enabled="true"
             android:exported="false" />
             
-        <!-- Floating Voice Assistant Service -->
         <service
             android:name=".service.FloatingVoiceService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location" />
             
-        <!-- Persian Calendar Widget - Medium -->
         <receiver
             android:name=".widgets.PersianCalendarWidget"
             android:exported="true"
@@ -292,9 +276,7 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_persian_calendar_info" />
         </receiver>
-        
 
-        <!-- File Provider for Backup -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

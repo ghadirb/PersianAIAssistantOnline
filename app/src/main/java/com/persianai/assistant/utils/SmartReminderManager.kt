@@ -1,323 +1,511 @@
 package com.persianai.assistant.utils
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
-import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.util.Log
-import java.util.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.persianai.assistant.services.ReminderReceiver
+import java.util.Calendar
 
 /**
- * مدیر هوشمند یادآورهای فارسی روزانه
+ * مدیریت پیشرفته یادآوری‌های هوشمند
+ * شامل: یادآوری‌های تکراری، مبتنی بر مکان، زمینه‌محور، و خانوادگی
  */
 class SmartReminderManager(private val context: Context) {
     
     private val prefs: SharedPreferences = context.getSharedPreferences("smart_reminders", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true }
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    private val gson = Gson()
     
     companion object {
-        private const val REMINDERS_KEY = "reminders"
-        private const val NOTIFICATION_HELPER = "NotificationHelper"
+        private const val TAG = "SmartReminder"
+        private const val KEY_REMINDERS = "reminders"
     }
     
-    @Serializable
+    /**
+     * نوع یادآوری
+     */
+    enum class ReminderType(val displayName: String) {
+        SIMPLE("ساده"),
+        RECURRING("تکراری"),
+        LOCATION_BASED("مبتنی بر مکان"),
+        BIRTHDAY("تولد"),
+        ANNIVERSARY("سالگرد"),
+        BILL_PAYMENT("پرداخت قبض"),
+        MEDICINE("دارو"),
+        FAMILY("خانوادگی"),
+        SHOPPING("خرید"),
+        TASK("کار روزانه")
+    }
+    
+    /**
+     * اولویت یادآوری
+     */
+    enum class Priority(val displayName: String, val color: String) {
+        LOW("کم", "#4CAF50"),
+        MEDIUM("متوسط", "#FF9800"),
+        HIGH("زیاد", "#F44336"),
+        URGENT("فوری", "#9C27B0")
+    }
+    
+    /**
+     * الگوی تکرار
+     */
+    enum class RepeatPattern(val displayName: String) {
+        ONCE("یکبار"),
+        DAILY("روزانه"),
+        WEEKLY("هفتگی"),
+        MONTHLY("ماهانه"),
+        YEARLY("سالانه"),
+        WEEKDAYS("روزهای کاری"),
+        WEEKENDS("آخر هفته"),
+        CUSTOM("سفارشی")
+    }
+    
+    /**
+     * یادآوری هوشمند
+     */
     data class SmartReminder(
         val id: String,
         val title: String,
-        val message: String,
-        val time: String, // HH:mm format
-        val days: List<String>, // روزهای هفته
-        val category: ReminderCategory,
-        val priority: ReminderPriority,
-        val isActive: Boolean = true,
-        val createdAt: Long = System.currentTimeMillis()
+        val description: String = "",
+        val type: ReminderType,
+        val priority: Priority = Priority.MEDIUM,
+        val triggerTime: Long,
+        val repeatPattern: RepeatPattern = RepeatPattern.ONCE,
+        val customRepeatDays: List<Int> = emptyList(), // 1=یکشنبه, 2=دوشنبه, ...
+        val locationLat: Double? = null,
+        val locationLng: Double? = null,
+        val locationRadius: Int = 100, // متر
+        val locationName: String = "",
+        val isCompleted: Boolean = false,
+        val completedAt: Long? = null,
+        val createdAt: Long = System.currentTimeMillis(),
+        val tags: List<String> = emptyList(),
+        val relatedPerson: String = "", // برای تولدها و یادآوری‌های خانوادگی
+        val attachments: List<String> = emptyList(),
+        val snoozeCount: Int = 0,
+        val lastSnoozed: Long? = null,
+        val notes: String = ""
     )
     
-    @Serializable
-    enum class ReminderCategory {
-        HEALTH, // سلامتی
-        WORK, // کاری
-        PERSONAL, // شخصی
-        FAMILY, // خانوادگی
-        FINANCIAL, // مالی
-        EDUCATION, // آموزشی
-        SPIRITUAL // معنوی
-    }
-    
-    @Serializable
-    enum class ReminderPriority {
-        LOW, // پایین
-        MEDIUM, // متوسط
-        HIGH, // بالا
-        URGENT // فوری
+    /**
+     * افزودن یادآوری
+     */
+    fun addReminder(reminder: SmartReminder): SmartReminder {
+        val reminders = getAllReminders().toMutableList()
+        reminders.add(reminder)
+        saveReminders(reminders)
+        
+        // تنظیم آلارم
+        scheduleReminder(reminder)
+        
+        Log.i(TAG, "✅ یادآوری جدید: ${reminder.title} (${reminder.type.displayName})")
+        
+        return reminder
     }
     
     /**
-     * افزودن یادآور جدید
+     * ایجاد یادآوری ساده
      */
-    fun addReminder(reminder: SmartReminder) {
-        try {
-            val reminders = getReminders().toMutableList()
-            reminders.add(reminder)
-            saveReminders(reminders)
-            
-            Log.i("SmartReminderManager", "✅ یادآور جدید اضافه شد: ${reminder.title}")
-            
-            // شروع بررسی دوره‌ای
-            startPeriodicCheck()
-            
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در افزودن یادآور: ${e.message}")
-        }
+    fun createSimpleReminder(
+        title: String,
+        description: String = "",
+        triggerTime: Long,
+        priority: Priority = Priority.MEDIUM
+    ): SmartReminder {
+        val reminder = SmartReminder(
+            id = System.currentTimeMillis().toString(),
+            title = title,
+            description = description,
+            type = ReminderType.SIMPLE,
+            priority = priority,
+            triggerTime = triggerTime
+        )
+        return addReminder(reminder)
     }
     
     /**
-     * دریافت تمام یادآورها
+     * ایجاد یادآوری تکراری
      */
-    fun getReminders(): List<SmartReminder> {
-        return try {
-            val remindersJson = prefs.getString(REMINDERS_KEY, null)
-            if (remindersJson != null) {
-                json.decodeFromString<List<SmartReminder>>(remindersJson)
-            } else {
-                emptyList()
+    fun createRecurringReminder(
+        title: String,
+        description: String = "",
+        firstTriggerTime: Long,
+        repeatPattern: RepeatPattern,
+        customDays: List<Int> = emptyList(),
+        priority: Priority = Priority.MEDIUM
+    ): SmartReminder {
+        val reminder = SmartReminder(
+            id = System.currentTimeMillis().toString(),
+            title = title,
+            description = description,
+            type = ReminderType.RECURRING,
+            priority = priority,
+            triggerTime = firstTriggerTime,
+            repeatPattern = repeatPattern,
+            customRepeatDays = customDays
+        )
+        return addReminder(reminder)
+    }
+    
+    /**
+     * ایجاد یادآوری تولد
+     */
+    fun createBirthdayReminder(
+        personName: String,
+        birthdayDate: Long,
+        notes: String = ""
+    ): SmartReminder {
+        val reminder = SmartReminder(
+            id = "birthday_${System.currentTimeMillis()}",
+            title = "🎂 تولد $personName",
+            description = "امروز تولد $personName است!",
+            type = ReminderType.BIRTHDAY,
+            priority = Priority.HIGH,
+            triggerTime = birthdayDate,
+            repeatPattern = RepeatPattern.YEARLY,
+            relatedPerson = personName,
+            notes = notes
+        )
+        return addReminder(reminder)
+    }
+    
+    /**
+     * ایجاد یادآوری پرداخت قبض
+     */
+    fun createBillReminder(
+        billName: String,
+        dueDate: Long,
+        amount: Long = 0,
+        isRecurring: Boolean = false
+    ): SmartReminder {
+        val reminder = SmartReminder(
+            id = "bill_${System.currentTimeMillis()}",
+            title = "💰 پرداخت $billName",
+            description = if (amount > 0) "مبلغ: ${String.format("%,d", amount)} تومان" else "",
+            type = ReminderType.BILL_PAYMENT,
+            priority = Priority.HIGH,
+            triggerTime = dueDate,
+            repeatPattern = if (isRecurring) RepeatPattern.MONTHLY else RepeatPattern.ONCE
+        )
+        return addReminder(reminder)
+    }
+    
+    /**
+     * ایجاد یادآوری دارو
+     */
+    fun createMedicineReminder(
+        medicineName: String,
+        times: List<Pair<Int, Int>>, // (hour, minute)
+        notes: String = ""
+    ): List<SmartReminder> {
+        val reminders = mutableListOf<SmartReminder>()
+        
+        times.forEach { (hour, minute) ->
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, hour)
+            calendar.set(Calendar.MINUTE, minute)
+            calendar.set(Calendar.SECOND, 0)
+            
+            // اگر زمان گذشته، برای فردا تنظیم کن
+            if (calendar.timeInMillis < System.currentTimeMillis()) {
+                calendar.add(Calendar.DAY_OF_MONTH, 1)
             }
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در دریافت یادآورها: ${e.message}")
-            emptyList()
+            
+            val reminder = SmartReminder(
+                id = "medicine_${System.currentTimeMillis()}_$hour$minute",
+                title = "💊 مصرف دارو: $medicineName",
+                description = "ساعت $hour:${String.format("%02d", minute)}",
+                type = ReminderType.MEDICINE,
+                priority = Priority.URGENT,
+                triggerTime = calendar.timeInMillis,
+                repeatPattern = RepeatPattern.DAILY,
+                notes = notes
+            )
+            reminders.add(addReminder(reminder))
         }
+        
+        return reminders
     }
     
     /**
-     * دریافت یادآورهای فعال
+     * ایجاد یادآوری مبتنی بر مکان
+     */
+    fun createLocationReminder(
+        title: String,
+        description: String,
+        lat: Double,
+        lng: Double,
+        radius: Int = 100,
+        locationName: String
+    ): SmartReminder {
+        val reminder = SmartReminder(
+            id = "location_${System.currentTimeMillis()}",
+            title = title,
+            description = description,
+            type = ReminderType.LOCATION_BASED,
+            priority = Priority.MEDIUM,
+            triggerTime = System.currentTimeMillis(),
+            locationLat = lat,
+            locationLng = lng,
+            locationRadius = radius,
+            locationName = locationName
+        )
+        return addReminder(reminder)
+    }
+    
+    /**
+     * دریافت تمام یادآوری‌ها
+     */
+    fun getAllReminders(): List<SmartReminder> {
+        val json = prefs.getString(KEY_REMINDERS, "[]") ?: "[]"
+        val type = object : TypeToken<List<SmartReminder>>() {}.type
+        return gson.fromJson(json, type)
+    }
+    
+    /**
+     * دریافت یادآوری‌های فعال
      */
     fun getActiveReminders(): List<SmartReminder> {
-        return getReminders().filter { it.isActive }
+        return getAllReminders().filter { !it.isCompleted }
     }
     
     /**
-     * دریافت یادآورهای بر اساس دسته‌بندی
+     * دریافت یادآوری‌های امروز
      */
-    fun getRemindersByCategory(category: ReminderCategory): List<SmartReminder> {
-        return getReminders().filter { it.category == category }
+    fun getTodayReminders(): List<SmartReminder> {
+        val now = Calendar.getInstance()
+        val startOfDay = now.clone() as Calendar
+        startOfDay.set(Calendar.HOUR_OF_DAY, 0)
+        startOfDay.set(Calendar.MINUTE, 0)
+        startOfDay.set(Calendar.SECOND, 0)
+        
+        val endOfDay = now.clone() as Calendar
+        endOfDay.set(Calendar.HOUR_OF_DAY, 23)
+        endOfDay.set(Calendar.MINUTE, 59)
+        endOfDay.set(Calendar.SECOND, 59)
+        
+        return getActiveReminders()
+            .filter { it.triggerTime in startOfDay.timeInMillis..endOfDay.timeInMillis }
+            .sortedBy { it.triggerTime }
     }
     
     /**
-     * ویرایش یادآور
+     * دریافت یادآوری‌های سررسید گذشته
      */
-    fun updateReminder(reminder: SmartReminder) {
-        try {
-            val reminders = getReminders().toMutableList()
-            val index = reminders.indexOfFirst { it.id == reminder.id }
-            if (index != -1) {
-                reminders[index] = reminder
-                saveReminders(reminders)
-                Log.i("SmartReminderManager", "✅ یادآور ویرایش شد: ${reminder.title}")
+    fun getOverdueReminders(): List<SmartReminder> {
+        val now = System.currentTimeMillis()
+        return getActiveReminders()
+            .filter { it.triggerTime < now && it.repeatPattern == RepeatPattern.ONCE }
+            .sortedBy { it.triggerTime }
+    }
+    
+    /**
+     * دریافت یادآوری‌های آینده
+     */
+    fun getUpcomingReminders(days: Int = 7): List<SmartReminder> {
+        val now = System.currentTimeMillis()
+        val future = now + (days * 24 * 60 * 60 * 1000)
+        
+        return getActiveReminders()
+            .filter { it.triggerTime in now..future }
+            .sortedBy { it.triggerTime }
+    }
+    
+    /**
+     * علامت‌زدن یادآوری به عنوان انجام شده
+     */
+    fun completeReminder(reminderId: String): Boolean {
+        val reminders = getAllReminders().toMutableList()
+        val index = reminders.indexOfFirst { it.id == reminderId }
+        
+        if (index != -1) {
+            val reminder = reminders[index]
+            
+            // اگر تکراری نیست، علامت بزن
+            if (reminder.repeatPattern == RepeatPattern.ONCE) {
+                reminders[index] = reminder.copy(
+                    isCompleted = true,
+                    completedAt = System.currentTimeMillis()
+                )
+            } else {
+                // برای تکراری، زمان بعدی را محاسبه کن
+                val nextTime = calculateNextTriggerTime(reminder)
+                reminders[index] = reminder.copy(triggerTime = nextTime)
+                scheduleReminder(reminders[index])
             }
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در ویرایش یادآور: ${e.message}")
-        }
-    }
-    
-    /**
-     * حذف یادآور
-     */
-    fun deleteReminder(reminderId: String) {
-        try {
-            val reminders = getReminders().toMutableList()
-            reminders.removeAll { it.id == reminderId }
+            
             saveReminders(reminders)
-            Log.i("SmartReminderManager", "✅ یادآور حذف شد: $reminderId")
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در حذف یادآور: ${e.message}")
+            Log.i(TAG, "✅ یادآوری انجام شد: ${reminder.title}")
+            return true
         }
+        
+        return false
     }
     
     /**
-     * فعال/غیرفعال کردن یادآور
+     * به تعویق انداختن یادآوری (Snooze)
      */
-    fun toggleReminder(reminderId: String, isActive: Boolean) {
-        try {
-            val reminders = getReminders().toMutableList()
-            val index = reminders.indexOfFirst { it.id == reminderId }
-            if (index != -1) {
-                reminders[index] = reminders[index].copy(isActive = isActive)
-                saveReminders(reminders)
-                Log.i("SmartReminderManager", "✅ وضعیت یادآور تغییر کرد: $reminderId -> $isActive")
+    fun snoozeReminder(reminderId: String, minutes: Int = 10): Boolean {
+        val reminders = getAllReminders().toMutableList()
+        val index = reminders.indexOfFirst { it.id == reminderId }
+        
+        if (index != -1) {
+            val reminder = reminders[index]
+            val newTime = System.currentTimeMillis() + (minutes * 60 * 1000)
+            
+            reminders[index] = reminder.copy(
+                triggerTime = newTime,
+                snoozeCount = reminder.snoozeCount + 1,
+                lastSnoozed = System.currentTimeMillis()
+            )
+            
+            saveReminders(reminders)
+            scheduleReminder(reminders[index])
+            
+            Log.i(TAG, "⏰ یادآوری به تعویق افتاد: ${reminder.title} ($minutes دقیقه)")
+            return true
+        }
+        
+        return false
+    }
+    
+    /**
+     * حذف یادآوری
+     */
+    fun deleteReminder(reminderId: String): Boolean {
+        val reminders = getAllReminders().toMutableList()
+        val removed = reminders.removeIf { it.id == reminderId }
+        
+        if (removed) {
+            saveReminders(reminders)
+            cancelReminder(reminderId)
+            Log.i(TAG, "🗑️ یادآوری حذف شد")
+        }
+        
+        return removed
+    }
+    
+    /**
+     * محاسبه زمان trigger بعدی برای یادآوری‌های تکراری
+     */
+    private fun calculateNextTriggerTime(reminder: SmartReminder): Long {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = reminder.triggerTime
+        
+        when (reminder.repeatPattern) {
+            RepeatPattern.DAILY -> calendar.add(Calendar.DAY_OF_MONTH, 1)
+            RepeatPattern.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
+            RepeatPattern.MONTHLY -> calendar.add(Calendar.MONTH, 1)
+            RepeatPattern.YEARLY -> calendar.add(Calendar.YEAR, 1)
+            RepeatPattern.WEEKDAYS -> {
+                do {
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                } while (calendar.get(Calendar.DAY_OF_WEEK) in listOf(Calendar.SATURDAY, Calendar.FRIDAY))
             }
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در تغییر وضعیت یادآور: ${e.message}")
-        }
-    }
-    
-    /**
-     * بررسی یادآورهای فعلی
-     */
-    private fun checkReminders() {
-        try {
-            val now = Calendar.getInstance()
-            val currentTime = String.format("%02d:%02d", now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE))
-            val currentDay = getDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
-            
-            val activeReminders = getActiveReminders()
-            
-            activeReminders.forEach { reminder ->
-                if (reminder.time == currentTime && reminder.days.contains(currentDay)) {
-                    sendNotification(reminder)
+            RepeatPattern.WEEKENDS -> {
+                do {
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                } while (calendar.get(Calendar.DAY_OF_WEEK) !in listOf(Calendar.SATURDAY, Calendar.FRIDAY))
+            }
+            RepeatPattern.CUSTOM -> {
+                if (reminder.customRepeatDays.isNotEmpty()) {
+                    do {
+                        calendar.add(Calendar.DAY_OF_MONTH, 1)
+                    } while (calendar.get(Calendar.DAY_OF_WEEK) !in reminder.customRepeatDays)
                 }
             }
-            
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در بررسی یادآورها: ${e.message}")
+            else -> return reminder.triggerTime
         }
+        
+        return calendar.timeInMillis
     }
     
     /**
-     * ارسال نوتیفیکیشن یادآور
+     * تنظیم آلارم برای یادآوری
      */
-    private fun sendNotification(reminder: SmartReminder) {
-        try {
-            // استفاده از NotificationHelper برای ارسال نوتیفیکیشن
-            scope.launch {
-                NotificationHelper.showNotification(
-                    context = context,
-                    title = "🔔 یادآور هوشمند: ${reminder.title}",
-                    message = reminder.message,
-                    channelId = "smart_reminders"
-                )
-            }
-            
-            Log.i("SmartReminderManager", "✅ نوتیفیکیشن یادآور ارسال شد: ${reminder.title}")
-            
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در ارسال نوتیفیکیشن: ${e.message}")
+    private fun scheduleReminder(reminder: SmartReminder) {
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            putExtra("reminder_id", reminder.id)
+            putExtra("reminder_title", reminder.title)
+            putExtra("reminder_description", reminder.description)
+            putExtra("reminder_priority", reminder.priority.name)
         }
-    }
-    
-    /**
-     * شروع بررسی دوره‌ای
-     */
-    private fun startPeriodicCheck() {
-        scope.launch {
-            while (isActive) {
-                checkReminders()
-                delay(60000) // بررسی هر دقیقه
-            }
-        }
-    }
-    
-    /**
-     * دریافت نام روز هفته
-     */
-    private fun getDayOfWeek(day: Int): String {
-        return when (day) {
-            Calendar.SATURDAY -> "شنبه"
-            Calendar.SUNDAY -> "یکشنبه"
-            Calendar.MONDAY -> "دوشنبه"
-            Calendar.TUESDAY -> "سه‌شنبه"
-            Calendar.WEDNESDAY -> "چهارشنبه"
-            Calendar.THURSDAY -> "پنجشنبه"
-            Calendar.FRIDAY -> "جمعه"
-            else -> "نامشخص"
-        }
-    }
-    
-    /**
-     * ذخیره یادآورها
-     */
-    private fun saveReminders(reminders: List<SmartReminder>) {
-        try {
-            val remindersJson = json.encodeToString(reminders)
-            prefs.edit()
-                .putString(REMINDERS_KEY, remindersJson)
-                .apply()
-        } catch (e: Exception) {
-            Log.e("SmartReminderManager", "❌ خطا در ذخیره یادآورها: ${e.message}")
-        }
-    }
-    
-    /**
-     * ایجاد یادآورهای پیش‌فرض
-     */
-    fun createDefaultReminders() {
-        val defaultReminders = listOf(
-            SmartReminder(
-                id = "morning_prayer",
-                title = "اذکار صبحگاهی",
-                message = "وقت اذکار صبحگاهی فرا رسیده است",
-                time = "06:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"),
-                category = ReminderCategory.SPIRITUAL,
-                priority = ReminderPriority.HIGH
-            ),
-            SmartReminder(
-                id = "morning_exercise",
-                title = "ورزش صبحگاهی",
-                message = "ورزش صبحگاهی برای شروع یک روز پرانرژی",
-                time = "07:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه"),
-                category = ReminderCategory.HEALTH,
-                priority = ReminderPriority.MEDIUM
-            ),
-            SmartReminder(
-                id = "work_start",
-                title = "شروع کار",
-                message = "زمان شروع فعالیت‌های کاری",
-                time = "09:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه"),
-                category = ReminderCategory.WORK,
-                priority = ReminderPriority.HIGH
-            ),
-            SmartReminder(
-                id = "lunch_break",
-                title = "استراحت ناهار",
-                message = "زمان استراحت و ناهار",
-                time = "13:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه"),
-                category = ReminderCategory.HEALTH,
-                priority = ReminderPriority.MEDIUM
-            ),
-            SmartReminder(
-                id = "evening_prayer",
-                title = "اذکار شامگاهی",
-                message = "وقت اذکار شامگاهی فرا رسیده است",
-                time = "19:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"),
-                category = ReminderCategory.SPIRITUAL,
-                priority = ReminderPriority.HIGH
-            ),
-            SmartReminder(
-                id = "family_time",
-                title = "زمان خانواده",
-                message = "وقت گذراندن با خانواده",
-                time = "20:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه"),
-                category = ReminderCategory.FAMILY,
-                priority = ReminderPriority.HIGH
-            ),
-            SmartReminder(
-                id = "sleep_time",
-                title = "زمان خواب",
-                message = "زمان استراحت و خواب برای فردایی پرانرژی",
-                time = "23:00",
-                days = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه"),
-                category = ReminderCategory.HEALTH,
-                priority = ReminderPriority.MEDIUM
-            )
+        
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            reminder.id.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        defaultReminders.forEach { addReminder(it) }
-        Log.i("SmartReminderManager", "✅ یادآورهای پیش‌فرض ایجاد شد")
+        try {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                reminder.triggerTime,
+                pendingIntent
+            )
+            Log.d(TAG, "⏰ آلارم تنظیم شد: ${reminder.title}")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "خطا در تنظیم آلارم: ${e.message}")
+        }
     }
     
     /**
-     * پاک‌سازی منابع
+     * لغو آلارم یادآوری
      */
-    fun cleanup() {
-        scope.cancel()
-        Log.i("SmartReminderManager", "🧹 منابع SmartReminderManager پاک‌سازی شد")
+    private fun cancelReminder(reminderId: String) {
+        val intent = Intent(context, ReminderReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            reminderId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        alarmManager.cancel(pendingIntent)
+        Log.d(TAG, "❌ آلارم لغو شد")
     }
+    
+    /**
+     * ذخیره یادآوری‌ها
+     */
+    private fun saveReminders(reminders: List<SmartReminder>) {
+        val json = gson.toJson(reminders)
+        prefs.edit().putString(KEY_REMINDERS, json).apply()
+    }
+    
+    /**
+     * دریافت آمار یادآوری‌ها
+     */
+    fun getReminderStats(): ReminderStats {
+        val all = getAllReminders()
+        val active = getActiveReminders()
+        val completed = all.filter { it.isCompleted }
+        val today = getTodayReminders()
+        val overdue = getOverdueReminders()
+        
+        return ReminderStats(
+            totalReminders = all.size,
+            activeReminders = active.size,
+            completedReminders = completed.size,
+            todayReminders = today.size,
+            overdueReminders = overdue.size,
+            completionRate = if (all.isNotEmpty()) (completed.size.toFloat() / all.size * 100).toInt() else 0
+        )
+    }
+    
+    data class ReminderStats(
+        val totalReminders: Int,
+        val activeReminders: Int,
+        val completedReminders: Int,
+        val todayReminders: Int,
+        val overdueReminders: Int,
+        val completionRate: Int
+    )
 }

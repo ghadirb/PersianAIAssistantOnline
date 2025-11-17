@@ -1,0 +1,398 @@
+package com.persianai.assistant.ai
+
+import android.content.Context
+import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.InstallmentManager
+import com.persianai.assistant.finance.FinanceManager
+import com.persianai.assistant.utils.PreferencesManager
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.*
+
+/**
+ * دستیار مکالمه‌ای پیشرفته فارسی با پشتیبانی از:
+ * - مدیریت مالی (چک، قسط، هزینه)
+ * - یادآوری‌های هوشمند
+ * - دستورات چندمرحله‌ای
+ * - هشدارهای زمینه‌محور
+ */
+class AdvancedPersianAssistant(private val context: Context) {
+    
+    private val checkManager = CheckManager(context)
+    private val installmentManager = InstallmentManager(context)
+    private val financeManager = FinanceManager(context)
+    private val prefsManager = PreferencesManager(context)
+    
+    /**
+     * پردازش درخواست کاربر با NLP ساده فارسی
+     */
+    fun processRequest(userInput: String): AssistantResponse {
+        val normalized = normalizeText(userInput)
+        val intent = detectIntent(normalized)
+        
+        return when (intent.type) {
+            IntentType.CHECK_INQUIRY -> handleCheckInquiry(intent)
+            IntentType.CHECK_ADD -> handleCheckAdd(intent)
+            IntentType.INSTALLMENT_INQUIRY -> handleInstallmentInquiry(intent)
+            IntentType.INSTALLMENT_ADD -> handleInstallmentAdd(intent)
+            IntentType.INSTALLMENT_PAY -> handleInstallmentPay(intent)
+            IntentType.FINANCE_REPORT -> handleFinanceReport(intent)
+            IntentType.REMINDER_ADD -> handleReminderAdd(intent)
+            IntentType.REMINDER_LIST -> handleReminderList(intent)
+            IntentType.GENERAL_QUESTION -> handleGeneralQuestion(intent)
+            IntentType.UNKNOWN -> AssistantResponse(
+                text = "متوجه منظور شما نشدم. لطفاً واضح‌تر توضیح دهید یا از این دستورات استفاده کنید:\n\n" +
+                       "💰 مالی: «چک‌های من»، «اقساط این ماه»، «گزارش مالی»\n" +
+                       "⏰ یادآوری: «فردا ساعت 9 یادم بنداز...»\n" +
+                       "❓ سوال: «تفاوت چک و سفته چیست؟»"
+            )
+        }
+    }
+    
+    private fun normalizeText(text: String): String {
+        // نرمال‌سازی متن فارسی
+        return text.trim()
+            .replace("ی", "ی")
+            .replace("ک", "ک")
+            .replace("  +".toRegex(), " ")
+            .lowercase()
+    }
+    
+    private fun detectIntent(text: String): Intent {
+        // چک‌های من
+        if (text.contains("چک") && (text.contains("من") || text.contains("دارم") || text.contains("لیست"))) {
+            return Intent(IntentType.CHECK_INQUIRY)
+        }
+        
+        // افزودن چک
+        if (text.contains("چک") && (text.contains("اضافه") || text.contains("ثبت") || text.contains("جدید"))) {
+            return Intent(IntentType.CHECK_ADD, extractCheckData(text))
+        }
+        
+        // اقساط
+        if (text.contains("قسط") && (text.contains("من") || text.contains("دارم") || text.contains("لیست"))) {
+            return Intent(IntentType.INSTALLMENT_INQUIRY)
+        }
+        
+        if (text.contains("قسط") && (text.contains("اضافه") || text.contains("ثبت") || text.contains("جدید"))) {
+            return Intent(IntentType.INSTALLMENT_ADD, extractInstallmentData(text))
+        }
+        
+        if (text.contains("قسط") && (text.contains("پرداخت") || text.contains("دادم") || text.contains("واریز"))) {
+            return Intent(IntentType.INSTALLMENT_PAY, extractInstallmentData(text))
+        }
+        
+        // گزارش مالی
+        if ((text.contains("گزارش") || text.contains("وضعیت")) && text.contains("مال")) {
+            return Intent(IntentType.FINANCE_REPORT)
+        }
+        
+        // یادآوری
+        if (text.contains("یاد") && (text.contains("بنداز") || text.contains("بده") || text.contains("آور"))) {
+            return Intent(IntentType.REMINDER_ADD, extractReminderData(text))
+        }
+        
+        if (text.contains("یادآوری") && (text.contains("من") || text.contains("لیست"))) {
+            return Intent(IntentType.REMINDER_LIST)
+        }
+        
+        // سوال عمومی
+        if (text.contains("چیست") || text.contains("چیه") || text.contains("چطور") || 
+            text.contains("؟") || text.contains("توضیح")) {
+            return Intent(IntentType.GENERAL_QUESTION)
+        }
+        
+        return Intent(IntentType.UNKNOWN)
+    }
+    
+    private fun extractCheckData(text: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        
+        // استخراج مبلغ (اعداد فارسی و انگلیسی)
+        val amountRegex = """(\d+[\d,]*)\s*(تومان|ریال|میلیون)?""".toRegex()
+        amountRegex.find(text)?.let {
+            val amount = it.groupValues[1].replace(",", "").toDoubleOrNull()
+            if (amount != null) {
+                val unit = it.groupValues[2]
+                data["amount"] = when (unit) {
+                    "میلیون" -> amount * 1000000
+                    "ریال" -> amount / 10
+                    else -> amount
+                }
+            }
+        }
+        
+        // استخراج تاریخ
+        val dateRegex = """(\d{4})/(\d{1,2})/(\d{1,2})""".toRegex()
+        dateRegex.find(text)?.let {
+            // پردازش تاریخ
+            data["date"] = it.value
+        }
+        
+        return data
+    }
+    
+    private fun extractInstallmentData(text: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        
+        // استخراج عنوان قسط
+        if (text.contains("ماشین") || text.contains("خودرو")) {
+            data["title"] = "قسط خودرو"
+        } else if (text.contains("خانه") || text.contains("خونه")) {
+            data["title"] = "قسط خانه"
+        }
+        
+        // استخراج مبلغ
+        val amountRegex = """(\d+[\d,]*)\s*(تومان|ریال|میلیون)?""".toRegex()
+        amountRegex.find(text)?.let {
+            val amount = it.groupValues[1].replace(",", "").toDoubleOrNull()
+            if (amount != null) {
+                data["amount"] = amount
+            }
+        }
+        
+        return data
+    }
+    
+    private fun extractReminderData(text: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        
+        // استخراج زمان
+        val timeRegex = """(\d{1,2}):(\d{2})""".toRegex()
+        timeRegex.find(text)?.let {
+            data["hour"] = it.groupValues[1].toInt()
+            data["minute"] = it.groupValues[2].toInt()
+        }
+        
+        // استخراج روز
+        when {
+            text.contains("فردا") -> data["day"] = "tomorrow"
+            text.contains("پس‌فردا") -> data["day"] = "dayAfterTomorrow"
+            text.contains("امروز") -> data["day"] = "today"
+        }
+        
+        // استخراج متن یادآوری
+        val messageRegex = """(یادم بنداز|یاد بده|یادآوری کن)\s+(.+)""".toRegex()
+        messageRegex.find(text)?.let {
+            data["message"] = it.groupValues[2].trim()
+        }
+        
+        return data
+    }
+    
+    private fun handleCheckInquiry(intent: Intent): AssistantResponse {
+        val checks = checkManager.getAllChecks()
+        val pending = checks.filter { it.status == CheckManager.CheckStatus.PENDING }
+        val upcoming = checkManager.getUpcomingChecks(30)
+        val needAlert = checkManager.getChecksNeedingAlert()
+        
+        if (checks.isEmpty()) {
+            return AssistantResponse(
+                text = "📋 شما هیچ چکی ثبت نکرده‌اید.\n\nمی‌توانید با گفتن «ثبت چک جدید» یک چک اضافه کنید.",
+                actionType = ActionType.OPEN_CHECKS
+            )
+        }
+        
+        val response = buildString {
+            appendLine("📋 وضعیت چک‌های شما:\n")
+            appendLine("💰 کل چک‌های در انتظار: ${pending.size} عدد")
+            appendLine("💵 مبلغ کل: ${formatMoney(checkManager.getTotalPendingAmount())} تومان")
+            
+            if (needAlert.isNotEmpty()) {
+                appendLine("\n⚠️ توجه: ${needAlert.size} چک نزدیک به سررسید است!")
+                needAlert.take(3).forEach { check ->
+                    val days = ((check.dueDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).toInt()
+                    appendLine("• چک ${check.checkNumber}: $days روز دیگر (${formatMoney(check.amount)} تومان)")
+                }
+            }
+            
+            if (upcoming.isNotEmpty()) {
+                appendLine("\n📅 چک‌های 30 روز آینده: ${upcoming.size} عدد")
+            }
+        }
+        
+        return AssistantResponse(
+            text = response,
+            actionType = ActionType.OPEN_CHECKS,
+            data = mapOf("checks" to checks)
+        )
+    }
+    
+    private fun handleCheckAdd(intent: Intent): AssistantResponse {
+        return AssistantResponse(
+            text = "✅ برای افزودن چک جدید، لطفاً اطلاعات زیر را بدهید:\n\n" +
+                   "• شماره چک\n" +
+                   "• مبلغ (تومان)\n" +
+                   "• تاریخ سررسید\n" +
+                   "• نام صادرکننده\n" +
+                   "• نام بانک\n\n" +
+                   "یا روی دکمه زیر بزنید تا فرم را باز کنم.",
+            actionType = ActionType.ADD_CHECK
+        )
+    }
+    
+    private fun handleInstallmentInquiry(intent: Intent): AssistantResponse {
+        val installments = installmentManager.getActiveInstallments()
+        val upcoming = installmentManager.getUpcomingPayments(7)
+        val totalRemaining = installmentManager.getTotalRemainingAmount()
+        
+        if (installments.isEmpty()) {
+            return AssistantResponse(
+                text = "💳 شما هیچ قسطی ثبت نکرده‌اید.\n\nمی‌توانید با گفتن «ثبت قسط جدید» یک قسط اضافه کنید.",
+                actionType = ActionType.OPEN_INSTALLMENTS
+            )
+        }
+        
+        val response = buildString {
+            appendLine("💳 وضعیت اقساط شما:\n")
+            appendLine("📊 اقساط فعال: ${installments.size} مورد")
+            appendLine("💰 مبلغ کل باقیمانده: ${formatMoney(totalRemaining)} تومان")
+            
+            if (upcoming.isNotEmpty()) {
+                appendLine("\n⏰ پرداخت‌های 7 روز آینده:")
+                upcoming.take(3).forEach { (installment, dueDate) ->
+                    val days = ((dueDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).toInt()
+                    appendLine("• ${installment.title}: $days روز دیگر (${formatMoney(installment.installmentAmount)} تومان)")
+                }
+            }
+            
+            appendLine("\n📈 جزئیات:")
+            installments.take(5).forEach { i ->
+                val progress = (i.paidInstallments.toFloat() / i.totalInstallments * 100).toInt()
+                appendLine("• ${i.title}: $progress% پرداخت شده (${i.paidInstallments}/${i.totalInstallments})")
+            }
+        }
+        
+        return AssistantResponse(
+            text = response,
+            actionType = ActionType.OPEN_INSTALLMENTS,
+            data = mapOf("installments" to installments)
+        )
+    }
+    
+    private fun handleInstallmentAdd(intent: Intent): AssistantResponse {
+        return AssistantResponse(
+            text = "✅ برای افزودن قسط جدید، اطلاعات زیر را بدهید:\n\n" +
+                   "• عنوان قسط (مثل: قسط ماشین)\n" +
+                   "• مبلغ کل\n" +
+                   "• مبلغ هر قسط\n" +
+                   "• تعداد اقساط\n" +
+                   "• روز پرداخت در ماه\n\n" +
+                   "یا روی دکمه زیر بزنید.",
+            actionType = ActionType.ADD_INSTALLMENT
+        )
+    }
+    
+    private fun handleInstallmentPay(intent: Intent): AssistantResponse {
+        return AssistantResponse(
+            text = "💳 کدام قسط را پرداخت کرده‌اید؟\n\nلطفاً نام قسط را بگویید.",
+            actionType = ActionType.OPEN_INSTALLMENTS
+        )
+    }
+    
+    private fun handleFinanceReport(intent: Intent): AssistantResponse {
+        val balance = financeManager.getBalance()
+        val calendar = Calendar.getInstance()
+        val (income, expense) = financeManager.getMonthlyReport(
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH) + 1
+        )
+        
+        val checksTotal = checkManager.getTotalPendingAmount()
+        val installmentsTotal = installmentManager.getTotalRemainingAmount()
+        
+        val response = buildString {
+            appendLine("💰 گزارش مالی شما:\n")
+            appendLine("📊 موجودی کل: ${formatMoney(balance)} تومان")
+            appendLine("📈 درآمد این ماه: ${formatMoney(income)} تومان")
+            appendLine("📉 هزینه این ماه: ${formatMoney(expense)} تومان")
+            appendLine("💵 سود/زیان: ${formatMoney(income - expense)} تومان")
+            
+            appendLine("\n💼 تعهدات:")
+            appendLine("📋 چک‌های در انتظار: ${formatMoney(checksTotal)} تومان")
+            appendLine("💳 اقساط باقیمانده: ${formatMoney(installmentsTotal)} تومان")
+            
+            val netWorth = balance - checksTotal - installmentsTotal
+            appendLine("\n💎 خالص دارایی: ${formatMoney(netWorth)} تومان")
+            
+            if (netWorth < 0) {
+                appendLine("\n⚠️ توجه: شما ${formatMoney(-netWorth)} تومان بدهی دارید.")
+            } else {
+                appendLine("\n✅ وضعیت مالی شما مناسب است.")
+            }
+        }
+        
+        return AssistantResponse(text = response)
+    }
+    
+    private fun handleReminderAdd(intent: Intent): AssistantResponse {
+        val data = intent.data
+        
+        if (data.isEmpty()) {
+            return AssistantResponse(
+                text = "⏰ برای تنظیم یادآوری، زمان و متن را بگویید.\n\n" +
+                       "مثال:\n" +
+                       "• فردا ساعت 9 یادم بنداز قرص بخورم\n" +
+                       "• امروز 5 بعدازظهر یاد بده سوپرمارکت برم"
+            )
+        }
+        
+        return AssistantResponse(
+            text = "✅ یادآوری تنظیم شد!\n\nمی‌توانید با گفتن «یادآوری‌های من» لیست آن‌ها را ببینید.",
+            actionType = ActionType.ADD_REMINDER,
+            data = data
+        )
+    }
+    
+    private fun handleReminderList(intent: Intent): AssistantResponse {
+        return AssistantResponse(
+            text = "⏰ برای مشاهده لیست یادآوری‌ها، روی دکمه زیر بزنید.",
+            actionType = ActionType.OPEN_REMINDERS
+        )
+    }
+    
+    private fun handleGeneralQuestion(intent: Intent): AssistantResponse {
+        return AssistantResponse(
+            text = "❓ سوال شما نیاز به جستجو یا مدل AI دارد.\n\nلطفاً صبر کنید...",
+            actionType = ActionType.NEEDS_AI
+        )
+    }
+    
+    private fun formatMoney(amount: Double): String {
+        return String.format("%,.0f", amount)
+    }
+    
+    data class Intent(
+        val type: IntentType,
+        val data: Map<String, Any> = emptyMap()
+    )
+    
+    enum class IntentType {
+        CHECK_INQUIRY,
+        CHECK_ADD,
+        INSTALLMENT_INQUIRY,
+        INSTALLMENT_ADD,
+        INSTALLMENT_PAY,
+        FINANCE_REPORT,
+        REMINDER_ADD,
+        REMINDER_LIST,
+        GENERAL_QUESTION,
+        UNKNOWN
+    }
+    
+    data class AssistantResponse(
+        val text: String,
+        val actionType: ActionType? = null,
+        val data: Map<String, Any> = emptyMap()
+    )
+    
+    enum class ActionType {
+        OPEN_CHECKS,
+        ADD_CHECK,
+        OPEN_INSTALLMENTS,
+        ADD_INSTALLMENT,
+        OPEN_REMINDERS,
+        ADD_REMINDER,
+        NEEDS_AI
+    }
+}
