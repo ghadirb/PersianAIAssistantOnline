@@ -192,16 +192,17 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         
         while (cursor.moveToNext()) {
             installments.add(Installment(
-                id = cursor.getLong(0),
-                totalAmount = cursor.getDouble(1),
-                monthlyAmount = cursor.getDouble(2),
-                totalMonths = cursor.getInt(3),
-                paidMonths = cursor.getInt(4),
+                id = cursor.getLong(0).toString(),
+                title = cursor.getString(6) ?: "قسط", // Using description as title
+                totalAmount = cursor.getDouble(1).toLong(),
+                monthlyAmount = cursor.getDouble(2).toLong(),
                 startDate = cursor.getLong(5),
-                description = cursor.getString(6) ?: "",
-                category = cursor.getString(7) ?: "",
-                reminderEnabled = cursor.getInt(8) == 1,
-                createdDate = cursor.getLong(9)
+                totalMonths = cursor.getInt(3),
+                currentMonth = cursor.getInt(4), // Using paidMonths as currentMonth
+                creditor = "", // No creditor info in old DB
+                notes = "دسته بندی: ${cursor.getString(7) ?: ""}", // Adding category to notes
+                isCompleted = cursor.getInt(4) >= cursor.getInt(3),
+                createdAt = cursor.getLong(9)
             ))
         }
         cursor.close()

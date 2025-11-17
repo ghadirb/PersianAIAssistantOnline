@@ -245,8 +245,8 @@ class CarMaintenanceManager(private val context: Context) {
             Log.w(TAG, "🚨 ${overdue.size} سرویس سررسید گذشته!")
             
             // ارسال نوتیفیکیشن
-            val notificationHelper = NotificationHelper(context)
-            notificationHelper.sendNotification(
+            val notificationManager = NotificationHelper(context)
+            notificationManager.sendNotification(
                 title = "🚨 هشدار: سرویس سررسید گذشته",
                 message = "${overdue.size} سرویس باید فوری انجام شود:\n${overdue.take(3).joinToString("\n") { "• ${it.type.displayName}" }}",
                 channelId = "car_maintenance"
@@ -366,8 +366,8 @@ class ServiceReminderWorker(
         val serviceType = inputData.getString("serviceType") ?: ""
         val nextDueKm = inputData.getInt("nextDueKm", 0)
         
-        val notificationHelper = NotificationHelper(applicationContext)
-        notificationHelper.sendNotification(
+        val notificationManager = NotificationHelper(applicationContext)
+        notificationManager.sendNotification(
             title = "🔧 یادآوری سرویس خودرو",
             message = "$serviceType\nکیلومتر سررسید: ${String.format("%,d", nextDueKm)}\n\n7 روز تا سررسید باقی مانده",
             channelId = "car_maintenance"

@@ -14,7 +14,6 @@ import java.util.*
  */
 class TravelPlannerManager(private val context: Context) {
     
-    private val weatherAPI = WorldWeatherAPI(context)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     
     companion object {
@@ -117,16 +116,21 @@ class TravelPlannerManager(private val context: Context) {
      */
     private suspend fun getWeatherForecast(destination: String, date: Long): WeatherInfo {
         return try {
-            val weather = weatherAPI.getWeatherByCity(destination)
+            val weather = WorldWeatherAPI.getCurrentWeather(destination)
+
             
-            WeatherInfo(
-                temperature = "${weather.main.temp}°C",
-                condition = weather.weather.firstOrNull()?.description ?: "نامشخص",
-                humidity = "${weather.main.humidity}%",
-                windSpeed = "${weather.wind.speed} m/s",
-                aqi = weather.aqi?.toString() ?: "نامشخص",
-                uvIndex = weather.uvi?.toString() ?: "نامشخص"
-            )
+            if (weather != null) {
+                WeatherInfo(
+                    temperature = "${weather.temp}°C",
+                    condition = weather.description,
+                    humidity = "${weather.humidity}%",
+                    windSpeed = "${weather.windSpeed} km/h",
+                    aqi = "N/A", // AQI not available in new API structure
+                    uvIndex = weather.uvIndex.toString()
+                )
+            } else {
+                throw Exception("Weather data is null")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "خطا در دریافت آب‌وهوا", e)
             WeatherInfo(
@@ -279,9 +283,10 @@ class TravelPlannerManager(private val context: Context) {
         // هشدار تعطیلات
         val calendar = Calendar.getInstance()
         calendar.timeInMillis = departureDate
-        if (PersianEvents.isHoliday(calendar)) {
-            warnings.add("📅 روز تعطیل: ترافیک سنگین و جاده‌های شلوغ")
-        }
+        // TODO: Re-implement holiday check with a suitable library
+        // if (PersianEvents.isHoliday(calendar)) {
+        //     warnings.add("📅 روز تعطیل: ترافیک سنگین و جاده‌های شلوغ")
+        // }
         
         return warnings
     }

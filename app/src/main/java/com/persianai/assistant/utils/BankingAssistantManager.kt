@@ -385,8 +385,8 @@ class BankingAssistantManager(private val context: Context) {
      * ارسال هشدار تراکنش مشکوک
      */
     private fun sendSuspiciousTransactionAlert(amount: Long, description: String) {
-        val notificationHelper = NotificationHelper(context)
-        notificationHelper.sendNotification(
+        val notificationManager = NotificationHelper(context)
+        notificationManager.sendNotification(
             title = "⚠️ هشدار: تراکنش مشکوک",
             message = "تراکنش ${formatAmount(amount)} تومان\n$description",
             channelId = "suspicious_transactions"
@@ -456,8 +456,8 @@ class CheckReminderWorker(
         val recipient = inputData.getString("recipient") ?: ""
         val amount = inputData.getLong("amount", 0)
         
-        val notificationHelper = NotificationHelper(applicationContext)
-        notificationHelper.sendNotification(
+        val notificationManager = NotificationHelper(applicationContext)
+        notificationManager.sendNotification(
             title = "🔔 یادآوری سررسید چک",
             message = "چک شماره $checkNumber\nگیرنده: $recipient\nمبلغ: ${String.format("%,d", amount)} تومان\n\n3 روز تا سررسید باقی مانده",
             channelId = "check_reminders"
@@ -481,8 +481,8 @@ class InstallmentReminderWorker(
         val currentMonth = inputData.getInt("currentMonth", 0)
         val totalMonths = inputData.getInt("totalMonths", 0)
         
-        val notificationHelper = NotificationHelper(applicationContext)
-        notificationHelper.sendNotification(
+        val notificationManager = NotificationHelper(applicationContext)
+        notificationManager.sendNotification(
             title = "🔔 یادآوری پرداخت قسط",
             message = "$title\nمبلغ: ${String.format("%,d", amount)} تومان\nقسط $currentMonth از $totalMonths\n\n3 روز تا موعد پرداخت باقی مانده",
             channelId = "installment_reminders"
