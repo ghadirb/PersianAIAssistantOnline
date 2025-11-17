@@ -49,7 +49,7 @@ class RemindersAdapter(
             // Time
             if (reminder.triggerTime > 0) {
                 val persianDate = PersianDateConverter.gregorianToPersian(Date(reminder.triggerTime))
-                timeText.text = persianDate
+                timeText.text = persianDate.toString()
                 timeText.visibility = android.view.View.VISIBLE
             } else {
                 timeText.visibility = android.view.View.GONE

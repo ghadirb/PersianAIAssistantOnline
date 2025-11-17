@@ -217,7 +217,7 @@ class PersianVoiceAssistant(private val context: Context) {
                     "شما هیچ یادآور فعالی ندارید."
                 } else {
                     val reminderList = reminders.take(5).joinToString("\n") { reminder ->
-                        "📌 ${reminder.title}: ${reminder.message}"
+                        "📌 ${reminder.title}: ${reminder.description}"
                     }
                     "یادآورهای فعال شما:\n$reminderList"
                 }
@@ -235,15 +235,8 @@ class PersianVoiceAssistant(private val context: Context) {
     private fun handleTravelCommands(input: String): String {
         return when {
             input.contains("جدید") || input.contains("برنامه") -> {
-                val upcomingTrips = travelPlannerManager.getUpcomingTrips()
-                if (upcomingTrips.isEmpty()) {
-                    "شما هیچ سفر آینده‌ای ندارید. می‌خواهید سفر جدیدی برنامه‌ریزی کنید؟"
-                } else {
-                    val tripList = upcomingTrips.take(3).joinToString("\n") { trip ->
-                        "✈️ ${trip.title} به ${trip.destination}"
-                    }
-                    "سفرهای پیش رو:\n$tripList"
-                }
+                // This function was removed, provide a generic response
+                "در حال حاضر امکان مشاهده سفرهای آینده از طریق دستیار صوتی وجود ندارد. می‌توانید از طریق اپلیکیشن سفر جدیدی را برنامه‌ریزی کنید."
             }
             
             input.contains("مقصد") -> {

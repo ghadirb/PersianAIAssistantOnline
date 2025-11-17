@@ -175,12 +175,12 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
             put("totalAmount", installment.totalAmount)
             put("monthlyAmount", installment.monthlyAmount)
             put("totalMonths", installment.totalMonths)
-            put("paidMonths", installment.paidMonths)
+            put("paidMonths", installment.currentMonth)
             put("startDate", installment.startDate)
-            put("description", installment.description)
-            put("category", installment.category)
-            put("reminderEnabled", if (installment.reminderEnabled) 1 else 0)
-            put("createdDate", installment.createdDate)
+            put("description", installment.title)
+            put("category", "") // No category in new model
+            put("reminderEnabled", 1) // Default to enabled
+            put("createdDate", installment.createdAt)
         }
         return writableDatabase.insert("installments", null, values)
     }
