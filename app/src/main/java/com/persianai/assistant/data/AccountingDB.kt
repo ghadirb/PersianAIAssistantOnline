@@ -125,12 +125,12 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         val values = ContentValues().apply {
             put("amount", check.amount)
             put("checkNumber", check.checkNumber)
-            put("issuer", check.issuer)
+            put("issuer", check.recipient) // Map recipient to issuer
             put("dueDate", check.dueDate)
-            put("status", check.status.name)
-            put("type", check.type.name)
-            put("description", check.description)
-            put("createdDate", check.createdDate)
+            put("status", if (check.isPaid) "PAID" else "PENDING") // Map isPaid to status
+            put("type", "PAYMENT") // Default type
+            put("description", check.notes) // Map notes to description
+            put("createdDate", check.createdAt)
         }
         return writableDatabase.insert("checks", null, values)
     }
@@ -142,15 +142,15 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         
         while (cursor.moveToNext()) {
             checks.add(Check(
-                id = cursor.getLong(0),
-                amount = cursor.getDouble(1),
+                id = cursor.getLong(0).toString(),
+                amount = cursor.getDouble(1).toLong(),
                 checkNumber = cursor.getString(2),
-                issuer = cursor.getString(3),
+                recipient = cursor.getString(3), // Map issuer to recipient
                 dueDate = cursor.getLong(4),
-                status = CheckStatus.valueOf(cursor.getString(5)),
-                type = CheckType.valueOf(cursor.getString(6)),
-                description = cursor.getString(7) ?: "",
-                createdDate = cursor.getLong(8)
+                bankName = "", // No bankName in old DB
+                notes = cursor.getString(7) ?: "", // Map description to notes
+                isPaid = cursor.getString(5) == "PAID", // Map status to isPaid
+                createdAt = cursor.getLong(8)
             ))
         }
         cursor.close()

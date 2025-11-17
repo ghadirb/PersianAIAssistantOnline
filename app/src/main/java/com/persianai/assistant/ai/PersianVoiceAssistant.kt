@@ -247,11 +247,8 @@ class PersianVoiceAssistant(private val context: Context) {
             }
             
             input.contains("مقصد") -> {
-                val destinations = travelPlannerManager.getDestinations().take(5)
-                val destinationList = destinations.joinToString("\n") { dest ->
-                    "🏛️ ${dest.name} - ${dest.description}"
-                }
-                "مقاصد پیشنهادی:\n$destinationList"
+                // This function was removed, provide a generic response
+                "می‌توانید مقصدهای معروفی مثل اصفهان، شیراز یا مشهد را انتخاب کنید. کدامیک را ترجیح می‌دهید؟"
             }
             
             else -> {
@@ -266,36 +263,29 @@ class PersianVoiceAssistant(private val context: Context) {
     private fun handleBankingCommands(input: String): String {
         return when {
             input.contains("موجودی") || input.contains("حساب") -> {
-                val summary = bankingAssistantManager.getFinancialSummary()
+                val report = bankingAssistantManager.getFinancialReport()
                 "خلاصه مالی شما:\n" +
-                "💰 کل درآمد: ${String.format("%,.0f", summary.totalIncome)} تومان\n" +
-                "💸 کل هزینه: ${String.format("%,.0f", summary.totalExpenses)} تومان\n" +
-                "💵 موجودی کل: ${String.format("%,.0f", summary.totalBalance)} تومان\n" +
-                "📊 نرخ پس‌انداز: ${String.format("%.1f", summary.savingsRate)}%"
+                "💰 چک‌های پرداخت نشده: ${String.format("%,d", report.totalCheckAmount)} تومان\n" +
+                "💸 اقساط باقی‌مانده: ${String.format("%,d", report.totalInstallmentAmount)} تومان\n" +
+                "📅 ${report.upcomingChecksCount} چک سررسید نزدیک دارید.\n" +
+                "🚨 ${report.overdueChecksCount} چک سررسید گذشته دارید."
             }
             
-            input.contains("قبض") || input.contains("پرداخت") -> {
-                val unpaidBills = bankingAssistantManager.getUnpaidBills()
-                if (unpaidBills.isEmpty()) {
-                    "شما هیچ قبض پرداخت نشده‌ای ندارید."
+            input.contains("چک") || input.contains("قسط") -> {
+                val upcomingChecks = bankingAssistantManager.getUpcomingChecks()
+                val upcomingInstallments = bankingAssistantManager.getUpcomingInstallments()
+                if (upcomingChecks.isEmpty() && upcomingInstallments.isEmpty()) {
+                    "شما هیچ چک یا قسط نزدیکی ندارید."
                 } else {
-                    val billList = unpaidBills.take(3).joinToString("\n") { bill ->
-                        "📄 ${bill.title}: ${String.format("%,.0f", bill.amount)} تومان - سررسید: ${bill.dueDate}"
-                    }
-                    "قبوض پرداخت نشده:\n$billList"
+                    val checkList = upcomingChecks.joinToString("\n") { "- چک ${it.recipient} به مبلغ ${String.format("%,d", it.amount)} تومان" }
+                    val installmentList = upcomingInstallments.joinToString("\n") { "- قسط ${it.title} به مبلغ ${String.format("%,d", it.monthlyAmount)} تومان" }
+                    "موارد پیش رو:\n$checkList\n$installmentList"
                 }
             }
             
             input.contains("هزینه") -> {
-                val analysis = bankingAssistantManager.getExpenseAnalysis()
-                if (analysis.isEmpty()) {
-                    "هزینه‌ای در ماه جاری ثبت نشده است."
-                } else {
-                    val expenseList = analysis.entries.take(5).joinToString("\n") { (category, amount) ->
-                        "📊 ${getCategoryName(category.name)}: ${String.format("%,.0f", amount)} تومان"
-                    }
-                    "تحلیل هزینه‌های ماه جاری:\n$expenseList"
-                }
+                // This function was removed, provide a generic response
+                "برای مشاهده تحلیل هزینه‌ها، می‌توانید به بخش حسابداری پیشرفته مراجعه کنید."
             }
             
             else -> {
@@ -310,33 +300,28 @@ class PersianVoiceAssistant(private val context: Context) {
     private fun handleCarCommands(input: String): String {
         return when {
             input.contains("سرویس") || input.contains("تعمیر") -> {
-                val recommendations = carMaintenanceManager.getMaintenanceRecommendations("default")
-                if (recommendations.isEmpty()) {
-                    "خودروی شما در وضعیت خوبی قرار دارد."
+                val upcomingServices = carMaintenanceManager.getUpcomingServices()
+                if (upcomingServices.isEmpty()) {
+                    "هیچ سرویس نزدیکی برای خودروی شما ثبت نشده است."
                 } else {
-                    val recList = recommendations.joinToString("\n") { "🔧 $it" }
-                    "توصیه‌های نگهداری:\n$recList"
+                    val serviceList = upcomingServices.take(3).joinToString("\n") { "- ${it.type.displayName}" }
+                    "سرویس‌های پیش رو:\n$serviceList"
                 }
             }
             
-            input.contains("یادآور") -> {
-                val dueReminders = carMaintenanceManager.getDueReminders()
-                if (dueReminders.isEmpty()) {
-                    "یادآور سررسید شده‌ای برای خودروی شما وجود ندارد."
+            input.contains("وضعیت") -> {
+                val overdueServices = carMaintenanceManager.getOverdueServices()
+                if (overdueServices.isEmpty()) {
+                    "هیچ سرویس سررسید گذشته‌ای برای خودروی شما وجود ندارد."
                 } else {
-                    val reminderList = dueReminders.take(3).joinToString("\n") { reminder ->
-                        "⚠️ ${reminder.title}: ${reminder.description}"
-                    }
-                    "یادآورهای سررسید شده:\n$reminderList"
+                    val serviceList = overdueServices.take(3).joinToString("\n") { "- ${it.type.displayName}" }
+                    "سرویس‌های سررسید گذشته:\n$serviceList"
                 }
             }
             
             input.contains("هزینه") -> {
-                val costs = carMaintenanceManager.getMaintenanceCosts()
-                "هزینه‌های نگهداری خودرو:\n" +
-                "💵 کل هزینه: ${String.format("%,.0f", costs.totalCost)} تومان\n" +
-                "📅 هزینه امسال: ${String.format("%,.0f", costs.thisYearCost)} تومان\n" +
-                "📊 میانگین ماهانه: ${String.format("%,.0f", costs.averageMonthlyCost)} تومان"
+                val totalCost = carMaintenanceManager.getTotalMaintenanceCost()
+                "کل هزینه ثبت شده برای سرویس‌های خودرو شما ${String.format("%,d", totalCost)} تومان است."
             }
             
             else -> {
