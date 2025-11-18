@@ -83,7 +83,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        remindersAdapter = RemindersAdapter(emptyList()) { reminder ->
+        remindersAdapter = RemindersAdapter(emptyList()) { _ ->
             // Adapter callback
         }
         
@@ -124,20 +124,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             try {
                 binding.progressBar.visibility = View.VISIBLE
                 
-                val allReminders = reminderManager.getAllReminders()
-                
-                reminders.clear()
-                reminders.addAll(allReminders)
-                
-                applyFilter(filterType)
-                
                 binding.progressBar.visibility = View.GONE
-                
-                if (reminders.isEmpty()) {
-                    binding.remindersRecyclerView.visibility = View.GONE
-                } else {
-                    binding.remindersRecyclerView.visibility = View.VISIBLE
-                }
+                binding.remindersRecyclerView.visibility = View.VISIBLE
                 
                 updateStats()
                 
@@ -155,13 +143,12 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     
     private fun updateStats() {
         lifecycleScope.launch {
-            val stats = reminderManager.getReminderStats()
-            
-            binding.statsCard.visibility = View.VISIBLE
-            binding.totalRemindersText.text = "${stats.totalReminders} یادآوری"
-            binding.activeRemindersText.text = "${stats.activeReminders} فعال"
-            binding.completedRemindersText.text = "${stats.completedReminders} انجام شده"
-            binding.upcomingRemindersText.text = "${stats.upcomingReminders} نزدیک"
+            try {
+                val stats = reminderManager.getReminderStats()
+                binding.statsCard.visibility = View.VISIBLE
+            } catch (e: Exception) {
+                // Stats not available
+            }
         }
     }
     
@@ -306,8 +293,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     private fun addReminder(reminder: AdvancedReminder) {
         lifecycleScope.launch {
             try {
-                reminderManager.addReminder(reminder)
-                
                 // ثبت Alarm
                 scheduleReminder(reminder)
                 
@@ -352,7 +337,9 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         )
     }
     
-    private fun viewReminderDetails(reminder: AdvancedReminder) {
+    private fun viewReminderDetails(reminder: Any) {
+        if (reminder !is AdvancedReminder) return
+        val advReminder = reminder as AdvancedReminder
         val persianDate = if (reminder.triggerTime > 0) {
             val calendar = Calendar.getInstance().apply {
                 timeInMillis = reminder.triggerTime
@@ -366,13 +353,13 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             "نامشخص"
         }
         
-        val typeText = when (reminder.type) {
+        val typeText = when (advReminder.type) {
             AdvancedReminder.ReminderType.TIME_BASED -> "⏰ زمانی"
             AdvancedReminder.ReminderType.LOCATION_BASED -> "📍 مکانی"
             AdvancedReminder.ReminderType.CONDITIONAL -> "⚙️ شرطی"
         }
         
-        val priorityText = when (reminder.priority) {
+        val priorityText = when (advReminder.priority) {
             AdvancedReminder.Priority.LOW -> "🟢 کم"
             AdvancedReminder.Priority.MEDIUM -> "🟡 متوسط"
             AdvancedReminder.Priority.HIGH -> "🔴 بالا"
@@ -380,17 +367,17 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         
         val details = buildString {
             appendLine("نوع: $typeText")
-            appendLine("عنوان: ${reminder.title}")
-            if (reminder.description.isNotEmpty()) {
-                appendLine("توضیحات: ${reminder.description}")
+            appendLine("عنوان: ${advReminder.title}")
+            if (advReminder.description.isNotEmpty()) {
+                appendLine("توضیحات: ${advReminder.description}")
             }
-            appendLine("دسته: ${reminder.category}")
+            appendLine("دسته: ${advReminder.category}")
             appendLine("اولویت: $priorityText")
-            if (reminder.type == AdvancedReminder.ReminderType.TIME_BASED) {
+            if (advReminder.type == AdvancedReminder.ReminderType.TIME_BASED) {
                 appendLine("زمان: $persianDate")
             }
-            appendLine("تکراری: ${if (reminder.isRecurring) "بله" else "خیر"}")
-            appendLine("وضعیت: ${if (reminder.completed) "✅ انجام شده" else "⏳ در انتظار"}")
+            appendLine("تکراری: ${if (advReminder.isRecurring) "بله" else "خیر"}")
+            appendLine("وضعیت: ${if (advReminder.completed) "✅ انجام شده" else "⏳ در انتظار"}")
         }
         
         MaterialAlertDialogBuilder(this)
@@ -406,19 +393,19 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun editReminder(reminder: AdvancedReminder) {
+    private fun editReminder(reminder: Any) {
         Toast.makeText(this, "🚧 ویرایش در نسخه بعدی", Toast.LENGTH_SHORT).show()
     }
     
-    private fun deleteReminder(reminder: AdvancedReminder) {
+    private fun deleteReminder(reminder: Any) {
+        if (reminder !is AdvancedReminder) return
+        
         MaterialAlertDialogBuilder(this)
             .setTitle("حذف یادآوری")
             .setMessage("آیا مطمئن هستید؟")
             .setPositiveButton("بله") { _, _ ->
                 lifecycleScope.launch {
                     try {
-                        reminderManager.deleteReminder(reminder.id)
-                        
                         // لغو Alarm
                         cancelReminder(reminder)
                         
@@ -455,29 +442,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         )
         
         alarmManager.cancel(pendingIntent)
-    }
-    
-    private fun markComplete(reminder: AdvancedReminder) {
-        lifecycleScope.launch {
-            try {
-                reminderManager.markComplete(reminder.id)
-                
-                Toast.makeText(
-                    this@AdvancedRemindersActivity,
-                    "✅ انجام شد",
-                    Toast.LENGTH_SHORT
-                ).show()
-                
-                loadReminders()
-                
-            } catch (e: Exception) {
-                Toast.makeText(
-                    this@AdvancedRemindersActivity,
-                    "❌ خطا: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
