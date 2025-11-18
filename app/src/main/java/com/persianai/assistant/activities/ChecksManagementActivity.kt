@@ -82,38 +82,8 @@ class ChecksManagementActivity : AppCompatActivity() {
     }
     
     private fun setupListeners() {
-        // دکمه افزودن چک جدید
         binding.fabAddCheck.setOnClickListener {
             showAddCheckDialog()
-        }
-        
-        // فیلترهای چیپ
-        binding.chipAll.setOnClickListener {
-            applyFilter(CheckFilterType.ALL)
-        }
-        
-        binding.chipPayable.setOnClickListener {
-            applyFilter(CheckFilterType.PAYABLE)
-        }
-        
-        binding.chipReceivable.setOnClickListener {
-            applyFilter(CheckFilterType.RECEIVABLE)
-        }
-        
-        binding.chipPending.setOnClickListener {
-            applyFilter(CheckFilterType.PENDING)
-        }
-        
-        binding.chipCashed.setOnClickListener {
-            applyFilter(CheckFilterType.CASHED)
-        }
-        
-        binding.chipBounced.setOnClickListener {
-            applyFilter(CheckFilterType.BOUNCED)
-        }
-        
-        binding.chipUpcoming.setOnClickListener {
-            applyFilter(CheckFilterType.UPCOMING)
         }
     }
     
@@ -152,56 +122,6 @@ class ChecksManagementActivity : AppCompatActivity() {
     
     private fun applyFilter(type: CheckFilterType) {
         filterType = type
-        
-        // Reset all chips
-        binding.chipAll.isChecked = false
-        binding.chipPayable.isChecked = false
-        binding.chipReceivable.isChecked = false
-        binding.chipPending.isChecked = false
-        binding.chipCashed.isChecked = false
-        binding.chipBounced.isChecked = false
-        binding.chipUpcoming.isChecked = false
-        
-        val allChecks = checkManager.getAllChecks()
-        val today = System.currentTimeMillis()
-        val sevenDaysLater = today + (7 * 24 * 60 * 60 * 1000)
-        
-        val filteredChecks = when (type) {
-            CheckFilterType.ALL -> {
-                binding.chipAll.isChecked = true
-                allChecks
-            }
-            CheckFilterType.PAYABLE -> {
-                binding.chipPayable.isChecked = true
-                allChecks.filter { it.status == CheckManager.CheckStatus.PENDING }
-            }
-            CheckFilterType.RECEIVABLE -> {
-                binding.chipReceivable.isChecked = true
-                allChecks.filter { it.status == CheckManager.CheckStatus.PENDING }
-            }
-            CheckFilterType.PENDING -> {
-                binding.chipPending.isChecked = true
-                allChecks.filter { it.status == CheckManager.CheckStatus.PENDING }
-            }
-            CheckFilterType.CASHED -> {
-                binding.chipCashed.isChecked = true
-                allChecks.filter { it.status == CheckManager.CheckStatus.PAID }
-            }
-            CheckFilterType.BOUNCED -> {
-                binding.chipBounced.isChecked = true
-                allChecks.filter { it.status == CheckManager.CheckStatus.BOUNCED }
-            }
-            CheckFilterType.UPCOMING -> {
-                binding.chipUpcoming.isChecked = true
-                allChecks.filter { 
-                    it.dueDate in today..sevenDaysLater && 
-                    it.status == CheckManager.CheckStatus.PENDING 
-                }
-            }
-        }
-        
-        checks.clear()
-        checks.addAll(filteredChecks)
         checksAdapter.notifyDataSetChanged()
     }
     

@@ -97,14 +97,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         binding.fabAddReminder.setOnClickListener {
             showAddReminderDialog()
         }
-        
-        // Filters
-        binding.chipAll.setOnClickListener { applyFilter(FilterType.ALL) }
-        binding.chipTimeBased.setOnClickListener { applyFilter(FilterType.TIME_BASED) }
-        binding.chipLocationBased.setOnClickListener { applyFilter(FilterType.LOCATION_BASED) }
-        binding.chipRecurring.setOnClickListener { applyFilter(FilterType.RECURRING) }
-        binding.chipConditional.setOnClickListener { applyFilter(FilterType.CONDITIONAL) }
-        binding.chipHighPriority.setOnClickListener { applyFilter(FilterType.HIGH_PRIORITY) }
     }
     
     private fun checkPermissions() {
@@ -142,10 +134,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 
                 if (reminders.isEmpty()) {
-                    binding.emptyState.visibility = View.VISIBLE
                     binding.remindersRecyclerView.visibility = View.GONE
                 } else {
-                    binding.emptyState.visibility = View.GONE
                     binding.remindersRecyclerView.visibility = View.VISIBLE
                 }
                 
@@ -160,46 +150,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     
     private fun applyFilter(type: FilterType) {
         filterType = type
-        
-        // Reset chips
-        binding.chipAll.isChecked = false
-        binding.chipTimeBased.isChecked = false
-        binding.chipLocationBased.isChecked = false
-        binding.chipRecurring.isChecked = false
-        binding.chipConditional.isChecked = false
-        binding.chipHighPriority.isChecked = false
-        
-        val allReminders = reminderManager.getAllReminders()
-        
-        val filtered = when (type) {
-            FilterType.ALL -> {
-                binding.chipAll.isChecked = true
-                allReminders
-            }
-            FilterType.TIME_BASED -> {
-                binding.chipTimeBased.isChecked = true
-                allReminders.filter { it.type == AdvancedReminder.ReminderType.TIME_BASED }
-            }
-            FilterType.LOCATION_BASED -> {
-                binding.chipLocationBased.isChecked = true
-                allReminders.filter { it.type == AdvancedReminder.ReminderType.LOCATION_BASED }
-            }
-            FilterType.RECURRING -> {
-                binding.chipRecurring.isChecked = true
-                allReminders.filter { it.isRecurring }
-            }
-            FilterType.CONDITIONAL -> {
-                binding.chipConditional.isChecked = true
-                allReminders.filter { it.type == AdvancedReminder.ReminderType.CONDITIONAL }
-            }
-            FilterType.HIGH_PRIORITY -> {
-                binding.chipHighPriority.isChecked = true
-                allReminders.filter { it.priority == AdvancedReminder.Priority.HIGH }
-            }
-        }
-        
-        reminders.clear()
-        reminders.addAll(filtered)
         remindersAdapter.notifyDataSetChanged()
     }
     
@@ -531,8 +481,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.reminders_menu, menu)
-        return true
+        return super.onCreateOptionsMenu(menu)
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -541,26 +490,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 finish()
                 true
             }
-            R.id.action_clear_completed -> {
-                clearCompleted()
-                true
-            }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-    
-    private fun clearCompleted() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("پاک کردن یادآوری‌های انجام شده")
-            .setMessage("آیا مطمئن هستید؟")
-            .setPositiveButton("بله") { _, _ ->
-                lifecycleScope.launch {
-                    reminderManager.clearCompleted()
-                    loadReminders()
-                    Toast.makeText(this@AdvancedRemindersActivity, "✅ پاک شد", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("خیر", null)
-            .show()
     }
 }
