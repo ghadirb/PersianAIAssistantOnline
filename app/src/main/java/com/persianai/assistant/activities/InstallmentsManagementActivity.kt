@@ -12,9 +12,9 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.InstallmentsAdapter
-import com.persianai.assistant.data.Installment
 import com.persianai.assistant.databinding.ActivityInstallmentsManagementBinding
 import com.persianai.assistant.finance.InstallmentManager
+import com.persianai.assistant.finance.InstallmentManager.Installment
 import com.persianai.assistant.utils.PersianDateConverter
 import kotlinx.coroutines.launch
 import java.util.*
@@ -69,14 +69,8 @@ class InstallmentsManagementActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        installmentsAdapter = InstallmentsAdapter(installments) { installment, action ->
-            when (action) {
-                "view" -> viewInstallmentDetails(installment)
-                "pay" -> markPaymentPaid(installment)
-                "schedule" -> viewPaymentSchedule(installment)
-                "edit" -> editInstallment(installment)
-                "delete" -> deleteInstallment(installment)
-            }
+        installmentsAdapter = InstallmentsAdapter(installments) { installment ->
+            viewInstallmentDetails(installment)
         }
         
         binding.installmentsRecyclerView.apply {
@@ -155,23 +149,23 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             }
             FilterType.ACTIVE -> {
                 binding.chipActive.isChecked = true
-                allInstallments.filter { it.status == Installment.InstallmentStatus.ACTIVE }
+                allInstallments.filter { it.paidInstallments < it.totalInstallments }
             }
             FilterType.COMPLETED -> {
                 binding.chipCompleted.isChecked = true
-                allInstallments.filter { it.status == Installment.InstallmentStatus.COMPLETED }
+                allInstallments.filter { it.paidInstallments >= it.totalInstallments }
             }
             FilterType.OVERDUE -> {
                 binding.chipOverdue.isChecked = true
                 allInstallments.filter { 
-                    it.status == Installment.InstallmentStatus.ACTIVE &&
-                    hasOverduePayments(it)
+                    it.paidInstallments < it.totalInstallments &&
+                    hasOverduePayments(it, today)
                 }
             }
             FilterType.UPCOMING -> {
                 binding.chipUpcoming.isChecked = true
                 allInstallments.filter {
-                    it.status == Installment.InstallmentStatus.ACTIVE &&
+                    it.paidInstallments < it.totalInstallments &&
                     hasUpcomingPayments(it, today, sevenDaysLater)
                 }
             }
@@ -184,37 +178,47 @@ class InstallmentsManagementActivity : AppCompatActivity() {
         binding.installmentsCountText.text = "تعداد: ${installments.size}"
     }
     
-    private fun hasOverduePayments(installment: Installment): Boolean {
-        val today = System.currentTimeMillis()
-        return installment.payments.any { 
-            !it.paid && it.dueDate < today 
-        }
+    private fun hasOverduePayments(installment: Installment, now: Long = System.currentTimeMillis()): Boolean {
+        val nextPaymentDate = installmentManager.calculateNextPaymentDate(installment) ?: return false
+        return nextPaymentDate < now
     }
     
     private fun hasUpcomingPayments(installment: Installment, start: Long, end: Long): Boolean {
-        return installment.payments.any { 
-            !it.paid && it.dueDate in start..end 
-        }
+        val nextPaymentDate = installmentManager.calculateNextPaymentDate(installment) ?: return false
+        return nextPaymentDate in start..end
     }
     
     private fun updateStats() {
         lifecycleScope.launch {
-            val stats = installmentManager.getInstallmentStats()
+            val allInstallments = installmentManager.getAllInstallments()
             
-            binding.statsCard.visibility = View.VISIBLE
+            binding.statsCard.visibility = if (allInstallments.isEmpty()) View.GONE else View.VISIBLE
             
-            binding.totalInstallmentsText.text = "${stats.totalInstallments} قسط"
-            binding.totalAmountText.text = formatAmount(stats.totalAmount)
-            binding.totalPaidText.text = formatAmount(stats.totalPaid)
-            binding.totalRemainingText.text = formatAmount(stats.totalRemaining)
+            val totalInstallments = allInstallments.size
+            val totalAmount = allInstallments.sumOf { it.totalAmount }
+            val totalPaid = allInstallments.sumOf { it.paidInstallments * it.installmentAmount }
+            val totalRemaining = allInstallments.sumOf { (it.totalInstallments - it.paidInstallments) * it.installmentAmount }
             
-            binding.activeCountText.text = "${stats.activeCount} فعال"
-            binding.completedCountText.text = "${stats.completedCount} تکمیل"
-            binding.overdueCountText.text = "${stats.overdueCount} عقب افتاده"
+            val activeCount = allInstallments.count { it.paidInstallments < it.totalInstallments }
+            val completedCount = allInstallments.count { it.paidInstallments >= it.totalInstallments }
+            
+            val today = System.currentTimeMillis()
+            val sevenDaysLater = today + (7 * 24 * 60 * 60 * 1000)
+            val overdueCount = allInstallments.count { hasOverduePayments(it, today) }
+            val upcomingCount = allInstallments.count { hasUpcomingPayments(it, today, sevenDaysLater) }
+            
+            binding.totalInstallmentsText.text = "${totalInstallments} قسط"
+            binding.totalAmountText.text = formatAmount(totalAmount)
+            binding.totalPaidText.text = formatAmount(totalPaid)
+            binding.totalRemainingText.text = formatAmount(totalRemaining)
+            
+            binding.activeCountText.text = "${activeCount} فعال"
+            binding.completedCountText.text = "${completedCount} تکمیل"
+            binding.overdueCountText.text = "${overdueCount} عقب افتاده"
             
             // Progress bar
-            val progress = if (stats.totalAmount > 0) {
-                ((stats.totalPaid.toDouble() / stats.totalAmount) * 100).toInt()
+            val progress = if (totalAmount > 0) {
+                ((totalPaid / totalAmount) * 100).toInt()
             } else {
                 0
             }
@@ -222,15 +226,15 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             binding.progressText.text = "$progress%"
             
             // هشدار
-            if (stats.overdueCount > 0 || stats.upcomingCount > 0) {
+            if (overdueCount > 0 || upcomingCount > 0) {
                 binding.alertCard.visibility = View.VISIBLE
                 binding.alertText.text = buildString {
-                    if (stats.overdueCount > 0) {
-                        append("❌ ${stats.overdueCount} قسط عقب افتاده")
+                    if (overdueCount > 0) {
+                        append("❌ ${overdueCount} قسط عقب افتاده")
                     }
-                    if (stats.upcomingCount > 0) {
-                        if (stats.overdueCount > 0) append("\n")
-                        append("⚠️ ${stats.upcomingCount} قسط تا 7 روز آینده")
+                    if (upcomingCount > 0) {
+                        if (overdueCount > 0) append("\n")
+                        append("⚠️ ${upcomingCount} قسط تا 7 روز آینده")
                     }
                 }
             } else {
@@ -267,8 +271,15 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             
             datePicker.addOnPositiveButtonClickListener { selection ->
                 selectedStartDate = selection
-                val persianDate = PersianDateConverter.gregorianToPersian(Date(selection))
-                startDateButton.text = persianDate
+                val calendar = Calendar.getInstance().apply {
+                    timeInMillis = selection
+                }
+                val persianDate = PersianDateConverter.gregorianToPersian(
+                    calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH) + 1,
+                    calendar.get(Calendar.DAY_OF_MONTH)
+                )
+                startDateButton.text = persianDate.toReadableString()
             }
             
             datePicker.show(supportFragmentManager, "DATE_PICKER")
@@ -278,13 +289,6 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             .setTitle("➕ افزودن قسط جدید")
             .setView(dialogView)
             .setPositiveButton("ذخیره") { _, _ ->
-                val type = when (typeSpinner.selectedItemPosition) {
-                    0 -> Installment.InstallmentType.LOAN
-                    1 -> Installment.InstallmentType.PURCHASE
-                    2 -> Installment.InstallmentType.RENT
-                    else -> Installment.InstallmentType.OTHER
-                }
-                
                 val title = titleInput.text.toString()
                 val totalAmount = totalAmountInput.text.toString().toLongOrNull() ?: 0L
                 val installmentCount = installmentCountInput.text.toString().toIntOrNull() ?: 0
@@ -311,58 +315,49 @@ class InstallmentsManagementActivity : AppCompatActivity() {
                 val amountPerInstallment = totalAmount / installmentCount
                 
                 // ایجاد لیست پرداخت‌ها
-                val payments = mutableListOf<Installment.Payment>()
-                var currentDate = selectedStartDate
-                
-                for (i in 1..installmentCount) {
-                    payments.add(
-                        Installment.Payment(
-                            id = UUID.randomUUID().toString(),
-                            number = i,
-                            amount = amountPerInstallment,
-                            dueDate = currentDate,
-                            paid = false,
-                            paidDate = null
-                        )
-                    )
-                    
-                    // افزودن interval به تاریخ
-                    val calendar = Calendar.getInstance()
-                    calendar.timeInMillis = currentDate
-                    calendar.add(Calendar.DAY_OF_MONTH, intervalDays)
-                    currentDate = calendar.timeInMillis
+                val calendar = Calendar.getInstance().apply {
+                    timeInMillis = selectedStartDate
                 }
+                val paymentDay = calendar.get(Calendar.DAY_OF_MONTH)
                 
-                val installment = Installment(
-                    id = UUID.randomUUID().toString(),
-                    type = type,
+                addInstallment(
                     title = title,
-                    totalAmount = totalAmount,
-                    amountPerInstallment = amountPerInstallment,
-                    installmentCount = installmentCount,
-                    paidCount = 0,
+                    totalAmount = totalAmount.toDouble(),
+                    installmentAmount = amountPerInstallment.toDouble(),
+                    totalInstallments = installmentCount,
                     startDate = selectedStartDate,
-                    intervalDays = intervalDays,
+                    paymentDay = paymentDay,
                     creditor = creditor,
-                    status = Installment.InstallmentStatus.ACTIVE,
-                    payments = payments,
-                    notes = notes,
-                    createdAt = System.currentTimeMillis()
+                    notes = notes
                 )
-                
-                addInstallment(installment)
             }
             .setNegativeButton("لغو", null)
             .show()
     }
     
-    private fun addInstallment(installment: Installment) {
+    private fun addInstallment(
+        title: String,
+        totalAmount: Double,
+        installmentAmount: Double,
+        totalInstallments: Int,
+        startDate: Long,
+        paymentDay: Int,
+        creditor: String,
+        notes: String
+    ) {
         lifecycleScope.launch {
             try {
-                installmentManager.addInstallment(installment)
-                
                 // ثبت هشدارها برای پرداخت‌ها
-                installmentManager.schedulePaymentAlerts(installment)
+                installmentManager.addInstallment(
+                    title = title,
+                    totalAmount = totalAmount,
+                    installmentAmount = installmentAmount,
+                    totalInstallments = totalInstallments,
+                    startDate = startDate,
+                    paymentDay = paymentDay,
+                    recipient = creditor,
+                    description = notes
+                )
                 
                 Toast.makeText(
                     this@InstallmentsManagementActivity,
@@ -383,39 +378,36 @@ class InstallmentsManagementActivity : AppCompatActivity() {
     }
     
     private fun viewInstallmentDetails(installment: Installment) {
-        val typeText = when (installment.type) {
-            Installment.InstallmentType.LOAN -> "💰 وام"
-            Installment.InstallmentType.PURCHASE -> "🛒 خرید"
-            Installment.InstallmentType.RENT -> "🏠 اجاره"
-            Installment.InstallmentType.OTHER -> "📋 سایر"
+        val statusText = if (installment.paidInstallments >= installment.totalInstallments) {
+            "✔️ تکمیل"
+        } else {
+            "✅ فعال"
         }
         
-        val statusText = when (installment.status) {
-            Installment.InstallmentStatus.ACTIVE -> "✅ فعال"
-            Installment.InstallmentStatus.COMPLETED -> "✔️ تکمیل"
-            Installment.InstallmentStatus.CANCELLED -> "❌ لغو شده"
+        val remainingInstallments = installment.totalInstallments - installment.paidInstallments
+        val remainingAmount = remainingInstallments * installment.installmentAmount
+        val progressPercent = if (installment.totalInstallments > 0) {
+            ((installment.paidInstallments.toDouble() / installment.totalInstallments) * 100).toInt()
+        } else {
+            0
         }
-        
-        val remainingAmount = installment.totalAmount - (installment.paidCount * installment.amountPerInstallment)
-        val progressPercent = ((installment.paidCount.toDouble() / installment.installmentCount) * 100).toInt()
         
         val details = buildString {
-            appendLine("نوع: $typeText")
             appendLine("عنوان: ${installment.title}")
             appendLine("مبلغ کل: ${formatAmount(installment.totalAmount)}")
-            appendLine("مبلغ هر قسط: ${formatAmount(installment.amountPerInstallment)}")
-            appendLine("تعداد اقساط: ${installment.installmentCount}")
-            appendLine("پرداخت شده: ${installment.paidCount} قسط")
-            appendLine("باقیمانده: ${installment.installmentCount - installment.paidCount} قسط")
+            appendLine("مبلغ هر قسط: ${formatAmount(installment.installmentAmount)}")
+            appendLine("تعداد اقساط: ${installment.totalInstallments}")
+            appendLine("پرداخت شده: ${installment.paidInstallments} قسط")
+            appendLine("باقیمانده: ${remainingInstallments} قسط")
             appendLine("مبلغ باقیمانده: ${formatAmount(remainingAmount)}")
             appendLine("پیشرفت: $progressPercent%")
             appendLine("وضعیت: $statusText")
-            if (installment.creditor.isNotEmpty()) {
-                appendLine("طلبکار: ${installment.creditor}")
+            if (installment.recipient.isNotEmpty()) {
+                appendLine("طلبکار: ${installment.recipient}")
             }
-            if (installment.notes.isNotEmpty()) {
+            if (installment.description.isNotEmpty()) {
                 appendLine("\nیادداشت:")
-                appendLine(installment.notes)
+                appendLine(installment.description)
             }
         }
         
@@ -438,35 +430,32 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             appendLine("================")
             appendLine()
             
-            installment.payments.forEachIndexed { index, payment ->
+            val now = System.currentTimeMillis()
+            val calendar = Calendar.getInstance()
+            
+            for (i in 1..installment.totalInstallments) {
+                calendar.timeInMillis = installment.startDate
+                calendar.add(Calendar.MONTH, i - 1)
+                calendar.set(Calendar.DAY_OF_MONTH, installment.paymentDay)
+                val dueTime = calendar.timeInMillis
                 val dueCal = Calendar.getInstance().apply {
-                    timeInMillis = payment.dueDate
+                    timeInMillis = dueTime
                 }
                 val persianDate = PersianDateConverter.gregorianToPersian(
                     dueCal.get(Calendar.YEAR),
                     dueCal.get(Calendar.MONTH) + 1,
                     dueCal.get(Calendar.DAY_OF_MONTH)
                 )
-                val status = if (payment.paid) {
-                    val paidMillis = payment.paidDate ?: 0L
-                    val paidCal = Calendar.getInstance().apply {
-                        timeInMillis = paidMillis
-                    }
-                    val paidDate = PersianDateConverter.gregorianToPersian(
-                        paidCal.get(Calendar.YEAR),
-                        paidCal.get(Calendar.MONTH) + 1,
-                        paidCal.get(Calendar.DAY_OF_MONTH)
-                    )
-                    "✅ پرداخت شده ($paidDate)"
-                } else if (payment.dueDate < System.currentTimeMillis()) {
-                    "❌ عقب افتاده"
-                } else {
-                    "⏳ در انتظار"
+                val isPaid = i <= installment.paidInstallments
+                val status = when {
+                    isPaid -> "✅ پرداخت شده"
+                    dueTime < now -> "❌ عقب افتاده"
+                    else -> "⏳ در انتظار"
                 }
                 
-                appendLine("قسط ${payment.number}:")
-                appendLine("  مبلغ: ${formatAmount(payment.amount)}")
-                appendLine("  سررسید: $persianDate")
+                appendLine("قسط ${i}:")
+                appendLine("  مبلغ: ${formatAmount(installment.installmentAmount)}")
+                appendLine("  سررسید: ${persianDate.toReadableString()}")
                 appendLine("  وضعیت: $status")
                 appendLine()
             }
@@ -518,8 +507,8 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun formatAmount(amount: Long): String {
-        return String.format("%,d تومان", amount)
+    private fun formatAmount(amount: Double): String {
+        return String.format("%,.0f تومان", amount)
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
