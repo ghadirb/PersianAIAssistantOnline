@@ -3,11 +3,11 @@ package com.persianai.assistant.adapters
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.chip.Chip
 import com.persianai.assistant.R
 import com.persianai.assistant.models.Check
 import com.persianai.assistant.models.CheckStatus
@@ -34,67 +34,52 @@ class CheckAdapter(
     }
     
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val statusIcon: ImageView = itemView.findViewById(R.id.checkStatusIcon)
-        private val checkNumberView: TextView = itemView.findViewById(R.id.checkNumber)
-        private val amountView: TextView = itemView.findViewById(R.id.checkAmount)
-        private val recipientView: TextView = itemView.findViewById(R.id.checkRecipient)
-        private val dueDateView: TextView = itemView.findViewById(R.id.checkDueDate)
-        private val statusView: TextView = itemView.findViewById(R.id.checkStatus)
-        private val bankView: TextView = itemView.findViewById(R.id.checkBank)
+        private val checkNumberView: TextView = itemView.findViewById(R.id.checkNumberText)
+        private val amountView: TextView = itemView.findViewById(R.id.amountText)
+        private val holderNameView: TextView = itemView.findViewById(R.id.holderNameText)
+        private val dueDateView: TextView = itemView.findViewById(R.id.dueDateText)
+        private val typeView: TextView = itemView.findViewById(R.id.typeText)
+        private val alertView: TextView = itemView.findViewById(R.id.alertText)
+        private val statusChip: Chip = itemView.findViewById(R.id.statusChip)
         
         fun bind(check: Check) {
-            // تنظیم آیکون وضعیت
-            statusIcon.setImageResource(
-                when (check.status) {
-                    CheckStatus.PENDING -> R.drawable.ic_pending
-                    CheckStatus.DEPOSITED -> R.drawable.ic_check_circle
-                    CheckStatus.BOUNCED -> R.drawable.ic_error
-                    CheckStatus.CANCELLED -> R.drawable.ic_cancel
-                }
-            )
-            
-            // تنظیم رنگ آیکون
-            statusIcon.setColorFilter(
-                when (check.status) {
-                    CheckStatus.PENDING -> itemView.context.getColor(R.color.warning_orange)
-                    CheckStatus.DEPOSITED -> itemView.context.getColor(R.color.success_green)
-                    CheckStatus.BOUNCED -> itemView.context.getColor(R.color.error_red)
-                    CheckStatus.CANCELLED -> itemView.context.getColor(R.color.neutral_gray)
-                }
-            )
-            
-            // تنظیم شماره چک
-            checkNumberView.text = "چک شماره: ${check.checkNumber}"
-            
-            // تنظیم مبلغ
-            amountView.text = "${String.format("%,.0f", check.amount)} تومان"
-            
-            // تنظیم گیرنده
-            recipientView.text = "در وجه: ${check.recipient}"
-            
-            // تنظیم تاریخ سررسید
-            dueDateView.text = "سررسید: ${dateFormat.format(check.dueDate)}"
-            
-            // تنظیم وضعیت
-            statusView.text = getStatusName(check.status)
-            statusView.setTextColor(
-                when (check.status) {
-                    CheckStatus.PENDING -> itemView.context.getColor(R.color.warning_orange)
-                    CheckStatus.DEPOSITED -> itemView.context.getColor(R.color.success_green)
-                    CheckStatus.BOUNCED -> itemView.context.getColor(R.color.error_red)
-                    CheckStatus.CANCELLED -> itemView.context.getColor(R.color.neutral_gray)
-                }
-            )
-            
-            // تنظیم بانک
-            if (check.bankName.isNotBlank()) {
-                bankView.text = "بانک: ${check.bankName}"
-                bankView.visibility = View.VISIBLE
+            // شماره چک
+            checkNumberView.text = "💳 چک #${check.checkNumber}"
+
+            // مبلغ
+            amountView.text = "💰 ${String.format("%,.0f", check.amount)} تومان"
+
+            // گیرنده
+            holderNameView.text = "در وجه: ${check.recipient}"
+
+            // تاریخ سررسید
+            dueDateView.text = "📅 سررسید: ${dateFormat.format(check.dueDate)}"
+
+            // نوع/بانک
+            typeView.text = if (check.bankName.isNotBlank()) {
+                "بانک: ${check.bankName}"
             } else {
-                bankView.visibility = View.GONE
+                ""
             }
-            
-            // تنظیم کلیک
+
+            // وضعیت روی چیپ
+            statusChip.text = getStatusName(check.status)
+            when (check.status) {
+                CheckStatus.PENDING -> statusChip.setChipBackgroundColorResource(R.color.warning_orange)
+                CheckStatus.DEPOSITED -> statusChip.setChipBackgroundColorResource(R.color.success_green)
+                CheckStatus.BOUNCED -> statusChip.setChipBackgroundColorResource(R.color.error_red)
+                CheckStatus.CANCELLED -> statusChip.setChipBackgroundColorResource(R.color.neutral_gray)
+            }
+
+            // هشدار فاصله تا سررسید
+            val daysRemaining = ((check.dueDate.time - Date().time) / (24 * 60 * 60 * 1000L)).toInt()
+            alertView.text = when {
+                daysRemaining > 0 -> "🔔 ${daysRemaining} روز تا سررسید"
+                daysRemaining == 0 -> "⚠️ امروز سررسید است"
+                else -> "⏰ ${-daysRemaining} روز از سررسید گذشته"
+            }
+
+            // کلیک روی آیتم
             itemView.setOnClickListener {
                 onCheckClick(check)
             }

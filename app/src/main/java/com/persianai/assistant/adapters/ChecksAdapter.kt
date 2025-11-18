@@ -1,5 +1,6 @@
 package com.persianai.assistant.adapters
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -26,36 +27,57 @@ class ChecksAdapter(
         val check = checks[position]
         
         with(holder.binding) {
-            checkNumberText.text = "چک ${check.checkNumber}"
+            // شماره چک و مبلغ
+            checkNumberText.text = "💳 چک ${check.checkNumber}"
             amountText.text = "${formatMoney(check.amount)} تومان"
-            dueDateText.text = "سررسید: ${dateFormat.format(Date(check.dueDate))}"
-            bankText.text = check.bankName
-            issuerText.text = "صادرکننده: ${check.issuer}"
             
-            statusText.text = when (check.status) {
+            // دارنده/گیرنده
+            holderNameText.text = "در وجه: ${check.recipient}"
+            
+            // تاریخ سررسید
+            dueDateText.text = "📅 سررسید: ${dateFormat.format(Date(check.dueDate))}"
+
+            // نوع/بانک روی typeText
+            typeText.text = if (check.bankName.isNotBlank()) {
+                "بانک: ${check.bankName}"
+            } else {
+                "چک"
+            }
+
+            // وضعیت روی چیپ وضعیت
+            statusChip.text = when (check.status) {
                 CheckManager.CheckStatus.PENDING -> "⏳ در انتظار"
                 CheckManager.CheckStatus.PAID -> "✅ پرداخت شده"
                 CheckManager.CheckStatus.BOUNCED -> "❌ برگشتی"
                 CheckManager.CheckStatus.CANCELLED -> "🚫 لغو شده"
             }
-            
-            // رنگ‌بندی بر اساس وضعیت
+
+            // رنگ پس‌زمینه کارت و متن هشدار بر اساس وضعیت و فاصله تا سررسید
+            val daysRemaining = ((check.dueDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).toInt()
             when (check.status) {
                 CheckManager.CheckStatus.PENDING -> {
-                    val daysRemaining = ((check.dueDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).toInt()
                     if (daysRemaining <= check.alertDays) {
-                        cardView.setCardBackgroundColor(0xFFFFEBEE.toInt()) // قرمز روشن
-                        alertIcon.text = "⚠️"
-                        alertText.text = "$daysRemaining روز تا سررسید"
+                        root.setCardBackgroundColor(Color.parseColor("#FFEBEE")) // قرمز روشن
+                        alertText.text = "⚠️ $daysRemaining روز تا سررسید"
                     } else {
-                        cardView.setCardBackgroundColor(0xFFFFFFFF.toInt())
+                        root.setCardBackgroundColor(Color.WHITE)
+                        alertText.text = ""
                     }
                 }
-                CheckManager.CheckStatus.PAID -> cardView.setCardBackgroundColor(0xFFE8F5E9.toInt())
-                CheckManager.CheckStatus.BOUNCED -> cardView.setCardBackgroundColor(0xFFFFCDD2.toInt())
-                CheckManager.CheckStatus.CANCELLED -> cardView.setCardBackgroundColor(0xFFECEFF1.toInt())
+                CheckManager.CheckStatus.PAID -> {
+                    root.setCardBackgroundColor(Color.parseColor("#E8F5E9"))
+                    alertText.text = "✅ پرداخت شده"
+                }
+                CheckManager.CheckStatus.BOUNCED -> {
+                    root.setCardBackgroundColor(Color.parseColor("#FFCDD2"))
+                    alertText.text = "❌ برگشتی"
+                }
+                CheckManager.CheckStatus.CANCELLED -> {
+                    root.setCardBackgroundColor(Color.parseColor("#ECEFF1"))
+                    alertText.text = "🚫 لغو شده"
+                }
             }
-            
+
             root.setOnClickListener {
                 onItemClick(check)
             }

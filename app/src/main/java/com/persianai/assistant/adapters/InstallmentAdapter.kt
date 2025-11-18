@@ -3,12 +3,12 @@ package com.persianai.assistant.adapters
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.chip.Chip
 import com.persianai.assistant.R
 import com.persianai.assistant.models.Installment
 import com.persianai.assistant.models.InstallmentStatus
@@ -35,74 +35,36 @@ class InstallmentAdapter(
     }
     
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val statusIcon: ImageView = itemView.findViewById(R.id.installmentStatusIcon)
-        private val titleView: TextView = itemView.findViewById(R.id.installmentTitle)
-        private val totalAmountView: TextView = itemView.findViewById(R.id.installmentTotalAmount)
-        private val paidAmountView: TextView = itemView.findViewById(R.id.installmentPaidAmount)
-        private val remainingAmountView: TextView = itemView.findViewById(R.id.installmentRemainingAmount)
-        private val progressView: ProgressBar = itemView.findViewById(R.id.installmentProgress)
-        private val progressText: TextView = itemView.findViewById(R.id.installmentProgressText)
-        private val nextPaymentView: TextView = itemView.findViewById(R.id.installmentNextPayment)
-        private val statusView: TextView = itemView.findViewById(R.id.installmentStatus)
-        private val lenderView: TextView = itemView.findViewById(R.id.installmentLender)
+        private val titleView: TextView = itemView.findViewById(R.id.titleText)
+        private val typeChip: Chip = itemView.findViewById(R.id.typeChip)
+        private val totalAmountView: TextView = itemView.findViewById(R.id.totalAmountText)
+        private val monthlyAmountView: TextView = itemView.findViewById(R.id.monthlyAmountText)
+        private val progressView: ProgressBar = itemView.findViewById(R.id.progressBar)
+        private val progressTextView: TextView = itemView.findViewById(R.id.progressText)
+        private val progressPercentView: TextView = itemView.findViewById(R.id.progressPercentText)
+        private val remainingView: TextView = itemView.findViewById(R.id.remainingText)
         
         fun bind(installment: Installment) {
-            // تنظیم آیکون وضعیت
-            statusIcon.setImageResource(
-                when (installment.status) {
-                    InstallmentStatus.ACTIVE -> R.drawable.ic_active
-                    InstallmentStatus.COMPLETED -> R.drawable.ic_completed
-                    InstallmentStatus.DELAYED -> R.drawable.ic_delayed
-                    InstallmentStatus.CANCELLED -> R.drawable.ic_cancel
-                }
-            )
-            
-            // تنظیم رنگ آیکون
-            statusIcon.setColorFilter(
-                when (installment.status) {
-                    InstallmentStatus.ACTIVE -> itemView.context.getColor(R.color.primary_blue)
-                    InstallmentStatus.COMPLETED -> itemView.context.getColor(R.color.success_green)
-                    InstallmentStatus.DELAYED -> itemView.context.getColor(R.color.warning_orange)
-                    InstallmentStatus.CANCELLED -> itemView.context.getColor(R.color.neutral_gray)
-                }
-            )
-            
-            // تنظیم عنوان
+            // عنوان قسط
             titleView.text = installment.title
             
-            // تنظیم مبالغ
-            totalAmountView.text = "مبلغ کل: ${String.format("%,.0f", installment.totalAmount)} تومان"
-            paidAmountView.text = "پرداخت شده: ${String.format("%,.0f", installment.paidAmount)} تومان"
-            remainingAmountView.text = "مانده: ${String.format("%,.0f", installment.remainingAmount)} تومان"
+            // مبلغ کل و مبلغ ماهانه
+            totalAmountView.text = String.format("%,.0f", installment.totalAmount) + " تومان"
+            monthlyAmountView.text = String.format("%,.0f", installment.monthlyAmount) + " تومان"
             
-            // تنظیم پیشرفت
+            // پیشرفت اقساط
             val progress = if (installment.installmentCount > 0) {
                 (installment.paidInstallments.toFloat() / installment.installmentCount * 100).toInt()
             } else 0
             progressView.progress = progress
-            progressText.text = "%${progress} (${installment.paidInstallments}/${installment.installmentCount})"
+            progressTextView.text = "پرداخت: ${installment.paidInstallments} از ${installment.installmentCount}"
+            progressPercentView.text = "$progress%"
             
-            // تنظیم تاریخ پرداخت بعدی
-            nextPaymentView.text = "پرداخت بعدی: ${dateFormat.format(installment.nextPaymentDate)}"
+            // مانده مبلغ
+            remainingView.text = "باقیمانده: ${String.format("%,.0f", installment.remainingAmount)} تومان"
             
-            // تنظیم وضعیت
-            statusView.text = getStatusName(installment.status)
-            statusView.setTextColor(
-                when (installment.status) {
-                    InstallmentStatus.ACTIVE -> itemView.context.getColor(R.color.primary_blue)
-                    InstallmentStatus.COMPLETED -> itemView.context.getColor(R.color.success_green)
-                    InstallmentStatus.DELAYED -> itemView.context.getColor(R.color.warning_orange)
-                    InstallmentStatus.CANCELLED -> itemView.context.getColor(R.color.neutral_gray)
-                }
-            )
-            
-            // تنظیم طلبکار
-            if (installment.lender.isNotBlank()) {
-                lenderView.text = "طلبکار: ${installment.lender}"
-                lenderView.visibility = View.VISIBLE
-            } else {
-                lenderView.visibility = View.GONE
-            }
+            // وضعیت روی چیپ نوع
+            typeChip.text = getStatusName(installment.status)
             
             // تنظیم کلیک
             itemView.setOnClickListener {
