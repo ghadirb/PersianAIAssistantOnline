@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -254,8 +253,8 @@ class RemindersAdapter(
     
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val timeText: TextView = view.findViewById(R.id.timeText)
-        val messageText: TextView = view.findViewById(R.id.messageText)
-        val checkBox: CheckBox = view.findViewById(R.id.checkBox)
+        val messageText: TextView = view.findViewById(R.id.descriptionText)
+        val completeButton: View = view.findViewById(R.id.completeButton)
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -269,7 +268,6 @@ class RemindersAdapter(
         
         holder.timeText.text = "⏰ ${reminder.time}"
         holder.messageText.text = reminder.message
-        holder.checkBox.isChecked = reminder.completed
         
         // استایل برای تکمیل شده
         if (reminder.completed) {
@@ -280,7 +278,7 @@ class RemindersAdapter(
             holder.timeText.alpha = 1.0f
         }
         
-        holder.checkBox.setOnClickListener {
+        holder.completeButton.setOnClickListener {
             onCheckedChange(reminder, position)
         }
     }

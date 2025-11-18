@@ -461,9 +461,6 @@ class MainActivity : AppCompatActivity() {
             )
             addMessage(aiMessage)
             
-            // اجرای action اگر لازم باشد
-            handleAssistantAction(response)
-            
             binding.messageInput.text?.clear()
             return
         }

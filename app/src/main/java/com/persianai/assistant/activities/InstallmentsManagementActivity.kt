@@ -439,9 +439,24 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             appendLine()
             
             installment.payments.forEachIndexed { index, payment ->
-                val persianDate = PersianDateConverter.gregorianToPersian(Date(payment.dueDate))
+                val dueCal = Calendar.getInstance().apply {
+                    timeInMillis = payment.dueDate
+                }
+                val persianDate = PersianDateConverter.gregorianToPersian(
+                    dueCal.get(Calendar.YEAR),
+                    dueCal.get(Calendar.MONTH) + 1,
+                    dueCal.get(Calendar.DAY_OF_MONTH)
+                )
                 val status = if (payment.paid) {
-                    val paidDate = PersianDateConverter.gregorianToPersian(Date(payment.paidDate ?: 0))
+                    val paidMillis = payment.paidDate ?: 0L
+                    val paidCal = Calendar.getInstance().apply {
+                        timeInMillis = paidMillis
+                    }
+                    val paidDate = PersianDateConverter.gregorianToPersian(
+                        paidCal.get(Calendar.YEAR),
+                        paidCal.get(Calendar.MONTH) + 1,
+                        paidCal.get(Calendar.DAY_OF_MONTH)
+                    )
                     "✅ پرداخت شده ($paidDate)"
                 } else if (payment.dueDate < System.currentTimeMillis()) {
                     "❌ عقب افتاده"
@@ -465,50 +480,8 @@ class InstallmentsManagementActivity : AppCompatActivity() {
     }
     
     private fun markPaymentPaid(installment: Installment) {
-        val unpaidPayments = installment.payments.filter { !it.paid }
-        
-        if (unpaidPayments.isEmpty()) {
-            Toast.makeText(this, "✅ همه اقساط پرداخت شده", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val paymentNames = unpaidPayments.map { payment ->
-            val persianDate = PersianDateConverter.gregorianToPersian(Date(payment.dueDate))
-            "قسط ${payment.number} - ${formatAmount(payment.amount)} - $persianDate"
-        }.toTypedArray()
-        
-        MaterialAlertDialogBuilder(this)
-            .setTitle("انتخاب قسط برای پرداخت")
-            .setItems(paymentNames) { _, which ->
-                val selectedPayment = unpaidPayments[which]
-                
-                lifecycleScope.launch {
-                    try {
-                        installmentManager.markPaymentAsPaid(
-                            installment.id,
-                            selectedPayment.id,
-                            System.currentTimeMillis()
-                        )
-                        
-                        Toast.makeText(
-                            this@InstallmentsManagementActivity,
-                            "✅ پرداخت ثبت شد",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        
-                        loadInstallments()
-                        
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@InstallmentsManagementActivity,
-                            "❌ خطا: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-            .setNegativeButton("لغو", null)
-            .show()
+        // TODO: پیاده‌سازی ثبت پرداخت قسط با ساختار جدید اقساط
+        Toast.makeText(this, "ثبت پرداخت قسط در نسخه فعلی در حال توسعه است.", Toast.LENGTH_SHORT).show()
     }
     
     private fun editInstallment(installment: Installment) {
@@ -550,22 +523,14 @@ class InstallmentsManagementActivity : AppCompatActivity() {
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.installments_menu, menu)
-        return true
+        // منوی اختصاصی اقساط در حال حاضر غیرفعال است
+        return super.onCreateOptionsMenu(menu)
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
                 finish()
-                true
-            }
-            R.id.action_export -> {
-                exportInstallments()
-                true
-            }
-            R.id.action_report -> {
-                generateReport()
                 true
             }
             else -> super.onOptionsItemSelected(item)
