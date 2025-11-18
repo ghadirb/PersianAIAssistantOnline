@@ -84,19 +84,17 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             showAddInstallmentDialog()
         }
         
-        // Filters
-        binding.chipAll.setOnClickListener { applyFilter(FilterType.ALL) }
-        binding.chipActive.setOnClickListener { applyFilter(FilterType.ACTIVE) }
-        binding.chipCompleted.setOnClickListener { applyFilter(FilterType.COMPLETED) }
-        binding.chipOverdue.setOnClickListener { applyFilter(FilterType.OVERDUE) }
-        binding.chipUpcoming.setOnClickListener { applyFilter(FilterType.UPCOMING) }
+        // فیلترها بر اساس چیپ‌های موجود در layout
+        binding.chipLoan.setOnClickListener { applyFilter(FilterType.ALL) }
+        binding.chipPurchase.setOnClickListener { applyFilter(FilterType.ACTIVE) }
+        binding.chipRent.setOnClickListener { applyFilter(FilterType.COMPLETED) }
     }
     
     private fun loadInstallments() {
         lifecycleScope.launch {
             try {
                 binding.progressBar.visibility = View.VISIBLE
-                binding.emptyState.visibility = View.GONE
+                binding.emptyView.visibility = View.GONE
                 
                 val allInstallments = installmentManager.getAllInstallments()
                 
@@ -108,10 +106,10 @@ class InstallmentsManagementActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 
                 if (installments.isEmpty()) {
-                    binding.emptyState.visibility = View.VISIBLE
+                    binding.emptyView.visibility = View.VISIBLE
                     binding.installmentsRecyclerView.visibility = View.GONE
                 } else {
-                    binding.emptyState.visibility = View.GONE
+                    binding.emptyView.visibility = View.GONE
                     binding.installmentsRecyclerView.visibility = View.VISIBLE
                 }
                 
@@ -132,11 +130,9 @@ class InstallmentsManagementActivity : AppCompatActivity() {
         filterType = type
         
         // Reset chips
-        binding.chipAll.isChecked = false
-        binding.chipActive.isChecked = false
-        binding.chipCompleted.isChecked = false
-        binding.chipOverdue.isChecked = false
-        binding.chipUpcoming.isChecked = false
+        binding.chipLoan.isChecked = false
+        binding.chipPurchase.isChecked = false
+        binding.chipRent.isChecked = false
         
         val allInstallments = installmentManager.getAllInstallments()
         val today = System.currentTimeMillis()
@@ -144,26 +140,24 @@ class InstallmentsManagementActivity : AppCompatActivity() {
         
         val filtered = when (type) {
             FilterType.ALL -> {
-                binding.chipAll.isChecked = true
+                binding.chipLoan.isChecked = true
                 allInstallments
             }
             FilterType.ACTIVE -> {
-                binding.chipActive.isChecked = true
+                binding.chipPurchase.isChecked = true
                 allInstallments.filter { it.paidInstallments < it.totalInstallments }
             }
             FilterType.COMPLETED -> {
-                binding.chipCompleted.isChecked = true
+                binding.chipRent.isChecked = true
                 allInstallments.filter { it.paidInstallments >= it.totalInstallments }
             }
             FilterType.OVERDUE -> {
-                binding.chipOverdue.isChecked = true
                 allInstallments.filter { 
                     it.paidInstallments < it.totalInstallments &&
                     hasOverduePayments(it, today)
                 }
             }
             FilterType.UPCOMING -> {
-                binding.chipUpcoming.isChecked = true
                 allInstallments.filter {
                     it.paidInstallments < it.totalInstallments &&
                     hasUpcomingPayments(it, today, sevenDaysLater)
@@ -174,8 +168,6 @@ class InstallmentsManagementActivity : AppCompatActivity() {
         installments.clear()
         installments.addAll(filtered)
         installmentsAdapter.notifyDataSetChanged()
-        
-        binding.installmentsCountText.text = "تعداد: ${installments.size}"
     }
     
     private fun hasOverduePayments(installment: Installment, now: Long = System.currentTimeMillis()): Boolean {
@@ -192,7 +184,13 @@ class InstallmentsManagementActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val allInstallments = installmentManager.getAllInstallments()
             
-            binding.statsCard.visibility = if (allInstallments.isEmpty()) View.GONE else View.VISIBLE
+            if (allInstallments.isEmpty()) {
+                binding.statsCard.visibility = View.GONE
+                binding.statsText.text = ""
+                return@launch
+            }
+            
+            binding.statsCard.visibility = View.VISIBLE
             
             val totalInstallments = allInstallments.size
             val totalAmount = allInstallments.sumOf { it.totalAmount }
@@ -207,38 +205,28 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             val overdueCount = allInstallments.count { hasOverduePayments(it, today) }
             val upcomingCount = allInstallments.count { hasUpcomingPayments(it, today, sevenDaysLater) }
             
-            binding.totalInstallmentsText.text = "${totalInstallments} قسط"
-            binding.totalAmountText.text = formatAmount(totalAmount)
-            binding.totalPaidText.text = formatAmount(totalPaid)
-            binding.totalRemainingText.text = formatAmount(totalRemaining)
-            
-            binding.activeCountText.text = "${activeCount} فعال"
-            binding.completedCountText.text = "${completedCount} تکمیل"
-            binding.overdueCountText.text = "${overdueCount} عقب افتاده"
-            
-            // Progress bar
-            val progress = if (totalAmount > 0) {
+            val progressPercent = if (totalAmount > 0) {
                 ((totalPaid / totalAmount) * 100).toInt()
             } else {
                 0
             }
-            binding.paymentProgressBar.progress = progress
-            binding.progressText.text = "$progress%"
             
-            // هشدار
-            if (overdueCount > 0 || upcomingCount > 0) {
-                binding.alertCard.visibility = View.VISIBLE
-                binding.alertText.text = buildString {
+            binding.statsText.text = buildString {
+                appendLine("تعداد اقساط: $totalInstallments")
+                appendLine("مبلغ کل: ${formatAmount(totalAmount)}")
+                appendLine("پرداخت شده: ${formatAmount(totalPaid)}")
+                appendLine("باقیمانده: ${formatAmount(totalRemaining)}")
+                appendLine("پیشرفت: $progressPercent%")
+                appendLine("وضعیت: فعال $activeCount | تکمیل $completedCount")
+                if (overdueCount > 0 || upcomingCount > 0) {
+                    appendLine()
                     if (overdueCount > 0) {
-                        append("❌ ${overdueCount} قسط عقب افتاده")
+                        appendLine("❌ اقساط عقب افتاده: $overdueCount")
                     }
                     if (upcomingCount > 0) {
-                        if (overdueCount > 0) append("\n")
-                        append("⚠️ ${upcomingCount} قسط تا 7 روز آینده")
+                        appendLine("⚠️ اقساط تا ۷ روز آینده: $upcomingCount")
                     }
                 }
-            } else {
-                binding.alertCard.visibility = View.GONE
             }
         }
     }
@@ -246,23 +234,18 @@ class InstallmentsManagementActivity : AppCompatActivity() {
     private fun showAddInstallmentDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_installment, null)
         
-        val typeSpinner = dialogView.findViewById<android.widget.Spinner>(R.id.typeSpinner)
         val titleInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.titleInput)
         val totalAmountInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.totalAmountInput)
-        val installmentCountInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.installmentCountInput)
-        val startDateButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.selectStartDateButton)
-        val intervalDaysInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.intervalDaysInput)
-        val creditorInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.creditorInput)
-        val notesInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.notesInput)
+        val installmentAmountInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.installmentAmountInput)
+        val totalInstallmentsInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.totalInstallmentsInput)
+        val startDateButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.startDateButton)
+        val paymentDayInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.paymentDayInput)
+        val recipientInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.recipientInput)
+        val descriptionInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.descriptionInput)
         
         var selectedStartDate: Long = System.currentTimeMillis()
         
-        // Setup type spinner
-        val types = arrayOf("وام", "خرید اقساطی", "اجاره", "سایر")
-        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, types)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        typeSpinner.adapter = adapter
-        
+        // انتخاب تاریخ شروع
         startDateButton.setOnClickListener {
             val datePicker = MaterialDatePicker.Builder.datePicker()
                 .setTitleText("تاریخ شروع")
@@ -289,12 +272,13 @@ class InstallmentsManagementActivity : AppCompatActivity() {
             .setTitle("➕ افزودن قسط جدید")
             .setView(dialogView)
             .setPositiveButton("ذخیره") { _, _ ->
-                val title = titleInput.text.toString()
-                val totalAmount = totalAmountInput.text.toString().toLongOrNull() ?: 0L
-                val installmentCount = installmentCountInput.text.toString().toIntOrNull() ?: 0
-                val intervalDays = intervalDaysInput.text.toString().toIntOrNull() ?: 30
-                val creditor = creditorInput.text.toString()
-                val notes = notesInput.text.toString()
+                val title = titleInput.text?.toString()?.trim().orEmpty()
+                val totalAmount = totalAmountInput.text?.toString()?.toLongOrNull() ?: 0L
+                val totalInstallments = totalInstallmentsInput.text?.toString()?.toIntOrNull() ?: 0
+                val manualInstallmentAmount = installmentAmountInput.text?.toString()?.toLongOrNull()
+                val paymentDay = paymentDayInput.text?.toString()?.toIntOrNull() ?: -1
+                val recipient = recipientInput.text?.toString()?.trim().orEmpty()
+                val description = descriptionInput.text?.toString()?.trim().orEmpty()
                 
                 if (title.isEmpty()) {
                     Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
@@ -306,29 +290,34 @@ class InstallmentsManagementActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
                 
-                if (installmentCount <= 0) {
+                if (totalInstallments <= 0) {
                     Toast.makeText(this, "⚠️ تعداد اقساط را وارد کنید", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 
-                // محاسبه مبلغ هر قسط
-                val amountPerInstallment = totalAmount / installmentCount
-                
-                // ایجاد لیست پرداخت‌ها
-                val calendar = Calendar.getInstance().apply {
-                    timeInMillis = selectedStartDate
+                if (paymentDay !in 1..31) {
+                    Toast.makeText(this, "⚠️ روز پرداخت را بین ۱ تا ۳۱ وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
                 }
-                val paymentDay = calendar.get(Calendar.DAY_OF_MONTH)
+                
+                val installmentAmount = manualInstallmentAmount
+                    ?: (totalAmount / totalInstallments).takeIf { it > 0 }
+                    ?: 0L
+                
+                if (installmentAmount <= 0) {
+                    Toast.makeText(this, "⚠️ مبلغ هر قسط را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
                 
                 addInstallment(
                     title = title,
                     totalAmount = totalAmount.toDouble(),
-                    installmentAmount = amountPerInstallment.toDouble(),
-                    totalInstallments = installmentCount,
+                    installmentAmount = installmentAmount.toDouble(),
+                    totalInstallments = totalInstallments,
                     startDate = selectedStartDate,
                     paymentDay = paymentDay,
-                    creditor = creditor,
-                    notes = notes
+                    creditor = recipient,
+                    notes = description
                 )
             }
             .setNegativeButton("لغو", null)
