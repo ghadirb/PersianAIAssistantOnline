@@ -1,5 +1,6 @@
 package com.persianai.assistant.adapters
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -24,40 +25,48 @@ class InstallmentsAdapter(
         val installment = installments[position]
         
         with(holder.binding) {
+            // عنوان و مبالغ مطابق layout فعلی
             titleText.text = installment.title
-            amountText.text = "${formatMoney(installment.installmentAmount)} تومان / ماه"
-            recipientText.text = "دریافت‌کننده: ${installment.recipient}"
-            
-            val progress = (installment.paidInstallments.toFloat() / installment.totalInstallments * 100).toInt()
-            progressText.text = "$progress% (${installment.paidInstallments}/${installment.totalInstallments})"
-            progressBar.progress = progress
-            
+            totalAmountText.text = formatMoney(installment.totalAmount)
+            monthlyAmountText.text = formatMoney(installment.installmentAmount)
+
+            // پیشرفت اقساط
+            val progressPercent = (installment.paidInstallments.toFloat() / installment.totalInstallments * 100).toInt()
+            progressText.text = "پرداخت: ${installment.paidInstallments} از ${installment.totalInstallments}"
+            progressPercentText.text = "$progressPercent%"
+            progressBar.progress = progressPercent
+
+            // مبلغ و تعداد اقساط باقی‌مانده
             val remaining = installment.totalInstallments - installment.paidInstallments
             val remainingAmount = remaining * installment.installmentAmount
             remainingText.text = "باقیمانده: ${formatMoney(remainingAmount)} تومان در $remaining قسط"
-            
+
             // محاسبه تاریخ قسط بعدی
             val calendar = Calendar.getInstance()
             calendar.timeInMillis = installment.startDate
             calendar.add(Calendar.MONTH, installment.paidInstallments)
             calendar.set(Calendar.DAY_OF_MONTH, installment.paymentDay)
-            
+
             val nextPayment = calendar.timeInMillis
             val daysRemaining = ((nextPayment - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).toInt()
-            
-            if (remaining > 0) {
+
+            // برچسب و رنگ پس‌زمینه بر اساس نزدیک بودن قسط بعدی
+            val nextPaymentLabel: String = if (remaining > 0) {
                 if (daysRemaining <= installment.alertDaysBefore) {
-                    nextPaymentText.text = "⚠️ قسط بعدی: $daysRemaining روز دیگر"
-                    cardView.setCardBackgroundColor(0xFFFFF3E0.toInt()) // نارنجی روشن
+                    root.setCardBackgroundColor(Color.parseColor("#FFF3E0")) // نارنجی روشن
+                    "⚠️ قسط بعدی: $daysRemaining روز دیگر"
                 } else {
-                    nextPaymentText.text = "📅 قسط بعدی: $daysRemaining روز دیگر"
-                    cardView.setCardBackgroundColor(0xFFFFFFFF.toInt())
+                    root.setCardBackgroundColor(Color.WHITE)
+                    "📅 قسط بعدی: $daysRemaining روز دیگر"
                 }
             } else {
-                nextPaymentText.text = "✅ تکمیل شده"
-                cardView.setCardBackgroundColor(0xFFE8F5E9.toInt()) // سبز روشن
+                root.setCardBackgroundColor(Color.parseColor("#E8F5E9")) // سبز روشن
+                "✅ تکمیل شده"
             }
-            
+
+            // افزودن وضعیت قسط بعدی به متن باقیمانده
+            remainingText.text = "${remainingText.text}\n$nextPaymentLabel"
+
             root.setOnClickListener {
                 onItemClick(installment)
             }
