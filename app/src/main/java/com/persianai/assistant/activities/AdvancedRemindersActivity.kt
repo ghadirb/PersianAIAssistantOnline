@@ -83,13 +83,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        remindersAdapter = RemindersAdapter(reminders) { reminder, action ->
-            when (action) {
-                "view" -> viewReminderDetails(reminder)
-                "edit" -> editReminder(reminder)
-                "delete" -> deleteReminder(reminder)
-                "complete" -> markComplete(reminder)
-            }
+        remindersAdapter = RemindersAdapter(emptyList()) { reminder ->
+            // Adapter callback
         }
         
         binding.remindersRecyclerView.apply {
@@ -269,8 +264,15 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             
             datePicker.addOnPositiveButtonClickListener { selection ->
                 selectedDate = selection
-                val persianDate = PersianDateConverter.gregorianToPersian(Date(selection))
-                dateButton.text = persianDate
+                val calendar = Calendar.getInstance().apply {
+                    timeInMillis = selection
+                }
+                val persianDate = PersianDateConverter.gregorianToPersian(
+                    calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH) + 1,
+                    calendar.get(Calendar.DAY_OF_MONTH)
+                )
+                dateButton.text = persianDate.toReadableString()
             }
             
             datePicker.show(supportFragmentManager, "DATE_PICKER")
@@ -402,7 +404,14 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     
     private fun viewReminderDetails(reminder: AdvancedReminder) {
         val persianDate = if (reminder.triggerTime > 0) {
-            PersianDateConverter.gregorianToPersian(Date(reminder.triggerTime))
+            val calendar = Calendar.getInstance().apply {
+                timeInMillis = reminder.triggerTime
+            }
+            PersianDateConverter.gregorianToPersian(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+            ).toReadableString()
         } else {
             "نامشخص"
         }

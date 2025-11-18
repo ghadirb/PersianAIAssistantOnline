@@ -12,7 +12,6 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.ChecksAdapter
-import com.persianai.assistant.data.Check
 import com.persianai.assistant.databinding.ActivityChecksManagementBinding
 import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.utils.PersianDateConverter
@@ -34,7 +33,7 @@ class ChecksManagementActivity : AppCompatActivity() {
     private lateinit var binding: ActivityChecksManagementBinding
     private lateinit var checksAdapter: ChecksAdapter
     private lateinit var checkManager: CheckManager
-    private val checks = mutableListOf<Check>()
+    private val checks = mutableListOf<CheckManager.Check>()
     
     private var filterType: CheckFilterType = CheckFilterType.ALL
     
@@ -72,13 +71,8 @@ class ChecksManagementActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        checksAdapter = ChecksAdapter(checks) { check, action ->
-            when (action) {
-                "view" -> viewCheckDetails(check)
-                "edit" -> editCheck(check)
-                "delete" -> deleteCheck(check)
-                "change_status" -> changeCheckStatus(check)
-            }
+        checksAdapter = ChecksAdapter(checks) { check ->
+            viewCheckDetails(check)
         }
         
         binding.checksRecyclerView.apply {
@@ -127,7 +121,6 @@ class ChecksManagementActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 binding.progressBar.visibility = View.VISIBLE
-                binding.emptyState.visibility = View.GONE
                 
                 val allChecks = checkManager.getAllChecks()
                 
@@ -139,10 +132,8 @@ class ChecksManagementActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 
                 if (checks.isEmpty()) {
-                    binding.emptyState.visibility = View.VISIBLE
                     binding.checksRecyclerView.visibility = View.GONE
                 } else {
-                    binding.emptyState.visibility = View.GONE
                     binding.checksRecyclerView.visibility = View.VISIBLE
                 }
                 
@@ -182,29 +173,29 @@ class ChecksManagementActivity : AppCompatActivity() {
             }
             CheckFilterType.PAYABLE -> {
                 binding.chipPayable.isChecked = true
-                allChecks.filter { it.type == Check.CheckType.PAYABLE }
+                allChecks.filter { it.status == CheckManager.CheckStatus.PENDING }
             }
             CheckFilterType.RECEIVABLE -> {
                 binding.chipReceivable.isChecked = true
-                allChecks.filter { it.type == Check.CheckType.RECEIVABLE }
+                allChecks.filter { it.status == CheckManager.CheckStatus.PENDING }
             }
             CheckFilterType.PENDING -> {
                 binding.chipPending.isChecked = true
-                allChecks.filter { it.status == Check.CheckStatus.PENDING }
+                allChecks.filter { it.status == CheckManager.CheckStatus.PENDING }
             }
             CheckFilterType.CASHED -> {
                 binding.chipCashed.isChecked = true
-                allChecks.filter { it.status == Check.CheckStatus.CASHED }
+                allChecks.filter { it.status == CheckManager.CheckStatus.PAID }
             }
             CheckFilterType.BOUNCED -> {
                 binding.chipBounced.isChecked = true
-                allChecks.filter { it.status == Check.CheckStatus.BOUNCED }
+                allChecks.filter { it.status == CheckManager.CheckStatus.BOUNCED }
             }
             CheckFilterType.UPCOMING -> {
                 binding.chipUpcoming.isChecked = true
                 allChecks.filter { 
                     it.dueDate in today..sevenDaysLater && 
-                    it.status == Check.CheckStatus.PENDING 
+                    it.status == CheckManager.CheckStatus.PENDING 
                 }
             }
         }
@@ -212,9 +203,6 @@ class ChecksManagementActivity : AppCompatActivity() {
         checks.clear()
         checks.addAll(filteredChecks)
         checksAdapter.notifyDataSetChanged()
-        
-        // Update counter
-        binding.checksCountText.text = "تعداد: ${checks.size}"
     }
     
     private fun updateStats() {
@@ -269,8 +257,15 @@ class ChecksManagementActivity : AppCompatActivity() {
             
             datePicker.addOnPositiveButtonClickListener { selection ->
                 selectedDueDate = selection
-                val persianDate = PersianDateConverter.gregorianToPersian(Date(selection))
-                dueDateButton.text = persianDate
+                val calendar = Calendar.getInstance().apply {
+                    timeInMillis = selection
+                }
+                val persianDate = PersianDateConverter.gregorianToPersian(
+                    calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH) + 1,
+                    calendar.get(Calendar.DAY_OF_MONTH)
+                )
+                dueDateButton.text = persianDate.toReadableString()
             }
             
             datePicker.show(supportFragmentManager, "DATE_PICKER")
@@ -280,17 +275,9 @@ class ChecksManagementActivity : AppCompatActivity() {
             .setTitle("➕ افزودن چک جدید")
             .setView(dialogView)
             .setPositiveButton("ذخیره") { _, _ ->
-                val type = if (typeGroup.checkedChipId == R.id.chipPayable) {
-                    Check.CheckType.PAYABLE
-                } else {
-                    Check.CheckType.RECEIVABLE
-                }
-                
                 val amount = amountInput.text.toString().toLongOrNull() ?: 0L
                 val checkNumber = checkNumberInput.text.toString()
                 val holderName = holderNameInput.text.toString()
-                val accountNumber = accountNumberInput.text.toString()
-                val notes = notesInput.text.toString()
                 val alertDays = alertDaysInput.text.toString().toIntOrNull() ?: 3
                 
                 if (amount <= 0) {
@@ -303,33 +290,22 @@ class ChecksManagementActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
                 
-                val check = Check(
-                    id = UUID.randomUUID().toString(),
-                    type = type,
-                    amount = amount,
-                    checkNumber = checkNumber,
-                    holderName = holderName,
-                    accountNumber = accountNumber,
-                    dueDate = selectedDueDate,
-                    status = Check.CheckStatus.PENDING,
-                    notes = notes,
-                    alertDaysBefore = alertDays,
-                    createdAt = System.currentTimeMillis()
-                )
-                
-                addCheck(check)
+                addCheck(checkNumber, amount, holderName, selectedDueDate, alertDays)
             }
             .setNegativeButton("لغو", null)
             .show()
     }
     
-    private fun addCheck(check: Check) {
+    private fun addCheck(checkNumber: String, amount: Long, holderName: String, dueDate: Long, alertDays: Int) {
         lifecycleScope.launch {
             try {
-                checkManager.addCheck(check)
-                
-                // ثبت هشدار
-                checkManager.scheduleCheckAlert(check)
+                checkManager.addCheck(
+                    checkNumber = checkNumber,
+                    amount = amount.toDouble(),
+                    recipient = holderName,
+                    dueDate = dueDate,
+                    alertDays = alertDays
+                )
                 
                 Toast.makeText(
                     this@ChecksManagementActivity,
@@ -349,58 +325,42 @@ class ChecksManagementActivity : AppCompatActivity() {
         }
     }
     
-    private fun viewCheckDetails(check: Check) {
-        val persianDate = PersianDateConverter.gregorianToPersian(Date(check.dueDate))
-        val createdDate = PersianDateConverter.gregorianToPersian(Date(check.createdAt))
-        
-        val typeText = when (check.type) {
-            Check.CheckType.PAYABLE -> "💸 پرداختی"
-            Check.CheckType.RECEIVABLE -> "💰 دریافتی"
+    private fun viewCheckDetails(check: CheckManager.Check) {
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = check.dueDate
         }
+        val persianDate = PersianDateConverter.gregorianToPersian(
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH) + 1,
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).toReadableString()
         
         val statusText = when (check.status) {
-            Check.CheckStatus.PENDING -> "⏳ در انتظار"
-            Check.CheckStatus.CASHED -> "✅ پاس شده"
-            Check.CheckStatus.BOUNCED -> "❌ برگشتی"
+            CheckManager.CheckStatus.PENDING -> "⏳ در انتظار"
+            CheckManager.CheckStatus.PAID -> "✅ پرداخت شده"
+            CheckManager.CheckStatus.BOUNCED -> "❌ برگشتی"
+            CheckManager.CheckStatus.CANCELLED -> "🚫 لغو شده"
         }
         
         val details = buildString {
-            appendLine("نوع: $typeText")
-            appendLine("مبلغ: ${formatAmount(check.amount)}")
             appendLine("شماره چک: ${check.checkNumber}")
-            appendLine("دارنده: ${check.holderName}")
-            if (check.accountNumber.isNotEmpty()) {
-                appendLine("شماره حساب: ${check.accountNumber}")
-            }
+            appendLine("مبلغ: ${formatAmount(check.amount)}")
+            appendLine("دارنده: ${check.recipient}")
             appendLine("تاریخ سررسید: $persianDate")
             appendLine("وضعیت: $statusText")
-            appendLine("هشدار: ${check.alertDaysBefore} روز قبل")
-            if (check.notes.isNotEmpty()) {
-                appendLine("\nیادداشت:")
-                appendLine(check.notes)
-            }
-            appendLine("\nتاریخ ثبت: $createdDate")
         }
         
         MaterialAlertDialogBuilder(this)
             .setTitle("جزئیات چک")
             .setMessage(details)
             .setPositiveButton("بستن", null)
-            .setNeutralButton("ویرایش") { _, _ ->
-                editCheck(check)
-            }
             .setNegativeButton("حذف") { _, _ ->
                 deleteCheck(check)
             }
             .show()
     }
     
-    private fun editCheck(check: Check) {
-        // TODO: Implement edit dialog
-        Toast.makeText(this, "🚧 ویرایش در نسخه بعدی", Toast.LENGTH_SHORT).show()
-    }
-    
-    private fun deleteCheck(check: Check) {
+    private fun deleteCheck(check: CheckManager.Check) {
         MaterialAlertDialogBuilder(this)
             .setTitle("حذف چک")
             .setMessage("آیا از حذف این چک مطمئن هستید؟")
@@ -430,52 +390,8 @@ class ChecksManagementActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun changeCheckStatus(check: Check) {
-        val statuses = Check.CheckStatus.values()
-        val statusNames = statuses.map { status ->
-            when (status) {
-                Check.CheckStatus.PENDING -> "⏳ در انتظار"
-                Check.CheckStatus.CASHED -> "✅ پاس شده"
-                Check.CheckStatus.BOUNCED -> "❌ برگشتی"
-            }
-        }.toTypedArray()
-        
-        val currentIndex = statuses.indexOf(check.status)
-        
-        MaterialAlertDialogBuilder(this)
-            .setTitle("تغییر وضعیت چک")
-            .setSingleChoiceItems(statusNames, currentIndex) { dialog, which ->
-                val newStatus = statuses[which]
-                
-                lifecycleScope.launch {
-                    try {
-                        checkManager.updateCheckStatus(check.id, newStatus)
-                        
-                        Toast.makeText(
-                            this@ChecksManagementActivity,
-                            "✅ وضعیت به‌روز شد",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        
-                        loadChecks()
-                        
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@ChecksManagementActivity,
-                            "❌ خطا: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-                
-                dialog.dismiss()
-            }
-            .setNegativeButton("لغو", null)
-            .show()
-    }
-    
-    private fun formatAmount(amount: Long): String {
-        return String.format("%,d تومان", amount)
+    private fun formatAmount(amount: Double): String {
+        return String.format("%,.0f تومان", amount)
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
