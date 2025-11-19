@@ -76,12 +76,12 @@ object FinanceVoiceParser {
     }
 
     private fun extractDays(text: String): Int? {
-        val match = Regex("(\u0631\u0648\u0632|day)\\s*(\d+)").find(text)
+        val match = Regex("(روز|day)\\s*(\\d+)").find(text)
         return match?.groupValues?.getOrNull(2)?.toIntOrNull()
     }
 
     private fun extractMonths(text: String): Int? {
-        val match = Regex("(\u0645\u0627\u0647|month)\\s*(\d+)").find(text)
+        val match = Regex("(ماه|month)\\s*(\\d+)").find(text)
         return match?.groupValues?.getOrNull(2)?.toIntOrNull()
     }
 

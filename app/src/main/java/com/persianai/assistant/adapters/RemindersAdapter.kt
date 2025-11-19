@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.persianai.assistant.databinding.ItemReminderBinding
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.SmartReminderManager
-import java.util.*
+import java.util.Calendar
 
 class RemindersAdapter(
     private val reminders: MutableList<SmartReminderManager.SmartReminder>,
@@ -99,7 +99,7 @@ class RemindersAdapter(
             }
             
             // Category chip
-            categoryChip.text = reminder.category
+            categoryChip.text = reminder.tags.firstOrNull()?.takeIf { it.isNotBlank() } ?: reminder.type.displayName
             
             // Recurring indicator
             if (reminder.repeatPattern != SmartReminderManager.RepeatPattern.ONCE) {
@@ -129,4 +129,16 @@ class RemindersAdapter(
     private fun showContextMenu(reminder: SmartReminderManager.SmartReminder) {
         // Context menu will be handled by Activity
     }
+}
+
+private fun SmartReminderManager.SmartReminder.isOverdue(): Boolean {
+    if (isCompleted) return false
+    return repeatPattern == SmartReminderManager.RepeatPattern.ONCE && triggerTime < System.currentTimeMillis()
+}
+
+private fun SmartReminderManager.SmartReminder.isUpcoming(): Boolean {
+    if (isCompleted) return false
+    val now = System.currentTimeMillis()
+    val soon = now + 24 * 60 * 60 * 1000
+    return triggerTime in now..soon
 }
