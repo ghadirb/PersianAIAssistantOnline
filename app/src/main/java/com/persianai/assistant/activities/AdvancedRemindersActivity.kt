@@ -83,7 +83,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        remindersAdapter = RemindersAdapter(emptyList()) { _ ->
+        remindersAdapter = RemindersAdapter(emptyList()) { _, _ ->
             // Adapter callback
         }
         

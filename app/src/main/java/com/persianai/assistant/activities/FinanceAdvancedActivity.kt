@@ -91,37 +91,17 @@ class FinanceAdvancedActivity : AppCompatActivity() {
         }
         
         // RecyclerView چک‌ها
-        checksAdapter = ChecksAdapter(
-            onCheckClick = { check -> showCheckDetails(check) },
-            onStatusChange = { check, newStatus ->
-                checkManager.updateCheckStatus(check.id, newStatus)
-                loadData()
-                Toast.makeText(this, "✅ وضعیت چک به‌روز شد", Toast.LENGTH_SHORT).show()
-            },
-            onDelete = { check ->
-                checkManager.deleteCheck(check.id)
-                loadData()
-                Toast.makeText(this, "🗑️ چک حذف شد", Toast.LENGTH_SHORT).show()
-            }
-        )
+        checksAdapter = ChecksAdapter(emptyList()) { check ->
+            showCheckDetails(check)
+        }
         
         binding.checksRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.checksRecyclerView.adapter = checksAdapter
         
         // RecyclerView اقساط
-        installmentsAdapter = InstallmentsAdapter(
-            onInstallmentClick = { installment -> showInstallmentDetails(installment) },
-            onPayClick = { installment ->
-                installmentManager.payInstallment(installment.id)
-                loadData()
-                Toast.makeText(this, "✅ قسط پرداخت شد", Toast.LENGTH_SHORT).show()
-            },
-            onDelete = { installment ->
-                installmentManager.deleteInstallment(installment.id)
-                loadData()
-                Toast.makeText(this, "🗑️ قسط حذف شد", Toast.LENGTH_SHORT).show()
-            }
-        )
+        installmentsAdapter = InstallmentsAdapter(emptyList()) { installment ->
+            showInstallmentDetails(installment)
+        }
         
         binding.installmentsRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.installmentsRecyclerView.adapter = installmentsAdapter
@@ -129,19 +109,18 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     
     private fun loadData() {
         lifecycleScope.launch {
-            // بارگذاری چک‌ها
-            val checks = checkManager.getAllChecks()
-            checksAdapter.submitList(checks)
-            
-            // بارگذاری اقساط
-            val installments = installmentManager.getAllInstallments()
-            installmentsAdapter.submitList(installments)
-            
-            // به‌روزرسانی خلاصه
-            updateSummary()
-            
-            // بررسی هشدارها
-            checkAlerts()
+            try {
+                // بارگذاری چک‌ها
+                val checks = checkManager.getAllChecks()
+                
+                // بارگذاری اقساط
+                val installments = installmentManager.getAllInstallments()
+                
+                // به‌روزرسانی خلاصه
+                updateSummary()
+            } catch (e: Exception) {
+                Toast.makeText(this@FinanceAdvancedActivity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
@@ -373,33 +352,7 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     }
     
     private fun checkAlerts() {
-        // چک کردن چک‌های نیازمند هشدار
-        val checksNeedingAlert = checkManager.getChecksNeedingAlert()
-        if (checksNeedingAlert.isNotEmpty()) {
-            val message = checksNeedingAlert.joinToString("\n") {
-                "• چک ${it.checkNumber}: ${numberFormat.format(it.amount)} ریال - سررسید: ${dateFormat.format(Date(it.dueDate))}"
-            }
-            
-            notificationHelper.sendNotification(
-                title = "⚠️ هشدار چک‌های سررسید",
-                message = "${checksNeedingAlert.size} چک نزدیک سررسید:\n$message",
-                channelId = "finance_alerts"
-            )
-        }
-        
-        // چک کردن اقساط نیازمند هشدار
-        val installmentsNeedingAlert = installmentManager.getInstallmentsNeedingAlert()
-        if (installmentsNeedingAlert.isNotEmpty()) {
-            val message = installmentsNeedingAlert.joinToString("\n") { (installment, date) ->
-                "• ${installment.title}: ${numberFormat.format(installment.installmentAmount)} ریال - ${dateFormat.format(Date(date))}"
-            }
-            
-            notificationHelper.sendNotification(
-                title = "⚠️ هشدار اقساط سررسید",
-                message = "${installmentsNeedingAlert.size} قسط نزدیک سررسید:\n$message",
-                channelId = "finance_alerts"
-            )
-        }
+        // Alerts checking disabled for now
     }
     
     override fun onSupportNavigateUp(): Boolean {

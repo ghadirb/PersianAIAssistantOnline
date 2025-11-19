@@ -139,14 +139,9 @@ class ChecksManagementActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_check, null)
         
         // Views
-        val typeGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupCheckType)
         val amountInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.amountInput)
         val checkNumberInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.checkNumberInput)
-        val holderNameInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.holderNameInput)
-        val accountNumberInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.accountNumberInput)
         val dueDateButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.selectDueDateButton)
-        val notesInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.notesInput)
-        val alertDaysInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.alertDaysInput)
         
         var selectedDueDate: Long = System.currentTimeMillis()
         
@@ -178,8 +173,6 @@ class ChecksManagementActivity : AppCompatActivity() {
             .setPositiveButton("ذخیره") { _, _ ->
                 val amount = amountInput.text.toString().toLongOrNull() ?: 0L
                 val checkNumber = checkNumberInput.text.toString()
-                val holderName = holderNameInput.text.toString()
-                val alertDays = alertDaysInput.text.toString().toIntOrNull() ?: 3
                 
                 if (amount <= 0) {
                     Toast.makeText(this, "⚠️ مبلغ را وارد کنید", Toast.LENGTH_SHORT).show()
@@ -191,21 +184,19 @@ class ChecksManagementActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
                 
-                addCheck(checkNumber, amount, holderName, selectedDueDate, alertDays)
+                addCheck(checkNumber, amount, selectedDueDate)
             }
             .setNegativeButton("لغو", null)
             .show()
     }
     
-    private fun addCheck(checkNumber: String, amount: Long, holderName: String, dueDate: Long, alertDays: Int) {
+    private fun addCheck(checkNumber: String, amount: Long, dueDate: Long) {
         lifecycleScope.launch {
             try {
                 checkManager.addCheck(
                     checkNumber = checkNumber,
                     amount = amount.toDouble(),
-                    recipient = holderName,
-                    dueDate = dueDate,
-                    alertDays = alertDays
+                    dueDate = dueDate
                 )
                 
                 Toast.makeText(
@@ -296,8 +287,7 @@ class ChecksManagementActivity : AppCompatActivity() {
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.checks_menu, menu)
-        return true
+        return super.onCreateOptionsMenu(menu)
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -306,41 +296,7 @@ class ChecksManagementActivity : AppCompatActivity() {
                 finish()
                 true
             }
-            R.id.action_export -> {
-                exportChecks()
-                true
-            }
-            R.id.action_import -> {
-                importChecks()
-                true
-            }
-            R.id.action_backup -> {
-                backupChecks()
-                true
-            }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-    
-    private fun exportChecks() {
-        lifecycleScope.launch {
-            try {
-                val csvData = checkManager.exportToCSV()
-                // TODO: Save to file
-                Toast.makeText(this@ChecksManagementActivity, "✅ اکسپورت موفق", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@ChecksManagementActivity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
-    private fun importChecks() {
-        // TODO: Import from CSV
-        Toast.makeText(this, "🚧 ایمپورت در نسخه بعدی", Toast.LENGTH_SHORT).show()
-    }
-    
-    private fun backupChecks() {
-        // TODO: Backup to Google Drive
-        Toast.makeText(this, "🚧 بکاپ در نسخه بعدی", Toast.LENGTH_SHORT).show()
     }
 }
