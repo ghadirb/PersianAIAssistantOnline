@@ -196,7 +196,13 @@ class ChecksManagementActivity : AppCompatActivity() {
                 checkManager.addCheck(
                     checkNumber = checkNumber,
                     amount = amount.toDouble(),
-                    dueDate = dueDate
+                    issuer = "",
+                    recipient = "",
+                    issueDate = System.currentTimeMillis(),
+                    dueDate = dueDate,
+                    bankName = "",
+                    accountNumber = "",
+                    description = ""
                 )
                 
                 Toast.makeText(

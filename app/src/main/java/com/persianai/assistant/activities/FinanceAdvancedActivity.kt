@@ -31,7 +31,6 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFinanceAdvancedBinding
     private lateinit var checkManager: CheckManager
     private lateinit var installmentManager: InstallmentManager
-    private lateinit var notificationHelper: NotificationHelper
     
     private lateinit var checksAdapter: ChecksAdapter
     private lateinit var installmentsAdapter: InstallmentsAdapter
@@ -59,7 +58,7 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     private fun initializeManagers() {
         checkManager = CheckManager(this)
         installmentManager = InstallmentManager(this)
-        notificationHelper = NotificationHelper(this)
+        NotificationHelper.createNotificationChannels(this)
     }
     
     private fun setupUI() {
