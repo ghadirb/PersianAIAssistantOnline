@@ -5,6 +5,8 @@ import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.finance.FinanceManager
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.SmartReminderManager
+import com.persianai.assistant.utils.TravelPlannerManager
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
@@ -22,6 +24,8 @@ class AdvancedPersianAssistant(private val context: Context) {
     private val installmentManager = InstallmentManager(context)
     private val financeManager = FinanceManager(context)
     private val prefsManager = PreferencesManager(context)
+    private val reminderManager = SmartReminderManager(context)
+    private val travelManager = TravelPlannerManager(context)
     
     /**
      * پردازش درخواست کاربر با NLP ساده فارسی
@@ -39,6 +43,10 @@ class AdvancedPersianAssistant(private val context: Context) {
             IntentType.FINANCE_REPORT -> handleFinanceReport(intent)
             IntentType.REMINDER_ADD -> handleReminderAdd(intent)
             IntentType.REMINDER_LIST -> handleReminderList(intent)
+            IntentType.TRAVEL_PLAN -> handleTravelPlan(intent)
+            IntentType.TRAVEL_ALERT -> handleTravelAlert(intent)
+            IntentType.FAMILY_EVENT -> handleFamilyEvent(intent)
+            IntentType.BANKING_ALERT -> handleBankingAlert(intent)
             IntentType.GENERAL_QUESTION -> handleGeneralQuestion(intent)
             IntentType.UNKNOWN -> AssistantResponse(
                 text = "متوجه منظور شما نشدم. لطفاً واضح‌تر توضیح دهید یا از این دستورات استفاده کنید:\n\n" +
@@ -95,7 +103,27 @@ class AdvancedPersianAssistant(private val context: Context) {
         if (text.contains("یادآوری") && (text.contains("من") || text.contains("لیست"))) {
             return Intent(IntentType.REMINDER_LIST)
         }
-        
+
+        // سفر
+        if (text.contains("سفر") || text.contains("سفرنامه") || text.contains("مسافرت")) {
+            return when {
+                text.contains("برنامه") || text.contains("پلان") || text.contains("plan") -> Intent(IntentType.TRAVEL_PLAN, extractTravelData(text))
+                text.contains("هشدار") || text.contains("شرایط") || text.contains("مسیر") -> Intent(IntentType.TRAVEL_ALERT, extractTravelData(text))
+                else -> Intent(IntentType.TRAVEL_PLAN, extractTravelData(text))
+            }
+        }
+
+        // رویداد خانوادگی
+        if (text.contains("تولد") || text.contains("سالگرد") || text.contains("مهمانی")) {
+            return Intent(IntentType.FAMILY_EVENT, extractFamilyData(text))
+        }
+
+        // هشدار بانکی / حسابی
+        if ((text.contains("بانک") || text.contains("کارت") || text.contains("حساب")) &&
+            (text.contains("هشدار") || text.contains("بدهی") || text.contains("کسری") || text.contains("اعلان"))) {
+            return Intent(IntentType.BANKING_ALERT, extractBankingContext(text))
+        }
+
         // سوال عمومی
         if (text.contains("چیست") || text.contains("چیه") || text.contains("چطور") || 
             text.contains("؟") || text.contains("توضیح")) {
@@ -129,6 +157,51 @@ class AdvancedPersianAssistant(private val context: Context) {
             data["date"] = it.value
         }
         
+        return data
+    }
+
+    private fun extractTravelData(text: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        val destinationRegex = """(به|برای)?\s*(مشهد|تهران|اصفهان|شیراز|تبریز|[آ-ی]+)""".toRegex()
+        destinationRegex.find(text)?.let {
+            val dest = it.groupValues.last().trim()
+            if (dest.isNotEmpty()) data["destination"] = dest
+        }
+        val dateRegex = """(\d{4})/(\d{1,2})/(\d{1,2})""".toRegex()
+        dateRegex.find(text)?.let { data["date"] = it.value }
+        val transport = when {
+            text.contains("هواپیما") || text.contains("پرواز") -> TravelPlannerManager.TransportType.PLANE.name
+            text.contains("قطار") -> TravelPlannerManager.TransportType.TRAIN.name
+            text.contains("اتوبوس") -> TravelPlannerManager.TransportType.BUS.name
+            text.contains("ماشین") || text.contains("خودرو") -> TravelPlannerManager.TransportType.CAR.name
+            else -> TravelPlannerManager.TransportType.OTHER.name
+        }
+        data["transport"] = transport
+        return data
+    }
+
+    private fun extractFamilyData(text: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        val personRegex = """برای\s+([آ-ی]+)""".toRegex()
+        personRegex.find(text)?.let { data["person"] = it.groupValues[1] }
+        data["type"] = when {
+            text.contains("تولد") -> SmartReminderManager.ReminderType.BIRTHDAY.name
+            text.contains("سالگرد") -> SmartReminderManager.ReminderType.ANNIVERSARY.name
+            else -> SmartReminderManager.ReminderType.FAMILY.name
+        }
+        return data
+    }
+
+    private fun extractBankingContext(text: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        if (text.contains("کارت") || text.contains("بانک")) {
+            data["channel"] = "card"
+        }
+        if (text.contains("بدهی") || text.contains("دین")) {
+            data["focus"] = "debt"
+        } else if (text.contains("کسری") || text.contains("منفی")) {
+            data["focus"] = "cashflow"
+        }
         return data
     }
     
@@ -350,6 +423,47 @@ class AdvancedPersianAssistant(private val context: Context) {
             actionType = ActionType.OPEN_REMINDERS
         )
     }
+
+    private fun handleTravelPlan(intent: Intent): AssistantResponse {
+        val destination = intent.data["destination"] as? String ?: "مقصد نامشخص"
+        val transport = intent.data["transport"] as? String ?: TravelPlannerManager.TransportType.CAR.name
+        val summary = buildString {
+            appendLine("🧳 برنامه سفر به $destination")
+            appendLine("وسیله: ${TravelPlannerManager.TransportType.valueOf(transport).displayName}")
+            appendLine("برای دریافت پیشنهاد دقیق، تاریخ و افراد هم بگویید.")
+        }
+        return AssistantResponse(summary, actionType = ActionType.OPEN_TRAVEL)
+    }
+
+    private fun handleTravelAlert(intent: Intent): AssistantResponse {
+        val destination = intent.data["destination"] as? String ?: return AssistantResponse(
+            "برای بررسی هشدار سفر، مقصد را بگویید.", actionType = ActionType.OPEN_TRAVEL
+        )
+        val smartAlerts = SmartAlertBuilder().buildTravelAlerts(destination)
+        return AssistantResponse(
+            text = smartAlerts,
+            actionType = ActionType.OPEN_TRAVEL,
+            data = mapOf("destination" to destination)
+        )
+    }
+
+    private fun handleFamilyEvent(intent: Intent): AssistantResponse {
+        val person = intent.data["person"] as? String ?: "یکی از اعضای خانواده"
+        val reminder = reminderManager.createBirthdayReminder(person, System.currentTimeMillis() + 24 * 60 * 60 * 1000)
+        return AssistantResponse(
+            text = "🎉 یادآوری ${reminder.title} ثبت شد!",
+            actionType = ActionType.ADD_REMINDER,
+            data = mapOf("reminderId" to reminder.id)
+        )
+    }
+
+    private fun handleBankingAlert(intent: Intent): AssistantResponse {
+        val alerts = SmartAlertBuilder().buildBankingAlerts(checkManager, installmentManager)
+        return AssistantResponse(
+            text = alerts,
+            actionType = ActionType.OPEN_CHECKS
+        )
+    }
     
     private fun handleGeneralQuestion(intent: Intent): AssistantResponse {
         return AssistantResponse(
@@ -376,6 +490,10 @@ class AdvancedPersianAssistant(private val context: Context) {
         FINANCE_REPORT,
         REMINDER_ADD,
         REMINDER_LIST,
+        TRAVEL_PLAN,
+        TRAVEL_ALERT,
+        FAMILY_EVENT,
+        BANKING_ALERT,
         GENERAL_QUESTION,
         UNKNOWN
     }
@@ -393,6 +511,42 @@ class AdvancedPersianAssistant(private val context: Context) {
         ADD_INSTALLMENT,
         OPEN_REMINDERS,
         ADD_REMINDER,
-        NEEDS_AI
+        NEEDS_AI,
+        OPEN_TRAVEL
+    }
+
+    private class SmartAlertBuilder {
+        fun buildTravelAlerts(destination: String): String {
+            val tips = listOf(
+                "شرایط مسیر به $destination را قبل از حرکت بررسی کنید.",
+                "آب‌وهوای مقصد را از کارت سفر مشاهده کنید.",
+                "برای خانواده پیام وضعیت ارسال کنید."
+            )
+            return "🚦 هشدارهای سفر به $destination:\n" + tips.joinToString("\n") { "• $it" }
+        }
+
+        fun buildBankingAlerts(checkManager: CheckManager, installmentManager: InstallmentManager): String {
+            val upcomingChecks = checkManager.getUpcomingChecks(7)
+            val upcomingInstallments = installmentManager.getUpcomingPayments(7)
+            return buildString {
+                appendLine("🏦 هشدارهای بانکی:")
+                if (upcomingChecks.isEmpty()) {
+                    appendLine("• چک بحرانی تا یک هفته آینده ندارید.")
+                } else {
+                    upcomingChecks.take(3).forEach {
+                        val days = ((it.dueDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).coerceAtLeast(0)
+                        appendLine("• چک ${it.checkNumber} ${days}روز دیگر سررسید می‌شود.")
+                    }
+                }
+                if (upcomingInstallments.isEmpty()) {
+                    appendLine("• قسط بحرانی تا یک هفته آینده ندارید.")
+                } else {
+                    upcomingInstallments.take(3).forEach { (installment, dueDate) ->
+                        val days = ((dueDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)).coerceAtLeast(0)
+                        appendLine("• ${installment.title} ${days}روز دیگر پرداخت می‌شود.")
+                    }
+                }
+            }
+        }
     }
 }

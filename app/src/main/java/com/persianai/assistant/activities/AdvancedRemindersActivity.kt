@@ -1,12 +1,7 @@
 package com.persianai.assistant.activities
 
 import android.Manifest
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -23,9 +18,8 @@ import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.RemindersAdapter
-import com.persianai.assistant.data.AdvancedReminder
 import com.persianai.assistant.databinding.ActivityAdvancedRemindersBinding
-import com.persianai.assistant.services.ReminderReceiver
+import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.SmartReminderManager
 import kotlinx.coroutines.launch
@@ -46,7 +40,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAdvancedRemindersBinding
     private lateinit var remindersAdapter: RemindersAdapter
     private lateinit var reminderManager: SmartReminderManager
-    private val reminders = mutableListOf<AdvancedReminder>()
+    private val allReminders = mutableListOf<SmartReminderManager.SmartReminder>()
+    private var lastReminderNotification = 0L
     
     private var filterType: FilterType = FilterType.ALL
     
@@ -83,8 +78,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        remindersAdapter = RemindersAdapter(emptyList()) { _, _ ->
-            // Adapter callback
+        remindersAdapter = RemindersAdapter(mutableListOf()) { reminder, action ->
+            handleReminderAction(reminder, action)
         }
         
         binding.remindersRecyclerView.apply {
@@ -94,9 +89,17 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun setupListeners() {
-        binding.fabAddReminder.setOnClickListener {
-            showAddReminderDialog()
-        }
+        binding.fabAddReminder.setOnClickListener { showAddReminderDialog() }
+        setupFilterChips()
+    }
+
+    private fun setupFilterChips() {
+        binding.chipAll.setOnClickListener { applyFilter(FilterType.ALL) }
+        binding.chipTimeBased.setOnClickListener { applyFilter(FilterType.TIME_BASED) }
+        binding.chipLocationBased.setOnClickListener { applyFilter(FilterType.LOCATION_BASED) }
+        binding.chipRecurring.setOnClickListener { applyFilter(FilterType.RECURRING) }
+        binding.chipConditional.setOnClickListener { applyFilter(FilterType.CONDITIONAL) }
+        binding.chipHighPriority.setOnClickListener { applyFilter(FilterType.HIGH_PRIORITY) }
     }
     
     private fun checkPermissions() {
@@ -123,29 +126,57 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 binding.progressBar.visibility = View.VISIBLE
-                
+                val reminders = reminderManager.getAllReminders()
+                allReminders.clear()
+                allReminders.addAll(reminders)
                 binding.progressBar.visibility = View.GONE
-                binding.remindersRecyclerView.visibility = View.VISIBLE
-                
+                binding.emptyState.visibility = if (reminders.isEmpty()) View.VISIBLE else View.GONE
+                binding.remindersRecyclerView.visibility = if (reminders.isEmpty()) View.GONE else View.VISIBLE
+                applyFilter(filterType)
                 updateStats()
-                
+                maybeNotifyUpcoming(reminders)
             } catch (e: Exception) {
                 binding.progressBar.visibility = View.GONE
-                Toast.makeText(this@AdvancedRemindersActivity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@AdvancedRemindersActivity, " خطا: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
     
     private fun applyFilter(type: FilterType) {
         filterType = type
-        remindersAdapter.notifyDataSetChanged()
+        val filtered = when (type) {
+            FilterType.ALL -> allReminders
+            FilterType.TIME_BASED -> allReminders.filter {
+                it.type in listOf(
+                    SmartReminderManager.ReminderType.SIMPLE,
+                    SmartReminderManager.ReminderType.BILL_PAYMENT,
+                    SmartReminderManager.ReminderType.MEDICINE,
+                    SmartReminderManager.ReminderType.TASK,
+                    SmartReminderManager.ReminderType.BIRTHDAY,
+                    SmartReminderManager.ReminderType.ANNIVERSARY
+                )
+            }
+            FilterType.LOCATION_BASED -> allReminders.filter { it.type == SmartReminderManager.ReminderType.LOCATION_BASED }
+            FilterType.RECURRING -> allReminders.filter { it.repeatPattern != SmartReminderManager.RepeatPattern.ONCE }
+            FilterType.CONDITIONAL -> allReminders.filter { reminder ->
+                reminder.tags.any { tag -> tag.contains("شرط") || tag.contains("condition", ignoreCase = true) }
+            }
+            FilterType.HIGH_PRIORITY -> allReminders.filter {
+                it.priority == SmartReminderManager.Priority.HIGH || it.priority == SmartReminderManager.Priority.URGENT
+            }
+        }
+        remindersAdapter.updateData(filtered)
     }
     
     private fun updateStats() {
         lifecycleScope.launch {
             try {
                 val stats = reminderManager.getReminderStats()
-                binding.statsCard.visibility = View.VISIBLE
+                binding.statsCard.visibility = if (stats.totalReminders > 0) View.VISIBLE else View.GONE
+                binding.totalRemindersText.text = stats.totalReminders.toString()
+                binding.activeRemindersText.text = stats.activeReminders.toString()
+                binding.completedRemindersText.text = stats.completedReminders.toString()
+                binding.upcomingRemindersText.text = stats.todayReminders.toString()
             } catch (e: Exception) {
                 // Stats not available
             }
@@ -241,10 +272,10 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 val category = categories[categorySpinner.selectedItemPosition]
                 
                 val priority = when (priorityGroup.checkedChipId) {
-                    R.id.chipLowPriority -> AdvancedReminder.Priority.LOW
-                    R.id.chipMediumPriority -> AdvancedReminder.Priority.MEDIUM
-                    R.id.chipHighPriority -> AdvancedReminder.Priority.HIGH
-                    else -> AdvancedReminder.Priority.MEDIUM
+                    R.id.chipLowPriority -> SmartReminderManager.Priority.LOW
+                    R.id.chipMediumPriority -> SmartReminderManager.Priority.MEDIUM
+                    R.id.chipHighPriority -> SmartReminderManager.Priority.HIGH
+                    else -> SmartReminderManager.Priority.MEDIUM
                 }
                 
                 if (title.isEmpty()) {
@@ -259,20 +290,18 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 calendar.set(Calendar.MINUTE, selectedMinute)
                 calendar.set(Calendar.SECOND, 0)
                 
-                val reminder = AdvancedReminder(
-                    id = UUID.randomUUID().toString(),
-                    type = AdvancedReminder.ReminderType.TIME_BASED,
-                    title = title,
+                reminderManager.createSimpleReminder(
+                    title = "$category - $title",
                     description = description,
-                    category = category,
-                    priority = priority,
                     triggerTime = calendar.timeInMillis,
-                    isRecurring = false,
-                    completed = false,
-                    createdAt = System.currentTimeMillis()
+                    priority = priority
                 )
-                
-                addReminder(reminder)
+                NotificationHelper.showReminderNotification(
+                    this,
+                    "یادآوری جدید ثبت شد",
+                    "$title برای ${PersianDateConverter.gregorianToPersian(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH)+1, calendar.get(Calendar.DAY_OF_MONTH)).toReadableString()}"
+                )
+                loadReminders()
             }
             .setNegativeButton("لغو", null)
             .show()
@@ -290,158 +319,79 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         Toast.makeText(this, "🚧 یادآوری شرطی در نسخه بعدی", Toast.LENGTH_SHORT).show()
     }
     
-    private fun addReminder(reminder: AdvancedReminder) {
-        lifecycleScope.launch {
-            try {
-                // ثبت Alarm
-                scheduleReminder(reminder)
-                
-                Toast.makeText(
-                    this@AdvancedRemindersActivity,
-                    "✅ یادآوری ثبت شد",
-                    Toast.LENGTH_SHORT
-                ).show()
-                
-                loadReminders()
-                
-            } catch (e: Exception) {
-                Toast.makeText(
-                    this@AdvancedRemindersActivity,
-                    "❌ خطا: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
+    private fun handleReminderAction(reminder: SmartReminderManager.SmartReminder, action: String) {
+        when (action) {
+            "view" -> showReminderDetails(reminder)
+            "complete" -> lifecycleScope.launch {
+                if (reminderManager.completeReminder(reminder.id)) {
+                    Toast.makeText(this@AdvancedRemindersActivity, "✅ انجام شد", Toast.LENGTH_SHORT).show()
+                    loadReminders()
+                }
             }
         }
     }
-    
-    private fun scheduleReminder(reminder: AdvancedReminder) {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        
-        val intent = Intent(this, ReminderReceiver::class.java).apply {
-            putExtra("reminder_id", reminder.id)
-            putExtra("reminder_title", reminder.title)
-            putExtra("reminder_description", reminder.description)
-        }
-        
-        val pendingIntent = PendingIntent.getBroadcast(
-            this,
-            reminder.id.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            reminder.triggerTime,
-            pendingIntent
-        )
-    }
-    
-    private fun viewReminderDetails(reminder: Any) {
-        if (reminder !is AdvancedReminder) return
-        val advReminder = reminder as AdvancedReminder
+
+    private fun showReminderDetails(reminder: SmartReminderManager.SmartReminder) {
         val persianDate = if (reminder.triggerTime > 0) {
-            val calendar = Calendar.getInstance().apply {
-                timeInMillis = reminder.triggerTime
-            }
+            val calendar = Calendar.getInstance().apply { timeInMillis = reminder.triggerTime }
             PersianDateConverter.gregorianToPersian(
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH) + 1,
                 calendar.get(Calendar.DAY_OF_MONTH)
             ).toReadableString()
-        } else {
-            "نامشخص"
-        }
-        
-        val typeText = when (advReminder.type) {
-            AdvancedReminder.ReminderType.TIME_BASED -> "⏰ زمانی"
-            AdvancedReminder.ReminderType.LOCATION_BASED -> "📍 مکانی"
-            AdvancedReminder.ReminderType.CONDITIONAL -> "⚙️ شرطی"
-        }
-        
-        val priorityText = when (advReminder.priority) {
-            AdvancedReminder.Priority.LOW -> "🟢 کم"
-            AdvancedReminder.Priority.MEDIUM -> "🟡 متوسط"
-            AdvancedReminder.Priority.HIGH -> "🔴 بالا"
-        }
-        
+        } else "نامشخص"
+
         val details = buildString {
-            appendLine("نوع: $typeText")
-            appendLine("عنوان: ${advReminder.title}")
-            if (advReminder.description.isNotEmpty()) {
-                appendLine("توضیحات: ${advReminder.description}")
-            }
-            appendLine("دسته: ${advReminder.category}")
-            appendLine("اولویت: $priorityText")
-            if (advReminder.type == AdvancedReminder.ReminderType.TIME_BASED) {
-                appendLine("زمان: $persianDate")
-            }
-            appendLine("تکراری: ${if (advReminder.isRecurring) "بله" else "خیر"}")
-            appendLine("وضعیت: ${if (advReminder.completed) "✅ انجام شده" else "⏳ در انتظار"}")
+            appendLine("نوع: ${reminder.type.displayName}")
+            appendLine("عنوان: ${reminder.title}")
+            if (reminder.description.isNotEmpty()) appendLine("توضیحات: ${reminder.description}")
+            appendLine("اولویت: ${reminder.priority.displayName}")
+            appendLine("زمان: $persianDate")
+            if (reminder.locationName.isNotEmpty()) appendLine("مکان: ${reminder.locationName}")
+            if (reminder.relatedPerson.isNotEmpty()) appendLine("شخص مرتبط: ${reminder.relatedPerson}")
+            appendLine("وضعیت: ${if (reminder.isCompleted) "✅ انجام شده" else "⏳ در انتظار"}")
         }
-        
+
         MaterialAlertDialogBuilder(this)
             .setTitle("جزئیات یادآوری")
             .setMessage(details)
             .setPositiveButton("بستن", null)
-            .setNeutralButton("ویرایش") { _, _ ->
-                editReminder(reminder)
-            }
-            .setNegativeButton("حذف") { _, _ ->
-                deleteReminder(reminder)
-            }
+            .setNegativeButton("حذف") { _, _ -> confirmDeleteReminder(reminder) }
             .show()
     }
-    
-    private fun editReminder(reminder: Any) {
-        Toast.makeText(this, "🚧 ویرایش در نسخه بعدی", Toast.LENGTH_SHORT).show()
-    }
-    
-    private fun deleteReminder(reminder: Any) {
-        if (reminder !is AdvancedReminder) return
-        
+
+    private fun confirmDeleteReminder(reminder: SmartReminderManager.SmartReminder) {
         MaterialAlertDialogBuilder(this)
             .setTitle("حذف یادآوری")
-            .setMessage("آیا مطمئن هستید؟")
-            .setPositiveButton("بله") { _, _ ->
+            .setMessage("آیا از حذف ${reminder.title} مطمئن هستید؟")
+            .setPositiveButton("حذف") { _, _ ->
                 lifecycleScope.launch {
-                    try {
-                        // لغو Alarm
-                        cancelReminder(reminder)
-                        
-                        Toast.makeText(
-                            this@AdvancedRemindersActivity,
-                            "✅ حذف شد",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        
+                    if (reminderManager.deleteReminder(reminder.id)) {
+                        Toast.makeText(this@AdvancedRemindersActivity, "🗑️ حذف شد", Toast.LENGTH_SHORT).show()
                         loadReminders()
-                        
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@AdvancedRemindersActivity,
-                            "❌ خطا: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                 }
             }
-            .setNegativeButton("خیر", null)
+            .setNegativeButton("لغو", null)
             .show()
     }
-    
-    private fun cancelReminder(reminder: AdvancedReminder) {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        
-        val intent = Intent(this, ReminderReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
+
+    private fun maybeNotifyUpcoming(reminders: List<SmartReminderManager.SmartReminder>) {
+        val now = System.currentTimeMillis()
+        if (now - lastReminderNotification < 60 * 60 * 1000) return
+        val upcoming = reminders.filter {
+            !it.isCompleted && it.triggerTime in now..(now + 6 * 60 * 60 * 1000)
+        }
+        if (upcoming.isEmpty()) return
+        val summary = upcoming.take(3).joinToString("\n") {
+            "• ${it.title} (${it.priority.displayName})"
+        }
+        NotificationHelper.showReminderNotification(
             this,
-            reminder.id.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            "⏰ یادآوری‌های نزدیک",
+            summary
         )
-        
-        alarmManager.cancel(pendingIntent)
+        lastReminderNotification = now
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {

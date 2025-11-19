@@ -15,6 +15,7 @@ import com.persianai.assistant.adapters.ChecksAdapter
 import com.persianai.assistant.adapters.InstallmentsAdapter
 import com.persianai.assistant.databinding.ActivityFinanceAdvancedBinding
 import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.FinanceRuleEngine
 import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.utils.NotificationHelper
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFinanceAdvancedBinding
     private lateinit var checkManager: CheckManager
     private lateinit var installmentManager: InstallmentManager
+    private lateinit var financeRuleEngine: FinanceRuleEngine
     
     private lateinit var checksAdapter: ChecksAdapter
     private lateinit var installmentsAdapter: InstallmentsAdapter
@@ -58,6 +60,7 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     private fun initializeManagers() {
         checkManager = CheckManager(this)
         installmentManager = InstallmentManager(this)
+        financeRuleEngine = FinanceRuleEngine(this)
         NotificationHelper.createNotificationChannels(this)
     }
     
@@ -117,10 +120,51 @@ class FinanceAdvancedActivity : AppCompatActivity() {
                 
                 // به‌روزرسانی خلاصه
                 updateSummary()
+
+                // ارزیابی Rule Engine
+                val ruleResult = financeRuleEngine.evaluate(14)
+                updateRuleBasedCard(ruleResult)
+                maybeNotifyCritical(ruleResult)
             } catch (e: Exception) {
                 Toast.makeText(this@FinanceAdvancedActivity, "❌ خطا: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun updateRuleBasedCard(result: FinanceRuleEngine.EvaluationResult) {
+        val alertsText = if (result.alerts.isNotEmpty()) {
+            result.alerts.joinToString(separator = "\n") { alert ->
+                val icon = when (alert.severity) {
+                    FinanceRuleEngine.Severity.CRITICAL -> "❗"
+                    FinanceRuleEngine.Severity.WARNING -> "⚠️"
+                    FinanceRuleEngine.Severity.INFO -> "ℹ️"
+                }
+                "$icon ${alert.title}\n${alert.description}"
+            }
+        } else {
+            "✅ هیچ هشدار بحرانی ثبت نشده است"
+        }
+
+        val recommendationsText = if (result.recommendations.isNotEmpty()) {
+            result.recommendations.joinToString(separator = "\n") { "• $it" }
+        } else {
+            ""
+        }
+
+        binding.financeAlertsText.text = alertsText
+        binding.financeRecommendationsText.text = recommendationsText
+    }
+
+    private fun maybeNotifyCritical(result: FinanceRuleEngine.EvaluationResult) {
+        val criticalAlerts = result.alerts.filter { it.severity == FinanceRuleEngine.Severity.CRITICAL }
+        if (criticalAlerts.isEmpty()) return
+        val summary = criticalAlerts.joinToString(separator = "\n") { "${it.title}: ${it.description}" }
+        NotificationHelper.showGeneralNotification(
+            this,
+            "هشدار فوری مالی",
+            summary,
+            notificationId = 3100
+        )
     }
     
     private fun showChecksTab() {

@@ -27,7 +27,8 @@ class DashboardActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMainDashboardBinding
     private lateinit var prefs: SharedPreferences
-    
+    private val disabledFeatureMessage = "⛔ این بخش به‌صورت موقت غیرفعال شده است تا روی قابلیت‌های حیاتی تمرکز کنیم"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -47,6 +48,7 @@ class DashboardActivity : AppCompatActivity() {
         
         setupDate()
         setupClickListeners()
+        disableExperimentalModules()
         loadWeather()
         loadWeatherButtons()
         loadSharedData()
@@ -103,6 +105,10 @@ class DashboardActivity : AppCompatActivity() {
         }
         
         binding.navigationCard?.setOnClickListener {
+            if (NAVIGATION_DISABLED) {
+                showDisabledMessage("مسیریابی")
+                return@setOnClickListener
+            }
             try {
                 AnimationHelper.clickAnimation(it)
                 it.postDelayed({
@@ -121,6 +127,10 @@ class DashboardActivity : AppCompatActivity() {
         }
         
         binding.weatherCard?.setOnClickListener {
+            if (WEATHER_DISABLED) {
+                showDisabledMessage("آب‌وهوا")
+                return@setOnClickListener
+            }
             try {
                 AnimationHelper.clickAnimation(it)
                 it.postDelayed({
@@ -148,6 +158,10 @@ class DashboardActivity : AppCompatActivity() {
         }
         
         binding.musicCard?.setOnClickListener {
+            if (MUSIC_DISABLED) {
+                showDisabledMessage("پخش موزیک")
+                return@setOnClickListener
+            }
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
                 val intent = Intent(this, ImprovedMusicActivity::class.java)
@@ -183,6 +197,12 @@ class DashboardActivity : AppCompatActivity() {
     }
     
     private fun loadWeather() {
+        if (WEATHER_DISABLED) {
+            binding.weatherCard?.alpha = 0.4f
+            binding.weatherTempText?.text = "--"
+            binding.weatherIcon?.text = "🚧"
+            return
+        }
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
         // نمایش فوری cache برای جلوگیری از چشمک زدن
@@ -239,6 +259,7 @@ class DashboardActivity : AppCompatActivity() {
     }
     
     private fun loadWeatherButtons() {
+        if (WEATHER_DISABLED) return
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
         // TODO: Add hourlyBtn to layout
@@ -363,5 +384,27 @@ class DashboardActivity : AppCompatActivity() {
         binding.navigationCard?.postDelayed({
             AnimationHelper.pulseAnimation(binding.navigationCard!!, scaleFactor = 1.05f, duration = 2000)
         }, 1000)
+    }
+    
+    private fun disableExperimentalModules() {
+        if (MUSIC_DISABLED) {
+            binding.musicCard?.alpha = 0.4f
+        }
+        if (NAVIGATION_DISABLED) {
+            binding.navigationCard?.alpha = 0.4f
+        }
+        if (WEATHER_DISABLED) {
+            binding.weatherCard?.alpha = 0.4f
+        }
+    }
+
+    private fun showDisabledMessage(featureName: String) {
+        Toast.makeText(this, "$featureName به‌زودی فعال می‌شود. $disabledFeatureMessage", Toast.LENGTH_LONG).show()
+    }
+
+    companion object {
+        private const val MUSIC_DISABLED = true
+        private const val NAVIGATION_DISABLED = true
+        private const val WEATHER_DISABLED = true
     }
 }

@@ -4,18 +4,24 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.persianai.assistant.data.AdvancedReminder
 import com.persianai.assistant.databinding.ItemReminderBinding
 import com.persianai.assistant.utils.PersianDateConverter
+import com.persianai.assistant.utils.SmartReminderManager
 import java.util.*
 
 class RemindersAdapter(
-    private val reminders: List<AdvancedReminder>,
-    private val onAction: (AdvancedReminder, String) -> Unit
+    private val reminders: MutableList<SmartReminderManager.SmartReminder>,
+    private val onAction: (SmartReminderManager.SmartReminder, String) -> Unit
 ) : RecyclerView.Adapter<RemindersAdapter.ReminderViewHolder>() {
 
     inner class ReminderViewHolder(val binding: ItemReminderBinding) : 
         RecyclerView.ViewHolder(binding.root)
+
+    fun updateData(newReminders: List<SmartReminderManager.SmartReminder>) {
+        reminders.clear()
+        reminders.addAll(newReminders)
+        notifyDataSetChanged()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReminderViewHolder {
         val binding = ItemReminderBinding.inflate(
@@ -32,9 +38,16 @@ class RemindersAdapter(
             
             // Type icon
             val typeIcon = when (reminder.type) {
-                AdvancedReminder.ReminderType.TIME_BASED -> "⏰"
-                AdvancedReminder.ReminderType.LOCATION_BASED -> "📍"
-                AdvancedReminder.ReminderType.CONDITIONAL -> "⚙️"
+                SmartReminderManager.ReminderType.SIMPLE -> "⏰"
+                SmartReminderManager.ReminderType.RECURRING -> "🔁"
+                SmartReminderManager.ReminderType.LOCATION_BASED -> "📍"
+                SmartReminderManager.ReminderType.BIRTHDAY -> "🎂"
+                SmartReminderManager.ReminderType.ANNIVERSARY -> "💞"
+                SmartReminderManager.ReminderType.BILL_PAYMENT -> "💳"
+                SmartReminderManager.ReminderType.MEDICINE -> "💊"
+                SmartReminderManager.ReminderType.FAMILY -> "👨‍👩‍👧"
+                SmartReminderManager.ReminderType.SHOPPING -> "🛍️"
+                SmartReminderManager.ReminderType.TASK -> "📋"
             }
             typeIconText.text = typeIcon
             
@@ -63,15 +76,11 @@ class RemindersAdapter(
             }
             
             // Priority color
-            val priorityColor = when (reminder.priority) {
-                AdvancedReminder.Priority.LOW -> Color.parseColor("#4CAF50")
-                AdvancedReminder.Priority.MEDIUM -> Color.parseColor("#FF9800")
-                AdvancedReminder.Priority.HIGH -> Color.parseColor("#F44336")
-            }
+            val priorityColor = Color.parseColor(reminder.priority.color)
             priorityIndicator.setBackgroundColor(priorityColor)
             
             // Status
-            if (reminder.completed) {
+            if (reminder.isCompleted) {
                 statusText.text = "✅ انجام شده"
                 statusText.setTextColor(Color.parseColor("#4CAF50"))
                 root.alpha = 0.6f
@@ -93,7 +102,7 @@ class RemindersAdapter(
             categoryChip.text = reminder.category
             
             // Recurring indicator
-            if (reminder.isRecurring) {
+            if (reminder.repeatPattern != SmartReminderManager.RepeatPattern.ONCE) {
                 recurringIcon.visibility = android.view.View.VISIBLE
             } else {
                 recurringIcon.visibility = android.view.View.GONE
@@ -117,7 +126,7 @@ class RemindersAdapter(
 
     override fun getItemCount() = reminders.size
     
-    private fun showContextMenu(reminder: AdvancedReminder) {
+    private fun showContextMenu(reminder: SmartReminderManager.SmartReminder) {
         // Context menu will be handled by Activity
     }
 }

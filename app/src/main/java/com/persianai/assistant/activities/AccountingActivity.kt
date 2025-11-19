@@ -15,6 +15,8 @@ import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.ai.ContextualAIAssistant
 import com.persianai.assistant.adapters.TransactionAdapter
+import com.persianai.assistant.finance.FinanceVoiceIntent
+import com.persianai.assistant.finance.FinanceVoiceParser
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.launch
 import android.widget.Toast
@@ -44,6 +46,89 @@ class AccountingActivity : AppCompatActivity() {
         updateBalance()
         loadTransactions()
     }
+
+    private fun showVoiceCommandDialog() {
+        val input = com.google.android.material.textfield.TextInputEditText(this).apply {
+            hint = "مثال: چک ۲۰ میلیون برای علی ثبت کن"
+            setPadding(32, 32, 32, 32)
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🎙️ فرمان فارسی سریع")
+            .setView(input)
+            .setPositiveButton("ثبت") { _, _ ->
+                val text = input.text?.toString()?.trim().orEmpty()
+                if (text.isBlank()) {
+                    Toast.makeText(this, "لطفاً متن فرمان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val intent = FinanceVoiceParser.parse(text)
+                handleVoiceIntent(intent)
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
+    private fun handleVoiceIntent(intent: FinanceVoiceIntent) {
+        when (intent) {
+            is FinanceVoiceIntent.AddExpenseIntent -> {
+                lifecycleScope.launch {
+                    val transaction = Transaction(
+                        id = 0,
+                        type = TransactionType.EXPENSE,
+                        amount = intent.amount,
+                        category = intent.description ?: "هزینه صوتی",
+                        description = intent.description ?: "ثبت سریع"
+                    )
+                    db.addTransaction(transaction)
+                    Toast.makeText(this@AccountingActivity, "✅ هزینه ثبت شد", Toast.LENGTH_SHORT).show()
+                    updateBalance()
+                    loadTransactions()
+                }
+            }
+            is FinanceVoiceIntent.AddCheckIntent -> {
+                lifecycleScope.launch {
+                    val desc = intent.recipient?.let { "چک برای $it" } ?: "چک صوتی"
+                    val transaction = Transaction(
+                        id = 0,
+                        type = TransactionType.CHECK_OUT,
+                        amount = intent.amount,
+                        category = "چک خودکار",
+                        description = desc,
+                        checkNumber = "VOICE-${System.currentTimeMillis()}"
+                    )
+                    db.addTransaction(transaction)
+                    Toast.makeText(this@AccountingActivity, "✅ چک جدید ثبت شد", Toast.LENGTH_SHORT).show()
+                    updateBalance()
+                    loadTransactions()
+                }
+            }
+            is FinanceVoiceIntent.AddInstallmentIntent -> {
+                lifecycleScope.launch {
+                    val monthly = intent.monthlyAmount ?: run {
+                        val months = intent.totalMonths ?: 1
+                        (intent.amount / months).coerceAtLeast(0.0)
+                    }
+                    val monthsLabel = intent.totalMonths?.let { "$it ماه" } ?: "نامشخص"
+                    val transaction = Transaction(
+                        id = 0,
+                        type = TransactionType.INSTALLMENT,
+                        amount = monthly,
+                        category = intent.title,
+                        description = "قسط خودکار ($monthsLabel)"
+                    )
+                    db.addTransaction(transaction)
+                    Toast.makeText(this@AccountingActivity, "✅ قسط صوتی ثبت شد", Toast.LENGTH_SHORT).show()
+                    updateBalance()
+                    loadTransactions()
+                }
+            }
+            FinanceVoiceIntent.UnknownIntent -> {
+                Toast.makeText(this, "نتوانستم فرمان را تشخیص دهم", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     
     private fun setupUI() {
         binding.addIncomeButton.setOnClickListener { showAddDialog(TransactionType.INCOME) }
@@ -51,6 +136,7 @@ class AccountingActivity : AppCompatActivity() {
         binding.addCheckButton.setOnClickListener { showCheckDialog() }
         binding.addInstallmentButton.setOnClickListener { showInstallmentDialog() }
         binding.aiChatButton.setOnClickListener { showAIChat() }
+        binding.voiceCommandButton.setOnClickListener { showVoiceCommandDialog() }
     }
     
     private fun showAddTransactionDialog() {
