@@ -46,6 +46,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private lateinit var ttsHelper: com.persianai.assistant.utils.TTSHelper
     private lateinit var advancedAssistant: com.persianai.assistant.ai.AdvancedPersianAssistant
+    private lateinit var smartReminderManager: SmartReminderManager
+    private lateinit var financeManager: FinanceManager
+    private lateinit var checkManager: CheckManager
+    private lateinit var installmentManager: InstallmentManager
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
     private val messages = mutableListOf<ChatMessage>()
@@ -112,8 +116,12 @@ class MainActivity : AppCompatActivity() {
             ttsHelper = com.persianai.assistant.utils.TTSHelper(this)
             ttsHelper.initialize()
             
-            // راه‌اندازی دستیار پیشرفته
+            // راه‌اندازی دستیار پیشرفته و مدیران داده
             advancedAssistant = com.persianai.assistant.ai.AdvancedPersianAssistant(this)
+            smartReminderManager = SmartReminderManager(this)
+            financeManager = FinanceManager(this)
+            checkManager = CheckManager(this)
+            installmentManager = InstallmentManager(this)
             
             // Initialize Default API Keys if available
             try {
@@ -444,15 +452,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        // چک دستورات عملی (مالی، یادآوری)
-        if (isActionCommand(text)) {
+        val mode = prefsManager.getWorkingMode()
+        
+        // در حالت آفلاین (یا بدون کلاینت آنلاین)، دستورات مالی/یادآوری را مستقیماً با دستیار پیشرفته پردازش کن
+        if (isActionCommand(text) && (mode == PreferencesManager.WorkingMode.OFFLINE || aiClient == null)) {
             val response = advancedAssistant.processRequest(text)
             
-            addMessage(ChatMessage(
-                role = MessageRole.USER,
-                content = text,
-                timestamp = System.currentTimeMillis()
-            ))
+            addMessage(
+                ChatMessage(
+                    role = MessageRole.USER,
+                    content = text,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
             
             val aiMessage = ChatMessage(
                 role = MessageRole.ASSISTANT,
@@ -551,22 +563,62 @@ class MainActivity : AppCompatActivity() {
     
     private suspend fun handleOnlineRequest(text: String): String = withContext(Dispatchers.IO) {
         val enhancedPrompt = """
-            شما یک دستیار هوشمند فارسی هستید که می‌توانید:
-            1. یادآوری تنظیم کنید (با فرمت JSON)
-            2. مسیریابی فارسی انجام دهید
-            3. محاسبات انجام دهید
-            4. تماس، پیامک، ایمیل ارسال کنید
-            5. به سوالات پاسخ دهید
-            
-            اگر درخواست یادآوری بود، پاسخ را با این فرمت بدهید:
-            REMINDER:{"time":"HH:mm","message":"متن یادآوری","alarm":true/false,"repeat":"daily/none"}
-            
-            اگر درخواست مسیریابی بود، پاسخ را با این فرمت بدهید:
-            NAVIGATION:{"destination":"مقصد","voice":true}
-            
-            اگر محاسبه ریاضی بود، جواب را محاسبه کنید.
-            
-            درخواست کاربر: $text
+            شما یک دستیار هوشمند فارسی هستید که باید تا حد امکان پاسخ‌های خود را به صورت اکشن‌های ساختارمند JSON برگردانید تا برنامه بتواند آن‌ها را اجرا کند.
+
+            قوانین کلی:
+            - اگر می‌توان عملی روی گوشی انجام داد (یادآوری، مسیریابی، ارسال پیام، باز کردن برنامه، ثبت تراکنش مالی و ...)، حتماً یک آبجکت JSON با فیلد "action" برگردان.
+            - اگر هیچ اکشن مستقیمی وجود نداشت (مثلاً فقط یک سوال عمومی است)، فقط متن معمولی فارسی برگردان.
+
+            اکشن‌های پشتیبانی‌شده:
+
+            1) تنظیم یا مدیریت یادآوری‌ها
+            - برای ساخت یادآوری جدید:
+              {"action":"add_reminder","time":"HH:mm","message":"متن یادآوری","repeat":"none" یا "daily"}
+              مثال: {"action":"add_reminder","time":"09:00","message":"قرص بخورم","repeat":"daily"}
+
+            - برای نمایش فهرست یادآوری‌ها:
+              {"action":"list_reminders"}
+
+            2) مسیریابی
+              {"action":"navigation","destination":"آدرس یا نام مکان","voice":true/false}
+
+            3) ارسال پیام در پیام‌رسان‌ها
+              {"action":"send_telegram","phone":"شماره یا خالی","message":"متن"}
+              {"action":"send_whatsapp","phone":"شماره یا خالی","message":"متن"}
+              {"action":"send_sms","phone":"شماره یا خالی","message":"متن"}
+              {"action":"send_rubika","message":"متن"}
+              {"action":"send_eitaa","message":"متن"}
+
+            4) باز کردن برنامه‌ها
+              {"action":"open_app","app_name":"نام برنامه به فارسی یا انگلیسی"}
+
+            5) حسابداری و مدیریت مالی
+            - ثبت درآمد:
+              {"action":"add_income","amount":مبلغ_به_تومان,"category":"دسته‌بندی اختیاری","description":"توضیح"}
+              مثال: {"action":"add_income","amount":500000,"category":"حقوق","description":"حقوق دی ماه"}
+
+            - ثبت هزینه:
+              {"action":"add_expense","amount":مبلغ_به_تومان,"category":"دسته‌بندی اختیاری","description":"توضیح"}
+              مثال: {"action":"add_expense","amount":200000,"category":"خوراک","description":"نهار"}
+
+            - ثبت چک جدید:
+              {"action":"add_check","amount":مبلغ_به_تومان,"check_number":"شماره چک","issuer":"صادرکننده","recipient":"دریافت‌کننده","bank_name":"بانک","account_number":"شماره حساب","due_date":"YYYY/MM/DD"}
+
+            - ثبت قسط/وام جدید:
+              {"action":"add_installment","title":"مثلاً قسط ماشین","total_amount":مبلغ_کل_تومان,"monthly_amount":مبلغ_هر_قسط_تومان (اختیاری),"months":تعداد_اقساط,"payment_day":روز_ماه (1-31),"recipient":"دریافت‌کننده","description":"توضیح"}
+
+            - گزارش مالی کلی:
+              {"action":"finance_report"}
+
+            نکات مهم:
+            - حتماً JSON را به صورت یک آبجکت واحد و معتبر برگردان (با { و }).
+            - از متن اضافه قبل و بعد از JSON تا حد امکان پرهیز کن، مگر این که لازم باشد توضیحی کوتاه بدهی.
+            - مقدار "amount" همیشه بر حسب تومان باشد (اگر کاربر گفت میلیون یا هزار، خودت تبدیل کن).
+            - اگر نیاز به سوال پیگیری داری (مثلاً مبلغ، تاریخ سررسید یا تعداد اقساط مشخص نیست)، به صورت متن عادی فارسی بپرس.
+
+            حالا بر اساس این قوانین، پیام کاربر را تحلیل کن و یا یک JSON اکشن مناسب، و یا یک پاسخ متنی معمولی فارسی تولید کن.
+
+            پیام کاربر: $text
         """.trimIndent()
         
         val response = aiClient!!.sendMessage(currentModel, messages, enhancedPrompt)
@@ -723,6 +775,267 @@ class MainActivity : AppCompatActivity() {
                         val action = json.getString("action")
                         
                         when (action) {
+                            "add_reminder" -> {
+                                val time = json.optString("time", "")
+                                val message = json.optString("message", "")
+                                val repeatRaw = json.optString("repeat", "none")
+
+                                if (time.isBlank() || message.isBlank()) {
+                                    "⚠️ برای تنظیم یادآوری، زمان (HH:mm) و متن یادآوری لازم است."
+                                } else {
+                                    val parts = time.split(":")
+                                    val hour = parts.getOrNull(0)?.toIntOrNull()
+                                    val minute = parts.getOrNull(1)?.toIntOrNull()
+
+                                    if (hour == null || minute == null) {
+                                        "⚠️ فرمت زمان نامعتبر است. لطفاً به صورت HH:mm (مثلاً 09:30) استفاده کنید."
+                                    } else {
+                                        val calendar = java.util.Calendar.getInstance()
+                                        calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+                                        calendar.set(java.util.Calendar.MINUTE, minute)
+                                        calendar.set(java.util.Calendar.SECOND, 0)
+                                        calendar.set(java.util.Calendar.MILLISECOND, 0)
+
+                                        // اگر زمان گذشته بود، برای فردا تنظیم کن
+                                        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+                                            calendar.add(java.util.Calendar.DAY_OF_MONTH, 1)
+                                        }
+
+                                        val triggerTime = calendar.timeInMillis
+
+                                        val title = message.take(40)
+                                        val description = if (message.length > 40) message else ""
+
+                                        val isDaily = repeatRaw.equals("daily", ignoreCase = true) ||
+                                                repeatRaw == "روزانه" || repeatRaw == "هر روز"
+
+                                        val createdReminder = if (isDaily) {
+                                            smartReminderManager.createRecurringReminder(
+                                                title = title,
+                                                description = description,
+                                                firstTriggerTime = triggerTime,
+                                                repeatPattern = SmartReminderManager.RepeatPattern.DAILY
+                                            )
+                                        } else {
+                                            smartReminderManager.createSimpleReminder(
+                                                title = title,
+                                                description = description,
+                                                triggerTime = triggerTime
+                                            )
+                                        }
+
+                                        val readableTime = java.text.SimpleDateFormat(
+                                            "HH:mm",
+                                            java.util.Locale.getDefault()
+                                        ).format(java.util.Date(createdReminder.triggerTime))
+
+                                        val repeatText = if (isDaily) "🔁 هر روز" else "یکبار"
+
+                                        "✅ یادآوری تنظیم شد:\n" +
+                                                "⏰ $readableTime\n" +
+                                                "📝 $message\n" +
+                                                "📌 $repeatText"
+                                    }
+                                }
+                            }
+                            "list_reminders" -> {
+                                val activeReminders = smartReminderManager.getActiveReminders()
+                                    .sortedBy { it.triggerTime }
+
+                                if (activeReminders.isEmpty()) {
+                                    "⏰ شما هیچ یادآوری فعالی ندارید."
+                                } else {
+                                    val timeFormat = java.text.SimpleDateFormat(
+                                        "HH:mm",
+                                        java.util.Locale.getDefault()
+                                    )
+
+                                    val builder = StringBuilder()
+                                    builder.appendLine("⏰ یادآوری‌های فعال شما:")
+                                    activeReminders.take(5).forEach { reminder ->
+                                        val timeStr = timeFormat.format(java.util.Date(reminder.triggerTime))
+                                        builder.appendLine("• ${reminder.title} - ساعت $timeStr")
+                                    }
+                                    if (activeReminders.size > 5) {
+                                        builder.appendLine("... و ${activeReminders.size - 5} مورد دیگر.")
+                                    }
+                                    builder.toString().trim()
+                                }
+                            }
+                            "navigation" -> {
+                                val destination = json.optString("destination", "")
+                                val withVoice = json.optBoolean("voice", false)
+
+                                if (destination.isBlank()) {
+                                    "⚠️ مقصد مسیریابی مشخص نیست."
+                                } else {
+                                    SystemIntegrationHelper.openNavigation(this@MainActivity, destination, withVoice)
+                                    if (withVoice) {
+                                        "🗺️ در حال باز کردن مسیریابی فارسی به:\n📍 $destination\n🔊 با راهنمای صوتی فارسی"
+                                    } else {
+                                        "🗺️ در حال باز کردن مسیریابی به:\n📍 $destination"
+                                    }
+                                }
+                            }
+                            "add_income" -> {
+                                val amount = json.optDouble("amount", Double.NaN)
+                                if (amount.isNaN() || amount <= 0.0) {
+                                    "⚠️ مبلغ درآمد نامعتبر است."
+                                } else {
+                                    val category = json.optString("category", "سایر")
+                                    val description = json.optString("description", "درآمد ثبت‌شده از چت")
+
+                                    financeManager.addTransaction(amount, "income", category, description)
+
+                                    val formatted = String.format("%,.0f", amount)
+                                    "✅ درآمد $formatted تومان ثبت شد\nدسته‌بندی: $category"
+                                }
+                            }
+                            "add_expense" -> {
+                                val amount = json.optDouble("amount", Double.NaN)
+                                if (amount.isNaN() || amount <= 0.0) {
+                                    "⚠️ مبلغ هزینه نامعتبر است."
+                                } else {
+                                    val category = json.optString("category", "سایر")
+                                    val description = json.optString("description", "هزینه ثبت‌شده از چت")
+
+                                    financeManager.addTransaction(amount, "expense", category, description)
+
+                                    val formatted = String.format("%,.0f", amount)
+                                    "✅ هزینه $formatted تومان ثبت شد\nدسته‌بندی: $category"
+                                }
+                            }
+                            "add_check" -> {
+                                val amount = json.optDouble("amount", Double.NaN)
+                                val checkNumber = json.optString("check_number", "").trim()
+                                val issuer = json.optString("issuer", "نامشخص").trim()
+                                val recipient = json.optString("recipient", "نامشخص").trim()
+                                val bankName = json.optString("bank_name", "بانک نامشخص").trim()
+                                val accountNumber = json.optString("account_number", "-").trim()
+                                val description = json.optString("description", "چک ثبت‌شده از چت").trim()
+                                val dueDateStr = json.optString("due_date", "").trim()
+
+                                if (amount.isNaN() || amount <= 0.0) {
+                                    "⚠️ مبلغ چک نامعتبر است."
+                                } else if (checkNumber.isEmpty() || dueDateStr.isEmpty()) {
+                                    "⚠️ برای ثبت چک، شماره چک و تاریخ سررسید (YYYY/MM/DD) لازم است."
+                                } else {
+                                    val formatter = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.getDefault())
+                                    formatter.isLenient = false
+                                    val dueDate = try {
+                                        formatter.parse(dueDateStr)?.time
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+
+                                    if (dueDate == null) {
+                                        "⚠️ فرمت تاریخ سررسید نامعتبر است. از قالب YYYY/MM/DD استفاده کنید."
+                                    } else {
+                                        val issueDate = System.currentTimeMillis()
+                                        checkManager.addCheck(
+                                            checkNumber = checkNumber,
+                                            amount = amount,
+                                            issuer = issuer,
+                                            recipient = recipient,
+                                            issueDate = issueDate,
+                                            dueDate = dueDate,
+                                            bankName = bankName,
+                                            accountNumber = accountNumber,
+                                            description = description
+                                        )
+
+                                        val formattedAmount = String.format("%,.0f", amount)
+                                        val dueDateReadable = formatter.format(java.util.Date(dueDate))
+
+                                        "✅ چک جدید ثبت شد:\n" +
+                                                "شماره: $checkNumber\n" +
+                                                "مبلغ: $formattedAmount تومان\n" +
+                                                "سررسید: $dueDateReadable\n" +
+                                                "گیرنده: $recipient"
+                                    }
+                                }
+                            }
+                            "add_installment" -> {
+                                val title = json.optString("title", "قسط جدید").trim()
+                                val totalAmount = json.optDouble("total_amount", Double.NaN)
+                                val months = json.optInt("months", 0)
+                                val paymentDay = json.optInt("payment_day", 0)
+                                val monthlyAmountJson = if (json.has("monthly_amount")) json.optDouble("monthly_amount", Double.NaN) else Double.NaN
+                                val recipient = json.optString("recipient", "نامشخص").trim()
+                                val description = json.optString("description", "قسط ثبت‌شده از چت").trim()
+
+                                if (totalAmount.isNaN() || totalAmount <= 0.0 || months <= 0) {
+                                    "⚠️ برای ثبت قسط، مبلغ کل و تعداد اقساط باید معتبر باشند."
+                                } else {
+                                    val baseMonthly = if (!monthlyAmountJson.isNaN() && monthlyAmountJson > 0.0) {
+                                        monthlyAmountJson
+                                    } else {
+                                        (totalAmount / months).coerceAtLeast(0.0)
+                                    }
+
+                                    if (baseMonthly <= 0.0) {
+                                        "⚠️ مبلغ هر قسط نامعتبر است."
+                                    } else {
+                                        val calendar = java.util.Calendar.getInstance()
+                                        val startDate = calendar.timeInMillis
+                                        val dayOfMonth = if (paymentDay in 1..31) paymentDay else calendar.get(java.util.Calendar.DAY_OF_MONTH)
+
+                                        installmentManager.addInstallment(
+                                            title = title,
+                                            totalAmount = totalAmount,
+                                            installmentAmount = baseMonthly,
+                                            totalInstallments = months,
+                                            startDate = startDate,
+                                            paymentDay = dayOfMonth,
+                                            recipient = recipient,
+                                            description = description
+                                        )
+
+                                        val totalFormatted = String.format("%,.0f", totalAmount)
+                                        val monthlyFormatted = String.format("%,.0f", baseMonthly)
+
+                                        "✅ قسط جدید ثبت شد:\n" +
+                                                "عنوان: $title\n" +
+                                                "مبلغ کل: $totalFormatted تومان\n" +
+                                                "هر قسط: $monthlyFormatted تومان به مدت $months ماه"
+                                    }
+                                }
+                            }
+                            "finance_report" -> {
+                                val balance = financeManager.getBalance()
+                                val calendar = java.util.Calendar.getInstance()
+                                val year = calendar.get(java.util.Calendar.YEAR)
+                                val month = calendar.get(java.util.Calendar.MONTH) + 1
+                                val (income, expense) = financeManager.getMonthlyReport(year, month)
+
+                                val checksTotal = checkManager.getTotalPendingAmount()
+                                val installmentsTotal = installmentManager.getTotalRemainingAmount()
+
+                                val net = income - expense
+                                val netWorth = balance - checksTotal - installmentsTotal
+
+                                val fmt = { v: Double -> String.format("%,.0f", v) }
+
+                                buildString {
+                                    appendLine("💰 گزارش مالی شما:")
+                                    appendLine("📊 موجودی کل: ${fmt(balance)} تومان")
+                                    appendLine("📈 درآمد این ماه: ${fmt(income)} تومان")
+                                    appendLine("📉 هزینه این ماه: ${fmt(expense)} تومان")
+                                    appendLine("💵 سود/زیان این ماه: ${fmt(net)} تومان")
+
+                                    appendLine("\n💼 تعهدات:")
+                                    appendLine("📋 چک‌های در انتظار: ${fmt(checksTotal)} تومان")
+                                    appendLine("💳 اقساط باقیمانده: ${fmt(installmentsTotal)} تومان")
+
+                                    appendLine("\n💎 خالص دارایی (تقریبی): ${fmt(netWorth)} تومان")
+
+                                    if (netWorth < 0) {
+                                        appendLine("\n⚠️ توجه: شما در مجموع بدهی دارید.")
+                                    } else {
+                                        appendLine("\n✅ وضعیت کلی دارایی شما مثبت است.")
+                                    }
+                                }.trim()
+                            }
                             "send_telegram" -> {
                                 val phone = json.optString("phone", "UNKNOWN")
                                 val message = json.getString("message")

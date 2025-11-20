@@ -230,24 +230,55 @@ class AdvancedPersianAssistant(private val context: Context) {
     private fun extractReminderData(text: String): Map<String, Any> {
         val data = mutableMapOf<String, Any>()
         
-        // استخراج زمان
+        // استخراج زمان با فرمت HH:mm
         val timeRegex = """(\d{1,2}):(\d{2})""".toRegex()
         timeRegex.find(text)?.let {
             data["hour"] = it.groupValues[1].toInt()
             data["minute"] = it.groupValues[2].toInt()
         }
         
+        // اگر فرمت HH:mm نبود، الگوی «ساعت ۹ صبح/عصر/شب» را امتحان کن
+        if (!data.containsKey("hour")) {
+            val fuzzyTimeRegex = """ساعت\s*(\d{1,2})\s*(صبح|ظهر|عصر|شب)?""".toRegex()
+            fuzzyTimeRegex.find(text)?.let {
+                val rawHour = it.groupValues[1].toIntOrNull() ?: 0
+                val period = it.groupValues.getOrNull(2) ?: ""
+                val hour24 = when (period) {
+                    "ظهر", "عصر", "شب" -> if (rawHour in 1..11) rawHour + 12 else rawHour
+                    else -> rawHour
+                }
+                data["hour"] = hour24
+                data["minute"] = 0
+            }
+        }
+        
         // استخراج روز
         when {
+            text.contains("پس‌فردا") || text.contains("پس فردا") -> data["day"] = "dayAfterTomorrow"
             text.contains("فردا") -> data["day"] = "tomorrow"
-            text.contains("پس‌فردا") -> data["day"] = "dayAfterTomorrow"
             text.contains("امروز") -> data["day"] = "today"
+        }
+        
+        // الگوی تکرار ساده
+        if (text.contains("هر روز") || text.contains("روزانه")) {
+            data["repeat"] = "daily"
         }
         
         // استخراج متن یادآوری
         val messageRegex = """(یادم بنداز|یاد بده|یادآوری کن)\s+(.+)""".toRegex()
         messageRegex.find(text)?.let {
             data["message"] = it.groupValues[2].trim()
+        }
+        
+        if (!data.containsKey("message")) {
+            var msg = text
+                .replace("یادم بنداز", "")
+                .replace("یاد بده", "")
+                .replace("یادآوری کن", "")
+                .trim()
+            if (msg.isNotEmpty()) {
+                data["message"] = msg
+            }
         }
         
         return data
@@ -410,16 +441,102 @@ class AdvancedPersianAssistant(private val context: Context) {
             )
         }
         
+        val message = (data["message"] as? String)?.takeIf { it.isNotBlank() }
+        if (message == null) {
+            return AssistantResponse(
+                text = "برای تنظیم یادآوری، متن کار را هم مشخص کنید. مثلاً: «فردا ساعت ۹ یادم بنداز قبض برق رو پرداخت کنم.»"
+            )
+        }
+        
+        val hour = data["hour"] as? Int
+        val minute = data["minute"] as? Int ?: 0
+        
+        if (hour == null) {
+            return AssistantResponse(
+                text = "⚠️ ساعت یادآوری مشخص نیست. لطفاً زمانی مثل «ساعت ۹ صبح» یا «۱۸:۳۰» بگویید."
+            )
+        }
+        
+        val day = data["day"] as? String
+        val repeat = data["repeat"] as? String
+        
+        val calendar = Calendar.getInstance()
+        
+        when (day) {
+            "tomorrow" -> calendar.add(Calendar.DAY_OF_MONTH, 1)
+            "dayAfterTomorrow" -> calendar.add(Calendar.DAY_OF_MONTH, 2)
+            // today یا null یعنی همان امروز
+        }
+        
+        calendar.set(Calendar.HOUR_OF_DAY, hour)
+        calendar.set(Calendar.MINUTE, minute)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        
+        // اگر زمان گذشته بود و کاربر روز خاصی نگفته بود، برای فردا تنظیم کن
+        if (calendar.timeInMillis <= System.currentTimeMillis() && (day == null || day == "today")) {
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        
+        val triggerTime = calendar.timeInMillis
+        
+        val title = message.take(40)
+        val description = if (message.length > 40) message else ""
+        
+        val createdReminder = if (repeat == "daily") {
+            reminderManager.createRecurringReminder(
+                title = title,
+                description = description,
+                firstTriggerTime = triggerTime,
+                repeatPattern = SmartReminderManager.RepeatPattern.DAILY
+            )
+        } else {
+            reminderManager.createSimpleReminder(
+                title = title,
+                description = description,
+                triggerTime = triggerTime
+            )
+        }
+        
+        val readableTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(triggerTime))
+        val repeatText = when (repeat) {
+            "daily" -> "🔁 هر روز"
+            else -> "یکبار"
+        }
+        
         return AssistantResponse(
-            text = "✅ یادآوری تنظیم شد!\n\nمی‌توانید با گفتن «یادآوری‌های من» لیست آن‌ها را ببینید.",
+            text = "✅ یادآوری تنظیم شد:\n" +
+                   "⏰ $readableTime\n" +
+                   "📝 $message\n" +
+                   "📌 $repeatText",
             actionType = ActionType.ADD_REMINDER,
-            data = data
+            data = mapOf("reminderId" to createdReminder.id)
         )
     }
     
     private fun handleReminderList(intent: Intent): AssistantResponse {
+        val activeReminders = reminderManager.getActiveReminders().sortedBy { it.triggerTime }
+
+        if (activeReminders.isEmpty()) {
+            return AssistantResponse(
+                text = "⏰ شما هیچ یادآوری فعالی ندارید.",
+                actionType = ActionType.OPEN_REMINDERS
+            )
+        }
+
+        val responseText = buildString {
+            appendLine("⏰ یادآوری‌های فعال شما:")
+            activeReminders.take(5).forEach { reminder ->
+                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(reminder.triggerTime))
+                appendLine("• ${reminder.title} - ساعت $time")
+            }
+            if (activeReminders.size > 5) {
+                appendLine("... و ${activeReminders.size - 5} مورد دیگر.")
+            }
+        }
+
         return AssistantResponse(
-            text = "⏰ برای مشاهده لیست یادآوری‌ها، روی دکمه زیر بزنید.",
+            text = responseText,
             actionType = ActionType.OPEN_REMINDERS
         )
     }

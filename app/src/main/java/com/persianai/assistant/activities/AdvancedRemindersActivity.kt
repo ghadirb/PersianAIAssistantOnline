@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -18,6 +19,7 @@ import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.RemindersAdapter
+import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.databinding.ActivityAdvancedRemindersBinding
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.PersianDateConverter
@@ -40,6 +42,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAdvancedRemindersBinding
     private lateinit var remindersAdapter: RemindersAdapter
     private lateinit var reminderManager: SmartReminderManager
+    private lateinit var advancedAssistant: AdvancedPersianAssistant
     private val allReminders = mutableListOf<SmartReminderManager.SmartReminder>()
     private var lastReminderNotification = 0L
     
@@ -75,6 +78,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     
     private fun initializeManager() {
         reminderManager = SmartReminderManager(this)
+        advancedAssistant = AdvancedPersianAssistant(this)
     }
     
     private fun setupRecyclerView() {
@@ -376,6 +380,40 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun showAIChatDialog() {
+        val input = EditText(this)
+        input.hint = "مثال: فردا ساعت ۹ صبح یادم بنداز قبض برق رو پرداخت کنم"
+        input.setPadding(32, 32, 32, 32)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🤖 دستیار هوشمند یادآوری")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userText = input.text.toString().trim()
+                if (userText.isNotEmpty()) {
+                    try {
+                        val response = advancedAssistant.processRequest(userText)
+
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle("پاسخ دستیار")
+                            .setMessage(response.text)
+                            .setPositiveButton("باشه") { _, _ ->
+                                val action = response.actionType
+                                if (action == AdvancedPersianAssistant.ActionType.ADD_REMINDER ||
+                                    action == AdvancedPersianAssistant.ActionType.OPEN_REMINDERS) {
+                                    loadReminders()
+                                }
+                            }
+                            .show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
     private fun maybeNotifyUpcoming(reminders: List<SmartReminderManager.SmartReminder>) {
         val now = System.currentTimeMillis()
         if (now - lastReminderNotification < 60 * 60 * 1000) return
@@ -395,13 +433,18 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        return super.onCreateOptionsMenu(menu)
+        menuInflater.inflate(R.menu.menu_advanced_reminders, menu)
+        return true
     }
     
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
                 finish()
+                true
+            }
+            R.id.action_ai_chat -> {
+                showAIChatDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)

@@ -279,6 +279,7 @@ class AccountingActivity : AppCompatActivity() {
                                     .setPositiveButton("باشه") { _, _ ->
                                         if (response.success && response.action == "add_transaction") {
                                             updateBalance()
+                                            loadTransactions()
                                         }
                                     }
                                     .show()

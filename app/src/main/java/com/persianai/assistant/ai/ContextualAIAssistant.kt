@@ -76,12 +76,27 @@ class ContextualAIAssistant(private val context: Context) {
     
     suspend fun processReminderCommand(userMessage: String): AIResponse = withContext(Dispatchers.IO) {
         val cmd = nlp.parse(userMessage)
-        return@withContext when(cmd.type) {
+        return@withContext when (cmd.type) {
             PersianNLP.Type.REMINDER -> {
                 if (cmd.time != null) {
                     val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
-                    prefs.edit().putString("reminder_${System.currentTimeMillis()}", "${cmd.time}|${cmd.text}").apply()
-                    val timeStr = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(cmd.time))
+                    val editor = prefs.edit()
+                    val count = prefs.getInt("count", 0)
+
+                    val calendar = Calendar.getInstance().apply {
+                        timeInMillis = cmd.time
+                    }
+                    val hour = calendar.get(Calendar.HOUR_OF_DAY)
+                    val minute = calendar.get(Calendar.MINUTE)
+                    val timeStr = String.format("%02d:%02d", hour, minute)
+
+                    editor.putString("time_$count", timeStr)
+                    editor.putString("message_$count", cmd.text ?: "یادآوری")
+                    editor.putBoolean("completed_$count", false)
+                    editor.putLong("timestamp_$count", calendar.timeInMillis)
+                    editor.putInt("count", count + 1)
+                    editor.apply()
+
                     AIResponse(true, "✅ یادآوری ساعت $timeStr ثبت شد", "add_reminder")
                 } else {
                     AIResponse(false, "زمان نامعتبر است", "error")
@@ -106,7 +121,14 @@ class ContextualAIAssistant(private val context: Context) {
         val numbers = Regex("\\d+(?:\\.\\d+)?").findAll(message).map { it.value.toDoubleOrNull() ?: 0.0 }.toList()
         
         if (numbers.isNotEmpty()) {
-            val amount = numbers.first()
+            val rawAmount = numbers.first()
+            val unitMatch = Regex("(میلیون|هزار|ریال)").find(lowerMessage)
+            val amount = when {
+                unitMatch?.value?.contains("میلیون") == true -> rawAmount * 1_000_000
+                unitMatch?.value?.contains("هزار") == true -> rawAmount * 1_000
+                unitMatch?.value?.contains("ریال") == true -> rawAmount / 10
+                else -> rawAmount
+            }
             val isIncome = lowerMessage.contains("درآمد") || lowerMessage.contains("دریافت") || lowerMessage.contains("سود")
             
             val type = if (isIncome) TransactionType.INCOME else TransactionType.EXPENSE

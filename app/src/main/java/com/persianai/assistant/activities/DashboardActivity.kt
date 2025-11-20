@@ -35,6 +35,10 @@ class DashboardActivity : AppCompatActivity() {
         binding = ActivityMainDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
+        binding.musicCard?.visibility = View.GONE
+        binding.navigationCard?.visibility = View.GONE
+        binding.weatherCard?.visibility = View.GONE
+        
         prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
         
         // ایجاد کانال‌های نوتیفیکیشن
@@ -182,7 +186,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.remindersCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, RemindersActivity::class.java)
+                val intent = Intent(this, AdvancedRemindersActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 150)

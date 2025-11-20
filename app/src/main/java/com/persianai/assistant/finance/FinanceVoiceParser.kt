@@ -50,14 +50,16 @@ object FinanceVoiceParser {
     }
 
     private fun parseCheckIntent(text: String, numbers: List<Double>): FinanceVoiceIntent {
-        val amount = numbers.firstOrNull() ?: return FinanceVoiceIntent.UnknownIntent
+        val baseAmount = numbers.firstOrNull() ?: return FinanceVoiceIntent.UnknownIntent
+        val amount = extractAmountWithUnit(text, baseAmount) ?: return FinanceVoiceIntent.UnknownIntent
         val dueDays = extractDays(text)
         val recipient = extractRecipient(text)
         return FinanceVoiceIntent.AddCheckIntent(amount, recipient, dueDays)
     }
 
     private fun parseInstallmentIntent(text: String, numbers: List<Double>): FinanceVoiceIntent {
-        val amount = numbers.firstOrNull() ?: return FinanceVoiceIntent.UnknownIntent
+        val baseAmount = numbers.firstOrNull() ?: return FinanceVoiceIntent.UnknownIntent
+        val amount = extractAmountWithUnit(text, baseAmount) ?: return FinanceVoiceIntent.UnknownIntent
         val monthlyAmount = numbers.getOrNull(1)
         val totalMonths = extractMonths(text)
         val title = when {
@@ -70,7 +72,8 @@ object FinanceVoiceParser {
     }
 
     private fun parseExpenseIntent(text: String, numbers: List<Double>): FinanceVoiceIntent {
-        val amount = numbers.firstOrNull() ?: return FinanceVoiceIntent.UnknownIntent
+        val baseAmount = numbers.firstOrNull() ?: return FinanceVoiceIntent.UnknownIntent
+        val amount = extractAmountWithUnit(text, baseAmount) ?: return FinanceVoiceIntent.UnknownIntent
         val description = text.substringAfter("هزینه", "").trim().ifEmpty { null }
         return FinanceVoiceIntent.AddExpenseIntent(amount, description)
     }
@@ -97,5 +100,21 @@ object FinanceVoiceParser {
             }
         }
         return null
+    }
+
+    private fun extractAmountWithUnit(text: String, fallback: Double?): Double? {
+        if (fallback == null) return null
+        val match = Regex("([0-9]+(?:,[0-9]{3})*)\\s*(میلیون|هزار|هزاران|ریال)?").find(text)
+        if (match != null) {
+            val base = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return fallback
+            val unit = match.groupValues.getOrNull(2) ?: ""
+            return when {
+                unit.contains("میلیون") -> base * 1_000_000
+                unit.contains("هزار") -> base * 1_000
+                unit.contains("ریال") -> base / 10
+                else -> base
+            }
+        }
+        return fallback
     }
 }
