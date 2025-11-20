@@ -21,6 +21,9 @@ import com.persianai.assistant.R
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.databinding.ActivityMainBinding
+import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.FinanceManager
+import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
