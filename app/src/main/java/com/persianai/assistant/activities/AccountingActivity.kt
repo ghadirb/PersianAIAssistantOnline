@@ -136,7 +136,6 @@ class AccountingActivity : AppCompatActivity() {
         binding.addCheckButton.setOnClickListener { showCheckDialog() }
         binding.addInstallmentButton.setOnClickListener { showInstallmentDialog() }
         binding.aiChatButton.setOnClickListener { showAIChat() }
-        binding.voiceCommandButton.setOnClickListener { showVoiceCommandDialog() }
     }
     
     private fun showAddTransactionDialog() {
@@ -344,7 +343,31 @@ class AccountingActivity : AppCompatActivity() {
             SharedDataManager.saveMonthlyExpenses(this@AccountingActivity, expenses)
             SharedDataManager.saveMonthlyIncome(this@AccountingActivity, income)
             
-            android.util.Log.d("AccountingActivity", "💾 داده‌ها به SharedDataManager sync شد: Balance=$balance, Expenses=$expenses, Income=$income")
+            val monthNet = income - expenses
+            val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            val yearlyReport = db.getYearlyReport(year)
+            val yearIncome = yearlyReport[TransactionType.INCOME.name] ?: 0.0
+            val yearExpenses = yearlyReport[TransactionType.EXPENSE.name] ?: 0.0
+            val yearNet = yearIncome - yearExpenses
+
+            binding.monthlySummaryText.text = String.format(
+                "ماه جاری: درآمد %,.0f - هزینه %,.0f = %,.0f تومان",
+                income,
+                expenses,
+                monthNet
+            )
+
+            binding.yearlySummaryText.text = String.format(
+                "سال جاری: درآمد %,.0f - هزینه %,.0f = %,.0f تومان",
+                yearIncome,
+                yearExpenses,
+                yearNet
+            )
+
+            android.util.Log.d(
+                "AccountingActivity",
+                "💾 داده‌ها به SharedDataManager sync شد: Balance=$balance, Expenses=$expenses, Income=$income, YearIncome=$yearIncome, YearExpenses=$yearExpenses"
+            )
         }
     }
 }

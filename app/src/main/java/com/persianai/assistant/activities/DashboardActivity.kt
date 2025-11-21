@@ -35,10 +35,6 @@ class DashboardActivity : AppCompatActivity() {
         binding = ActivityMainDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        binding.musicCard?.visibility = View.GONE
-        binding.navigationCard?.visibility = View.GONE
-        binding.weatherCard?.visibility = View.GONE
-        
         prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
         
         // ایجاد کانال‌های نوتیفیکیشن
