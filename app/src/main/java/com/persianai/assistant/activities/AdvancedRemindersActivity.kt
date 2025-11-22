@@ -217,6 +217,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         val timeButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.selectTimeButton)
         val priorityGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.priorityChipGroup)
         val categorySpinner = dialogView.findViewById<android.widget.Spinner>(R.id.categorySpinner)
+        val alertTypeGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.alertTypeChipGroup)
         
         var selectedDate: Long = System.currentTimeMillis()
         var selectedHour = 12
@@ -281,6 +282,10 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     R.id.chipHighPriority -> SmartReminderManager.Priority.HIGH
                     else -> SmartReminderManager.Priority.MEDIUM
                 }
+                val alertType = when (alertTypeGroup.checkedChipId) {
+                    R.id.chipAlertFullScreen -> SmartReminderManager.AlertType.FULL_SCREEN
+                    else -> SmartReminderManager.AlertType.NOTIFICATION
+                }
                 
                 if (title.isEmpty()) {
                     Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
@@ -298,7 +303,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     title = "$category - $title",
                     description = description,
                     triggerTime = calendar.timeInMillis,
-                    priority = priority
+                    priority = priority,
+                    alertType = alertType
                 )
                 NotificationHelper.showReminderNotification(
                     this,

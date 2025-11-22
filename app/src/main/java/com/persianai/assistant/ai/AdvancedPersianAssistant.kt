@@ -100,6 +100,13 @@ class AdvancedPersianAssistant(private val context: Context) {
             return Intent(IntentType.REMINDER_ADD, extractReminderData(text))
         }
         
+        // عبارت‌هایی مثل «یه یادآوری تنظیم کن که فردا ساعت ۹ ...»
+        if (text.contains("یادآوری") &&
+            (text.contains("ثبت") || text.contains("تنظیم") || text.contains("بساز") ||
+             text.contains("بذار") || text.contains("کن") || text.startsWith("یادآوری"))) {
+            return Intent(IntentType.REMINDER_ADD, extractReminderData(text))
+        }
+        
         if (text.contains("یادآوری") && (text.contains("من") || text.contains("لیست"))) {
             return Intent(IntentType.REMINDER_LIST)
         }

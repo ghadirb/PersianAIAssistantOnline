@@ -376,25 +376,29 @@ class DashboardActivity : AppCompatActivity() {
             binding.expensesCard,
             binding.remindersCard,
             binding.aboutCard
-        )
+        ).filter { it.visibility == View.VISIBLE }
         
         AnimationHelper.animateListItems(cards, delayBetween = 100)
         
-        // Add pulse animation to navigation card to draw attention
-        binding.navigationCard?.postDelayed({
-            AnimationHelper.pulseAnimation(binding.navigationCard!!, scaleFactor = 1.05f, duration = 2000)
-        }, 1000)
+        // Add pulse animation to navigation card to draw attention (only if visible)
+        if (!NAVIGATION_DISABLED) {
+            binding.navigationCard?.postDelayed({ card ->
+                card?.let {
+                    AnimationHelper.pulseAnimation(it, scaleFactor = 1.05f, duration = 2000)
+                }
+            }, 1000)
+        }
     }
     
     private fun disableExperimentalModules() {
         if (MUSIC_DISABLED) {
-            binding.musicCard?.alpha = 0.4f
+            binding.musicCard?.visibility = View.GONE
         }
         if (NAVIGATION_DISABLED) {
-            binding.navigationCard?.alpha = 0.4f
+            binding.navigationCard?.visibility = View.GONE
         }
         if (WEATHER_DISABLED) {
-            binding.weatherCard?.alpha = 0.4f
+            binding.weatherCard?.visibility = View.GONE
         }
     }
 

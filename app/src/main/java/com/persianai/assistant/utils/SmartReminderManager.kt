@@ -53,6 +53,14 @@ class SmartReminderManager(private val context: Context) {
     }
     
     /**
+     * نوع هشدار یادآوری
+     */
+    enum class AlertType {
+        NOTIFICATION,
+        FULL_SCREEN
+    }
+    
+    /**
      * الگوی تکرار
      */
     enum class RepeatPattern(val displayName: String) {
@@ -75,6 +83,7 @@ class SmartReminderManager(private val context: Context) {
         val description: String = "",
         val type: ReminderType,
         val priority: Priority = Priority.MEDIUM,
+        val alertType: AlertType = AlertType.NOTIFICATION,
         val triggerTime: Long,
         val repeatPattern: RepeatPattern = RepeatPattern.ONCE,
         val customRepeatDays: List<Int> = emptyList(), // 1=یکشنبه, 2=دوشنبه, ...
@@ -116,7 +125,8 @@ class SmartReminderManager(private val context: Context) {
         title: String,
         description: String = "",
         triggerTime: Long,
-        priority: Priority = Priority.MEDIUM
+        priority: Priority = Priority.MEDIUM,
+        alertType: AlertType = AlertType.NOTIFICATION
     ): SmartReminder {
         val reminder = SmartReminder(
             id = System.currentTimeMillis().toString(),
@@ -124,6 +134,7 @@ class SmartReminderManager(private val context: Context) {
             description = description,
             type = ReminderType.SIMPLE,
             priority = priority,
+            alertType = alertType,
             triggerTime = triggerTime
         )
         return addReminder(reminder)
@@ -435,6 +446,8 @@ class SmartReminderManager(private val context: Context) {
             putExtra("reminder_title", reminder.title)
             putExtra("reminder_description", reminder.description)
             putExtra("reminder_priority", reminder.priority.name)
+            putExtra("message", reminder.title)
+            putExtra("use_alarm", reminder.alertType == AlertType.FULL_SCREEN)
         }
         
         val pendingIntent = PendingIntent.getBroadcast(

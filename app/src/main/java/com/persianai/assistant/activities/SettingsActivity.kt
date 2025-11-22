@@ -82,21 +82,28 @@ class SettingsActivity : AppCompatActivity() {
     }
     
     private fun updateOfflineModelStatus() {
-        val isDownloaded = prefsManager.isOfflineModelDownloaded()
         val modelType = prefsManager.getOfflineModelType()
-        
-        // نمایش نوع مدل
+
+        // نمایش نوع مدل انتخاب‌شده در تنظیمات
         binding.offlineModelType.text = "نوع: ${modelType.displayName} (${modelType.size})"
-        
-        if (isDownloaded) {
-            binding.offlineModelStatus.text = "✅ مدل آماده است"
+
+        // خواندن وضعیت واقعی از OfflineModelManager
+        val modelManager = com.persianai.assistant.models.OfflineModelManager(this)
+        val downloadedModels = modelManager.getDownloadedModels()
+
+        if (downloadedModels.isNotEmpty()) {
+            val names = downloadedModels.joinToString("، ") { it.first.name }
+            binding.offlineModelStatus.text = "✅ مدل(ها) آماده است: $names"
             binding.offlineModelStatus.setTextColor(getColor(android.R.color.holo_green_dark))
-            binding.downloadModelButton.visibility = android.view.View.GONE
-            binding.deleteModelButton.visibility = android.view.View.VISIBLE
+            // دکمه را برای مدیریت دوباره باز می‌گذاریم
+            binding.downloadModelButton.visibility = android.view.View.VISIBLE
+            binding.downloadModelButton.text = "مدیریت مدل‌های آفلاین"
+            binding.deleteModelButton.visibility = android.view.View.GONE
         } else {
             binding.offlineModelStatus.text = "❌ مدل دانلود نشده"
             binding.offlineModelStatus.setTextColor(getColor(android.R.color.holo_red_dark))
             binding.downloadModelButton.visibility = android.view.View.VISIBLE
+            binding.downloadModelButton.text = "دانلود / مدیریت مدل‌های آفلاین"
             binding.deleteModelButton.visibility = android.view.View.GONE
         }
     }
@@ -119,9 +126,15 @@ class SettingsActivity : AppCompatActivity() {
             showSelectModelTypeDialog()
         }
         
-        // دکمه دانلود مدل آفلاین
+        // دکمه دانلود / مدیریت مدل آفلاین
         binding.downloadModelButton.setOnClickListener {
-            showDownloadModelDialog()
+            try {
+                val intent = Intent(this, OfflineModelsActivity::class.java)
+                startActivity(intent)
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsActivity", "Error opening OfflineModelsActivity", e)
+                Toast.makeText(this, "خطا در باز کردن مدل‌های آفلاین: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
         
         // دکمه حذف مدل
