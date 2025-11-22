@@ -18,6 +18,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.persianai.assistant.R
 import com.persianai.assistant.databinding.ActivityOfflineModelsBinding
 import com.persianai.assistant.models.OfflineModelManager
+import com.persianai.assistant.utils.PreferencesManager
 
 class OfflineModelsActivity : AppCompatActivity() {
     
@@ -70,7 +71,19 @@ class OfflineModelsActivity : AppCompatActivity() {
     
     private fun loadModels() {
         val downloadedModels = modelManager.getDownloadedModels()
-        adapter.setModels(modelManager.availableModels, downloadedModels.map { it.first.name })
+        val downloadedNames = downloadedModels.map { it.first.name }
+
+        val prefs = PreferencesManager(this)
+        val type = prefs.getOfflineModelType()
+        val allModels = modelManager.availableModels
+
+        val modelsToShow = when (type) {
+            PreferencesManager.OfflineModelType.BASIC -> listOf(allModels[0])
+            PreferencesManager.OfflineModelType.LITE -> allModels.take(2)
+            PreferencesManager.OfflineModelType.FULL -> allModels
+        }
+
+        adapter.setModels(modelsToShow, downloadedNames)
     }
     
     private fun observeDownloadProgress() {
@@ -170,45 +183,45 @@ class OfflineModelsActivity : AppCompatActivity() {
             .setTitle("📥 ${model.name}")
             .setMessage("""
                 💾 حجم: ${model.size} GB
-                
-                📥 روش دانلود:
-                
-                1️⃣ روی "🔗 باز کردن لینک" کلیک کنید
-                
-                2️⃣ صبر کنید تا دانلود در مرورگر شروع شود
-                   (توصیه: از دانلود منیجر مثل ADM استفاده کنید)
-                
-                3️⃣ پس از دانلود کامل، فایل .gguf را پیدا کنید
-                
-                4️⃣ فایل را به این پوشه منتقل کنید:
-                   ${modelDir.absolutePath}
-                
-                5️⃣ نام فایل را دقیقاً به این صورت تغییر دهید:
-                   $expectedFileName
-                
-                6️⃣ روی دکمه "🔄 اسکن مجدد" کلیک کنید
-                
+
+                📥 روش‌های دانلود:
+
+                1️⃣ دانلود خودکار داخل برنامه (پیشنهادی)
+                • فقط روی «📥 دانلود خودکار» بزنید و صبر کنید تا نوار پیشرفت ۱۰۰٪ شود
+                • فایل به صورت خودکار در پوشه زیر ذخیره و ثبت می‌شود:
+                  ${modelDir.absolutePath}/$expectedFileName
+
+                2️⃣ دانلود دستی با مرورگر / دانلود منیجر
+                • روی «🌐 دانلود دستی (مرورگر)» بزنید
+                • می‌توانید لینک را در دانلود منیجر خود Paste کنید
+                • بعد از اتمام دانلود، اگر فایل در همین پوشه و با همین نام باشد،
+                  برنامه آن را به صورت خودکار شناسایی می‌کند.
+
                 ⚠️ نکات مهم:
                 • حتماً از Wi-Fi استفاده کنید
                 • دانلود ${model.size}GB ممکن است 2-6 ساعت طول بکشد
-                • نام فایل باید دقیقاً مطابق باشد
-                • بعد از کپی، دکمه اسکن مجدد را بزنید
             """.trimIndent())
-            .setPositiveButton("🔗 باز کردن لینک") { _, _ ->
-                // باز کردن لینک در مرورگر
+            .setPositiveButton("� دانلود خودکار") { _, _ ->
+                modelManager.downloadModel(model) { success ->
+                    if (success) {
+                        Toast.makeText(this, "✅ دانلود مدل با موفقیت انجام شد", Toast.LENGTH_SHORT).show()
+                        loadModels()
+                    } else {
+                        Toast.makeText(this, "❌ خطا در دانلود مدل. لطفاً بعداً دوباره تلاش کنید.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setNeutralButton("🌐 دانلود دستی (مرورگر)") { _, _ ->
                 try {
                     val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(model.url))
                     startActivity(intent)
-                    Toast.makeText(this, "🌐 مرورگر باز شد - صبر کنید...", Toast.LENGTH_LONG).show()
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Model URL", model.url)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(this, "🌐 مرورگر باز شد و لینک در کلیپ‌بورد کپی شد", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     Toast.makeText(this, "❌ خطا در باز کردن لینک", Toast.LENGTH_SHORT).show()
                 }
-            }
-            .setNeutralButton("📋 کپی لینک") { _, _ ->
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Model URL", model.url)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "✅ لینک کپی شد - در دانلود منیجر Paste کنید", Toast.LENGTH_LONG).show()
             }
             .setNegativeButton("❌ بستن", null)
             .show()
