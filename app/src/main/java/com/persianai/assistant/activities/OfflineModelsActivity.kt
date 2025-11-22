@@ -67,6 +67,11 @@ class OfflineModelsActivity : AppCompatActivity() {
             loadModels()
             Toast.makeText(this, "✅ اسکن کامل شد", Toast.LENGTH_SHORT).show()
         }
+
+        binding.cancelDownloadButton?.setOnClickListener {
+            modelManager.cancelDownload()
+            Toast.makeText(this, "⛔ دانلود لغو شد", Toast.LENGTH_SHORT).show()
+        }
     }
     
     private fun loadModels() {
@@ -96,8 +101,10 @@ class OfflineModelsActivity : AppCompatActivity() {
         })
         
         modelManager.isDownloading.observe(this, Observer { isDownloading ->
-            binding.downloadProgress.visibility = if (isDownloading) View.VISIBLE else View.GONE
-            binding.downloadStatus.visibility = if (isDownloading) View.VISIBLE else View.GONE
+            val visibility = if (isDownloading) View.VISIBLE else View.GONE
+            binding.downloadContainer.visibility = visibility
+            binding.downloadProgress.visibility = visibility
+            binding.downloadStatus.visibility = visibility
         })
     }
     
@@ -201,7 +208,7 @@ class OfflineModelsActivity : AppCompatActivity() {
                 • حتماً از Wi-Fi استفاده کنید
                 • دانلود ${model.size}GB ممکن است 2-6 ساعت طول بکشد
             """.trimIndent())
-            .setPositiveButton("� دانلود خودکار") { _, _ ->
+            .setPositiveButton("📥 دانلود خودکار") { _, _ ->
                 modelManager.downloadModel(model) { success ->
                     if (success) {
                         Toast.makeText(this, "✅ دانلود مدل با موفقیت انجام شد", Toast.LENGTH_SHORT).show()

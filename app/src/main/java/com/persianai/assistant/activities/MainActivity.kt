@@ -183,30 +183,8 @@ class MainActivity : AppCompatActivity() {
         val isFirstRun = prefs.getBoolean("is_first_run", true)
         
         if (isFirstRun && !prefsManager.hasAPIKeys()) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("🤖 خوش آمدید!")
-                .setMessage("""
-                    به دستیار هوش مصنوعی فارسی خوش آمدید!
-                    
-                    این برنامه نیاز به کلیدهای API دارد:
-                    
-                    ✅ چت با مدل‌های GPT-4o و Claude
-                    ✅ تشخیص صوت فارسی
-                    ✅ ذخیره تاریخچه گفتگوها
-                    ✅ پشتیبان‌گیری رمزنگاری شده
-                    
-                    برای شروع، رمز عبور کلیدهای API را وارد کنید:
-                """.trimIndent())
-                .setPositiveButton("ورود رمز") { _, _ ->
-                    prefs.edit().putBoolean("is_first_run", false).apply()
-                    showPasswordDialog()
-                }
-                .setNegativeButton("بعداً") { _, _ ->
-                    prefs.edit().putBoolean("is_first_run", false).apply()
-                    Toast.makeText(this, "می‌توانید بعداً از تنظیمات کلید اضافه کنید", Toast.LENGTH_LONG).show()
-                }
-                .setCancelable(false)
-                .show()
+            prefs.edit().putBoolean("is_first_run", false).apply()
+            downloadAndDecryptKeys("12345")
         }
     }
     
@@ -475,6 +453,7 @@ class MainActivity : AppCompatActivity() {
                 timestamp = System.currentTimeMillis()
             )
             addMessage(aiMessage)
+            handleAssistantAction(response.actionType)
             
             binding.messageInput.text?.clear()
             return
@@ -553,6 +532,27 @@ class MainActivity : AppCompatActivity() {
             } finally {
                 binding.sendButton.isEnabled = true
             }
+        }
+    }
+    
+    private fun handleAssistantAction(action: com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType?) {
+        when (action) {
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.OPEN_REMINDERS,
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.ADD_REMINDER -> {
+                startActivity(Intent(this, AdvancedRemindersActivity::class.java))
+            }
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.OPEN_CHECKS,
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.ADD_CHECK -> {
+                startActivity(Intent(this, ChecksManagementActivity::class.java))
+            }
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.OPEN_INSTALLMENTS,
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.ADD_INSTALLMENT -> {
+                startActivity(Intent(this, InstallmentsManagementActivity::class.java))
+            }
+            com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.OPEN_TRAVEL -> {
+                startActivity(Intent(this, NavigationActivity::class.java))
+            }
+            else -> {}
         }
     }
     

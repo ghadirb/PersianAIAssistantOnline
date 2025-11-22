@@ -27,6 +27,7 @@
 
         <!-- Download Progress -->
         <LinearLayout
+            android:id="@+id/downloadContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -50,6 +51,16 @@
                 app:indicatorColor="#4CAF50"
                 app:trackColor="#E0E0E0"
                 app:trackThickness="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cancelDownloadButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="⛔ لغو دانلود"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                app:icon="@android:drawable/ic_menu_close_clear_cancel"
+                app:iconGravity="textStart" />
 
         </LinearLayout>
 

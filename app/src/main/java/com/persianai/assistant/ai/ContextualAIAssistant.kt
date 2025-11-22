@@ -6,6 +6,7 @@ import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.api.AIModelManager
+import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -19,10 +20,15 @@ class ContextualAIAssistant(private val context: Context) {
     private val TAG = "ContextualAIAssistant"
     private val nlp = PersianNLP()
     private val aiModelManager = AIModelManager(context)
+    private val prefsManager = PreferencesManager(context)
     
     suspend fun processAccountingCommand(userMessage: String, db: AccountingDB): AIResponse = withContext(Dispatchers.IO) {
-        // اول سعی می‌کنیم با مدل واقعی پردازش کنیم
-        if (aiModelManager.hasApiKey()) {
+        val workingMode = prefsManager.getWorkingMode()
+        val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
+                workingMode == PreferencesManager.WorkingMode.HYBRID) && aiModelManager.hasApiKey()
+
+        // اول در صورت مجاز بودن، سعی می‌کنیم با مدل آنلاین پردازش کنیم
+        if (canUseOnline) {
             try {
                 val prompt = """تو یک دستیار مالی هستی. کاربر می‌گوید: "$userMessage"
 اگر درخواست ثبت هزینه یا درآمد است، به فرمت JSON پاسخ بده:
@@ -46,10 +52,18 @@ class ContextualAIAssistant(private val context: Context) {
                 return@withContext AIResponse(true, response, "chat")
             } catch (e: Exception) {
                 Log.e(TAG, "Error using AI model", e)
+                // در حالت HYBRID اگر خطا رخ دهد، به حالت آفلاین برمی‌گردیم
             }
+        } else if (workingMode == PreferencesManager.WorkingMode.ONLINE && !aiModelManager.hasApiKey()) {
+            // حالت فقط آنلاین ولی بدون کلید API
+            return@withContext AIResponse(
+                success = false,
+                message = "برای استفاده از دستیار مالی آنلاین، ابتدا کلید API را در تنظیمات وارد کنید.",
+                action = "error"
+            )
         }
-        
-        // اگر مدل در دسترس نبود، از NLP ساده استفاده می‌کنیم
+
+        // اگر مدل آنلاین مجاز نبود یا خطا داد، از NLP ساده آفلاین استفاده می‌کنیم
         val cmd = nlp.parse(userMessage)
         return@withContext when(cmd.type) {
             PersianNLP.Type.EXPENSE -> {

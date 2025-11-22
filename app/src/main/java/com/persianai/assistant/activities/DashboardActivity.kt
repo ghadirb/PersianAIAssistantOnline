@@ -392,13 +392,22 @@ class DashboardActivity : AppCompatActivity() {
     
     private fun disableExperimentalModules() {
         if (MUSIC_DISABLED) {
-            binding.musicCard?.visibility = View.GONE
+            binding.musicCard?.let { card ->
+                card.visibility = View.GONE
+                (card.parent as? android.view.ViewGroup)?.removeView(card)
+            }
         }
         if (NAVIGATION_DISABLED) {
-            binding.navigationCard?.visibility = View.GONE
+            binding.navigationCard?.let { card ->
+                card.visibility = View.GONE
+                (card.parent as? android.view.ViewGroup)?.removeView(card)
+            }
         }
         if (WEATHER_DISABLED) {
-            binding.weatherCard?.visibility = View.GONE
+            binding.weatherCard?.let { card ->
+                card.visibility = View.GONE
+                (card.parent as? android.view.ViewGroup)?.removeView(card)
+            }
         }
     }
 

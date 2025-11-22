@@ -20,9 +20,11 @@ import com.google.android.material.timepicker.TimeFormat
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.RemindersAdapter
 import com.persianai.assistant.ai.AdvancedPersianAssistant
+import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.databinding.ActivityAdvancedRemindersBinding
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.PersianDateConverter
+import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.SmartReminderManager
 import kotlinx.coroutines.launch
 import java.util.*
@@ -318,15 +320,217 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun showLocationBasedReminderDialog() {
-        Toast.makeText(this, "🚧 یادآوری مکانی در نسخه بعدی", Toast.LENGTH_SHORT).show()
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val titleInput = EditText(this).apply {
+            hint = "عنوان یادآوری مکانی"
+        }
+        val placeInput = EditText(this).apply {
+            hint = "نام مکان (مثلاً خانه، محل کار)"
+        }
+        val latInput = EditText(this).apply {
+            hint = "عرض جغرافیایی (lat)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+        }
+        val lngInput = EditText(this).apply {
+            hint = "طول جغرافیایی (lng)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+        }
+
+        container.addView(titleInput)
+        container.addView(placeInput)
+        container.addView(latInput)
+        container.addView(lngInput)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📍 یادآوری مکانی")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val title = titleInput.text.toString().trim()
+                val placeName = placeInput.text.toString().trim()
+                val latText = latInput.text.toString().trim()
+                val lngText = lngInput.text.toString().trim()
+
+                if (title.isEmpty()) {
+                    Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                if (latText.isEmpty() || lngText.isEmpty()) {
+                    Toast.makeText(this, "⚠️ مختصات را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val lat = latText.toDoubleOrNull()
+                val lng = lngText.toDoubleOrNull()
+
+                if (lat == null || lng == null) {
+                    Toast.makeText(this, "⚠️ مختصات نامعتبر است", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val description = if (placeName.isNotEmpty()) "مکان: $placeName" else ""
+
+                reminderManager.createLocationReminder(
+                    title = title,
+                    description = description,
+                    lat = lat,
+                    lng = lng,
+                    locationName = placeName
+                )
+
+                Toast.makeText(this, "✅ یادآوری مکانی ذخیره شد", Toast.LENGTH_SHORT).show()
+                loadReminders()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun showRecurringReminderDialog() {
-        Toast.makeText(this, "🚧 یادآوری تکراری در نسخه بعدی", Toast.LENGTH_SHORT).show()
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val titleInput = EditText(this).apply {
+            hint = "عنوان یادآوری تکراری"
+        }
+        val descriptionInput = EditText(this).apply {
+            hint = "توضیحات (اختیاری)"
+        }
+
+        val patterns = arrayOf("روزانه", "هفتگی", "ماهانه", "سالانه")
+        val patternSpinner = android.widget.Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(
+                this@AdvancedRemindersActivity,
+                android.R.layout.simple_spinner_item,
+                patterns
+            ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        }
+
+        var selectedHour = 9
+        var selectedMinute = 0
+
+        val timeButton = com.google.android.material.button.MaterialButton(this).apply {
+            text = "انتخاب ساعت"
+            setOnClickListener {
+                val timePicker = MaterialTimePicker.Builder()
+                    .setTimeFormat(TimeFormat.CLOCK_24H)
+                    .setHour(selectedHour)
+                    .setMinute(selectedMinute)
+                    .setTitleText("ساعت اولین یادآوری")
+                    .build()
+
+                timePicker.addOnPositiveButtonClickListener {
+                    selectedHour = timePicker.hour
+                    selectedMinute = timePicker.minute
+                    text = String.format("%02d:%02d", selectedHour, selectedMinute)
+                }
+
+                timePicker.show(supportFragmentManager, "RECURRING_TIME_PICKER")
+            }
+        }
+
+        container.addView(titleInput)
+        container.addView(descriptionInput)
+        container.addView(patternSpinner)
+        container.addView(timeButton)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔁 یادآوری تکراری")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val title = titleInput.text.toString().trim()
+                val description = descriptionInput.text.toString().trim()
+
+                if (title.isEmpty()) {
+                    Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val calendar = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, selectedHour)
+                    set(Calendar.MINUTE, selectedMinute)
+                    set(Calendar.SECOND, 0)
+                    if (timeInMillis < System.currentTimeMillis()) {
+                        add(Calendar.DAY_OF_MONTH, 1)
+                    }
+                }
+
+                val pattern = when (patternSpinner.selectedItemPosition) {
+                    0 -> SmartReminderManager.RepeatPattern.DAILY
+                    1 -> SmartReminderManager.RepeatPattern.WEEKLY
+                    2 -> SmartReminderManager.RepeatPattern.MONTHLY
+                    3 -> SmartReminderManager.RepeatPattern.YEARLY
+                    else -> SmartReminderManager.RepeatPattern.DAILY
+                }
+
+                reminderManager.createRecurringReminder(
+                    title = title,
+                    description = description,
+                    firstTriggerTime = calendar.timeInMillis,
+                    repeatPattern = pattern
+                )
+
+                Toast.makeText(this, "✅ یادآوری تکراری ذخیره شد", Toast.LENGTH_SHORT).show()
+                loadReminders()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun showConditionalReminderDialog() {
-        Toast.makeText(this, "🚧 یادآوری شرطی در نسخه بعدی", Toast.LENGTH_SHORT).show()
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val titleInput = EditText(this).apply {
+            hint = "عنوان یادآوری شرطی"
+        }
+        val conditionInput = EditText(this).apply {
+            hint = "شرط را بنویسید (مثال: اگر موجودی زیر ۱۰۰ هزار شد...)"
+        }
+
+        container.addView(titleInput)
+        container.addView(conditionInput)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("⚙️ یادآوری شرطی")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val title = titleInput.text.toString().trim()
+                val condition = conditionInput.text.toString().trim()
+
+                if (title.isEmpty()) {
+                    Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                if (condition.isEmpty()) {
+                    Toast.makeText(this, "⚠️ شرط را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val reminder = SmartReminderManager.SmartReminder(
+                    id = "conditional_${System.currentTimeMillis()}",
+                    title = title,
+                    description = condition,
+                    type = SmartReminderManager.ReminderType.SIMPLE,
+                    priority = SmartReminderManager.Priority.MEDIUM,
+                    alertType = SmartReminderManager.AlertType.NOTIFICATION,
+                    triggerTime = 0L,
+                    tags = listOf("شرط: $condition")
+                )
+
+                reminderManager.addReminderWithoutAlarm(reminder)
+
+                Toast.makeText(this, "✅ یادآوری شرطی ذخیره شد", Toast.LENGTH_SHORT).show()
+                loadReminders()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
     
     private fun handleReminderAction(reminder: SmartReminderManager.SmartReminder, action: String) {
@@ -397,22 +601,55 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .setPositiveButton("اجرا") { _, _ ->
                 val userText = input.text.toString().trim()
                 if (userText.isNotEmpty()) {
-                    try {
-                        val response = advancedAssistant.processRequest(userText)
+                    lifecycleScope.launch {
+                        try {
+                            // پردازش اولیه با دستیار آفلاین
+                            val baseResponse = advancedAssistant.processRequest(userText)
+                            var finalText = baseResponse.text
+                            var finalAction = baseResponse.actionType
 
-                        MaterialAlertDialogBuilder(this)
-                            .setTitle("پاسخ دستیار")
-                            .setMessage(response.text)
-                            .setPositiveButton("باشه") { _, _ ->
-                                val action = response.actionType
-                                if (action == AdvancedPersianAssistant.ActionType.ADD_REMINDER ||
-                                    action == AdvancedPersianAssistant.ActionType.OPEN_REMINDERS) {
-                                    loadReminders()
+                            // اگر سوال عمومی یا نیازمند AI بود، سعی کن از مدل آنلاین استفاده کنی
+                            if (baseResponse.actionType == AdvancedPersianAssistant.ActionType.NEEDS_AI) {
+                                val prefs = PreferencesManager(this@AdvancedRemindersActivity)
+                                val workingMode = prefs.getWorkingMode()
+                                val aiManager = AIModelManager(this@AdvancedRemindersActivity)
+                                val hasKey = aiManager.hasApiKey()
+
+                                val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
+                                        workingMode == PreferencesManager.WorkingMode.HYBRID) && hasKey
+
+                                if (canUseOnline) {
+                                    val prompt = """
+                                        تو یک دستیار هوشمند یادآوری و برنامه‌ریزی هستی.
+                                        کاربر در مورد یادآوری‌ها یا سوال عمومی می‌پرسد:
+                                        "$userText"
+
+                                        با لحن مودب و کوتاه، فقط به زبان فارسی پاسخ بده.
+                                    """.trimIndent()
+
+                                    val aiText = aiManager.generateText(prompt)
+                                    if (aiText.isNotBlank()) {
+                                        finalText = aiText
+                                    }
+                                } else if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasKey) {
+                                    finalText = "برای استفاده از مدل آنلاین، ابتدا کلید API را در تنظیمات وارد کنید."
                                 }
                             }
-                            .show()
-                    } catch (e: Exception) {
-                        Toast.makeText(this, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+
+                            MaterialAlertDialogBuilder(this@AdvancedRemindersActivity)
+                                .setTitle("پاسخ دستیار")
+                                .setMessage(finalText)
+                                .setPositiveButton("باشه") { _, _ ->
+                                    val action = finalAction
+                                    if (action == AdvancedPersianAssistant.ActionType.ADD_REMINDER ||
+                                        action == AdvancedPersianAssistant.ActionType.OPEN_REMINDERS) {
+                                        loadReminders()
+                                    }
+                                }
+                                .show()
+                        } catch (e: Exception) {
+                            Toast.makeText(this@AdvancedRemindersActivity, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }

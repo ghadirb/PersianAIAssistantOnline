@@ -117,6 +117,16 @@ class SmartReminderManager(private val context: Context) {
         
         return reminder
     }
+
+    fun addReminderWithoutAlarm(reminder: SmartReminder): SmartReminder {
+        val reminders = getAllReminders().toMutableList()
+        reminders.add(reminder)
+        saveReminders(reminders)
+        
+        Log.i(TAG, "✅ یادآوری جدید (بدون آلارم): ${reminder.title} (${reminder.type.displayName})")
+        
+        return reminder
+    }
     
     /**
      * ایجاد یادآوری ساده
@@ -267,7 +277,7 @@ class SmartReminderManager(private val context: Context) {
             locationRadius = radius,
             locationName = locationName
         )
-        return addReminder(reminder)
+        return addReminderWithoutAlarm(reminder)
     }
     
     /**
