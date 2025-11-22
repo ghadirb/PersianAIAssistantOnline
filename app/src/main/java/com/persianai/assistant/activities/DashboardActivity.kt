@@ -382,8 +382,8 @@ class DashboardActivity : AppCompatActivity() {
         
         // Add pulse animation to navigation card to draw attention (only if visible)
         if (!NAVIGATION_DISABLED) {
-            binding.navigationCard?.postDelayed({ card ->
-                card?.let {
+            binding.navigationCard?.postDelayed({
+                binding.navigationCard?.let {
                     AnimationHelper.pulseAnimation(it, scaleFactor = 1.05f, duration = 2000)
                 }
             }, 1000)
