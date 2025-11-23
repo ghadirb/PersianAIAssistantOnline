@@ -20,32 +20,39 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
         
+        val reminderId = intent.getIntExtra("reminder_id", 0)
+        val smartReminderId = intent.getStringExtra("smart_reminder_id")
+        val message = intent.getStringExtra("message") ?: "یادآوری"
+
         when (intent.action) {
             "MARK_AS_DONE" -> {
-                val message = intent.getStringExtra("message") ?: ""
-                val reminderId = intent.getIntExtra("reminder_id", 0)
                 android.util.Log.d("ReminderReceiver", "Mark as done: $message")
-                markAsDone(context, message, reminderId)
+                if (!smartReminderId.isNullOrEmpty()) {
+                    com.persianai.assistant.utils.SmartReminderManager(context).completeReminder(smartReminderId)
+                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.cancel(reminderId)
+                } else {
+                    markAsDone(context, message, reminderId)
+                }
             }
             "SNOOZE_REMINDER" -> {
-                val message = intent.getStringExtra("message") ?: ""
-                val reminderId = intent.getIntExtra("reminder_id", 0)
                 android.util.Log.d("ReminderReceiver", "Snooze reminder: $message")
-                snoozeReminder(context, message)
+                if (!smartReminderId.isNullOrEmpty()) {
+                    com.persianai.assistant.utils.SmartReminderManager(context).snoozeReminder(smartReminderId, 10)
+                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.cancel(reminderId)
+                } else {
+                    snoozeReminder(context, message)
+                }
             }
             else -> {
-                val message = intent.getStringExtra("message") ?: "یادآوری"
-                val reminderId = intent.getIntExtra("reminder_id", 0)
                 val useAlarm = intent.getBooleanExtra("use_alarm", false)
-                
                 android.util.Log.d("ReminderReceiver", "Reminder triggered: $message (useAlarm: $useAlarm)")
-                
+
                 if (useAlarm) {
-                    // نمایش آلارم تمام صفحه
-                    showFullScreenAlarm(context, message, reminderId)
+                    showFullScreenAlarm(context, message, reminderId, smartReminderId)
                 } else {
-                    // نوتیفیکیشن معمولی
-                    showNotification(context, message, reminderId)
+                    showNotification(context, message, reminderId, smartReminderId)
                 }
             }
         }
@@ -93,16 +100,17 @@ class ReminderReceiver : BroadcastReceiver() {
         android.widget.Toast.makeText(context, "⏰ 5 دقیقه بعد یادآوری می‌شود", android.widget.Toast.LENGTH_SHORT).show()
     }
     
-    private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int) {
+    private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
         val intent = Intent(context, com.persianai.assistant.activities.AlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("message", message)
             putExtra("reminder_id", reminderId)
+            putExtra("smart_reminder_id", smartReminderId)
         }
         context.startActivity(intent)
     }
     
-    private fun showNotification(context: Context, message: String, reminderId: Int) {
+    private fun showNotification(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
         android.util.Log.d("ReminderReceiver", "showNotification called for: $message")
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -137,6 +145,7 @@ class ReminderReceiver : BroadcastReceiver() {
             action = "MARK_AS_DONE"
             putExtra("message", message)
             putExtra("reminder_id", reminderId)
+            putExtra("smart_reminder_id", smartReminderId)
         }
         val donePendingIntent = PendingIntent.getBroadcast(
             context, 
@@ -150,6 +159,7 @@ class ReminderReceiver : BroadcastReceiver() {
             action = "SNOOZE_REMINDER"
             putExtra("message", message)
             putExtra("reminder_id", reminderId)
+            putExtra("smart_reminder_id", smartReminderId)
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context, 

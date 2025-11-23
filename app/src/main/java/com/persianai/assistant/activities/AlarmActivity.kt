@@ -20,6 +20,7 @@ class AlarmActivity : AppCompatActivity() {
     private var ringtone: Ringtone? = null
     private var message: String = ""
     private var reminderId: Int = 0
+    private var smartReminderId: String? = null
     
     companion object {
         private const val REQUEST_VOICE_RECOGNITION = 2001
@@ -41,8 +42,12 @@ class AlarmActivity : AppCompatActivity() {
         
         message = intent.getStringExtra("message") ?: "یادآوری"
         reminderId = intent.getIntExtra("reminder_id", 0)
+        smartReminderId = intent.getStringExtra("smart_reminder_id")
         
         binding.messageText.text = message
+
+        val currentTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        binding.timeText.text = currentTime
         
         // پخش صدای آلارم
         playAlarmSound()
@@ -76,7 +81,7 @@ class AlarmActivity : AppCompatActivity() {
         }
         
         // دکمه "با صدا انجام دهید"
-        binding.voiceButton.setOnClickListener {
+        binding.voiceCommandButton.setOnClickListener {
             startVoiceRecognition()
         }
         
@@ -89,15 +94,18 @@ class AlarmActivity : AppCompatActivity() {
     private fun markAsDone() {
         stopAlarmSound()
         
-        // علامت‌گذاری در لیست یادآوری‌ها
-        val prefs = getSharedPreferences("reminders", MODE_PRIVATE)
-        val count = prefs.getInt("count", 0)
-        
-        for (i in 0 until count) {
-            val savedMessage = prefs.getString("message_$i", "")
-            if (savedMessage == message) {
-                prefs.edit().putBoolean("completed_$i", true).apply()
-                break
+        if (!smartReminderId.isNullOrEmpty()) {
+            com.persianai.assistant.utils.SmartReminderManager(this).completeReminder(smartReminderId!!)
+        } else {
+            // Fallback to old logic
+            val prefs = getSharedPreferences("reminders", MODE_PRIVATE)
+            val count = prefs.getInt("count", 0)
+            for (i in 0 until count) {
+                val savedMessage = prefs.getString("message_$i", "")
+                if (savedMessage == message) {
+                    prefs.edit().putBoolean("completed_$i", true).apply()
+                    break
+                }
             }
         }
         
@@ -106,21 +114,23 @@ class AlarmActivity : AppCompatActivity() {
     
     private fun snoozeReminder(minutes: Int) {
         stopAlarmSound()
-        
-        // تنظیم یادآوری جدید برای چند دقیقه بعد
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.MINUTE, minutes)
-        
-        val hour = calendar.get(Calendar.HOUR_OF_DAY)
-        val minute = calendar.get(Calendar.MINUTE)
-        
-        com.persianai.assistant.utils.SystemIntegrationHelper.setReminder(
-            this, 
-            message, 
-            hour, 
-            minute
-        )
-        
+
+        if (!smartReminderId.isNullOrEmpty()) {
+            com.persianai.assistant.utils.SmartReminderManager(this).snoozeReminder(smartReminderId!!, minutes)
+        } else {
+            // Fallback to old logic
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.MINUTE, minutes)
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            com.persianai.assistant.utils.SystemIntegrationHelper.setReminder(
+                this,
+                message,
+                hour,
+                minute
+            )
+        }
+
         Toast.makeText(this, "⏰ $minutes دقیقه بعد یادآوری می‌شود", Toast.LENGTH_SHORT).show()
     }
     

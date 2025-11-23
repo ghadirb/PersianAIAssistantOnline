@@ -177,6 +177,78 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
     }
+
+    private fun handleParentalControlCommand(text: String): Boolean {
+        val lower = text.lowercase()
+        val prefs = prefsManager
+
+        // الگوهای متداول برای نمایش لیست کلمات مسدود
+        val askList = lower.contains("لیست کلمات مسدود") ||
+                lower.contains("لیست کلمات ممنوع") ||
+                lower.contains("کلمات مسدود را نشان بده")
+
+        // افزودن کلمه: «کلمه X را مسدود کن»
+        val addMatch = Regex("کلمه\\s+(.+?)\\s+را\\s+مسدود\\s+کن").find(text)
+
+        // حذف کلمه: «کلمه X را از لیست مسدود حذف کن»
+        val removeMatch = Regex("کلمه\\s+(.+?)\\s+را\\s+از\\s+لیست\\s+مسدود\\s+حذف\\s+کن").find(text)
+
+        if (!askList && addMatch == null && removeMatch == null) {
+            return false
+        }
+
+        // پیام کاربر را در چت ذخیره کن
+        val userMessage = ChatMessage(
+            role = MessageRole.USER,
+            content = text,
+            timestamp = System.currentTimeMillis()
+        )
+        addMessage(userMessage)
+        binding.messageInput.text?.clear()
+
+        val replyText = when {
+            addMatch != null -> {
+                val keyword = addMatch.groupValues[1].trim()
+                if (keyword.isEmpty()) {
+                    "⚠️ کلمه‌ای برای مسدود کردن مشخص نشد. مثال: «کلمه یوتیوب را مسدود کن»"
+                } else {
+                    prefs.addBlockedKeyword(keyword)
+                    prefs.setParentalControlEnabled(true)
+                    "✅ کلمه «$keyword» به لیست کلمات مسدود اضافه شد. از این پس در باز کردن برنامه‌ها و جستجوها در نظر گرفته می‌شود."
+                }
+            }
+            removeMatch != null -> {
+                val keyword = removeMatch.groupValues[1].trim()
+                if (keyword.isEmpty()) {
+                    "⚠️ کلمه‌ای برای حذف مشخص نشد. مثال: «کلمه یوتیوب را از لیست مسدود حذف کن»"
+                } else {
+                    prefs.removeBlockedKeyword(keyword)
+                    "✅ کلمه «$keyword» از لیست کلمات مسدود حذف شد."
+                }
+            }
+            askList -> {
+                val keywords = prefs.getBlockedKeywords()
+                if (keywords.isEmpty()) {
+                    "فعلاً هیچ کلمه‌ای مسدود نشده است. می‌توانی بگویی: «کلمه یوتیوب را مسدود کن»."
+                } else {
+                    "🔒 کلمات مسدود فعلی:\n" + keywords.joinToString(separator = "، ") { "«$it»" }
+                }
+            }
+            else -> ""
+        }
+
+        if (replyText.isNotBlank()) {
+            val aiMessage = ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = replyText,
+                timestamp = System.currentTimeMillis()
+            )
+            addMessage(aiMessage)
+            saveCurrentConversation()
+        }
+
+        return true
+    }
     
     private fun showFirstRunDialogIfNeeded() {
         val prefs = getSharedPreferences("app_state", MODE_PRIVATE)

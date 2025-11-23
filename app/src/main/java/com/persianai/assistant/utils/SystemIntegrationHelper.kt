@@ -165,6 +165,14 @@ object SystemIntegrationHelper {
      * جستجو در Google
      */
     fun searchWeb(context: Context, query: String): Boolean {
+        if (isBlockedText(context, query)) {
+            android.widget.Toast.makeText(
+                context,
+                "این جستجو توسط کنترل والدین مسدود شد.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return false
+        }
         return try {
             val intent = Intent(Intent.ACTION_WEB_SEARCH).apply {
                 putExtra(android.app.SearchManager.QUERY, query)
@@ -216,6 +224,14 @@ object SystemIntegrationHelper {
      * باز کردن یک URL
      */
     fun openUrl(context: Context, url: String): Boolean {
+        if (isBlockedText(context, url)) {
+            android.widget.Toast.makeText(
+                context,
+                "این آدرس توسط کنترل والدین مسدود شد.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return false
+        }
         return try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse(url)
@@ -358,6 +374,14 @@ object SystemIntegrationHelper {
      * باز کردن برنامه خاص
      */
     fun openApp(context: Context, appName: String): Boolean {
+        if (isBlockedText(context, appName)) {
+            android.widget.Toast.makeText(
+                context,
+                "این برنامه توسط کنترل والدین مسدود شد.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return false
+        }
         // لیست package name های شناخته شده
         val knownPackages = mapOf(
             "تلگرام" to "org.telegram.messenger",
@@ -437,6 +461,15 @@ object SystemIntegrationHelper {
                 false
             }
         }
+    }
+
+    private fun isBlockedText(context: Context, text: String): Boolean {
+        val prefs = PreferencesManager(context)
+        if (!prefs.isParentalControlEnabled()) return false
+        val keywords = prefs.getBlockedKeywords()
+        if (keywords.isEmpty()) return false
+        val lowerText = text.lowercase()
+        return keywords.any { it.isNotEmpty() && lowerText.contains(it.lowercase()) }
     }
 
     /**

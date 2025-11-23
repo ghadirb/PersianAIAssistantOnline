@@ -284,4 +284,16 @@
         android:visibility="gone"
         app:fabSize="normal" />
 
+    <!-- دکمه چت هوشمند -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/aiChatFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_dialog_info"
+        app:backgroundTint="?attr/colorSecondary"
+        android:contentDescription="چت هوشمند مالی"
+        app:fabSize="normal" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

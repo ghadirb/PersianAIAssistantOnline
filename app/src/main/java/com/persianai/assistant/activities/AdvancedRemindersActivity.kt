@@ -20,11 +20,9 @@ import com.google.android.material.timepicker.TimeFormat
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.RemindersAdapter
 import com.persianai.assistant.ai.AdvancedPersianAssistant
-import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.databinding.ActivityAdvancedRemindersBinding
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.PersianDateConverter
-import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.SmartReminderManager
 import kotlinx.coroutines.launch
 import java.util.*
@@ -536,6 +534,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     private fun handleReminderAction(reminder: SmartReminderManager.SmartReminder, action: String) {
         when (action) {
             "view" -> showReminderDetails(reminder)
+            "edit" -> showEditReminderDialog(reminder)
             "complete" -> lifecycleScope.launch {
                 if (reminderManager.completeReminder(reminder.id)) {
                     Toast.makeText(this@AdvancedRemindersActivity, "✅ انجام شد", Toast.LENGTH_SHORT).show()
@@ -570,7 +569,127 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .setTitle("جزئیات یادآوری")
             .setMessage(details)
             .setPositiveButton("بستن", null)
+            .setNeutralButton("ویرایش") { _, _ -> showEditReminderDialog(reminder) }
             .setNegativeButton("حذف") { _, _ -> confirmDeleteReminder(reminder) }
+            .show()
+    }
+
+    private fun showEditReminderDialog(reminder: SmartReminderManager.SmartReminder) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_time_reminder, null)
+
+        val titleInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.titleInput)
+        val descriptionInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.descriptionInput)
+        val dateButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.selectDateButton)
+        val timeButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.selectTimeButton)
+        val priorityGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.priorityChipGroup)
+        val categorySpinner = dialogView.findViewById<android.widget.Spinner>(R.id.categorySpinner)
+        val alertTypeGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.alertTypeChipGroup)
+
+        // Pre-fill data
+        val (category, title) = reminder.title.split(" - ").let { if (it.size > 1) it[0] to it[1] else "" to reminder.title }
+        titleInput.setText(title)
+        descriptionInput.setText(reminder.description)
+
+        var selectedDate = reminder.triggerTime
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
+        var selectedHour = calendar.get(Calendar.HOUR_OF_DAY)
+        var selectedMinute = calendar.get(Calendar.MINUTE)
+
+        val persianDate = PersianDateConverter.gregorianToPersian(
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH) + 1,
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+        dateButton.text = persianDate.toReadableString()
+        timeButton.text = String.format("%02d:%02d", selectedHour, selectedMinute)
+
+        when (reminder.priority) {
+            SmartReminderManager.Priority.LOW -> priorityGroup.check(R.id.chipLowPriority)
+            SmartReminderManager.Priority.MEDIUM -> priorityGroup.check(R.id.chipMediumPriority)
+            SmartReminderManager.Priority.HIGH -> priorityGroup.check(R.id.chipHighPriority)
+            else -> priorityGroup.check(R.id.chipMediumPriority)
+        }
+
+        when (reminder.alertType) {
+            SmartReminderManager.AlertType.FULL_SCREEN -> alertTypeGroup.check(R.id.chipAlertFullScreen)
+            else -> alertTypeGroup.check(R.id.chipAlertNotification)
+        }
+
+        val categories = arrayOf("شخصی", "کاری", "خانوادگی", "مالی", "سلامت", "خرید", "سایر")
+        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, categories)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        categorySpinner.adapter = adapter
+        val categoryPosition = categories.indexOf(category)
+        if (categoryPosition != -1) {
+            categorySpinner.setSelection(categoryPosition)
+        }
+
+        // Listeners for date and time pickers
+        dateButton.setOnClickListener {
+            val datePicker = MaterialDatePicker.Builder.datePicker().setTitleText("تاریخ").setSelection(selectedDate).build()
+            datePicker.addOnPositiveButtonClickListener { selection ->
+                selectedDate = selection
+                val cal = Calendar.getInstance().apply { timeInMillis = selection }
+                val pDate = PersianDateConverter.gregorianToPersian(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+                dateButton.text = pDate.toReadableString()
+            }
+            datePicker.show(supportFragmentManager, "EDIT_DATE_PICKER")
+        }
+
+        timeButton.setOnClickListener {
+            val timePicker = MaterialTimePicker.Builder().setTimeFormat(TimeFormat.CLOCK_24H).setHour(selectedHour).setMinute(selectedMinute).setTitleText("ساعت").build()
+            timePicker.addOnPositiveButtonClickListener {
+                selectedHour = timePicker.hour
+                selectedMinute = timePicker.minute
+                timeButton.text = String.format("%02d:%02d", selectedHour, selectedMinute)
+            }
+            timePicker.show(supportFragmentManager, "EDIT_TIME_PICKER")
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("✏️ ویرایش یادآوری")
+            .setView(dialogView)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val newTitle = titleInput.text.toString()
+                val newDescription = descriptionInput.text.toString()
+                val newCategory = categories[categorySpinner.selectedItemPosition]
+
+                val newPriority = when (priorityGroup.checkedChipId) {
+                    R.id.chipLowPriority -> SmartReminderManager.Priority.LOW
+                    R.id.chipMediumPriority -> SmartReminderManager.Priority.MEDIUM
+                    R.id.chipHighPriority -> SmartReminderManager.Priority.HIGH
+                    else -> reminder.priority
+                }
+                val newAlertType = when (alertTypeGroup.checkedChipId) {
+                    R.id.chipAlertFullScreen -> SmartReminderManager.AlertType.FULL_SCREEN
+                    else -> SmartReminderManager.AlertType.NOTIFICATION
+                }
+
+                if (newTitle.isEmpty()) {
+                    Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val finalCalendar = Calendar.getInstance().apply {
+                    timeInMillis = selectedDate
+                    set(Calendar.HOUR_OF_DAY, selectedHour)
+                    set(Calendar.MINUTE, selectedMinute)
+                }
+
+                val updatedReminder = reminder.copy(
+                    title = "$newCategory - $newTitle",
+                    description = newDescription,
+                    triggerTime = finalCalendar.timeInMillis,
+                    priority = newPriority,
+                    alertType = newAlertType
+                )
+
+                if (reminderManager.updateReminder(updatedReminder)) {
+                    Toast.makeText(this, "✅ یادآوری به‌روز شد", Toast.LENGTH_SHORT).show()
+                    loadReminders()
+                }
+            }
+            .setNegativeButton("لغو", null)
             .show()
     }
 
@@ -603,44 +722,16 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 if (userText.isNotEmpty()) {
                     lifecycleScope.launch {
                         try {
-                            // پردازش اولیه با دستیار آفلاین
-                            val baseResponse = advancedAssistant.processRequest(userText)
-                            var finalText = baseResponse.text
-                            var finalAction = baseResponse.actionType
-
-                            // اگر سوال عمومی یا نیازمند AI بود، سعی کن از مدل آنلاین استفاده کنی
-                            if (baseResponse.actionType == AdvancedPersianAssistant.ActionType.NEEDS_AI) {
-                                val prefs = PreferencesManager(this@AdvancedRemindersActivity)
-                                val workingMode = prefs.getWorkingMode()
-                                val aiManager = AIModelManager(this@AdvancedRemindersActivity)
-                                val hasKey = aiManager.hasApiKey()
-
-                                val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
-                                        workingMode == PreferencesManager.WorkingMode.HYBRID) && hasKey
-
-                                if (canUseOnline) {
-                                    val prompt = """
-                                        تو یک دستیار هوشمند یادآوری و برنامه‌ریزی هستی.
-                                        کاربر در مورد یادآوری‌ها یا سوال عمومی می‌پرسد:
-                                        "$userText"
-
-                                        با لحن مودب و کوتاه، فقط به زبان فارسی پاسخ بده.
-                                    """.trimIndent()
-
-                                    val aiText = aiManager.generateText(prompt)
-                                    if (aiText.isNotBlank()) {
-                                        finalText = aiText
-                                    }
-                                } else if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasKey) {
-                                    finalText = "برای استفاده از مدل آنلاین، ابتدا کلید API را در تنظیمات وارد کنید."
-                                }
-                            }
+                            val response = advancedAssistant.processRequestWithAI(
+                                userText,
+                                contextHint = "یادآوری‌ها و برنامه‌ریزی کارهای روزانه"
+                            )
 
                             MaterialAlertDialogBuilder(this@AdvancedRemindersActivity)
                                 .setTitle("پاسخ دستیار")
-                                .setMessage(finalText)
+                                .setMessage(response.text)
                                 .setPositiveButton("باشه") { _, _ ->
-                                    val action = finalAction
+                                    val action = response.actionType
                                     if (action == AdvancedPersianAssistant.ActionType.ADD_REMINDER ||
                                         action == AdvancedPersianAssistant.ActionType.OPEN_REMINDERS) {
                                         loadReminders()

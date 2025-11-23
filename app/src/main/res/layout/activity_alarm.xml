@@ -1,122 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/primaryColor"
-    android:layoutDirection="rtl">
+    android:background="@drawable/alarm_background_gradient"
+    tools:context=".activities.AlarmActivity">
+
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="64dp"
+        android:fontFamily="sans-serif-light"
+        android:textColor="@android:color/white"
+        android:textSize="60sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="08:30" />
+
+    <TextView
+        android:id="@+id/messageText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/timeText"
+        tools:text="جلسه مهم با تیم پروژه" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/actionButtonsLayout"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="32dp"
-        android:gravity="center"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:orientation="horizontal"
+        android:layout_marginBottom="32dp"
+        app:layout_constraintBottom_toTopOf="@id/voiceCommandButton"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginHorizontal="16dp">
 
-        <!-- آیکون -->
-        <TextView
-            android:layout_width="wrap_content"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/snoozeButton"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="⏰"
-            android:textSize="80sp" />
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="⏰ ۱۰ دقیقه بعد"
+            style="@style/Widget.Material3.Button.TonalButton" />
 
-        <!-- عنوان -->
-        <TextView
-            android:layout_width="wrap_content"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/doneButton"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="یادآوری"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:layout_marginTop="16dp" />
-
-        <!-- پیام -->
-        <TextView
-            android:id="@+id/messageText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="خوردن قرص"
-            android:textSize="24sp"
-            android:textColor="@android:color/white"
-            android:layout_marginTop="8dp"
-            android:gravity="center" />
-
-        <!-- زمان -->
-        <TextView
-            android:id="@+id/timeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="الان"
-            android:textSize="18sp"
-            android:textColor="@android:color/white"
-            android:alpha="0.8"
-            android:layout_marginTop="8dp" />
-
-        <!-- دکمه‌ها -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="32dp">
-
-            <!-- دکمه انجام شد -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/doneButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="✅ انجام شد"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:paddingVertical="16dp"
-                app:backgroundTint="#4CAF50"
-                app:cornerRadius="12dp"
-                style="@style/Widget.Material3.Button" />
-
-            <!-- دکمه صوتی -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/voiceButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="🎤 با صدا انجام دهید"
-                android:textSize="16sp"
-                android:paddingVertical="14dp"
-                android:layout_marginTop="12dp"
-                app:backgroundTint="#2196F3"
-                app:cornerRadius="12dp"
-                style="@style/Widget.Material3.Button" />
-
-            <!-- دکمه بعداً -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/snoozeButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="⏰ 5 دقیقه بعد یادآوری کن"
-                android:textSize="16sp"
-                android:paddingVertical="14dp"
-                android:layout_marginTop="12dp"
-                app:backgroundTint="#FF9800"
-                app:cornerRadius="12dp"
-                style="@style/Widget.Material3.Button" />
-
-            <!-- دکمه بستن -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/dismissButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="❌ بستن"
-                android:textSize="16sp"
-                android:paddingVertical="14dp"
-                android:layout_marginTop="12dp"
-                app:backgroundTint="#F44336"
-                app:cornerRadius="12dp"
-                style="@style/Widget.Material3.Button" />
-
-        </LinearLayout>
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="✅ انجام شد" />
 
     </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/voiceCommandButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="🎤 با صدا انجام دهید"
+        android:textColor="@android:color/white"
+        app:layout_constraintBottom_toTopOf="@id/dismissButton"
+        app:layout_constraintStart_toStartOf="@id/actionButtonsLayout"
+        app:layout_constraintEnd_toEndOf="@id/actionButtonsLayout" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/dismissButton"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:text="بستن"
+        android:textColor="#B0BEC5"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

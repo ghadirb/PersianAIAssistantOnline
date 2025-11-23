@@ -1,6 +1,7 @@
 package com.persianai.assistant.ai
 
 import android.content.Context
+import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.finance.FinanceManager
@@ -55,6 +56,55 @@ class AdvancedPersianAssistant(private val context: Context) {
                        "❓ سوال: «تفاوت چک و سفته چیست؟»"
             )
         }
+    }
+
+    suspend fun processRequestWithAI(userInput: String, contextHint: String? = null): AssistantResponse {
+        val baseResponse = processRequest(userInput)
+
+        if (baseResponse.actionType != ActionType.NEEDS_AI) {
+            return baseResponse
+        }
+
+        val workingMode = prefsManager.getWorkingMode()
+        val aiManager = AIModelManager(context)
+        val hasKey = aiManager.hasApiKey()
+
+        val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
+                workingMode == PreferencesManager.WorkingMode.HYBRID) && hasKey
+
+        if (canUseOnline) {
+            return try {
+                val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let {
+                    "زمینه گفتگو: $it.\n"
+                } ?: ""
+
+                val prompt = """
+                    تو یک دستیار هوش مصنوعی فارسی هستی.
+                    $contextLine
+                    کاربر می‌گوید:
+                    "$userInput"
+
+                    با لحن مودب، واضح و نسبتاً کوتاه فقط به زبان فارسی پاسخ بده.
+                """.trimIndent()
+
+                val aiText = aiManager.generateText(prompt)
+                if (aiText.isNotBlank()) {
+                    AssistantResponse(text = aiText)
+                } else {
+                    baseResponse
+                }
+            } catch (e: Exception) {
+                baseResponse
+            }
+        }
+
+        if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasKey) {
+            return AssistantResponse(
+                text = "برای استفاده از مدل آنلاین، ابتدا کلید API را در تنظیمات وارد کنید."
+            )
+        }
+
+        return baseResponse
     }
     
     private fun normalizeText(text: String): String {
@@ -270,6 +320,25 @@ class AdvancedPersianAssistant(private val context: Context) {
         if (text.contains("هر روز") || text.contains("روزانه")) {
             data["repeat"] = "daily"
         }
+
+        // زمان‌های نسبی مثل «10 دقیقه دیگه» یا «2 ساعت بعد»
+        val relativeTimeRegex = """(\d+|نیم)\s+(دقیقه|ساعت)\s+(دیگه|بعد|آینده)""".toRegex()
+        relativeTimeRegex.find(text)?.let {
+            val value = it.groupValues[1]
+            val unit = it.groupValues[2]
+            val amount = if (value == "نیم") 0.5 else value.toDoubleOrNull() ?: 0.0
+
+            if (amount > 0) {
+                val millis = when (unit) {
+                    "دقیقه" -> amount * 60 * 1000
+                    "ساعت" -> amount * 60 * 60 * 1000
+                    else -> 0.0
+                }
+                if (millis > 0) {
+                    data["relativeMillis"] = millis.toLong()
+                }
+            }
+        }
         
         // استخراج متن یادآوری
         val messageRegex = """(یادم بنداز|یاد بده|یادآوری کن)\s+(.+)""".toRegex()
@@ -455,37 +524,41 @@ class AdvancedPersianAssistant(private val context: Context) {
             )
         }
         
-        val hour = data["hour"] as? Int
-        val minute = data["minute"] as? Int ?: 0
-        
-        if (hour == null) {
-            return AssistantResponse(
-                text = "⚠️ ساعت یادآوری مشخص نیست. لطفاً زمانی مثل «ساعت ۹ صبح» یا «۱۸:۳۰» بگویید."
-            )
+        val relativeMillis = data["relativeMillis"] as? Long
+        val triggerTime: Long
+
+        if (relativeMillis != null) {
+            triggerTime = System.currentTimeMillis() + relativeMillis
+        } else {
+            val hour = data["hour"] as? Int
+            val minute = data["minute"] as? Int ?: 0
+
+            if (hour == null) {
+                return AssistantResponse(
+                    text = "⚠️ ساعت یادآوری مشخص نیست. لطفاً زمانی مثل «ساعت ۹ صبح»، «۱۸:۳۰» یا «۱۰ دقیقه دیگه» بگویید."
+                )
+            }
+
+            val day = data["day"] as? String
+            val calendar = Calendar.getInstance()
+
+            when (day) {
+                "tomorrow" -> calendar.add(Calendar.DAY_OF_MONTH, 1)
+                "dayAfterTomorrow" -> calendar.add(Calendar.DAY_OF_MONTH, 2)
+            }
+
+            calendar.set(Calendar.HOUR_OF_DAY, hour)
+            calendar.set(Calendar.MINUTE, minute)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+
+            if (calendar.timeInMillis <= System.currentTimeMillis() && (day == null || day == "today")) {
+                calendar.add(Calendar.DAY_OF_MONTH, 1)
+            }
+            triggerTime = calendar.timeInMillis
         }
-        
-        val day = data["day"] as? String
+
         val repeat = data["repeat"] as? String
-        
-        val calendar = Calendar.getInstance()
-        
-        when (day) {
-            "tomorrow" -> calendar.add(Calendar.DAY_OF_MONTH, 1)
-            "dayAfterTomorrow" -> calendar.add(Calendar.DAY_OF_MONTH, 2)
-            // today یا null یعنی همان امروز
-        }
-        
-        calendar.set(Calendar.HOUR_OF_DAY, hour)
-        calendar.set(Calendar.MINUTE, minute)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        
-        // اگر زمان گذشته بود و کاربر روز خاصی نگفته بود، برای فردا تنظیم کن
-        if (calendar.timeInMillis <= System.currentTimeMillis() && (day == null || day == "today")) {
-            calendar.add(Calendar.DAY_OF_MONTH, 1)
-        }
-        
-        val triggerTime = calendar.timeInMillis
         
         val title = message.take(40)
         val description = if (message.length > 40) message else ""

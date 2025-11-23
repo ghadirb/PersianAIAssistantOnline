@@ -399,6 +399,26 @@ class SmartReminderManager(private val context: Context) {
     /**
      * حذف یادآوری
      */
+    fun updateReminder(updatedReminder: SmartReminder): Boolean {
+        val reminders = getAllReminders().toMutableList()
+        val index = reminders.indexOfFirst { it.id == updatedReminder.id }
+
+        if (index != -1) {
+            val oldReminder = reminders[index]
+            reminders[index] = updatedReminder
+            saveReminders(reminders)
+
+            // Reschedule if trigger time is different
+            if (oldReminder.triggerTime != updatedReminder.triggerTime) {
+                cancelReminder(updatedReminder.id)
+                scheduleReminder(updatedReminder)
+            }
+            Log.i(TAG, "🔄 یادآوری به‌روز شد: ${updatedReminder.title}")
+            return true
+        }
+        return false
+    }
+
     fun deleteReminder(reminderId: String): Boolean {
         val reminders = getAllReminders().toMutableList()
         val removed = reminders.removeIf { it.id == reminderId }
@@ -452,7 +472,11 @@ class SmartReminderManager(private val context: Context) {
      */
     private fun scheduleReminder(reminder: SmartReminder) {
         val intent = Intent(context, ReminderReceiver::class.java).apply {
-            putExtra("reminder_id", reminder.id)
+            // ID عددی برای استفاده در NotificationManager و requestCode
+            putExtra("reminder_id", reminder.id.hashCode())
+            // ID اصلی برای کار با SmartReminderManager
+            putExtra("smart_reminder_id", reminder.id)
+
             putExtra("reminder_title", reminder.title)
             putExtra("reminder_description", reminder.description)
             putExtra("reminder_priority", reminder.priority.name)

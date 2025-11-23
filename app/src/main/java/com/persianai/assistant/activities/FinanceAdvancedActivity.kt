@@ -17,6 +17,7 @@ import com.persianai.assistant.databinding.ActivityFinanceAdvancedBinding
 import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.finance.FinanceRuleEngine
 import com.persianai.assistant.finance.InstallmentManager
+import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.utils.NotificationHelper
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -90,6 +91,10 @@ class FinanceAdvancedActivity : AppCompatActivity() {
         // دکمه افزودن قسط
         binding.addInstallmentButton.setOnClickListener {
             showAddInstallmentDialog()
+        }
+
+        binding.aiChatFab.setOnClickListener {
+            showAIChatDialog()
         }
         
         // RecyclerView چک‌ها
@@ -398,6 +403,53 @@ class FinanceAdvancedActivity : AppCompatActivity() {
         // Alerts checking disabled for now
     }
     
+    private fun showAIChatDialog() {
+        val input = android.widget.EditText(this).apply {
+            hint = "مثال: مجموع چک‌های این ماه چقدره؟"
+            setPadding(32, 32, 32, 32)
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🤖 چت هوشمند مالی")
+            .setView(input)
+            .setPositiveButton("اجرا") { _, _ ->
+                val userMessage = input.text.toString().trim()
+                if (userMessage.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        try {
+                            val assistant = AdvancedPersianAssistant(this@FinanceAdvancedActivity)
+                            val response = assistant.processRequestWithAI(
+                                userMessage,
+                                contextHint = "سوالات مالی، چک‌ها، اقساط، گزارش مالی"
+                            )
+
+                            MaterialAlertDialogBuilder(this@FinanceAdvancedActivity)
+                                .setTitle("پاسخ دستیار")
+                                .setMessage(response.text)
+                                .setPositiveButton("باشه") { _, _ ->
+                                    when (response.actionType) {
+                                        AdvancedPersianAssistant.ActionType.OPEN_CHECKS ->
+                                            binding.tabLayout.getTabAt(0)?.select()
+                                        AdvancedPersianAssistant.ActionType.OPEN_INSTALLMENTS ->
+                                            binding.tabLayout.getTabAt(1)?.select()
+                                        else -> {}
+                                    }
+                                }
+                                .show()
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                this@FinanceAdvancedActivity,
+                                "خطا: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true

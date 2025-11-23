@@ -26,6 +26,8 @@ class PreferencesManager(context: Context) {
         private const val KEY_WELCOME_COMPLETED = "welcome_completed"
         private const val KEY_TTS_ENABLED = "tts_enabled"
         private const val KEY_OFFLINE_MODEL_DOWNLOADED = "offline_model_downloaded"
+        private const val KEY_PARENTAL_ENABLED = "parental_enabled"
+        private const val KEY_PARENTAL_KEYWORDS = "parental_keywords"
         
         const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
@@ -148,6 +150,47 @@ JSON ONLY."""
 
     fun isOfflineModelDownloaded(): Boolean {
         return prefs.getBoolean(KEY_OFFLINE_MODEL_DOWNLOADED, false)
+    }
+    
+    fun isParentalControlEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PARENTAL_ENABLED, false)
+    }
+
+    fun setParentalControlEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PARENTAL_ENABLED, enabled).apply()
+    }
+
+    fun getBlockedKeywords(): List<String> {
+        val json = prefs.getString(KEY_PARENTAL_KEYWORDS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson<List<String>>(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setBlockedKeywords(keywords: List<String>) {
+        val clean = keywords.map { it.trim() }.filter { it.isNotEmpty() }
+        val json = gson.toJson(clean)
+        prefs.edit().putString(KEY_PARENTAL_KEYWORDS, json).apply()
+    }
+
+    fun addBlockedKeyword(keyword: String) {
+        val clean = keyword.trim()
+        if (clean.isEmpty()) return
+        val current = getBlockedKeywords().toMutableList()
+        if (current.any { it.equals(clean, ignoreCase = true) }) return
+        current.add(clean)
+        setBlockedKeywords(current)
+    }
+
+    fun removeBlockedKeyword(keyword: String) {
+        val clean = keyword.trim()
+        if (clean.isEmpty()) return
+        val current = getBlockedKeywords().toMutableList()
+        val updated = current.filterNot { it.equals(clean, ignoreCase = true) }
+        setBlockedKeywords(updated)
     }
     
     // Offline Model Type
