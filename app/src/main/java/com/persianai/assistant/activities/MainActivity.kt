@@ -271,6 +271,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun addMessage(message: ChatMessage) {
+        messages.add(message)
+        chatAdapter.notifyItemInserted(messages.size - 1)
+        binding.recyclerView.smoothScrollToPosition(messages.size - 1)
+        if (message.role == MessageRole.ASSISTANT && !message.isError) {
+            ttsHelper.speak(message.content)
+        }
+    }
+
+    private fun loadMessages() {
+        conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
+        val conversations = conversationStorage.getConversations()
+        if (conversations.isNotEmpty()) {
+            currentConversation = conversations.first()
+            messages.clear()
+            messages.addAll(currentConversation!!.messages)
+            chatAdapter.notifyDataSetChanged()
+            binding.recyclerView.scrollToPosition(messages.size - 1)
+        } else {
+            currentConversation = conversationStorage.createNewConversation()
+            addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور میتونم کمکتون کنم؟"))
+        }
+    }
+
+    private fun saveCurrentConversation() {
+        currentConversation?.let {
+            val updatedConversation = it.copy(messages = ArrayList(messages))
+            conversationStorage.saveConversation(updatedConversation)
+        }
+    }
+
     private fun checkAudioPermissionAndStartRecording() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
@@ -302,6 +333,19 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun stopRecording(filePath: String) {
+        if (!isRecording) return
+        try {
+            mediaRecorder?.stop()
+            mediaRecorder?.release()
+        } catch (e: Exception) {
+            // Ignore errors on stop
+        }
+        mediaRecorder = null
+        isRecording = false
+        recordingTimer?.cancel()
     }
 
     private fun stopRecordingAndProcess() {
