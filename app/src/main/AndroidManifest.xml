@@ -104,6 +104,11 @@
             android:parentActivityName=".activities.DashboardActivity" />
 
         <activity
+            android:name=".activities.ReminderChatActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AdvancedRemindersActivity" />
+
+        <activity
             android:name=".activities.ExpensesActivity"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
@@ -135,7 +140,7 @@
 
         <activity
             android:name=".activities.AlarmActivity"
-            android:exported="false"
+            android:exported="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
@@ -174,6 +179,31 @@
             android:name=".activities.AccountingAdvancedActivity"
             android:exported="false"
             android:parentActivityName=".activities.AccountingActivity" />
+
+        <activity
+            android:name=".activities.IncomeListActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AccountingAdvancedActivity" />
+
+        <activity
+            android:name=".activities.ExpenseListActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AccountingAdvancedActivity" />
+
+        <activity
+            android:name=".activities.CheckListActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AccountingAdvancedActivity" />
+
+        <activity
+            android:name=".activities.InstallmentListActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AccountingAdvancedActivity" />
+
+        <activity
+            android:name=".activities.AccountingChatActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.AccountingAdvancedActivity" />
             
         <!-- ✅ NEW: Checks Management Activity -->
         <activity

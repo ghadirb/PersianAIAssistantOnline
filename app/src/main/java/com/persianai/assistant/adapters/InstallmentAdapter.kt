@@ -12,7 +12,7 @@ import com.google.android.material.chip.Chip
 import com.persianai.assistant.R
 import com.persianai.assistant.models.Installment
 import com.persianai.assistant.models.InstallmentStatus
-import java.text.SimpleDateFormat
+import com.persianai.assistant.utils.JalaliCalendar
 import java.util.*
 
 /**
@@ -22,7 +22,12 @@ class InstallmentAdapter(
     private val onInstallmentClick: (Installment) -> Unit
 ) : ListAdapter<Installment, InstallmentAdapter.ViewHolder>(DiffCallback()) {
     
-    private val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale("fa", "IR"))
+    private fun toJalali(timestamp: Long): String {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = timestamp
+        val jCal = JalaliCalendar(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+        return jCal.toString()
+    }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)

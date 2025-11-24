@@ -37,25 +37,15 @@ import java.util.*
  * ✅ اولویت‌بندی
  * ✅ دسته‌بندی
  */
-class AdvancedRemindersActivity : AppCompatActivity() {
+class AdvancedRemindersActivity : BaseChatActivity() {
 
     private lateinit var binding: ActivityAdvancedRemindersBinding
-    private lateinit var remindersAdapter: RemindersAdapter
-    private lateinit var reminderManager: SmartReminderManager
+    private lateinit var smartReminderManager: SmartReminderManager
     private lateinit var advancedAssistant: AdvancedPersianAssistant
     private val allReminders = mutableListOf<SmartReminderManager.SmartReminder>()
     private var lastReminderNotification = 0L
     
     private var filterType: FilterType = FilterType.ALL
-    
-    enum class FilterType {
-        ALL,
-        TIME_BASED,
-        LOCATION_BASED,
-        RECURRING,
-        CONDITIONAL,
-        HIGH_PRIORITY
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,11 +63,11 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "📝 یادآوری‌های پیشرفته"
+        supportActionBar?.title = "🔔 یادآوری‌های هوشمند"
     }
     
     private fun initializeManager() {
-        reminderManager = SmartReminderManager(this)
+        smartReminderManager = SmartReminderManager(this)
         advancedAssistant = AdvancedPersianAssistant(this)
     }
     
@@ -93,7 +83,13 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun setupListeners() {
-        binding.fabAddReminder.setOnClickListener { showAddReminderDialog() }
+        binding.addReminderFab.setOnClickListener {
+            showAddReminderDialog()
+        }
+
+        binding.chatFab.setOnClickListener {
+            startActivity(Intent(this, ReminderChatActivity::class.java))
+        }
         setupFilterChips()
     }
 
@@ -130,7 +126,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 binding.progressBar.visibility = View.VISIBLE
-                val reminders = reminderManager.getAllReminders()
+                val reminders = smartReminderManager.getAllReminders()
                 allReminders.clear()
                 allReminders.addAll(reminders)
                 binding.progressBar.visibility = View.GONE
@@ -175,7 +171,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     private fun updateStats() {
         lifecycleScope.launch {
             try {
-                val stats = reminderManager.getReminderStats()
+                val stats = smartReminderManager.getReminderStats()
                 binding.statsCard.visibility = if (stats.totalReminders > 0) View.VISIBLE else View.GONE
                 binding.totalRemindersText.text = stats.totalReminders.toString()
                 binding.activeRemindersText.text = stats.activeReminders.toString()
@@ -253,6 +249,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         
         timeButton.setOnClickListener {
             val timePicker = MaterialTimePicker.Builder()
+                .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD)
                 .setTimeFormat(TimeFormat.CLOCK_24H)
                 .setHour(selectedHour)
                 .setMinute(selectedMinute)
@@ -299,7 +296,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 calendar.set(Calendar.MINUTE, selectedMinute)
                 calendar.set(Calendar.SECOND, 0)
                 
-                reminderManager.createSimpleReminder(
+                smartReminderManager.createSimpleReminder(
                     title = "$category - $title",
                     description = description,
                     triggerTime = calendar.timeInMillis,
@@ -371,7 +368,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
 
                 val description = if (placeName.isNotEmpty()) "مکان: $placeName" else ""
 
-                reminderManager.createLocationReminder(
+                smartReminderManager.createLocationReminder(
                     title = title,
                     description = description,
                     lat = lat,
@@ -465,7 +462,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     else -> SmartReminderManager.RepeatPattern.DAILY
                 }
 
-                reminderManager.createRecurringReminder(
+                smartReminderManager.createRecurringReminder(
                     title = title,
                     description = description,
                     firstTriggerTime = calendar.timeInMillis,
@@ -522,7 +519,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags = listOf("شرط: $condition")
                 )
 
-                reminderManager.addReminderWithoutAlarm(reminder)
+                smartReminderManager.addReminderWithoutAlarm(reminder)
 
                 Toast.makeText(this, "✅ یادآوری شرطی ذخیره شد", Toast.LENGTH_SHORT).show()
                 loadReminders()
@@ -536,7 +533,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             "view" -> showReminderDetails(reminder)
             "edit" -> showEditReminderDialog(reminder)
             "complete" -> lifecycleScope.launch {
-                if (reminderManager.completeReminder(reminder.id)) {
+                if (smartReminderManager.completeReminder(reminder.id)) {
                     Toast.makeText(this@AdvancedRemindersActivity, "✅ انجام شد", Toast.LENGTH_SHORT).show()
                     loadReminders()
                 }
@@ -684,7 +681,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     alertType = newAlertType
                 )
 
-                if (reminderManager.updateReminder(updatedReminder)) {
+                if (smartReminderManager.updateReminder(updatedReminder)) {
                     Toast.makeText(this, "✅ یادآوری به‌روز شد", Toast.LENGTH_SHORT).show()
                     loadReminders()
                 }
@@ -699,7 +696,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .setMessage("آیا از حذف ${reminder.title} مطمئن هستید؟")
             .setPositiveButton("حذف") { _, _ ->
                 lifecycleScope.launch {
-                    if (reminderManager.deleteReminder(reminder.id)) {
+                    if (smartReminderManager.deleteReminder(reminder.id)) {
                         Toast.makeText(this@AdvancedRemindersActivity, "🗑️ حذف شد", Toast.LENGTH_SHORT).show()
                         loadReminders()
                     }

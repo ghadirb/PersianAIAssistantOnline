@@ -11,7 +11,7 @@ import com.google.android.material.chip.Chip
 import com.persianai.assistant.R
 import com.persianai.assistant.models.Check
 import com.persianai.assistant.models.CheckStatus
-import java.text.SimpleDateFormat
+import com.persianai.assistant.utils.JalaliCalendar
 import java.util.*
 
 /**
@@ -20,8 +20,6 @@ import java.util.*
 class CheckAdapter(
     private val onCheckClick: (Check) -> Unit
 ) : ListAdapter<Check, CheckAdapter.ViewHolder>(DiffCallback()) {
-    
-    private val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale("fa", "IR"))
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)

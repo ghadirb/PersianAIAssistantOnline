@@ -40,13 +40,11 @@ import java.io.File
 /**
  * صفحه اصلی چت
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseChatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var chatAdapter: ChatAdapter
     private lateinit var prefsManager: PreferencesManager
-    private lateinit var messageStorage: MessageStorage
-    private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private lateinit var ttsHelper: com.persianai.assistant.utils.TTSHelper
     private lateinit var advancedAssistant: com.persianai.assistant.ai.AdvancedPersianAssistant
     private lateinit var smartReminderManager: SmartReminderManager
@@ -55,45 +53,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var installmentManager: InstallmentManager
     private var aiClient: AIClient? = null
     private var currentModel: AIModel = AIModel.GPT_4O_MINI
-    private val messages = mutableListOf<ChatMessage>()
-    private var currentConversation: com.persianai.assistant.models.Conversation? = null
-    private var mediaRecorder: MediaRecorder? = null
-    private var audioFilePath: String? = null
-    private var isRecording = false
-    private var recordingCancelled = false
-    private var recordingStartTime: Long = 0
-    private var recordingTimer: android.os.CountDownTimer? = null
-    private var initialX = 0f
-    private var initialY = 0f
-    private val swipeThreshold = 200f // پیکسل برای لغو
+    private lateinit var speechRecognizer: SpeechRecognizer
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
         private const val NOTIFICATION_PERMISSION_CODE = 1002
     }
 
-    override fun onResume() {
-        super.onResume()
-        updateModeIndicator()
-    }
-    
-    private fun isActionCommand(text: String): Boolean {
-        val cmd = text.lowercase()
-        // موقتاً غیرفعال: موزیک، مسیریابی، آب و هوا
-        // val musicKeywords = listOf("آهنگ", "موزیک", "موسیقی", "پخش")
-        // val navKeywords = listOf("مسیر", "ببر", "برو", "مسیریابی")
-        // return musicKeywords.any { cmd.contains(it) } || navKeywords.any { cmd.contains(it) }
-        
-        // فعلاً فقط دستورات مالی و یادآوری فعال هستند
-        val financeKeywords = listOf("چک", "قسط", "حساب", "هزینه", "درآمد", "تراکنش")
-        val reminderKeywords = listOf("یادآوری", "یادآور", "یادم باشه", "یاد بده")
-        return financeKeywords.any { cmd.contains(it) } || reminderKeywords.any { cmd.contains(it) }
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        ttsHelper.shutdown()
-    }
+    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.recyclerView
+    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = binding.messageInput
+    override fun getSendButton(): View = binding.sendButton
+    override fun getVoiceButton(): View = binding.voiceButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,14 +82,7 @@ class MainActivity : AppCompatActivity() {
             android.util.Log.d("MainActivity", "Toolbar set")
 
             prefsManager = PreferencesManager(this)
-            messageStorage = MessageStorage(this)
-            conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
-            
-            // راه‌اندازی TTS
             ttsHelper = com.persianai.assistant.utils.TTSHelper(this)
-            ttsHelper.initialize()
-            
-            // راه‌اندازی دستیار پیشرفته و مدیران داده
             advancedAssistant = com.persianai.assistant.ai.AdvancedPersianAssistant(this)
             smartReminderManager = SmartReminderManager(this)
             financeManager = FinanceManager(this)
@@ -135,11 +98,7 @@ class MainActivity : AppCompatActivity() {
             
             android.util.Log.d("MainActivity", "Managers initialized")
             
-            setupRecyclerView()
-            android.util.Log.d("MainActivity", "RecyclerView setup")
-            
-            setupAIClient()
-            android.util.Log.d("MainActivity", "AIClient setup")
+            setupChatUI()
             
             loadMessages()
             android.util.Log.d("MainActivity", "Messages loaded")
@@ -175,234 +134,6 @@ class MainActivity : AppCompatActivity() {
             
             // بستن برنامه
             finish()
-        }
-    }
-
-    private fun handleParentalControlCommand(text: String): Boolean {
-        val lower = text.lowercase()
-        val prefs = prefsManager
-
-        // الگوهای متداول برای نمایش لیست کلمات مسدود
-        val askList = lower.contains("لیست کلمات مسدود") ||
-                lower.contains("لیست کلمات ممنوع") ||
-                lower.contains("کلمات مسدود را نشان بده")
-
-        // افزودن کلمه: «کلمه X را مسدود کن»
-        val addMatch = Regex("کلمه\\s+(.+?)\\s+را\\s+مسدود\\s+کن").find(text)
-
-        // حذف کلمه: «کلمه X را از لیست مسدود حذف کن»
-        val removeMatch = Regex("کلمه\\s+(.+?)\\s+را\\s+از\\s+لیست\\s+مسدود\\s+حذف\\s+کن").find(text)
-
-        if (!askList && addMatch == null && removeMatch == null) {
-            return false
-        }
-
-        // پیام کاربر را در چت ذخیره کن
-        val userMessage = ChatMessage(
-            role = MessageRole.USER,
-            content = text,
-            timestamp = System.currentTimeMillis()
-        )
-        addMessage(userMessage)
-        binding.messageInput.text?.clear()
-
-        val replyText = when {
-            addMatch != null -> {
-                val keyword = addMatch.groupValues[1].trim()
-                if (keyword.isEmpty()) {
-                    "⚠️ کلمه‌ای برای مسدود کردن مشخص نشد. مثال: «کلمه یوتیوب را مسدود کن»"
-                } else {
-                    prefs.addBlockedKeyword(keyword)
-                    prefs.setParentalControlEnabled(true)
-                    "✅ کلمه «$keyword» به لیست کلمات مسدود اضافه شد. از این پس در باز کردن برنامه‌ها و جستجوها در نظر گرفته می‌شود."
-                }
-            }
-            removeMatch != null -> {
-                val keyword = removeMatch.groupValues[1].trim()
-                if (keyword.isEmpty()) {
-                    "⚠️ کلمه‌ای برای حذف مشخص نشد. مثال: «کلمه یوتیوب را از لیست مسدود حذف کن»"
-                } else {
-                    prefs.removeBlockedKeyword(keyword)
-                    "✅ کلمه «$keyword» از لیست کلمات مسدود حذف شد."
-                }
-            }
-            askList -> {
-                val keywords = prefs.getBlockedKeywords()
-                if (keywords.isEmpty()) {
-                    "فعلاً هیچ کلمه‌ای مسدود نشده است. می‌توانی بگویی: «کلمه یوتیوب را مسدود کن»."
-                } else {
-                    "🔒 کلمات مسدود فعلی:\n" + keywords.joinToString(separator = "، ") { "«$it»" }
-                }
-            }
-            else -> ""
-        }
-
-        if (replyText.isNotBlank()) {
-            val aiMessage = ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = replyText,
-                timestamp = System.currentTimeMillis()
-            )
-            addMessage(aiMessage)
-            saveCurrentConversation()
-        }
-
-        return true
-    }
-    
-    private fun showFirstRunDialogIfNeeded() {
-        val prefs = getSharedPreferences("app_state", MODE_PRIVATE)
-        val isFirstRun = prefs.getBoolean("is_first_run", true)
-        
-        if (isFirstRun && !prefsManager.hasAPIKeys()) {
-            prefs.edit().putBoolean("is_first_run", false).apply()
-            downloadAndDecryptKeys("12345")
-        }
-    }
-    
-    private fun showPasswordDialog() {
-        val input = com.google.android.material.textfield.TextInputEditText(this)
-        input.hint = "رمز عبور"
-        input.inputType = android.text.InputType.TYPE_CLASS_TEXT or 
-                          android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-
-        val container = android.widget.FrameLayout(this)
-        val params = android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-        )
-        params.leftMargin = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
-        params.rightMargin = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
-        input.layoutParams = params
-        container.addView(input)
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle("ورود رمز عبور")
-            .setMessage("لطفاً رمز عبور کلیدهای API را وارد کنید (پیش‌فرض: 12345)")
-            .setView(container)
-            .setPositiveButton("تأیید") { _, _ ->
-                val password = input.text.toString()
-                if (password.isNotEmpty()) {
-                    downloadAndDecryptKeys(password)
-                } else {
-                    Toast.makeText(this, "رمز عبور نمی‌تواند خالی باشد", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("انصراف", null)
-            .setCancelable(false)
-            .show()
-    }
-    
-    private fun downloadAndDecryptKeys(password: String) {
-        lifecycleScope.launch {
-            try {
-                Toast.makeText(this@MainActivity, "در حال دانلود...", Toast.LENGTH_SHORT).show()
-                
-                // دانلود فایل رمزشده از Google Drive
-                val encryptedData = try {
-                    withContext(Dispatchers.IO) {
-                        DriveHelper.downloadEncryptedKeys()
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "خطا در دانلود: ${e.message}\nلطفاً اتصال اینترنت را بررسی کنید.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@launch
-                }
-                
-                Toast.makeText(this@MainActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
-                
-                // رمزگشایی
-                val decryptedData = withContext(Dispatchers.IO) {
-                    EncryptionHelper.decrypt(encryptedData, password)
-                }
-                
-                // پردازش کلیدها
-                val apiKeys = parseAPIKeys(decryptedData)
-                
-                if (apiKeys.isEmpty()) {
-                    throw Exception("هیچ کلید معتبری یافت نشد")
-                }
-                
-                // ذخیره کلیدها
-                prefsManager.saveAPIKeys(apiKeys)
-                
-                Toast.makeText(
-                    this@MainActivity,
-                    "کلیدها با موفقیت بارگذاری شدند (${apiKeys.size} کلید)",
-                    Toast.LENGTH_LONG
-                ).show()
-                
-                // راه‌اندازی مجدد AI Client
-                setupAIClient()
-                
-            } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Error downloading/decrypting keys", e)
-                
-                Toast.makeText(
-                    this@MainActivity,
-                    "خطا: ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-    
-    private fun parseAPIKeys(data: String): List<com.persianai.assistant.models.APIKey> {
-        val keys = mutableListOf<com.persianai.assistant.models.APIKey>()
-        
-        data.lines().forEach { line ->
-            val trimmed = line.trim()
-            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
-            
-            // فرمت: provider:key یا فقط key
-            val parts = trimmed.split(":", limit = 2)
-            
-            if (parts.size == 2) {
-                val provider = when (parts[0].lowercase()) {
-                    "openai" -> com.persianai.assistant.models.AIProvider.OPENAI
-                    "anthropic", "claude" -> com.persianai.assistant.models.AIProvider.ANTHROPIC
-                    "openrouter" -> com.persianai.assistant.models.AIProvider.OPENROUTER
-                    else -> null
-                }
-                
-                if (provider != null) {
-                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), true))
-                }
-            } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
-                // تشخیص نوع کلید از روی prefix
-                val provider = when {
-                    trimmed.startsWith("sk-proj-") -> com.persianai.assistant.models.AIProvider.OPENAI
-                    trimmed.startsWith("sk-or-") -> com.persianai.assistant.models.AIProvider.OPENROUTER
-                    trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
-                    else -> com.persianai.assistant.models.AIProvider.OPENAI
-                }
-                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, true))
-            }
-        }
-        
-        return keys
-    }
-
-    private fun setupRecyclerView() {
-        chatAdapter = ChatAdapter(messages)
-        binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity).apply {
-                stackFromEnd = true
-            }
-            adapter = chatAdapter
-        }
-    }
-
-    private fun setupAIClient() {
-        val apiKeys = prefsManager.getAPIKeys()
-        if (apiKeys.isNotEmpty()) {
-            aiClient = AIClient(apiKeys)
-            currentModel = prefsManager.getSelectedModel()
-        } else {
-            Toast.makeText(this, "کلید API یافت نشد. لطفاً از تنظیمات اضافه کنید.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -628,6 +359,142 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    private fun showFirstRunDialogIfNeeded() {
+        val prefs = getSharedPreferences("app_state", MODE_PRIVATE)
+        val isFirstRun = prefs.getBoolean("is_first_run", true)
+        
+        if (isFirstRun && !prefsManager.hasAPIKeys()) {
+            prefs.edit().putBoolean("is_first_run", false).apply()
+            downloadAndDecryptKeys("12345")
+        }
+    }
+    
+    private fun showPasswordDialog() {
+        val input = com.google.android.material.textfield.TextInputEditText(this)
+        input.hint = "رمز عبور"
+        input.inputType = android.text.InputType.TYPE_CLASS_TEXT or 
+                          android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+
+        val container = android.widget.FrameLayout(this)
+        val params = android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        params.leftMargin = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
+        params.rightMargin = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
+        input.layoutParams = params
+        container.addView(input)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("ورود رمز عبور")
+            .setMessage("لطفاً رمز عبور کلیدهای API را وارد کنید (پیش‌فرض: 12345)")
+            .setView(container)
+            .setPositiveButton("تأیید") { _, _ ->
+                val password = input.text.toString()
+                if (password.isNotEmpty()) {
+                    downloadAndDecryptKeys(password)
+                } else {
+                    Toast.makeText(this, "رمز عبور نمی‌تواند خالی باشد", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("انصراف", null)
+            .setCancelable(false)
+            .show()
+    }
+    
+    private fun downloadAndDecryptKeys(password: String) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@MainActivity, "در حال دانلود...", Toast.LENGTH_SHORT).show()
+                
+                // دانلود فایل رمزشده از Google Drive
+                val encryptedData = try {
+                    withContext(Dispatchers.IO) {
+                        DriveHelper.downloadEncryptedKeys()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "خطا در دانلود: ${e.message}\nلطفاً اتصال اینترنت را بررسی کنید.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+                
+                Toast.makeText(this@MainActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
+                
+                // رمزگشایی
+                val decryptedData = withContext(Dispatchers.IO) {
+                    EncryptionHelper.decrypt(encryptedData, password)
+                }
+                
+                // پردازش کلیدها
+                val apiKeys = parseAPIKeys(decryptedData)
+                
+                if (apiKeys.isEmpty()) {
+                    throw Exception("هیچ کلید معتبری یافت نشد")
+                }
+                
+                // ذخیره کلیدها
+                prefsManager.saveAPIKeys(apiKeys)
+                
+                Toast.makeText(
+                    this@MainActivity,
+                    "کلیدها با موفقیت بارگذاری شدند (${apiKeys.size} کلید)",
+                    Toast.LENGTH_LONG
+                ).show()
+                
+                // راه‌اندازی مجدد AI Client
+                setupAIClient()
+                
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Error downloading/decrypting keys", e)
+                
+                Toast.makeText(
+                    this@MainActivity,
+                    "خطا: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    
+    private fun parseAPIKeys(data: String): List<com.persianai.assistant.models.APIKey> {
+        val keys = mutableListOf<com.persianai.assistant.models.APIKey>()
+        
+        data.lines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
+            
+            // فرمت: provider:key یا فقط key
+            val parts = trimmed.split(":", limit = 2)
+            
+            if (parts.size == 2) {
+                val provider = when (parts[0].lowercase()) {
+                    "openai" -> com.persianai.assistant.models.AIProvider.OPENAI
+                    "anthropic", "claude" -> com.persianai.assistant.models.AIProvider.ANTHROPIC
+                    "openrouter" -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    else -> null
+                }
+                
+                if (provider != null) {
+                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), true))
+                }
+            } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
+                // تشخیص نوع کلید از روی prefix
+                val provider = when {
+                    trimmed.startsWith("sk-proj-") -> com.persianai.assistant.models.AIProvider.OPENAI
+                    trimmed.startsWith("sk-or-") -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
+                    else -> com.persianai.assistant.models.AIProvider.OPENAI
+                }
+                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, true))
+            }
+        }
+        
+        return keys
+    }
+
     private suspend fun handleOfflineRequest(text: String): String = withContext(Dispatchers.IO) {
         val parser = com.persianai.assistant.ai.OfflineIntentParser(this@MainActivity)
         val intentJson = parser.parse(text)
@@ -700,16 +567,6 @@ class MainActivity : AppCompatActivity() {
         return@withContext processAIResponse(response.content)
     }
 
-    private fun addMessage(message: ChatMessage) {
-        messages.add(message)
-        chatAdapter.notifyItemInserted(messages.size - 1)
-        binding.recyclerView.smoothScrollToPosition(messages.size - 1)
-        
-        // اعلام صوتی پاسخ دستیار
-        if (message.role == MessageRole.ASSISTANT && !message.isError) {
-            ttsHelper.speak(message.content)
-        }
-    }
     
     private suspend fun processAIResponse(response: String): String {
         return withContext(Dispatchers.Main) {
@@ -1244,82 +1101,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkAudioPermissionAndStartRecording() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.RECORD_AUDIO),
-                REQUEST_RECORD_AUDIO
-            )
+    private fun checkAudioPermissionAndStartSpeechRecognition() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
         } else {
-            startRecording()
+            startSpeechRecognition()
         }
     }
 
-    private fun startRecording() {
-        if (isRecording) return
-        
-        try {
-            val outputDir = cacheDir
-            val outputFile = File.createTempFile("audio_", ".3gp", outputDir)
-            audioFilePath = outputFile.absolutePath
-            
-            mediaRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                MediaRecorder(this)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                setOutputFile(audioFilePath)
-                prepare()
-                start()
-            }
-            
-            isRecording = true
-            recordingStartTime = System.currentTimeMillis()
-            
-            // نمایش نشانگر ضبط
-            binding.recordingIndicator.visibility = android.view.View.VISIBLE
-            
-            // شروع تایمر
-            startRecordingTimer()
-            
-        } catch (e: Exception) {
-            Toast.makeText(this, "خطا در شروع ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
-            android.util.Log.e("MainActivity", "Recording error", e)
-        }
-    }
-    
-    private fun startRecordingTimer() {
-        // Timer removed - using simple indicator instead
-    }
-    
-    private fun cancelRecording() {
-        if (!isRecording) return
-        
-        try {
-            recordingTimer?.cancel()
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            isRecording = false
-            
-            // حذف فایل صوتی
-            audioFilePath?.let { File(it).delete() }
-            
-            // مخفی کردن نشانگر
-            binding.recordingIndicator.visibility = android.view.View.GONE
-            
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Cancel recording error", e)
-        }
-    }
+    private fun startSpeechRecognition() {
     
     private fun stopRecordingAndProcess() {
         if (!isRecording) return
