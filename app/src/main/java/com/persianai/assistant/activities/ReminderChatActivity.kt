@@ -6,13 +6,15 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.persianai.assistant.databinding.ActivityChatBinding
 import com.persianai.assistant.models.MessageRole
-import com.persianai.assistant.utils.SmartReminderManager
+import com.persianai.assistant.db.RemindersDb
+import com.persianai.assistant.models.Reminder
+import com.persianai.assistant.utils.PersianDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ReminderChatActivity : BaseChatActivity() {
 
-    private lateinit var smartReminderManager: SmartReminderManager
+        private lateinit var db: RemindersDb
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,7 +25,7 @@ class ReminderChatActivity : BaseChatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "چت با دستیار یادآوری"
 
-        smartReminderManager = SmartReminderManager(this)
+                db = RemindersDb(this)
 
         setupChatUI()
 
@@ -55,9 +57,17 @@ class ReminderChatActivity : BaseChatActivity() {
                 val json = Gson().fromJson(responseJson, JsonObject::class.java)
                 if (json.has("action") && json.get("action").asString == "add_reminder") {
                     val message = json.get("message").asString
-                    // TODO: Parse date and time correctly
-                    smartReminderManager.createSimpleReminder(message, System.currentTimeMillis() + 60000) // Placeholder: 1 minute from now
-                    "✅ یادآوری «$message» با موفقیت تنظیم شد."
+                    val time = if (json.has("time")) json.get("time").asString else "09:00"
+                    val date = if (json.has("date")) json.get("date").asString else PersianDate.today()
+
+                    val reminder = Reminder(
+                        title = message,
+                        persianDate = date,
+                        time = time
+                    )
+                    db.addReminder(reminder)
+
+                    "✅ یادآوری «$message» برای تاریخ $date ساعت $time تنظیم شد."
                 } else {
                     responseJson // Return the raw JSON if it's not an add_reminder action
                 }

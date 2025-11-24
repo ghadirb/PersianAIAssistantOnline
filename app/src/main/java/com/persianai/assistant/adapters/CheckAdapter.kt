@@ -18,6 +18,7 @@ import java.util.*
  * آداپتور برای نمایش لیست چک‌ها
  */
 class CheckAdapter(
+    private val dateFormat: SimpleDateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()),
     private val onCheckClick: (Check) -> Unit
 ) : ListAdapter<Check, CheckAdapter.ViewHolder>(DiffCallback()) {
     

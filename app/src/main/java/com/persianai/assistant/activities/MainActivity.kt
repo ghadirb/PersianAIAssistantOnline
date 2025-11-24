@@ -236,7 +236,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        private fun setupChatUI() {
+    private fun setupChatUI() {
         setupRecyclerView()
         setupAIClient()
     }
@@ -278,7 +278,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        private fun startRecording() {
+    private fun startRecording() {
         try {
             audioFilePath = "${externalCacheDir?.absolutePath}/audiorecord.mp3"
             mediaRecorder = MediaRecorder().apply {
@@ -303,7 +303,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        private fun stopRecordingAndProcess() {
+    private fun stopRecordingAndProcess() {
         if (!isRecording) return
         try {
             mediaRecorder?.stop()
@@ -317,7 +317,7 @@ class MainActivity : AppCompatActivity() {
         transcribeAndSendAudio(audioFilePath)
     }
 
-        private fun cancelRecording() {
+    private fun cancelRecording() {
         if (!isRecording) return
         try {
             mediaRecorder?.stop()
@@ -331,7 +331,7 @@ class MainActivity : AppCompatActivity() {
         File(audioFilePath).delete()
     }
 
-        private fun transcribeAndSendAudio(filePath: String) {
+    private fun transcribeAndSendAudio(filePath: String) {
         // Placeholder for transcription logic
         val file = File(filePath)
         if (file.exists()) {
@@ -341,27 +341,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        private fun updateModelDisplay() {
+    private fun updateModelDisplay() {
         // Placeholder
     }
 
-        private fun updateModeIndicator() {
+    private fun updateModeIndicator() {
         // Placeholder
     }
 
-        private fun isActionCommand(text: String): Boolean {
+    private fun isActionCommand(text: String): Boolean {
         val keywords = listOf("یادآوری", "چک", "قسط", "مسیریابی", "درآمد", "هزینه")
         return keywords.any { text.contains(it) }
     }
 
-            private fun saveCurrentConversation() {
+    private fun saveCurrentConversation() {
         currentConversation?.let {
             it.messages = messages
             conversationStorage.saveConversation(it)
         }
     }
 
-            private fun loadMessages() {
+    private fun loadMessages() {
         conversationStorage = com.persianai.assistant.utils.ConversationStorage(this)
         val conversations = conversationStorage.getConversations()
         if (conversations.isNotEmpty()) {
