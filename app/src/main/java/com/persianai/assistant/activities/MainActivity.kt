@@ -210,7 +210,7 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_CANCEL -> {
                     v.alpha = 1.0f
                     if (isRecording) {
-                        stopRecording(audioFilePath)
+                        cancelRecording() // Use cancelRecording to also delete the file
                     }
                     binding.messageInput.hint = "پیام خود را بنویسید..."
                     true
@@ -268,17 +268,6 @@ class MainActivity : AppCompatActivity() {
         if (apiKeys.isNotEmpty()) {
             aiClient = AIClient(apiKeys)
             currentModel = prefsManager.getSelectedModel()
-        } else {
-            Toast.makeText(this, "کلید API یافت نشد.", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun addMessage(message: ChatMessage) {
-        messages.add(message)
-        chatAdapter.notifyItemInserted(messages.size - 1)
-        binding.recyclerView.smoothScrollToPosition(messages.size - 1)
-        if (message.role == MessageRole.ASSISTANT && !message.isError) {
-            ttsHelper.speak(message.content)
         }
     }
 
@@ -1533,3 +1522,4 @@ class MainActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
+}

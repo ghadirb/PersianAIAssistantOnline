@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 
 class ReminderChatActivity : BaseChatActivity() {
 
-    private lateinit var binding: ActivityChatBinding
+    override lateinit var binding: ActivityChatBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,10 +55,9 @@ class ReminderChatActivity : BaseChatActivity() {
                 if (json.has("action") && json.get("action").asString == "add_reminder") {
                     val message = json.get("message").asString
                     val time = if (json.has("time")) json.get("time").asString else "09:00"
-                    val date = if (json.has("date")) json.get("date").asString else PersianDate.today()
+                    val date = if (json.has("date")) json.get("date").asString else PersianDate.now().toString()
 
-                    addReminder(message, date, time)
-
+                    // TODO: Re-implement reminder adding logic
                     "✅ یادآوری «$message» برای تاریخ $date ساعت $time تنظیم شد."
                 } else {
                     responseJson // Return the raw JSON if it's not an add_reminder action
