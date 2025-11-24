@@ -90,11 +90,35 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         return income
     }
     
-    fun getAllTransactions(type: String): List<Transaction> {
+    fun getAllTransactions(): List<Transaction> {
+        val transactions = mutableListOf<Transaction>()
+        val cursor = readableDatabase.rawQuery("SELECT * FROM transactions ORDER BY date DESC LIMIT 200", null)
+
+        while (cursor.moveToNext()) {
+            val transaction = Transaction(
+                id = cursor.getLong(0),
+                type = TransactionType.valueOf(cursor.getString(1)),
+                amount = cursor.getDouble(2),
+                category = cursor.getString(3) ?: "",
+                description = cursor.getString(4) ?: "",
+                date = cursor.getLong(5),
+                checkNumber = cursor.getString(6),
+                checkStatus = cursor.getString(7)?.let { CheckStatus.valueOf(it) },
+                installmentId = if (cursor.isNull(8)) null else cursor.getLong(8),
+                installmentNumber = if (cursor.isNull(9)) null else cursor.getInt(9),
+                totalInstallments = if (cursor.isNull(10)) null else cursor.getInt(10)
+            )
+            transactions.add(transaction)
+        }
+        cursor.close()
+        return transactions
+    }
+
+    fun getAllTransactions(type: TransactionType): List<Transaction> {
         val transactions = mutableListOf<Transaction>()
         val cursor = readableDatabase.rawQuery(
-            "SELECT * FROM transactions WHERE type = ? ORDER BY date DESC LIMIT 50", arrayOf(type))
-        
+            "SELECT * FROM transactions WHERE type = ? ORDER BY date DESC LIMIT 50", arrayOf(type.name))
+
         while (cursor.moveToNext()) {
             val transaction = Transaction(
                 id = cursor.getLong(0),
@@ -121,36 +145,43 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
     
     // ==================== متدهای چک ====================
     
-    fun addCheck(check: Check): Long {
+    fun addCheck(check: com.persianai.assistant.models.Check): Long {
         val values = ContentValues().apply {
             put("amount", check.amount)
             put("checkNumber", check.checkNumber)
-            put("issuer", check.recipient) // Map recipient to issuer
-            put("dueDate", check.dueDate)
-            put("status", if (check.isPaid) "PAID" else "PENDING") // Map isPaid to status
+            put("issuer", check.recipient)
+            put("dueDate", check.dueDate.time)
+            put("status", check.status.name)
             put("type", "PAYMENT") // Default type
-            put("description", check.notes) // Map notes to description
-            put("createdDate", check.createdAt)
+            put("description", check.description)
+            put("createdDate", check.issueDate.time)
         }
         return writableDatabase.insert("checks", null, values)
     }
     
-    fun getAllChecks(): List<Check> {
-        val checks = mutableListOf<Check>()
+    fun getAllChecks(): List<com.persianai.assistant.models.Check> {
+        val checks = mutableListOf<com.persianai.assistant.models.Check>()
         val cursor = readableDatabase.rawQuery(
             "SELECT * FROM checks ORDER BY dueDate ASC", null)
-        
+
         while (cursor.moveToNext()) {
-            checks.add(Check(
-                id = cursor.getLong(0).toString(),
-                amount = cursor.getDouble(1).toLong(),
-                checkNumber = cursor.getString(2),
-                recipient = cursor.getString(3), // Map issuer to recipient
-                dueDate = cursor.getLong(4),
-                bankName = "", // No bankName in old DB
-                notes = cursor.getString(7) ?: "", // Map description to notes
-                isPaid = cursor.getString(5) == "PAID", // Map status to isPaid
-                createdAt = cursor.getLong(8)
+            val statusString = cursor.getString(5)
+            val status = try {
+                com.persianai.assistant.models.CheckStatus.valueOf(statusString)
+            } catch (e: Exception) {
+                com.persianai.assistant.models.CheckStatus.PENDING // Default status
+            }
+
+            checks.add(com.persianai.assistant.models.Check(
+                id = cursor.getLong(0),
+                amount = cursor.getDouble(1),
+                checkNumber = cursor.getString(2) ?: "",
+                recipient = cursor.getString(3) ?: "",
+                dueDate = java.util.Date(cursor.getLong(4)),
+                status = status,
+                description = cursor.getString(7) ?: "",
+                issueDate = java.util.Date(cursor.getLong(8)),
+                bankName = ""
             ))
         }
         cursor.close()
@@ -170,39 +201,51 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
     
     // ==================== متدهای اقساط ====================
     
-    fun addInstallment(installment: Installment): Long {
+    fun addInstallment(installment: com.persianai.assistant.models.Installment): Long {
         val values = ContentValues().apply {
             put("totalAmount", installment.totalAmount)
             put("monthlyAmount", installment.monthlyAmount)
-            put("totalMonths", installment.totalMonths)
-            put("paidMonths", installment.currentMonth)
-            put("startDate", installment.startDate)
+            put("totalMonths", installment.installmentCount)
+            put("paidMonths", installment.paidInstallments)
+            put("startDate", installment.nextPaymentDate.time) // Simplified
             put("description", installment.title)
-            put("category", "") // No category in new model
-            put("reminderEnabled", 1) // Default to enabled
-            put("createdDate", installment.createdAt)
+            put("category", installment.lender)
+            put("reminderEnabled", 1)
+            put("createdDate", System.currentTimeMillis())
         }
         return writableDatabase.insert("installments", null, values)
     }
     
-    fun getAllInstallments(): List<Installment> {
-        val installments = mutableListOf<Installment>()
+    fun getAllInstallments(): List<com.persianai.assistant.models.Installment> {
+        val installments = mutableListOf<com.persianai.assistant.models.Installment>()
         val cursor = readableDatabase.rawQuery(
             "SELECT * FROM installments ORDER BY startDate DESC", null)
-        
+
         while (cursor.moveToNext()) {
-            installments.add(Installment(
-                id = cursor.getLong(0).toString(),
-                title = cursor.getString(6) ?: "قسط", // Using description as title
-                totalAmount = cursor.getDouble(1).toLong(),
-                monthlyAmount = cursor.getDouble(2).toLong(),
-                startDate = cursor.getLong(5),
-                totalMonths = cursor.getInt(3),
-                currentMonth = cursor.getInt(4), // Using paidMonths as currentMonth
-                creditor = "", // No creditor info in old DB
-                notes = "دسته بندی: ${cursor.getString(7) ?: ""}", // Adding category to notes
-                isCompleted = cursor.getInt(4) >= cursor.getInt(3),
-                createdAt = cursor.getLong(9)
+            val totalMonths = cursor.getInt(3)
+            val paidMonths = cursor.getInt(4)
+            val totalAmount = cursor.getDouble(1)
+            val monthlyAmount = cursor.getDouble(2)
+
+            val status = when {
+                paidMonths >= totalMonths -> com.persianai.assistant.models.InstallmentStatus.COMPLETED
+                // Add logic for DELAYED if possible from DB data
+                else -> com.persianai.assistant.models.InstallmentStatus.ACTIVE
+            }
+
+            installments.add(com.persianai.assistant.models.Installment(
+                id = cursor.getLong(0),
+                title = cursor.getString(6) ?: "قسط",
+                totalAmount = totalAmount,
+                monthlyAmount = monthlyAmount,
+                installmentCount = totalMonths,
+                paidInstallments = paidMonths,
+                paidAmount = paidMonths * monthlyAmount,
+                remainingAmount = (totalMonths - paidMonths) * monthlyAmount,
+                nextPaymentDate = java.util.Date(cursor.getLong(5)),
+                status = status,
+                description = "",
+                lender = cursor.getString(7) ?: ""
             ))
         }
         cursor.close()

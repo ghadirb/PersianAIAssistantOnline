@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
     private var initialX: Float = 0f
     private var initialY: Float = 0f
     private val swipeThreshold = 100f
-    private lateinit var conversationStorage: com.persianai.assistant.utils.ConversationStorage
+    private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private var currentConversation: com.persianai.assistant.models.Conversation? = null
 
     private lateinit var binding: ActivityMainBinding
@@ -366,27 +366,6 @@ class MainActivity : AppCompatActivity() {
         return keywords.any { text.contains(it) }
     }
 
-    private fun saveCurrentConversation() {
-        currentConversation?.let {
-            val updatedConversation = it.copy(messages = ArrayList(messages))
-            conversationStorage.saveConversation(updatedConversation)
-        }
-    }
-
-    private fun loadMessages() {
-        conversationStorage = com.persianai.assistant.utils.ConversationStorage(this)
-        val conversations = conversationStorage.getConversations()
-        if (conversations.isNotEmpty()) {
-            currentConversation = conversations.first()
-            messages.clear()
-            messages.addAll(currentConversation!!.messages)
-            chatAdapter.notifyDataSetChanged()
-            binding.recyclerView.scrollToPosition(messages.size - 1)
-        } else {
-            currentConversation = conversationStorage.createNewConversation()
-            addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور میتونم کمکتون کنم؟"))
-        }
-    }
 
 
     private fun sendMessage() {
@@ -733,12 +712,11 @@ class MainActivity : AppCompatActivity() {
             android.util.Log.d("MainActivity", "AI Response: $response")
             
             // اگه مدل refuse کرد، خودمون برنامه رو باز می‌کنیم
-            if (response.contains("متاسفانه") || response.contains("نمی‌توانم") || 
-                response.contains("متاسفم") || response.toLowerCase().contains("i cannot") ||
+            val userMsg = messages.lastOrNull { it.role == MessageRole.USER }?.content ?: ""
+            if (response.contains("متاسفانه") || response.contains("نمی‌توانم") ||
+                response.contains("متاسفم") || response.toLowerCase(java.util.Locale.ROOT).contains("i cannot") ||
                 response.contains("دسترسی ندارم") || response.contains("امکان")) {
-                        SystemIntegrationHelper.openApp(this@MainActivity, "گوگل مپ")
-                        "✅ گوگل مپ باز شد"
-                    }
+                return@withContext when {
                     userMsg.contains("ایتا") || userMsg.contains("eitaa") -> {
                         SystemIntegrationHelper.openApp(this@MainActivity, "ایتا")
                         "✅ ایتا باز شد"
@@ -775,7 +753,7 @@ class MainActivity : AppCompatActivity() {
                         startActivity(intent)
                         "✅ پیام‌نگار باز شد"
                     }
-                    else -> "⚠️ لطفاً نام برنامه را واضح‌تر بگویید (مثل: تلگرام، گوگل مپ، ایتا، پیام‌نگار)"
+                    else -> response // Return original AI response if no app keyword is matched
                 }
             }
             
