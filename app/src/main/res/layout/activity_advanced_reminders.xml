@@ -1,37 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".activities.AdvancedRemindersActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize" />
+        android:layout_height="wrap_content">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_view"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/toolbar"
-        android:layout_above="@id/input_layout" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <LinearLayout
-        android:id="@+id/input_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:padding="8dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/message_input"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="پیام خود را بنویسید..." />
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/statsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
                 app:cardElevation="4dp">
 
                 <LinearLayout
@@ -57,8 +58,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/totalRemindersText"
@@ -80,17 +81,17 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/activeRemindersText"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="0"
+                                android:textColor="#2196F3"
                                 android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="#2196F3" />
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -104,17 +105,17 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/completedRemindersText"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="0"
+                                android:textColor="#4CAF50"
                                 android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="#4CAF50" />
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -128,17 +129,17 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/upcomingRemindersText"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="0"
+                                android:textColor="#FF9800"
                                 android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="#FF9800" />
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -154,7 +155,6 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Filters -->
             <com.google.android.material.chip.ChipGroup
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -163,50 +163,49 @@
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipAll"
+                    style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="همه"
                     android:checked="true"
-                    style="@style/Widget.Material3.Chip.Filter" />
+                    android:text="همه" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipTimeBased"
+                    style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="⏰ زمانی"
-                    style="@style/Widget.Material3.Chip.Filter" />
+                    android:text="⏰ زمانی" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipLocationBased"
+                    style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📍 مکانی"
-                    style="@style/Widget.Material3.Chip.Filter" />
+                    android:text="📍 مکانی" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipRecurring"
+                    style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🔁 تکراری"
-                    style="@style/Widget.Material3.Chip.Filter" />
+                    android:text="🔁 تکراری" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipConditional"
+                    style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="⚙️ شرطی"
-                    style="@style/Widget.Material3.Chip.Filter" />
+                    android:text="⚙️ شرطی" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipHighPriority"
+                    style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🔴 اولویت بالا"
-                    style="@style/Widget.Material3.Chip.Filter" />
+                    android:text="🔴 اولویت بالا" />
 
             </com.google.android.material.chip.ChipGroup>
 
-            <!-- Progress Bar -->
             <ProgressBar
                 android:id="@+id/progressBar"
                 android:layout_width="wrap_content"
@@ -214,7 +213,6 @@
                 android:layout_gravity="center"
                 android:visibility="gone" />
 
-            <!-- Empty State -->
             <LinearLayout
                 android:id="@+id/emptyState"
                 android:layout_width="match_parent"
@@ -247,7 +245,6 @@
 
             </LinearLayout>
 
-            <!-- RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/remindersRecyclerView"
                 android:layout_width="match_parent"
@@ -257,15 +254,14 @@
 
     </androidx.core.widget.NestedScrollView>
 
-    <!-- FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAddReminder"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:src="@drawable/ic_add_alarm"
-        android:contentDescription="افزودن یادآوری" />
+        android:contentDescription="افزودن یادآوری"
+        android:src="@drawable/ic_add_alarm" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/chatFab"

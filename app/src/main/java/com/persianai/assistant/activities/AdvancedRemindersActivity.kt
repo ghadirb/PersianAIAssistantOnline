@@ -83,7 +83,7 @@ class AdvancedRemindersActivity : BaseChatActivity() {
     }
     
     private fun setupListeners() {
-        binding.addReminderFab.setOnClickListener {
+        binding.fabAddReminder.setOnClickListener {
             showAddReminderDialog()
         }
 
