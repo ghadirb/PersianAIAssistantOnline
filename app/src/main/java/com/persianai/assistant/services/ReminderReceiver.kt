@@ -20,44 +20,55 @@ class ReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-        val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PersianAssistant::ReminderWakeLock")
+        val wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "PersianAssistant::ReminderWakeLock"
+        )
         wakeLock.acquire(10 * 1000L /* 10 seconds timeout */)
 
         try {
-        android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
-        
-        val reminderId = intent.getIntExtra("reminder_id", 0)
-        val smartReminderId = intent.getStringExtra("smart_reminder_id")
-        val message = intent.getStringExtra("message") ?: "یادآوری"
+            android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
 
-        when (intent.action) {
-            "MARK_AS_DONE" -> {
-                android.util.Log.d("ReminderReceiver", "Mark as done: $message")
-                if (!smartReminderId.isNullOrEmpty()) {
-                    com.persianai.assistant.utils.SmartReminderManager(context).completeReminder(smartReminderId)
-                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    notificationManager.cancel(reminderId)
-                } else {
-                    markAsDone(context, message, reminderId)
-                }
-            }
-            "SNOOZE_REMINDER" -> {
-                android.util.Log.d("ReminderReceiver", "Snooze reminder: $message")
-                if (!smartReminderId.isNullOrEmpty()) {
-                    com.persianai.assistant.utils.SmartReminderManager(context).snoozeReminder(smartReminderId, 10)
-                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    notificationManager.cancel(reminderId)
-                }
-                // اگر smartReminderId خالی باشد، فعلاً snooze انجام نمی‌دهیم تا با منطق قدیمی تداخل نداشته باشد
-            }
-            else -> {
-                val useAlarm = intent.getBooleanExtra("use_alarm", false)
-                android.util.Log.d("ReminderReceiver", "Reminder triggered: $message (useAlarm: $useAlarm)")
+            val reminderId = intent.getIntExtra("reminder_id", 0)
+            val smartReminderId = intent.getStringExtra("smart_reminder_id")
+            val message = intent.getStringExtra("message") ?: "یادآوری"
 
-                if (useAlarm) {
-                    showFullScreenAlarm(context, message, reminderId, smartReminderId)
-                } else {
-                    showNotification(context, message, reminderId, smartReminderId)
+            when (intent.action) {
+                "MARK_AS_DONE" -> {
+                    android.util.Log.d("ReminderReceiver", "Mark as done: $message")
+                    if (!smartReminderId.isNullOrEmpty()) {
+                        com.persianai.assistant.utils.SmartReminderManager(context)
+                            .completeReminder(smartReminderId)
+                        val notificationManager =
+                            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        notificationManager.cancel(reminderId)
+                    } else {
+                        markAsDone(context, message, reminderId)
+                    }
+                }
+                "SNOOZE_REMINDER" -> {
+                    android.util.Log.d("ReminderReceiver", "Snooze reminder: $message")
+                    if (!smartReminderId.isNullOrEmpty()) {
+                        com.persianai.assistant.utils.SmartReminderManager(context)
+                            .snoozeReminder(smartReminderId, 10)
+                        val notificationManager =
+                            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        notificationManager.cancel(reminderId)
+                    }
+                    // اگر smartReminderId خالی باشد، فعلاً snooze انجام نمی‌دهیم تا با منطق قدیمی تداخل نداشته باشد
+                }
+                else -> {
+                    val useAlarm = intent.getBooleanExtra("use_alarm", false)
+                    android.util.Log.d(
+                        "ReminderReceiver",
+                        "Reminder triggered: $message (useAlarm: $useAlarm)"
+                    )
+
+                    if (useAlarm) {
+                        showFullScreenAlarm(context, message, reminderId, smartReminderId)
+                    } else {
+                        showNotification(context, message, reminderId, smartReminderId)
+                    }
                 }
             }
         } finally {
