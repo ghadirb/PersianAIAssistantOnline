@@ -6,6 +6,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.persianai.assistant.adapters.TransactionAdapter
 import com.persianai.assistant.data.AccountingDB
+import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.databinding.ActivityIncomeListBinding
 import kotlinx.coroutines.launch
 
@@ -31,8 +32,10 @@ class IncomeListActivity : AppCompatActivity() {
 
     private fun loadIncomes() {
         lifecycleScope.launch {
-            val incomes = db.getAllTransactions("income")
-            binding.recyclerView.adapter = TransactionAdapter(incomes)
+            val incomes = db.getAllTransactions(TransactionType.INCOME)
+            binding.recyclerView.adapter = TransactionAdapter(incomes.toMutableList()) { transaction ->
+                // Handle delete click
+            }
         }
     }
 

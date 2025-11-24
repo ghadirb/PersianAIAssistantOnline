@@ -32,7 +32,11 @@ class CheckListActivity : AppCompatActivity() {
     private fun loadChecks() {
         lifecycleScope.launch {
             val checks = db.getAllChecks()
-            binding.recyclerView.adapter = CheckAdapter(checks)
+            binding.recyclerView.adapter = CheckAdapter { check ->
+                // Handle check click
+            }.apply {
+                submitList(checks)
+            }
         }
     }
 

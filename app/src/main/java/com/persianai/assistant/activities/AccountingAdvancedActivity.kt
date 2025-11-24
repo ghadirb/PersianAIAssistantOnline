@@ -1,7 +1,5 @@
 package com.persianai.assistant.activities
 
-package com.persianai.assistant.activities
-
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity

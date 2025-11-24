@@ -56,11 +56,11 @@ class AccountingChatActivity : BaseChatActivity() {
 
                 when (action) {
                     "add_income" -> {
-                        db.addTransaction(com.persianai.assistant.data.Transaction(0, "income", amount, description, System.currentTimeMillis()))
+                        db.addTransaction(com.persianai.assistant.data.Transaction(type = com.persianai.assistant.data.TransactionType.INCOME, amount = amount.toDouble(), category = "", description = description))
                         "✅ درآمد «$description» به مبلغ $amount تومان ثبت شد."
                     }
                     "add_expense" -> {
-                        db.addTransaction(com.persianai.assistant.data.Transaction(0, "expense", amount, description, System.currentTimeMillis()))
+                        db.addTransaction(com.persianai.assistant.data.Transaction(type = com.persianai.assistant.data.TransactionType.EXPENSE, amount = amount.toDouble(), category = "", description = description))
                         "✅ هزینه «$description» به مبلغ $amount تومان ثبت شد."
                     }
                     else -> responseJson

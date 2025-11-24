@@ -40,7 +40,18 @@ import java.io.File
 /**
  * صفحه اصلی چت
  */
-class MainActivity : BaseChatActivity() {
+class MainActivity : AppCompatActivity() {
+
+    private val messages = mutableListOf<ChatMessage>()
+    private var mediaRecorder: MediaRecorder? = null
+    private var audioFilePath: String = ""
+    private var isRecording = false
+    private var recordingTimer: java.util.Timer? = null
+    private var initialX: Float = 0f
+    private var initialY: Float = 0f
+    private val swipeThreshold = 100f
+    private lateinit var conversationStorage: com.persianai.assistant.utils.ConversationStorage
+    private var currentConversation: com.persianai.assistant.models.Conversation? = null
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var chatAdapter: ChatAdapter
@@ -60,11 +71,7 @@ class MainActivity : BaseChatActivity() {
         private const val NOTIFICATION_PERMISSION_CODE = 1002
     }
 
-    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.recyclerView
-    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = binding.messageInput
-    override fun getSendButton(): View = binding.sendButton
-    override fun getVoiceButton(): View = binding.voiceButton
-
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -225,6 +232,157 @@ class MainActivity : BaseChatActivity() {
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS),
                     NOTIFICATION_PERMISSION_CODE
                 )
+            }
+        }
+    }
+
+        private fun setupChatUI() {
+        setupRecyclerView()
+        setupAIClient()
+    }
+
+    private fun setupRecyclerView() {
+        chatAdapter = ChatAdapter(messages)
+        binding.recyclerView.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity).apply {
+                stackFromEnd = true
+            }
+            adapter = chatAdapter
+        }
+    }
+
+    private fun setupAIClient() {
+        val apiKeys = prefsManager.getAPIKeys()
+        if (apiKeys.isNotEmpty()) {
+            aiClient = AIClient(apiKeys)
+            currentModel = prefsManager.getSelectedModel()
+        } else {
+            Toast.makeText(this, "کلید API یافت نشد.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun addMessage(message: ChatMessage) {
+        messages.add(message)
+        chatAdapter.notifyItemInserted(messages.size - 1)
+        binding.recyclerView.smoothScrollToPosition(messages.size - 1)
+        if (message.role == MessageRole.ASSISTANT && !message.isError) {
+            ttsHelper.speak(message.content)
+        }
+    }
+
+    private fun checkAudioPermissionAndStartRecording() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
+        } else {
+            startRecording()
+        }
+    }
+
+        private fun startRecording() {
+        try {
+            audioFilePath = "${externalCacheDir?.absolutePath}/audiorecord.mp3"
+            mediaRecorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(audioFilePath)
+                prepare()
+                start()
+            }
+            isRecording = true
+            recordingTimer = java.util.Timer()
+            recordingTimer?.schedule(object : java.util.TimerTask() {
+                override fun run() {
+                    runOnUiThread {
+                        stopRecordingAndProcess()
+                    }
+                }
+            }, 30000) // 30 seconds max recording
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+        private fun stopRecordingAndProcess() {
+        if (!isRecording) return
+        try {
+            mediaRecorder?.stop()
+            mediaRecorder?.release()
+        } catch (e: Exception) {
+            // Ignore errors on stop
+        }
+        mediaRecorder = null
+        isRecording = false
+        recordingTimer?.cancel()
+        transcribeAndSendAudio(audioFilePath)
+    }
+
+        private fun cancelRecording() {
+        if (!isRecording) return
+        try {
+            mediaRecorder?.stop()
+            mediaRecorder?.release()
+        } catch (e: Exception) {
+            // Ignore
+        }
+        mediaRecorder = null
+        isRecording = false
+        recordingTimer?.cancel()
+        File(audioFilePath).delete()
+    }
+
+        private fun transcribeAndSendAudio(filePath: String) {
+        // Placeholder for transcription logic
+        val file = File(filePath)
+        if (file.exists()) {
+            // In a real app, you would send this to a transcription service
+            addMessage(ChatMessage(role = MessageRole.USER, content = "[Audio recorded]", timestamp = System.currentTimeMillis()))
+            file.delete()
+        }
+    }
+
+        private fun updateModelDisplay() {
+        // Placeholder
+    }
+
+        private fun updateModeIndicator() {
+        // Placeholder
+    }
+
+        private fun isActionCommand(text: String): Boolean {
+        val keywords = listOf("یادآوری", "چک", "قسط", "مسیریابی", "درآمد", "هزینه")
+        return keywords.any { text.contains(it) }
+    }
+
+            private fun saveCurrentConversation() {
+        currentConversation?.let {
+            it.messages = messages
+            conversationStorage.saveConversation(it)
+        }
+    }
+
+            private fun loadMessages() {
+        conversationStorage = com.persianai.assistant.utils.ConversationStorage(this)
+        val conversations = conversationStorage.getConversations()
+        if (conversations.isNotEmpty()) {
+            currentConversation = conversations.first()
+            messages.addAll(currentConversation!!.messages)
+            chatAdapter.notifyDataSetChanged()
+            binding.recyclerView.scrollToPosition(messages.size - 1)
+        } else {
+            currentConversation = conversationStorage.createNewConversation()
+            addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور میتونم کمکتون کنم؟"))
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_RECORD_AUDIO && resultCode == RESULT_OK && data != null) {
+            val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = results?.get(0)
+            if (!spokenText.isNullOrEmpty()) {
+                binding.messageInput.setText(spokenText)
+                sendMessage()
             }
         }
     }

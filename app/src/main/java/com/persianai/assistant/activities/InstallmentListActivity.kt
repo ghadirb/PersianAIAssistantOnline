@@ -16,7 +16,7 @@ class InstallmentListActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = InstallmentListBinding.inflate(layoutInflater)
+        binding = ActivityInstallmentListBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
@@ -32,7 +32,11 @@ class InstallmentListActivity : AppCompatActivity() {
     private fun loadInstallments() {
         lifecycleScope.launch {
             val installments = db.getAllInstallments()
-            binding.recyclerView.adapter = InstallmentAdapter(installments)
+            binding.recyclerView.adapter = InstallmentAdapter { installment ->
+                // Handle installment click
+            }.apply {
+                submitList(installments)
+            }
         }
     }
 

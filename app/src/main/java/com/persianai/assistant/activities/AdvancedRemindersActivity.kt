@@ -2,6 +2,7 @@ package com.persianai.assistant.activities
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -37,7 +38,13 @@ import java.util.*
  * ✅ اولویت‌بندی
  * ✅ دسته‌بندی
  */
-class AdvancedRemindersActivity : BaseChatActivity() {
+enum class FilterType {
+    ALL, TIME_BASED, LOCATION_BASED, RECURRING, CONDITIONAL, HIGH_PRIORITY
+}
+
+class AdvancedRemindersActivity : AppCompatActivity() {
+
+    private lateinit var remindersAdapter: RemindersAdapter
 
     private lateinit var binding: ActivityAdvancedRemindersBinding
     private lateinit var smartReminderManager: SmartReminderManager
@@ -528,6 +535,8 @@ class AdvancedRemindersActivity : BaseChatActivity() {
             .show()
     }
     
+        override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.remindersRecyclerView
+
     private fun handleReminderAction(reminder: SmartReminderManager.SmartReminder, action: String) {
         when (action) {
             "view" -> showReminderDetails(reminder)
