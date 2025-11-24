@@ -157,21 +157,81 @@
                 android:backgroundTint="#673AB7"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
+            <!-- Income Section -->
             <TextView
+                android:id="@+id/sectionIncomeTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📋 تراکنش‌های اخیر"
+                android:text="📥 درآمدها"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="@android:color/white"
                 android:layout_marginTop="24dp"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="8dp" />
 
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/transactionsRecyclerView"
+                android:id="@+id/incomeRecyclerView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Expense Section -->
+            <TextView
+                android:id="@+id/sectionExpenseTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📤 هزینه‌ها"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/expenseRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Checks Section -->
+            <TextView
+                android:id="@+id/sectionChecksTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📄 چک‌ها"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/checksRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Installments Section -->
+            <TextView
+                android:id="@+id/sectionInstallmentsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📊 اقساط"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/installmentsRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="16dp" />
 
         </LinearLayout>
     </ScrollView>

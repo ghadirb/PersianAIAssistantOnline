@@ -8,16 +8,22 @@ import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.MainActivity
+import com.persianai.assistant.utils.SmartReminderManager
 
 /**
  * دریافت‌کننده هشدار یادآوری
  */
 class ReminderReceiver : BroadcastReceiver() {
-    
+
     override fun onReceive(context: Context, intent: Intent) {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PersianAssistant::ReminderWakeLock")
+        wakeLock.acquire(10 * 1000L /* 10 seconds timeout */)
+
+        try {
         android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
         
         val reminderId = intent.getIntExtra("reminder_id", 0)
@@ -41,9 +47,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     com.persianai.assistant.utils.SmartReminderManager(context).snoozeReminder(smartReminderId, 10)
                     val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     notificationManager.cancel(reminderId)
-                } else {
-                    snoozeReminder(context, message)
                 }
+                // اگر smartReminderId خالی باشد، فعلاً snooze انجام نمی‌دهیم تا با منطق قدیمی تداخل نداشته باشد
             }
             else -> {
                 val useAlarm = intent.getBooleanExtra("use_alarm", false)
@@ -55,6 +60,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     showNotification(context, message, reminderId, smartReminderId)
                 }
             }
+        } finally {
+            wakeLock.release()
         }
     }
     
@@ -78,27 +85,10 @@ class ReminderReceiver : BroadcastReceiver() {
         android.widget.Toast.makeText(context, "✅ انجام شد", android.widget.Toast.LENGTH_SHORT).show()
     }
     
-    private fun snoozeReminder(context: Context, message: String) {
-        // لغو نوتیفیکیشن
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancelAll()
-        
-        // تنظیم یادآوری برای 5 دقیقه بعد
-        val calendar = java.util.Calendar.getInstance()
-        calendar.add(java.util.Calendar.MINUTE, 5)
-        
-        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val minute = calendar.get(java.util.Calendar.MINUTE)
-        
-        com.persianai.assistant.utils.SystemIntegrationHelper.setReminder(
-            context, 
-            message, 
-            hour, 
-            minute
-        )
-        
-        android.widget.Toast.makeText(context, "⏰ 5 دقیقه بعد یادآوری می‌شود", android.widget.Toast.LENGTH_SHORT).show()
-    }
+    // This legacy method is no longer needed as snooze is handled by SmartReminderManager
+    /* private fun snoozeReminder(context: Context, message: String) {
+        ...
+    }*/
     
     private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
         val intent = Intent(context, com.persianai.assistant.activities.AlarmActivity::class.java).apply {

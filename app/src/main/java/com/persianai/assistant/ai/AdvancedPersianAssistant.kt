@@ -61,10 +61,6 @@ class AdvancedPersianAssistant(private val context: Context) {
     suspend fun processRequestWithAI(userInput: String, contextHint: String? = null): AssistantResponse {
         val baseResponse = processRequest(userInput)
 
-        if (baseResponse.actionType != ActionType.NEEDS_AI) {
-            return baseResponse
-        }
-
         val workingMode = prefsManager.getWorkingMode()
         val aiManager = AIModelManager(context)
         val hasKey = aiManager.hasApiKey()
@@ -72,39 +68,44 @@ class AdvancedPersianAssistant(private val context: Context) {
         val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
                 workingMode == PreferencesManager.WorkingMode.HYBRID) && hasKey
 
-        if (canUseOnline) {
-            return try {
-                val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let {
-                    "زمینه گفتگو: $it.\n"
-                } ?: ""
+        if (!canUseOnline) {
+            if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasKey) {
+                return AssistantResponse(
+                    text = "برای استفاده از مدل آنلاین، ابتدا کلید API را در تنظیمات وارد کنید."
+                )
+            }
+            return baseResponse
+        }
 
-                val prompt = """
-                    تو یک دستیار هوش مصنوعی فارسی هستی.
-                    $contextLine
-                    کاربر می‌گوید:
-                    "$userInput"
+        return try {
+            val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let {
+                "زمینه گفتگو: $it.\n"
+            } ?: ""
 
-                    با لحن مودب، واضح و نسبتاً کوتاه فقط به زبان فارسی پاسخ بده.
-                """.trimIndent()
+            val baseSummary = baseResponse.text.take(400)
 
-                val aiText = aiManager.generateText(prompt)
-                if (aiText.isNotBlank()) {
-                    AssistantResponse(text = aiText)
-                } else {
-                    baseResponse
-                }
-            } catch (e: Exception) {
+            val prompt = """
+                تو یک دستیار هوش مصنوعی فارسی هستی.
+                $contextLine
+                کاربر می‌گوید:
+                "$userInput"
+
+                پاسخ پیشنهادی داخلی برنامه:
+                "$baseSummary"
+
+                همین پاسخ را با لحن مودب، واضح و نسبتاً کوتاه فقط به زبان فارسی بازنویسی کن.
+                اطلاعات و نتیجه را عوض نکن، فقط بیان را بهتر کن.
+            """.trimIndent()
+
+            val aiText = aiManager.generateText(prompt)
+            if (aiText.isNotBlank()) {
+                baseResponse.copy(text = aiText)
+            } else {
                 baseResponse
             }
+        } catch (e: Exception) {
+            baseResponse
         }
-
-        if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasKey) {
-            return AssistantResponse(
-                text = "برای استفاده از مدل آنلاین، ابتدا کلید API را در تنظیمات وارد کنید."
-            )
-        }
-
-        return baseResponse
     }
     
     private fun normalizeText(text: String): String {
@@ -294,7 +295,23 @@ class AdvancedPersianAssistant(private val context: Context) {
             data["minute"] = it.groupValues[2].toInt()
         }
         
-        // اگر فرمت HH:mm نبود، الگوی «ساعت ۹ صبح/عصر/شب» را امتحان کن
+        // اگر فرمت HH:mm نبود، ابتدا الگوی «ساعت ۶ و ۴۲ دقیقه صبح» را امتحان کن
+        if (!data.containsKey("hour")) {
+            val detailedTimeRegex = """ساعت\s*(\d{1,2})\s*و\s*(\d{1,2})\s*دقیقه\s*(صبح|ظهر|عصر|شب)?""".toRegex()
+            detailedTimeRegex.find(text)?.let {
+                val rawHour = it.groupValues[1].toIntOrNull() ?: 0
+                val minute = it.groupValues[2].toIntOrNull() ?: 0
+                val period = it.groupValues.getOrNull(3) ?: ""
+                val hour24 = when (period) {
+                    "ظهر", "عصر", "شب" -> if (rawHour in 1..11) rawHour + 12 else rawHour
+                    else -> rawHour
+                }
+                data["hour"] = hour24
+                data["minute"] = minute
+            }
+        }
+
+        // اگر هنوز ساعت مشخص نیست، الگوی ساده «ساعت ۹ صبح/عصر/شب» را امتحان کن
         if (!data.containsKey("hour")) {
             val fuzzyTimeRegex = """ساعت\s*(\d{1,2})\s*(صبح|ظهر|عصر|شب)?""".toRegex()
             fuzzyTimeRegex.find(text)?.let {
@@ -316,8 +333,55 @@ class AdvancedPersianAssistant(private val context: Context) {
             text.contains("امروز") -> data["day"] = "today"
         }
         
-        // الگوی تکرار ساده
-        if (text.contains("هر روز") || text.contains("روزانه")) {
+        // روزهای هفته برای تکرار سفارشی و بازه‌ها
+        val weekdayMap = mapOf(
+            "شنبه" to java.util.Calendar.SATURDAY,
+            "یکشنبه" to java.util.Calendar.SUNDAY,
+            "دوشنبه" to java.util.Calendar.MONDAY,
+            "سه‌شنبه" to java.util.Calendar.TUESDAY,
+            "سه شنبه" to java.util.Calendar.TUESDAY,
+            "چهارشنبه" to java.util.Calendar.WEDNESDAY,
+            "پنجشنبه" to java.util.Calendar.THURSDAY,
+            "پنج‌شنبه" to java.util.Calendar.THURSDAY,
+            "جمعه" to java.util.Calendar.FRIDAY
+        )
+
+        // بازه‌هایی مثل «از شنبه تا چهارشنبه»
+        val rangeRegex = """از\s+(شنبه|یکشنبه|دوشنبه|سه‌شنبه|سه شنبه|چهارشنبه|پنجشنبه|پنج‌شنبه|جمعه)\s+تا\s+(شنبه|یکشنبه|دوشنبه|سه‌شنبه|سه شنبه|چهارشنبه|پنجشنبه|پنج‌شنبه|جمعه)""".toRegex()
+        rangeRegex.find(text)?.let { matchResult ->
+            val startName = matchResult.groupValues[1]
+            val endName = matchResult.groupValues[2]
+            val start = weekdayMap[startName]
+            val end = weekdayMap[endName]
+            if (start != null && end != null) {
+                val days = mutableListOf<Int>()
+                var d = start
+                while (true) {
+                    days.add(d)
+                    if (d == end) break
+                    d = if (d == java.util.Calendar.SATURDAY) java.util.Calendar.SUNDAY else d + 1
+                }
+                data["repeat"] = "custom"
+                data["customDays"] = days
+            }
+        }
+
+        // الگوهایی مثل «هر شنبه» برای تکرار هفتگی در روزهای مشخص
+        if (!data.containsKey("customDays")) {
+            val customDays = mutableListOf<Int>()
+            weekdayMap.forEach { (name, dayConst) ->
+                if (text.contains("هر $name")) {
+                    customDays.add(dayConst)
+                }
+            }
+            if (customDays.isNotEmpty()) {
+                data["repeat"] = "custom"
+                data["customDays"] = customDays
+            }
+        }
+
+        // الگوی تکرار ساده روزانه
+        if (!data.containsKey("repeat") && (text.contains("هر روز") || text.contains("روزانه"))) {
             data["repeat"] = "daily"
         }
 
@@ -559,28 +623,42 @@ class AdvancedPersianAssistant(private val context: Context) {
         }
 
         val repeat = data["repeat"] as? String
-        
+        val customDays = data["customDays"] as? List<Int>
+
         val title = message.take(40)
         val description = if (message.length > 40) message else ""
         
-        val createdReminder = if (repeat == "daily") {
-            reminderManager.createRecurringReminder(
-                title = title,
-                description = description,
-                firstTriggerTime = triggerTime,
-                repeatPattern = SmartReminderManager.RepeatPattern.DAILY
-            )
-        } else {
-            reminderManager.createSimpleReminder(
-                title = title,
-                description = description,
-                triggerTime = triggerTime
-            )
+        val createdReminder = when {
+            repeat == "daily" -> {
+                reminderManager.createRecurringReminder(
+                    title = title,
+                    description = description,
+                    firstTriggerTime = triggerTime,
+                    repeatPattern = SmartReminderManager.RepeatPattern.DAILY
+                )
+            }
+            repeat == "custom" && customDays != null && customDays.isNotEmpty() -> {
+                reminderManager.createRecurringReminder(
+                    title = title,
+                    description = description,
+                    firstTriggerTime = triggerTime,
+                    repeatPattern = SmartReminderManager.RepeatPattern.CUSTOM,
+                    customDays = customDays
+                )
+            }
+            else -> {
+                reminderManager.createSimpleReminder(
+                    title = title,
+                    description = description,
+                    triggerTime = triggerTime
+                )
+            }
         }
         
         val readableTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(triggerTime))
         val repeatText = when (repeat) {
             "daily" -> "🔁 هر روز"
+            "custom" -> "🔁 روزهای خاص هفته"
             else -> "یکبار"
         }
         

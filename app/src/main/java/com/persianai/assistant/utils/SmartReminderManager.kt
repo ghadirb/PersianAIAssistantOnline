@@ -5,7 +5,11 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.persianai.assistant.services.ReminderReceiver
@@ -471,6 +475,30 @@ class SmartReminderManager(private val context: Context) {
      * تنظیم آلارم برای یادآوری
      */
     private fun scheduleReminder(reminder: SmartReminder) {
+        // برای اندروید 12 به بالا، نیاز به اجازه آلارم دقیق داریم
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()) {
+                try {
+                    val settingsIntent = Intent(
+                        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                        Uri.parse("package:${context.packageName}")
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(settingsIntent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error requesting exact alarm permission", e)
+                }
+
+                Toast.makeText(
+                    context,
+                    "لطفاً در تنظیمات، اجازهٔ آلارم دقیق را برای برنامه فعال کنید.",
+                    Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+        }
+
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             // ID عددی برای استفاده در NotificationManager و requestCode
             putExtra("reminder_id", reminder.id.hashCode())

@@ -13,7 +13,7 @@ import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.data.Transaction
 import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.utils.SharedDataManager
-import com.persianai.assistant.ai.ContextualAIAssistant
+import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.adapters.TransactionAdapter
 import com.persianai.assistant.finance.FinanceVoiceIntent
 import com.persianai.assistant.finance.FinanceVoiceParser
@@ -25,9 +25,16 @@ class AccountingActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityAccountingBinding
     private lateinit var db: AccountingDB
-    private lateinit var aiAssistant: ContextualAIAssistant
-    private lateinit var transactionAdapter: TransactionAdapter
-    private val transactions = mutableListOf<Transaction>()
+    private lateinit var aiAssistant: AdvancedPersianAssistant
+    private lateinit var incomeAdapter: TransactionAdapter
+    private lateinit var expenseAdapter: TransactionAdapter
+    private lateinit var checksAdapter: TransactionAdapter
+    private lateinit var installmentsAdapter: TransactionAdapter
+
+    private val incomeTransactions = mutableListOf<Transaction>()
+    private val expenseTransactions = mutableListOf<Transaction>()
+    private val checkTransactions = mutableListOf<Transaction>()
+    private val installmentTransactions = mutableListOf<Transaction>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +46,7 @@ class AccountingActivity : AppCompatActivity() {
         supportActionBar?.title = "💰 حسابداری"
         
         db = AccountingDB(this)
-        aiAssistant = ContextualAIAssistant(this)
+        aiAssistant = AdvancedPersianAssistant(this)
         
         setupUI()
         setupRecyclerView()
@@ -269,19 +276,23 @@ class AccountingActivity : AppCompatActivity() {
                 if (userMessage.isNotEmpty()) {
                     lifecycleScope.launch {
                         try {
-                            val response = aiAssistant.processAccountingCommand(userMessage, db)
-                            
-                            runOnUiThread {
-                                MaterialAlertDialogBuilder(this@AccountingActivity)
-                                    .setTitle(if (response.success) "✅ انجام شد" else "⚠️ خطا")
-                                    .setMessage(response.message)
-                                    .setPositiveButton("باشه") { _, _ ->
-                                        if (response.success && response.action == "add_transaction") {
-                                            updateBalance()
-                                            loadTransactions()
-                                        }
-                                    }
-                                    .show()
+                            val parsed = FinanceVoiceParser.parse(userMessage)
+                            if (parsed !is FinanceVoiceIntent.UnknownIntent) {
+                                // ثبت خودکار تراکنش از طریق همان منطق handleVoiceIntent
+                                handleVoiceIntent(parsed)
+                            } else {
+                                val response = aiAssistant.processRequestWithAI(
+                                    userMessage,
+                                    contextHint = "حسابداری شخصی، تراکنش‌ها، درآمد و هزینه، گزارش مالی ساده"
+                                )
+
+                                runOnUiThread {
+                                    MaterialAlertDialogBuilder(this@AccountingActivity)
+                                        .setTitle("پاسخ دستیار")
+                                        .setMessage(response.text)
+                                        .setPositiveButton("باشه", null)
+                                        .show()
+                                }
                             }
                         } catch (e: Exception) {
                             runOnUiThread {
@@ -296,36 +307,66 @@ class AccountingActivity : AppCompatActivity() {
     }
     
     private fun setupRecyclerView() {
-        transactionAdapter = TransactionAdapter(transactions) { transaction ->
-            // حذف تراکنش
+        val onDeleteClick: (Transaction) -> Unit = { transaction ->
             MaterialAlertDialogBuilder(this)
                 .setTitle("❌ حذف تراکنش")
                 .setMessage("آیا از حذف این تراکنش مطمئن هستید؟")
                 .setPositiveButton("حذف") { _, _ ->
                     lifecycleScope.launch {
                         db.deleteTransaction(transaction.id)
-                        transactionAdapter.removeItem(transaction)
+                        loadTransactions() // Reload all lists
                         updateBalance()
-                        loadTransactions()
                         Toast.makeText(this@AccountingActivity, "✅ تراکنش حذف شد", Toast.LENGTH_SHORT).show()
                     }
                 }
                 .setNegativeButton("لغو", null)
                 .show()
         }
-        
-        binding.transactionsRecyclerView.apply {
+
+        incomeAdapter = TransactionAdapter(incomeTransactions, onDeleteClick)
+        binding.incomeRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@AccountingActivity)
-            adapter = transactionAdapter
+            adapter = incomeAdapter
+        }
+
+        expenseAdapter = TransactionAdapter(expenseTransactions, onDeleteClick)
+        binding.expenseRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@AccountingActivity)
+            adapter = expenseAdapter
+        }
+
+        checksAdapter = TransactionAdapter(checkTransactions, onDeleteClick)
+        binding.checksRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@AccountingActivity)
+            adapter = checksAdapter
+        }
+
+        installmentsAdapter = TransactionAdapter(installmentTransactions, onDeleteClick)
+        binding.installmentsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@AccountingActivity)
+            adapter = installmentsAdapter
         }
     }
     
     private fun loadTransactions() {
         lifecycleScope.launch {
             val allTransactions = db.getAllTransactions()
-            transactions.clear()
-            transactions.addAll(allTransactions)
-            transactionAdapter.notifyDataSetChanged()
+
+            incomeTransactions.clear()
+            incomeTransactions.addAll(allTransactions.filter { it.type == TransactionType.INCOME })
+            incomeAdapter.notifyDataSetChanged()
+
+            expenseTransactions.clear()
+            expenseTransactions.addAll(allTransactions.filter { it.type == TransactionType.EXPENSE })
+            expenseAdapter.notifyDataSetChanged()
+
+            checkTransactions.clear()
+            checkTransactions.addAll(allTransactions.filter { it.type == TransactionType.CHECK_IN || it.type == TransactionType.CHECK_OUT })
+            checksAdapter.notifyDataSetChanged()
+
+            installmentTransactions.clear()
+            installmentTransactions.addAll(allTransactions.filter { it.type == TransactionType.INSTALLMENT })
+            installmentsAdapter.notifyDataSetChanged()
         }
     }
     

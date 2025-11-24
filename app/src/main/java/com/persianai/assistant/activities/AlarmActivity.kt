@@ -5,6 +5,7 @@ import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
+import android.view.MotionEvent
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -88,6 +89,42 @@ class AlarmActivity : AppCompatActivity() {
         // دکمه بستن
         binding.dismissButton.setOnClickListener {
             finish()
+        }
+
+        // ژست کشیدن روی صفحه: راست = انجام شد، چپ = تعویق
+        var startX = 0f
+        var startY = 0f
+        val swipeThreshold = 150
+        val verticalThreshold = 200
+
+        binding.root.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = event.x
+                    startY = event.y
+                    // رویداد را مصرف نکن تا کلیک روی دکمه‌ها کار کند
+                    false
+                }
+                MotionEvent.ACTION_UP -> {
+                    val dx = event.x - startX
+                    val dy = event.y - startY
+                    return@setOnTouchListener if (kotlin.math.abs(dx) > swipeThreshold && kotlin.math.abs(dy) < verticalThreshold) {
+                        if (dx > 0) {
+                            // کشیدن به راست: انجام شد
+                            markAsDone()
+                            finish()
+                        } else {
+                            // کشیدن به چپ: تعویق 5 دقیقه‌ای
+                            snoozeReminder(5)
+                            finish()
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                }
+                else -> false
+            }
         }
     }
     
