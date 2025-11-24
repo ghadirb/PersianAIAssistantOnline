@@ -355,7 +355,7 @@ class AdvancedPersianAssistant(private val context: Context) {
             val end = weekdayMap[endName]
             if (start != null && end != null) {
                 val days = mutableListOf<Int>()
-                var d = start
+                var d = start!!
                 while (true) {
                     days.add(d)
                     if (d == end) break
