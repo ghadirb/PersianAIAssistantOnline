@@ -6,38 +6,33 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.persianai.assistant.databinding.ActivityChatBinding
 import com.persianai.assistant.models.MessageRole
-import com.persianai.assistant.db.RemindersDb
 import com.persianai.assistant.models.Reminder
 import com.persianai.assistant.utils.PersianDate
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ReminderChatActivity : BaseChatActivity() {
 
-            private lateinit var db: RemindersDb
+    private lateinit var binding: ActivityChatBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar((binding as ActivityChatBinding).toolbar)
+        setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "چت با دستیار یادآوری"
-
-                        db = RemindersDb(this)
 
         setupChatUI()
 
         addMessage(com.persianai.assistant.models.ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"))
     }
 
-    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = (binding as ActivityChatBinding).recyclerView
-    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = (binding as ActivityChatBinding).messageInput
-    override fun getSendButton(): View = (binding as ActivityChatBinding).sendButton
-    override fun getVoiceButton(): View = (binding as ActivityChatBinding).voiceButton
+    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.recyclerView
+    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = binding.messageInput
+    override fun getSendButton(): View = binding.sendButton
+    override fun getVoiceButton(): View = binding.voiceButton
 
     override fun getSystemPrompt(): String {
         return """
@@ -60,14 +55,9 @@ class ReminderChatActivity : BaseChatActivity() {
                 if (json.has("action") && json.get("action").asString == "add_reminder") {
                     val message = json.get("message").asString
                     val time = if (json.has("time")) json.get("time").asString else "09:00"
-                                        val date = if (json.has("date")) json.get("date").asString else com.persianai.assistant.utils.PersianDate.today()
+                    val date = if (json.has("date")) json.get("date").asString else PersianDate.today()
 
-                    val reminder = Reminder(
-                        title = message,
-                        persianDate = date,
-                        time = time
-                    )
-                    db.addReminder(reminder)
+                    addReminder(message, date, time)
 
                     "✅ یادآوری «$message» برای تاریخ $date ساعت $time تنظیم شد."
                 } else {

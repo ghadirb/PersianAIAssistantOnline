@@ -210,7 +210,7 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_CANCEL -> {
                     v.alpha = 1.0f
                     if (isRecording) {
-                        cancelRecording()
+                        stopRecording(audioFilePath)
                     }
                     binding.messageInput.hint = "پیام خود را بنویسید..."
                     true
@@ -365,8 +365,6 @@ class MainActivity : AppCompatActivity() {
         val keywords = listOf("یادآوری", "چک", "قسط", "مسیریابی", "درآمد", "هزینه")
         return keywords.any { text.contains(it) }
     }
-
-
 
     private fun sendMessage() {
         val text = binding.messageInput.text.toString().trim()
@@ -706,7 +704,6 @@ class MainActivity : AppCompatActivity() {
         return@withContext processAIResponse(response.content)
     }
 
-    
     private suspend fun processAIResponse(response: String): String {
         return withContext(Dispatchers.Main) {
             android.util.Log.d("MainActivity", "AI Response: $response")
@@ -1536,4 +1533,3 @@ class MainActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
-}
