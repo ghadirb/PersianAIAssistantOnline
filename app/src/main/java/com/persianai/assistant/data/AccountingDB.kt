@@ -90,10 +90,10 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         return income
     }
     
-    fun getAllTransactions(): List<Transaction> {
+    fun getAllTransactions(type: String): List<Transaction> {
         val transactions = mutableListOf<Transaction>()
         val cursor = readableDatabase.rawQuery(
-            "SELECT * FROM transactions ORDER BY date DESC LIMIT 50", null)
+            "SELECT * FROM transactions WHERE type = ? ORDER BY date DESC LIMIT 50", arrayOf(type))
         
         while (cursor.moveToNext()) {
             val transaction = Transaction(

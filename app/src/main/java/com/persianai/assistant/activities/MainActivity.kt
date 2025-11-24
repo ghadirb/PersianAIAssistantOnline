@@ -144,6 +144,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_RECORD_AUDIO && resultCode == RESULT_OK && data != null) {
+            val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = results?.get(0)
+            if (!spokenText.isNullOrEmpty()) {
+                binding.messageInput.setText(spokenText)
+                sendMessage()
+            }
+        }
+    }
+
     private fun setupListeners() {
         binding.sendButton.setOnClickListener {
             sendMessage()
@@ -356,8 +368,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveCurrentConversation() {
         currentConversation?.let {
-            it.messages = messages
-            conversationStorage.saveConversation(it)
+            val updatedConversation = it.copy(messages = ArrayList(messages))
+            conversationStorage.saveConversation(updatedConversation)
         }
     }
 
@@ -366,6 +378,7 @@ class MainActivity : AppCompatActivity() {
         val conversations = conversationStorage.getConversations()
         if (conversations.isNotEmpty()) {
             currentConversation = conversations.first()
+            messages.clear()
             messages.addAll(currentConversation!!.messages)
             chatAdapter.notifyDataSetChanged()
             binding.recyclerView.scrollToPosition(messages.size - 1)
@@ -375,17 +388,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_RECORD_AUDIO && resultCode == RESULT_OK && data != null) {
-            val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val spokenText = results?.get(0)
-            if (!spokenText.isNullOrEmpty()) {
-                binding.messageInput.setText(spokenText)
-                sendMessage()
-            }
-        }
-    }
 
     private fun sendMessage() {
         val text = binding.messageInput.text.toString().trim()
@@ -734,17 +736,6 @@ class MainActivity : AppCompatActivity() {
             if (response.contains("متاسفانه") || response.contains("نمی‌توانم") || 
                 response.contains("متاسفم") || response.toLowerCase().contains("i cannot") ||
                 response.contains("دسترسی ندارم") || response.contains("امکان")) {
-                
-                android.util.Log.w("MainActivity", "Model refused! Trying fallback...")
-                val userMsg = messages.lastOrNull()?.content?.toLowerCase() ?: ""
-                
-                // تشخیص برنامه از پیام کاربر
-                return@withContext when {
-                    userMsg.contains("تلگرام") || userMsg.contains("telegram") -> {
-                        SystemIntegrationHelper.openApp(this@MainActivity, "تلگرام")
-                        "✅ تلگرام باز شد"
-                    }
-                    userMsg.contains("گوگل مپ") || userMsg.contains("google map") || userMsg.contains("مپ") -> {
                         SystemIntegrationHelper.openApp(this@MainActivity, "گوگل مپ")
                         "✅ گوگل مپ باز شد"
                     }

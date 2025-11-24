@@ -535,7 +535,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .show()
     }
     
-        override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.remindersRecyclerView
+        fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.remindersRecyclerView
 
     private fun handleReminderAction(reminder: SmartReminderManager.SmartReminder, action: String) {
         when (action) {

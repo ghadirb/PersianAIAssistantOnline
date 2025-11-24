@@ -11,10 +11,12 @@ import com.persianai.assistant.models.Reminder
 import com.persianai.assistant.utils.PersianDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ReminderChatActivity : BaseChatActivity() {
 
-        private lateinit var db: RemindersDb
+            private lateinit var db: RemindersDb
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,7 +27,7 @@ class ReminderChatActivity : BaseChatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "چت با دستیار یادآوری"
 
-                db = RemindersDb(this)
+                        db = RemindersDb(this)
 
         setupChatUI()
 
@@ -58,7 +60,7 @@ class ReminderChatActivity : BaseChatActivity() {
                 if (json.has("action") && json.get("action").asString == "add_reminder") {
                     val message = json.get("message").asString
                     val time = if (json.has("time")) json.get("time").asString else "09:00"
-                    val date = if (json.has("date")) json.get("date").asString else PersianDate.today()
+                                        val date = if (json.has("date")) json.get("date").asString else com.persianai.assistant.utils.PersianDate.today()
 
                     val reminder = Reminder(
                         title = message,
