@@ -1,41 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    
+
     <item
-        android:id="@+id/action_new_chat"
-        android:title="چت جدید"
-        android:icon="@android:drawable/ic_input_add"
+        android:id="@+id/action_reminders"
+        android:title="یادآوری‌ها"
+        android:icon="@android:drawable/ic_menu_my_calendar"
         app:showAsAction="ifRoom" />
-    
+
     <item
-        android:id="@+id/action_conversations"
-        android:title="تاریخچه چت‌ها"
-        android:icon="@android:drawable/ic_menu_recent_history"
+        android:id="@+id/action_finance"
+        android:title="مالی"
+        android:icon="@android:drawable/ic_menu_manage"
         app:showAsAction="ifRoom" />
-    
-    <item
-        android:id="@+id/action_select_model"
-        android:title="@string/menu_select_model"
-        android:icon="@drawable/ic_model"
-        app:showAsAction="never" />
-    
-    <item
-        android:id="@+id/action_refresh_keys"
-        android:title="@string/menu_refresh_keys"
-        android:icon="@drawable/ic_refresh"
-        app:showAsAction="never" />
-    
-    <item
-        android:id="@+id/action_clear_chat"
-        android:title="@string/menu_clear_chat"
-        android:icon="@drawable/ic_clear"
-        app:showAsAction="never" />
-    
+
     <item
         android:id="@+id/action_settings"
-        android:title="@string/menu_settings"
-        android:icon="@drawable/ic_settings"
+        android:title="تنظیمات"
+        android:icon="@android:drawable/ic_menu_preferences"
         app:showAsAction="ifRoom" />
-    
+
 </menu>
