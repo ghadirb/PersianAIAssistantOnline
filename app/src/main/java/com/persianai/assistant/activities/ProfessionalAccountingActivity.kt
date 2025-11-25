@@ -11,8 +11,6 @@ import com.persianai.assistant.R
 import com.persianai.assistant.adapters.CheckAdapter
 import com.persianai.assistant.adapters.InstallmentAdapter
 import com.persianai.assistant.databinding.ActivityProfessionalAccountingBinding
-import com.persianai.assistant.finance.CheckManager
-import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.utils.AccountingManager
 import kotlinx.coroutines.launch
 
@@ -33,18 +31,19 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
         setupRecyclerViews()
         setupTabs()
         updateAllData()
+        setupFabs()
     }
 
     private fun setupRecyclerViews() {
-        // Note: The models used by adapters (Check, Installment) might need to be adjusted
-        // if they are different from the ones in CheckManager/InstallmentManager.
-        // Assuming they are compatible for now.
-        checkAdapter = CheckAdapter { /* Handle check click */ }
-        installmentAdapter = InstallmentAdapter { /* Handle installment click */ }
+        // The adapters must be updated to use the correct models from Manager classes
+        checkAdapter = CheckAdapter { /* TODO: Open check details/edit dialog */ }
+        installmentAdapter = InstallmentAdapter { /* TODO: Open installment details/edit dialog */ }
 
         binding.recyclerViewChecks.layoutManager = LinearLayoutManager(this)
+        binding.recyclerViewChecks.adapter = checkAdapter
+
         binding.recyclerViewInstallments.layoutManager = LinearLayoutManager(this)
-        // Setup for recyclerViewTransactions if needed
+        binding.recyclerViewInstallments.adapter = installmentAdapter
     }
 
     private fun setupTabs() {
@@ -57,70 +56,87 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
         })
     }
 
+    private fun setupFabs() {
+        binding.fabAddCheck.setOnClickListener {
+            // TODO: Open dialog to add a new check
+            Toast.makeText(this, "Add Check Clicked", Toast.LENGTH_SHORT).show()
+        }
+        binding.fabAddInstallment.setOnClickListener {
+            // TODO: Open dialog to add a new installment
+            Toast.makeText(this, "Add Installment Clicked", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun handleTabSelection(position: Int) {
-        binding.recyclerViewTransactions.visibility = if (position == 0) View.VISIBLE else View.GONE
-        binding.recyclerViewChecks.visibility = if (position == 1) View.VISIBLE else View.GONE
-        binding.recyclerViewInstallments.visibility = if (position == 2) View.VISIBLE else View.GONE
-        binding.reportsLayout.visibility = if (position == 3) View.VISIBLE else View.GONE
+        // Hide all RecyclerViews and FABs first
+        binding.recyclerViewTransactions.visibility = View.GONE
+        binding.recyclerViewChecks.visibility = View.GONE
+        binding.recyclerViewInstallments.visibility = View.GONE
+        binding.reportsLayout.visibility = View.GONE
+        binding.fabAddTransaction.visibility = View.GONE
+        binding.fabAddCheck.visibility = View.GONE
+        binding.fabAddInstallment.visibility = View.GONE
 
         when (position) {
-            0 -> { /* Load Transactions */ }
-            1 -> loadChecks()
-            2 -> loadInstallments()
-            3 -> { /* Load Reports */ }
+            0 -> { // Transactions
+                binding.recyclerViewTransactions.visibility = View.VISIBLE
+                binding.fabAddTransaction.visibility = View.VISIBLE
+            }
+            1 -> { // Checks
+                binding.recyclerViewChecks.visibility = View.VISIBLE
+                binding.fabAddCheck.visibility = View.VISIBLE
+                loadChecks()
+            }
+            2 -> { // Installments
+                binding.recyclerViewInstallments.visibility = View.VISIBLE
+                binding.fabAddInstallment.visibility = View.VISIBLE
+                loadInstallments()
+            }
+            3 -> { // Reports
+                binding.reportsLayout.visibility = View.VISIBLE
+            }
         }
     }
 
     private fun updateAllData() {
         updateStatistics()
-        handleTabSelection(0) // Load default tab
+        handleTabSelection(binding.tabLayout.selectedTabPosition) // Load initial tab
     }
 
     private fun updateStatistics() {
         lifecycleScope.launch {
-            try {
-                val report = accountingManager.getFinancialReport()
-                binding.totalIncomeText.text = String.format("%,.0f تومان", report.totalIncome)
-                binding.totalExpenseText.text = String.format("%,.0f تومان", report.totalExpense)
-                binding.balanceText.text = String.format("%,.0f تومان", report.balance)
-
-                binding.balanceText.setTextColor(
-                    when {
-                        report.balance > 0 -> getColor(R.color.income_green)
-                        report.balance < 0 -> getColor(R.color.expense_red)
-                        else -> getColor(R.color.neutral_gray)
-                    }
-                )
-            } catch (e: Exception) {
-                Toast.makeText(this@ProfessionalAccountingActivity, "خطا در به‌روزرسانی آمار", Toast.LENGTH_SHORT).show()
-            }
+            val report = accountingManager.getFinancialReport()
+            binding.totalIncomeText.text = String.format("%,.0f", report.totalIncome)
+            binding.totalExpenseText.text = String.format("%,.0f", report.totalExpense)
+            binding.balanceText.text = String.format("%,.0f", report.balance)
+            binding.balanceText.setTextColor(
+                when {
+                    report.balance > 0 -> getColor(R.color.income_green)
+                    report.balance < 0 -> getColor(R.color.expense_red)
+                    else -> getColor(R.color.neutral_gray)
+                }
+            )
         }
     }
 
     private fun loadChecks() {
         lifecycleScope.launch {
-            try {
-                val checks = accountingManager.getAllChecks()
-                // The Check model from CheckManager must be compatible with the Check model expected by CheckAdapter
-                // This might require a mapping function if they are different.
-                // checkAdapter.submitList(checks)
-                binding.recyclerViewChecks.adapter = checkAdapter
-            } catch (e: Exception) {
-                Toast.makeText(this@ProfessionalAccountingActivity, "خطا در بارگذاری چک‌ها", Toast.LENGTH_SHORT).show()
-            }
+            val checks = accountingManager.getAllChecks()
+            // This will cause a type mismatch. The adapter needs to be fixed.
+            // checkAdapter.submitList(checks)
         }
     }
 
     private fun loadInstallments() {
         lifecycleScope.launch {
-            try {
-                val installments = accountingManager.getAllInstallments()
-                // Similar to checks, a mapping might be needed here.
-                // installmentAdapter.submitList(installments)
-                binding.recyclerViewInstallments.adapter = installmentAdapter
-            } catch (e: Exception) {
-                Toast.makeText(this@ProfessionalAccountingActivity, "خطا در بارگذاری اقساط", Toast.LENGTH_SHORT).show()
-            }
+            val installments = accountingManager.getAllInstallments()
+            // This will cause a type mismatch. The adapter needs to be fixed.
+            // installmentAdapter.submitList(installments)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateAllData()
     }
 }

@@ -10,8 +10,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
 import com.persianai.assistant.R
-import com.persianai.assistant.models.Installment
-import com.persianai.assistant.models.InstallmentStatus
+import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.utils.JalaliCalendar
 import java.util.*
 
@@ -19,8 +18,8 @@ import java.util.*
  * آداپتور برای نمایش لیست اقساط
  */
 class InstallmentAdapter(
-    private val onInstallmentClick: (Installment) -> Unit
-) : ListAdapter<Installment, InstallmentAdapter.ViewHolder>(DiffCallback()) {
+    private val onInstallmentClick: (InstallmentManager.Installment) -> Unit
+) : ListAdapter<InstallmentManager.Installment, InstallmentAdapter.ViewHolder>(DiffCallback()) {
     
     private fun toJalali(timestamp: Long): String {
         val cal = Calendar.getInstance()
@@ -49,7 +48,7 @@ class InstallmentAdapter(
         private val progressPercentView: TextView = itemView.findViewById(R.id.progressPercentText)
         private val remainingView: TextView = itemView.findViewById(R.id.remainingText)
         
-        fun bind(installment: Installment) {
+        fun bind(installment: InstallmentManager.Installment) {
             // عنوان قسط
             titleView.text = installment.title
             
@@ -77,7 +76,7 @@ class InstallmentAdapter(
             }
         }
         
-        private fun getStatusName(status: InstallmentStatus): String {
+        private fun getStatusName(status: InstallmentManager.InstallmentStatus): String {
             return when (status) {
                 InstallmentStatus.ACTIVE -> "فعال"
                 InstallmentStatus.COMPLETED -> "تکمیل شده"
@@ -87,12 +86,12 @@ class InstallmentAdapter(
         }
     }
     
-    class DiffCallback : DiffUtil.ItemCallback<Installment>() {
-        override fun areItemsTheSame(oldItem: Installment, newItem: Installment): Boolean {
+    class DiffCallback : DiffUtil.ItemCallback<InstallmentManager.Installment>() {
+        override fun areItemsTheSame(oldItem: InstallmentManager.Installment, newItem: InstallmentManager.Installment): Boolean {
             return oldItem.id == newItem.id
         }
         
-        override fun areContentsTheSame(oldItem: Installment, newItem: Installment): Boolean {
+        override fun areContentsTheSame(oldItem: InstallmentManager.Installment, newItem: InstallmentManager.Installment): Boolean {
             return oldItem == newItem
         }
     }

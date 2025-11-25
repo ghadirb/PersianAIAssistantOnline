@@ -3,21 +3,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_reminders"
-        android:title="یادآوری‌ها"
-        android:icon="@android:drawable/ic_menu_my_calendar"
-        app:showAsAction="ifRoom" />
-
-    <item
-        android:id="@+id/action_finance"
-        android:title="مالی"
-        android:icon="@android:drawable/ic_menu_manage"
-        app:showAsAction="ifRoom" />
-
-    <item
         android:id="@+id/action_settings"
+        android:icon="@drawable/ic_settings"
         android:title="تنظیمات"
-        android:icon="@android:drawable/ic_menu_preferences"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_chat_history"
+        android:icon="@drawable/ic_history"
+        android:title="تاریخچه چت"
         app:showAsAction="ifRoom" />
 
 </menu>

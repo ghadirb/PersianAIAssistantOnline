@@ -1,72 +1,71 @@
 package com.persianai.assistant.activities
 
+import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.persianai.assistant.adapters.RemindersAdapter
 import com.persianai.assistant.databinding.ActivityAdvancedRemindersBinding
-import com.persianai.assistant.models.Reminder
-import com.persianai.assistant.storage.ReminderStorage
+import com.persianai.assistant.utils.SmartReminderManager
+import kotlinx.coroutines.launch
 
 class AdvancedRemindersActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAdvancedRemindersBinding
-    private lateinit var reminderStorage: ReminderStorage
-    private lateinit var remindersAdapter: RemindersAdapter
+    private lateinit var reminderManager: SmartReminderManager
+    private lateinit var adapter: RemindersAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAdvancedRemindersBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
 
-        reminderStorage = ReminderStorage(this)
+        reminderManager = SmartReminderManager(this)
 
         setupRecyclerView()
         loadReminders()
+        updateStats()
 
         binding.fabAddReminder.setOnClickListener {
-            // Add a sample reminder for testing
-            val newReminder = Reminder(
-                message = "یادآوری تستی جدید",
-                timestamp = System.currentTimeMillis() + 120000 // 2 minutes from now
-            )
-            reminderStorage.addReminder(newReminder)
-            Toast.makeText(this, "یادآوری تستی اضافه شد", Toast.LENGTH_SHORT).show()
-            loadReminders()
+            // Open a dedicated activity to create/edit reminders
+            // startActivity(Intent(this, EditReminderActivity::class.java))
         }
     }
 
     private fun setupRecyclerView() {
-        remindersAdapter = RemindersAdapter(emptyList()) { reminder, action ->
-            when (action) {
-                "complete" -> {
-                    val updatedReminder = reminder.copy(isCompleted = !reminder.isCompleted)
-                    reminderStorage.updateReminder(updatedReminder)
-                    loadReminders()
-                }
-                "view" -> {
-                    Toast.makeText(this, "نمایش جزئیات: ${reminder.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
+        adapter = RemindersAdapter {
+            // Handle reminder click for editing
         }
-        binding.remindersRecyclerView.apply {
-            layoutManager = LinearLayoutManager(this@AdvancedRemindersActivity)
-            adapter = remindersAdapter
-        }
+        binding.remindersRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.remindersRecyclerView.adapter = adapter
     }
 
     private fun loadReminders() {
-        val reminders = reminderStorage.getAllReminders()
-        remindersAdapter.updateData(reminders)
-        updateStats(reminders)
+        lifecycleScope.launch {
+            val reminders = reminderManager.getAllReminders().map { it.toSimpleReminder() }
+            adapter.submitList(reminders)
+        }
     }
 
-    private fun updateStats(reminders: List<Reminder>) {
-        binding.totalRemindersText.text = reminders.size.toString()
-        binding.activeRemindersText.text = reminders.count { !it.isCompleted }.toString()
-        binding.completedRemindersText.text = reminders.count { it.isCompleted }.toString()
-        binding.upcomingRemindersText.text = reminders.count { !it.isCompleted && it.timestamp > System.currentTimeMillis() }.toString()
+    private fun updateStats() {
+        lifecycleScope.launch {
+            val allReminders = reminderManager.getAllReminders()
+            val active = allReminders.count { !it.isCompleted }
+            val completed = allReminders.count { it.isCompleted }
+            val upcoming = reminderManager.getUpcomingReminders(1).size
+
+            binding.statTotal.text = allReminders.size.toString()
+            binding.statActive.text = active.toString()
+            binding.statCompleted.text = completed.toString()
+            binding.statUpcoming.text = upcoming.toString()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh list and stats when returning to the activity
+        loadReminders()
+        updateStats()
     }
 }

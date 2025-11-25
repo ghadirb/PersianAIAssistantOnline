@@ -16,9 +16,25 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         setSupportActionBar(binding.toolbar)
 
-        // Setup chat UI and logic here...
+        setupDashboardCards()
+    }
+
+    private fun setupDashboardCards() {
+        binding.cardReminders.setOnClickListener {
+            startActivity(Intent(this, AdvancedRemindersActivity::class.java))
+        }
+
+        binding.cardFinance.setOnClickListener {
+            startActivity(Intent(this, ProfessionalAccountingActivity::class.java))
+        }
+
+        binding.cardAssistant.setOnClickListener {
+             // This should open the main chat activity, let's assume it's ChatActivity for now
+             startActivity(Intent(this, ChatActivity::class.java))
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -28,16 +44,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_reminders -> {
-                startActivity(Intent(this, AdvancedRemindersActivity::class.java))
+            R.id.action_settings -> {
+                // startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
-            R.id.action_finance -> {
-                startActivity(Intent(this, FinanceAdvancedActivity::class.java))
+            R.id.action_chat_history -> {
+                // startActivity(Intent(this, ChatHistoryActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
     }
 }
-

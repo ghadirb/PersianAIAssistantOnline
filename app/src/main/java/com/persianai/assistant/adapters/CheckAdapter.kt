@@ -9,8 +9,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
 import com.persianai.assistant.R
-import com.persianai.assistant.models.Check
-import com.persianai.assistant.models.CheckStatus
+import com.persianai.assistant.finance.CheckManager
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.persianai.assistant.utils.JalaliCalendar
@@ -20,9 +19,8 @@ import java.util.*
  * آداپتور برای نمایش لیست چک‌ها
  */
 class CheckAdapter(
-    private val dateFormat: SimpleDateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()),
-    private val onCheckClick: (Check) -> Unit
-) : ListAdapter<Check, CheckAdapter.ViewHolder>(DiffCallback()) {
+    private val onCheckClick: (CheckManager.Check) -> Unit
+) : ListAdapter<CheckManager.Check, CheckAdapter.ViewHolder>(DiffCallback()) {
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -43,7 +41,7 @@ class CheckAdapter(
         private val alertView: TextView = itemView.findViewById(R.id.alertText)
         private val statusChip: Chip = itemView.findViewById(R.id.statusChip)
         
-        fun bind(check: Check) {
+        fun bind(check: CheckManager.Check) {
             // شماره چک
             checkNumberView.text = "💳 چک #${check.checkNumber}"
 
@@ -86,7 +84,7 @@ class CheckAdapter(
             }
         }
         
-        private fun getStatusName(status: CheckStatus): String {
+        private fun getStatusName(status: CheckManager.CheckStatus): String {
             return when (status) {
                 CheckStatus.PENDING -> "در انتظار وصول"
                 CheckStatus.DEPOSITED -> "وصول شده"
@@ -96,12 +94,12 @@ class CheckAdapter(
         }
     }
     
-    class DiffCallback : DiffUtil.ItemCallback<Check>() {
-        override fun areItemsTheSame(oldItem: Check, newItem: Check): Boolean {
+    class DiffCallback : DiffUtil.ItemCallback<CheckManager.Check>() {
+        override fun areItemsTheSame(oldItem: CheckManager.Check, newItem: CheckManager.Check): Boolean {
             return oldItem.id == newItem.id
         }
         
-        override fun areContentsTheSame(oldItem: Check, newItem: Check): Boolean {
+        override fun areContentsTheSame(oldItem: CheckManager.Check, newItem: CheckManager.Check): Boolean {
             return oldItem == newItem
         }
     }
