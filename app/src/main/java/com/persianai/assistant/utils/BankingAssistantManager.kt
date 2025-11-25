@@ -5,8 +5,10 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.persianai.assistant.finance.Check
-import com.persianai.assistant.finance.Installment
+import com.persianai.assistant.data.Check
+import com.persianai.assistant.data.Installment
+import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.InstallmentManager
 
 class BankingAssistantManager(private val context: Context) {
 

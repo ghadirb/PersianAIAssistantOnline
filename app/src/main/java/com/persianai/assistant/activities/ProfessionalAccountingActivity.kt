@@ -16,6 +16,7 @@ import com.persianai.assistant.adapters.CheckAdapter
 import com.persianai.assistant.adapters.InstallmentAdapter
 import com.persianai.assistant.databinding.ActivityProfessionalAccountingBinding
 import com.persianai.assistant.models.*
+import com.persianai.assistant.utils.FinancialReport
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AccountingManager
 import kotlinx.coroutines.launch
@@ -146,16 +147,17 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
     private fun updateStatistics() {
         lifecycleScope.launch {
             try {
-                val stats = accountingManager.getFinancialStatistics()
+                val report = accountingManager.getFinancialReport()
                 
-                binding.totalIncomeText.text = "${String.format("%,.0f", stats.totalIncome)} تومان"
-                binding.totalExpenseText.text = "${String.format("%,.0f", stats.totalExpense)} تومان"
-                binding.balanceText.text = "${String.format("%,.0f", stats.balance)} تومان"
+                binding.totalIncomeText.text = "${String.format("%,.0f", report.totalCheckAmount)} تومان"
+                binding.totalExpenseText.text = "${String.format("%,.0f", report.totalInstallmentAmount)} تومان"
+                binding.balanceText.text = "${String.format("%,.0f", report.balance)} تومان"
                 
                 // تنظیم رنگ تراز
                 binding.balanceText.setTextColor(
                     when {
-                        stats.balance > 0 -> getColor(R.color.income_green)
+                        report.balance > 0 -> getColor(R.color.income_green)
+                        report.balance < 0 -> getColor(R.color.expense_red)
                         stats.balance < 0 -> getColor(R.color.expense_red)
                         else -> getColor(R.color.neutral_gray)
                     }

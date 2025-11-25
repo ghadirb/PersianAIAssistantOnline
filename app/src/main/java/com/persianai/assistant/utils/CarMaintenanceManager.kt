@@ -5,8 +5,8 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.persianai.assistant.data.MaintenanceRecord
 import com.persianai.assistant.enums.ServiceType
-import com.persianai.assistant.models.MaintenanceRecord
 
 class CarMaintenanceManager(private val context: Context) {
 
