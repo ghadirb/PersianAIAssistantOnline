@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".fragments.finance.InstallmentsFragment">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/installmentsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp" />
+
+    <TextView
+        android:id="@+id/emptyInstallmentsText"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="📋 هیچ قسطی ثبت نشده\n\nبرای افزودن قسط روی دکمه + کلیک کنید"
+        android:textSize="16sp"
+        android:textColor="?android:attr/textColorSecondary" />
+
+</FrameLayout>

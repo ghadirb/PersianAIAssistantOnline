@@ -6,7 +6,10 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.persianai.assistant.databinding.ActivityChatBinding
 import com.persianai.assistant.models.MessageRole
-import com.persianai.assistant.models.Reminder
+import com.persianai.assistant.utils.SmartReminderManager
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.persianai.assistant.utils.PersianDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -61,10 +64,21 @@ class ReminderChatActivity : BaseChatActivity() {
                 if (json.has("action") && json.get("action").asString == "add_reminder") {
                     val message = json.get("message").asString
                     val time = if (json.has("time")) json.get("time").asString else "09:00"
-                    val date = if (json.has("date")) json.get("date").asString else java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale("fa")).format(java.util.Date())
+                    val date = if (json.has("date")) json.get("date").asString else SimpleDateFormat("yyyy/MM/dd", Locale("fa", "IR")).format(Date())
 
-                    // TODO: Re-implement reminder adding logic
-                    "✅ یادآوری «$message» برای تاریخ $date ساعت $time تنظیم شد."
+                    // Parse date and time to create a timestamp
+                    val dateTimeString = "$date $time"
+                    val format = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale("fa", "IR"))
+                    val triggerTime = format.parse(dateTimeString)?.time ?: System.currentTimeMillis()
+
+                    // Create reminder using SmartReminderManager
+                    val reminderManager = SmartReminderManager(this)
+                    reminderManager.createSimpleReminder(
+                        title = message,
+                        triggerTime = triggerTime
+                    )
+
+                    "✅ یادآوری «$message» برای تاریخ $date ساعت $time با موفقیت تنظیم شد."
                 } else {
                     responseJson // Return the raw JSON if it's not an add_reminder action
                 }

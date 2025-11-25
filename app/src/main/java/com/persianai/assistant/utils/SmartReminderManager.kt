@@ -12,7 +12,8 @@ import android.util.Log
 import android.widget.Toast
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.persianai.assistant.services.ReminderReceiver
+import com.persianai.assistant.models.Reminder
+import com.persianai.assistant.utils.ReminderScheduler
 import java.util.Calendar
 
 /**
@@ -90,21 +91,20 @@ class SmartReminderManager(private val context: Context) {
         val alertType: AlertType = AlertType.NOTIFICATION,
         val triggerTime: Long,
         val repeatPattern: RepeatPattern = RepeatPattern.ONCE,
-        val customRepeatDays: List<Int> = emptyList(), // 1=یکشنبه, 2=دوشنبه, ...
-        val locationLat: Double? = null,
-        val locationLng: Double? = null,
-        val locationRadius: Int = 100, // متر
-        val locationName: String = "",
-        val isCompleted: Boolean = false,
-        val completedAt: Long? = null,
-        val createdAt: Long = System.currentTimeMillis(),
-        val tags: List<String> = emptyList(),
-        val relatedPerson: String = "", // برای تولدها و یادآوری‌های خانوادگی
-        val attachments: List<String> = emptyList(),
-        val snoozeCount: Int = 0,
-        val lastSnoozed: Long? = null,
+        val customRepeatDays: List<Int> = emptyList(), // 1=Sunday, 7=Saturday
+        val location: String? = null,
+        val relatedPerson: String? = null,
         val notes: String = ""
-    )
+    ) {
+        fun toSimpleReminder(): Reminder {
+            return Reminder(
+                id = this.id,
+                message = this.title,
+                timestamp = this.triggerTime,
+                isRepeating = this.repeatPattern != RepeatPattern.ONCE
+            )
+        }
+    }
     
     /**
      * افزودن یادآوری
@@ -114,8 +114,9 @@ class SmartReminderManager(private val context: Context) {
         reminders.add(reminder)
         saveReminders(reminders)
         
-        // تنظیم آلارم
-        scheduleReminder(reminder)
+        // تنظیم آلارم با استفاده از ReminderScheduler
+        val simpleReminder = reminder.toSimpleReminder()
+        ReminderScheduler.scheduleReminder(context, simpleReminder)
         
         Log.i(TAG, "✅ یادآوری جدید: ${reminder.title} (${reminder.type.displayName})")
         
@@ -362,7 +363,10 @@ class SmartReminderManager(private val context: Context) {
                 // برای تکراری، زمان بعدی را محاسبه کن
                 val nextTime = calculateNextTriggerTime(reminder)
                 reminders[index] = reminder.copy(triggerTime = nextTime)
-                scheduleReminder(reminders[index])
+                val simpleReminder = reminder.toSimpleReminder()
+                ReminderScheduler.cancelReminder(context, simpleReminder)
+                simpleReminder.timestamp = nextTime
+                ReminderScheduler.scheduleReminder(context, simpleReminder)
             }
             
             saveReminders(reminders)
@@ -391,7 +395,10 @@ class SmartReminderManager(private val context: Context) {
             )
             
             saveReminders(reminders)
-            scheduleReminder(reminders[index])
+            val simpleReminder = reminder.toSimpleReminder()
+            ReminderScheduler.cancelReminder(context, simpleReminder)
+            simpleReminder.timestamp = newTime
+            ReminderScheduler.scheduleReminder(context, simpleReminder)
             
             Log.i(TAG, "⏰ یادآوری به تعویق افتاد: ${reminder.title} ($minutes دقیقه)")
             return true
@@ -401,7 +408,7 @@ class SmartReminderManager(private val context: Context) {
     }
     
     /**
-     * حذف یادآوری
+     * بروزرسانی یادآوری
      */
     fun updateReminder(updatedReminder: SmartReminder): Boolean {
         val reminders = getAllReminders().toMutableList()
@@ -412,28 +419,36 @@ class SmartReminderManager(private val context: Context) {
             reminders[index] = updatedReminder
             saveReminders(reminders)
 
-            // Reschedule if trigger time is different
-            if (oldReminder.triggerTime != updatedReminder.triggerTime) {
-                cancelReminder(updatedReminder.id)
-                scheduleReminder(updatedReminder)
-            }
-            Log.i(TAG, "🔄 یادآوری به‌روز شد: ${updatedReminder.title}")
+            // بروزرسانی آلارم
+            val oldSimpleReminder = oldReminder.toSimpleReminder()
+            ReminderScheduler.cancelReminder(context, oldSimpleReminder)
+            val newSimpleReminder = updatedReminder.toSimpleReminder()
+            ReminderScheduler.scheduleReminder(context, newSimpleReminder)
+
+            Log.i(TAG, "🔄 یادآوری بروزرسانی شد: ${updatedReminder.title}")
             return true
         }
         return false
     }
 
+    /**
+     * حذف یادآوری
+     */
     fun deleteReminder(reminderId: String): Boolean {
         val reminders = getAllReminders().toMutableList()
-        val removed = reminders.removeIf { it.id == reminderId }
-        
-        if (removed) {
+        val reminder = reminders.firstOrNull { it.id == reminderId }
+        if (reminder != null) {
+            reminders.remove(reminder)
             saveReminders(reminders)
-            cancelReminder(reminderId)
-            Log.i(TAG, "🗑️ یادآوری حذف شد")
+
+            // لغو آلارم
+            val simpleReminder = reminder.toSimpleReminder()
+            ReminderScheduler.cancelReminder(context, simpleReminder)
+
+            Log.i(TAG, "🗑️ یادآوری حذف شد: ${reminder.title}")
+            return true
         }
-        
-        return removed
+        return false
     }
     
     /**
@@ -472,75 +487,6 @@ class SmartReminderManager(private val context: Context) {
     }
     
     /**
-     * تنظیم آلارم برای یادآوری
-     */
-    private fun scheduleReminder(reminder: SmartReminder) {
-        // برای اندروید 12 به بالا، نیاز به اجازه آلارم دقیق داریم
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (!alarmManager.canScheduleExactAlarms()) {
-                try {
-                    val settingsIntent = Intent(
-                        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                        Uri.parse("package:${context.packageName}")
-                    ).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    context.startActivity(settingsIntent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error requesting exact alarm permission", e)
-                }
-
-                Toast.makeText(
-                    context,
-                    "لطفاً در تنظیمات، اجازهٔ آلارم دقیق را برای برنامه فعال کنید.",
-                    Toast.LENGTH_LONG
-                ).show()
-                return
-            }
-        }
-
-        val intent = Intent(context, ReminderReceiver::class.java).apply {
-            // ID عددی برای استفاده در NotificationManager و requestCode
-            putExtra("reminder_id", reminder.id.hashCode())
-            // ID اصلی برای کار با SmartReminderManager
-            putExtra("smart_reminder_id", reminder.id)
-
-            putExtra("reminder_title", reminder.title)
-            putExtra("reminder_description", reminder.description)
-            putExtra("reminder_priority", reminder.priority.name)
-            putExtra("message", reminder.title)
-            putExtra("use_alarm", reminder.alertType == AlertType.FULL_SCREEN)
-        }
-        
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            reminder.id.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        try {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                reminder.triggerTime,
-                pendingIntent
-            )
-            Log.d(TAG, "⏰ آلارم تنظیم شد: ${reminder.title}")
-        } catch (e: SecurityException) {
-            Log.e(TAG, "خطا در تنظیم آلارم: ${e.message}")
-        }
-    }
-    
-    /**
-     * لغو آلارم یادآوری
-     */
-    private fun cancelReminder(reminderId: String) {
-        val intent = Intent(context, ReminderReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            reminderId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
         alarmManager.cancel(pendingIntent)
