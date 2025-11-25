@@ -1,17 +1,14 @@
 package com.persianai.assistant.models
 
+import java.util.UUID
+
 data class Reminder(
-    val id: Long = System.currentTimeMillis(),
-    val title: String,
-    val persianDate: String,
-    val time: String,
-    val repeatType: RepeatType = RepeatType.NONE,
-    val isActive: Boolean = true
+    val id: String = UUID.randomUUID().toString(),
+    var message: String,
+    var timestamp: Long,
+    var isRepeating: Boolean = false,
+    var isCompleted: Boolean = false,
+    var tags: List<String> = emptyList(),
+    var locationName: String? = null
 )
 
-enum class RepeatType {
-    NONE,
-    DAILY,
-    WEEKLY,
-    MONTHLY
-}

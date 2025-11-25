@@ -10,8 +10,8 @@ import androidx.lifecycle.lifecycleScope
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.ai.AIFinanceProcessor
 import com.persianai.assistant.databinding.ActivityFinanceAdvancedBinding
-import com.persianai.assistant.utils.CheckManager
-import com.persianai.assistant.utils.InstallmentManager
+import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.launch
 

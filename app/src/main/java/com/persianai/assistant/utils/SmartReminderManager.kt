@@ -98,10 +98,11 @@ class SmartReminderManager(private val context: Context) {
     ) {
         fun toSimpleReminder(): Reminder {
             return Reminder(
-                id = this.id,
+                id = this.id.hashCode(), // Reminder expects Int ID
                 message = this.title,
                 timestamp = this.triggerTime,
-                isRepeating = this.repeatPattern != RepeatPattern.ONCE
+                isRepeating = this.repeatPattern != RepeatPattern.ONCE,
+                // Add default values for other fields if they exist in Reminder model
             )
         }
     }
@@ -485,14 +486,7 @@ class SmartReminderManager(private val context: Context) {
         
         return calendar.timeInMillis
     }
-    
-    /**
-        )
-        
-        alarmManager.cancel(pendingIntent)
-        Log.d(TAG, "❌ آلارم لغو شد")
-    }
-    
+
     /**
      * ذخیره یادآوری‌ها
      */

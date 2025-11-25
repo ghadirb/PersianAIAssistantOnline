@@ -5,8 +5,8 @@ import com.google.gson.JsonObject
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
-import com.persianai.assistant.utils.CheckManager
-import com.persianai.assistant.utils.InstallmentManager
+import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.InstallmentManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

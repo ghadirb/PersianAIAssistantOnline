@@ -72,7 +72,7 @@ class ReminderChatActivity : BaseChatActivity() {
                     val triggerTime = format.parse(dateTimeString)?.time ?: System.currentTimeMillis()
 
                     // Create reminder using SmartReminderManager
-                    val reminderManager = SmartReminderManager(this)
+                    val reminderManager = SmartReminderManager(this@ReminderChatActivity)
                     reminderManager.createSimpleReminder(
                         title = message,
                         triggerTime = triggerTime
