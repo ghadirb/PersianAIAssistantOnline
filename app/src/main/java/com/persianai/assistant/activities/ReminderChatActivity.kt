@@ -13,24 +13,32 @@ import kotlinx.coroutines.withContext
 
 class ReminderChatActivity : BaseChatActivity() {
 
+    private lateinit var chatBinding: ActivityChatBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityChatBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        chatBinding = ActivityChatBinding.inflate(layoutInflater)
+        binding = chatBinding
+        setContentView(chatBinding.root)
 
-        setSupportActionBar(binding.toolbar)
+        setSupportActionBar(chatBinding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "چت با دستیار یادآوری"
 
         setupChatUI()
 
-        addMessage(com.persianai.assistant.models.ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"))
+        addMessage(
+            com.persianai.assistant.models.ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"
+            )
+        )
     }
 
-    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = binding.recyclerView
-    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = binding.messageInput
-    override fun getSendButton(): View = binding.sendButton
-    override fun getVoiceButton(): View = binding.voiceButton
+    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = chatBinding.recyclerView
+    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = chatBinding.messageInput
+    override fun getSendButton(): View = chatBinding.sendButton
+    override fun getVoiceButton(): View = chatBinding.voiceButton
 
     override fun getSystemPrompt(): String {
         return """

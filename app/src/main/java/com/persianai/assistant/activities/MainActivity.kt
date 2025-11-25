@@ -95,6 +95,7 @@ class MainActivity : AppCompatActivity() {
             financeManager = FinanceManager(this)
             checkManager = CheckManager(this)
             installmentManager = InstallmentManager(this)
+            conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
             
             // Initialize Default API Keys if available
             try {
@@ -144,17 +145,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_RECORD_AUDIO && resultCode == RESULT_OK && data != null) {
-            val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val spokenText = results?.get(0)
-            if (!spokenText.isNullOrEmpty()) {
-                binding.messageInput.setText(spokenText)
-                sendMessage()
-            }
-        }
-    }
 
     private fun setupListeners() {
         binding.sendButton.setOnClickListener {
@@ -280,27 +270,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadMessages() {
-        conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
-        val conversations = conversationStorage.getConversations()
-        if (conversations.isNotEmpty()) {
-            currentConversation = conversations.first()
-            messages.clear()
-            messages.addAll(currentConversation!!.messages)
-            chatAdapter.notifyDataSetChanged()
-            binding.recyclerView.scrollToPosition(messages.size - 1)
-        } else {
-            currentConversation = conversationStorage.createNewConversation()
-            addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور میتونم کمکتون کنم؟"))
-        }
-    }
 
-    private fun saveCurrentConversation() {
-        currentConversation?.let {
-            val updatedConversation = it.copy(messages = ArrayList(messages))
-            conversationStorage.saveConversation(updatedConversation)
-        }
-    }
 
     private fun checkAudioPermissionAndStartRecording() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -335,18 +305,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun stopRecording(filePath: String) {
-        if (!isRecording) return
-        try {
-            mediaRecorder?.stop()
-            mediaRecorder?.release()
-        } catch (e: Exception) {
-            // Ignore errors on stop
-        }
-        mediaRecorder = null
-        isRecording = false
-        recordingTimer?.cancel()
-    }
 
     private fun stopRecordingAndProcess() {
         if (!isRecording) return
@@ -376,23 +334,8 @@ class MainActivity : AppCompatActivity() {
         File(audioFilePath).delete()
     }
 
-    private fun transcribeAndSendAudio(filePath: String) {
-        // Placeholder for transcription logic
-        val file = File(filePath)
-        if (file.exists()) {
-            // In a real app, you would send this to a transcription service
-            addMessage(ChatMessage(role = MessageRole.USER, content = "[Audio recorded]", timestamp = System.currentTimeMillis()))
-            file.delete()
-        }
-    }
 
-    private fun updateModelDisplay() {
-        // Placeholder
-    }
 
-    private fun updateModeIndicator() {
-        // Placeholder
-    }
 
     private fun isActionCommand(text: String): Boolean {
         val keywords = listOf("یادآوری", "چک", "قسط", "مسیریابی", "درآمد", "هزینه")
@@ -1267,7 +1210,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startSpeechRecognition() {
-    
+        startSpeechToText()
+    }
+
     private fun stopRecordingAndProcess() {
         if (!isRecording) return
         
@@ -1509,11 +1454,13 @@ class MainActivity : AppCompatActivity() {
             .setMessage("آیا مطمئن هستید که می‌خواهید تمام پیام‌ها را پاک کنید؟")
             .setPositiveButton("بله") { _, _ ->
                 lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        messageStorage.clearAllMessages()
+                    currentConversation?.let {
+                        withContext(Dispatchers.IO) {
+                            conversationStorage.deleteConversation(it.id)
+                            conversationStorage.clearCurrentConversationId()
+                        }
                     }
-                    messages.clear()
-                    chatAdapter.notifyDataSetChanged()
+                    startNewConversation()
                     Toast.makeText(this@MainActivity, "چت پاک شد", Toast.LENGTH_SHORT).show()
                 }
             }
