@@ -141,7 +141,7 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     private fun goToMain() {
-        val intent = Intent(this, DashboardActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
         finish()
     }

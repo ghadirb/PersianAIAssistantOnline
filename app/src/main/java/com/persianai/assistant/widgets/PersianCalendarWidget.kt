@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.DashboardActivity
+import com.persianai.assistant.activities.MainActivity
 import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.WidgetThemeManager
@@ -92,7 +92,7 @@ class PersianCalendarWidget : AppWidgetProvider() {
         }
         
         // کلیک بر روی کل ویجت - باز کردن برنامه
-        val intent = Intent(context, DashboardActivity::class.java)
+        val intent = Intent(context, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         val pendingIntent = PendingIntent.getActivity(context, 0, intent, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
