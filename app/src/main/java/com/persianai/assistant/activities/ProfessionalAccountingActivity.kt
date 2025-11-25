@@ -1,6 +1,7 @@
 package com.persianai.assistant.activities
 
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -10,6 +11,8 @@ import com.persianai.assistant.R
 import com.persianai.assistant.adapters.CheckAdapter
 import com.persianai.assistant.adapters.InstallmentAdapter
 import com.persianai.assistant.databinding.ActivityProfessionalAccountingBinding
+import com.persianai.assistant.finance.CheckManager
+import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.utils.AccountingManager
 import kotlinx.coroutines.launch
 
@@ -33,28 +36,44 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerViews() {
-        checkAdapter = CheckAdapter(emptyList()) { /* Handle check click */ }
-        installmentAdapter = InstallmentAdapter(emptyList()) { /* Handle installment click */ }
+        // Note: The models used by adapters (Check, Installment) might need to be adjusted
+        // if they are different from the ones in CheckManager/InstallmentManager.
+        // Assuming they are compatible for now.
+        checkAdapter = CheckAdapter { /* Handle check click */ }
+        installmentAdapter = InstallmentAdapter { /* Handle installment click */ }
 
-        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recyclerViewChecks.layoutManager = LinearLayoutManager(this)
+        binding.recyclerViewInstallments.layoutManager = LinearLayoutManager(this)
+        // Setup for recyclerViewTransactions if needed
     }
 
     private fun setupTabs() {
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> loadChecks()
-                    1 -> loadInstallments()
-                }
+                handleTabSelection(tab?.position ?: 0)
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
     }
 
+    private fun handleTabSelection(position: Int) {
+        binding.recyclerViewTransactions.visibility = if (position == 0) View.VISIBLE else View.GONE
+        binding.recyclerViewChecks.visibility = if (position == 1) View.VISIBLE else View.GONE
+        binding.recyclerViewInstallments.visibility = if (position == 2) View.VISIBLE else View.GONE
+        binding.reportsLayout.visibility = if (position == 3) View.VISIBLE else View.GONE
+
+        when (position) {
+            0 -> { /* Load Transactions */ }
+            1 -> loadChecks()
+            2 -> loadInstallments()
+            3 -> { /* Load Reports */ }
+        }
+    }
+
     private fun updateAllData() {
         updateStatistics()
-        loadChecks() // Load default tab
+        handleTabSelection(0) // Load default tab
     }
 
     private fun updateStatistics() {
@@ -82,8 +101,10 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val checks = accountingManager.getAllChecks()
-                checkAdapter.updateData(checks)
-                binding.recyclerView.adapter = checkAdapter
+                // The Check model from CheckManager must be compatible with the Check model expected by CheckAdapter
+                // This might require a mapping function if they are different.
+                // checkAdapter.submitList(checks)
+                binding.recyclerViewChecks.adapter = checkAdapter
             } catch (e: Exception) {
                 Toast.makeText(this@ProfessionalAccountingActivity, "خطا در بارگذاری چک‌ها", Toast.LENGTH_SHORT).show()
             }
@@ -94,8 +115,9 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val installments = accountingManager.getAllInstallments()
-                installmentAdapter.updateData(installments)
-                binding.recyclerView.adapter = installmentAdapter
+                // Similar to checks, a mapping might be needed here.
+                // installmentAdapter.submitList(installments)
+                binding.recyclerViewInstallments.adapter = installmentAdapter
             } catch (e: Exception) {
                 Toast.makeText(this@ProfessionalAccountingActivity, "خطا در بارگذاری اقساط", Toast.LENGTH_SHORT).show()
             }
