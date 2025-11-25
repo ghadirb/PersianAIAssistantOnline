@@ -306,19 +306,6 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun stopRecordingAndProcess() {
-        if (!isRecording) return
-        try {
-            mediaRecorder?.stop()
-            mediaRecorder?.release()
-        } catch (e: Exception) {
-            // Ignore errors on stop
-        }
-        mediaRecorder = null
-        isRecording = false
-        recordingTimer?.cancel()
-        transcribeAndSendAudio(audioFilePath)
-    }
 
     private fun cancelRecording() {
         if (!isRecording) return
@@ -1239,27 +1226,28 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun transcribeAndSendAudio() {
-        val filePath = audioFilePath ?: return
-        
+        val filePath = audioFilePath
+        if (filePath.isEmpty()) return
+
         lifecycleScope.launch {
             try {
                 // تبدیل صوت به متن با Whisper
                 val transcribedText = aiClient?.transcribeAudio(filePath)
-                
+
                 if (transcribedText.isNullOrEmpty()) {
                     Toast.makeText(this@MainActivity, "⚠️ متنی شناسایی نشد", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
-                
+
                 android.util.Log.d("MainActivity", "Whisper transcribed: $transcribedText")
-                
+
                 // نمایش متن در input
                 binding.messageInput.setText(transcribedText)
                 Toast.makeText(this@MainActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
-                
+
                 // ارسال خودکار
                 sendMessage()
-                
+
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Transcription error", e)
                 Toast.makeText(this@MainActivity, "❌ خطا در تبدیل: ${e.message}", Toast.LENGTH_LONG).show()
