@@ -24,7 +24,7 @@ class AlarmActivity : AppCompatActivity() {
         reminderId = intent.getStringExtra("REMINDER_ID")
         val message = intent.getStringExtra("REMINDER_MESSAGE") ?: "شما یک یادآوری دارید"
 
-        binding.reminderText.text = message
+        binding.messageText.text = message
 
         binding.doneButton.setOnClickListener {
             if (reminderId != null) {
