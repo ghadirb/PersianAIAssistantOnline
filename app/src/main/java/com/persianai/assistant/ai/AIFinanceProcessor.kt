@@ -42,6 +42,7 @@ class AIFinanceProcessor(
                     checkNumber = "AI-${System.currentTimeMillis()}",
                     amount = amount.toDouble(),
                     dueDate = dueDate,
+                    issueDate = System.currentTimeMillis(), // Add current time as issue date
                     issuer = "AI Assistant",
                     recipient = recipient,
                     bankName = "N/A",
