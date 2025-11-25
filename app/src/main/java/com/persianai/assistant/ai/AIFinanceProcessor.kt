@@ -36,24 +36,34 @@ class AIFinanceProcessor(
         return when (json.get("action").asString) {
             "add_check" -> {
                 val dueDate = parseDate(json.get("due_date").asString)
+                val amount = json.get("amount").asLong
+                val recipient = json.get("recipient").asString
                 val check = checkManager.addCheck(
-                    amount = json.get("amount").asLong,
+                    checkNumber = "AI-${System.currentTimeMillis()}",
+                    amount = amount.toDouble(),
                     dueDate = dueDate,
-                    recipient = json.get("recipient").asString
+                    issuer = "AI Assistant",
+                    recipient = recipient,
+                    bankName = "N/A",
+                    accountNumber = "N/A",
+                    description = "ثبت شده توسط دستیار هوشمند"
                 )
-                "✅ چک برای ${check.recipient} به مبلغ ${check.amount} در تاریخ ${SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(check.dueDate))} با موفقیت ثبت شد."
+                "✅ چک برای $recipient به مبلغ $amount در تاریخ ${SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(dueDate))} با موفقیت ثبت شد."
             }
             "add_installment" -> {
                 val startDate = parseDate(json.get("start_date").asString)
+                val title = json.get("title").asString
                 val installment = installmentManager.addInstallment(
-                    title = json.get("title").asString,
+                    title = title,
                     totalAmount = json.get("total_amount").asDouble,
                     installmentAmount = json.get("installment_amount").asDouble,
                     totalInstallments = json.get("total_installments").asInt,
                     startDate = startDate,
-                    paymentDay = json.get("payment_day").asInt
+                    paymentDay = json.get("payment_day").asInt,
+                    recipient = "N/A",
+                    description = "ثبت شده توسط دستیار هوشمند"
                 )
-                "✅ قسط '${installment.title}' با موفقیت ثبت شد."
+                "✅ قسط '$title' با موفقیت ثبت شد."
             }
             else -> "دستور شناسایی نشد."
         }

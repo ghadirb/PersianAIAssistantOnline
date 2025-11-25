@@ -1,68 +1,53 @@
 package com.persianai.assistant.storage
 
 import android.content.Context
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.persianai.assistant.models.Reminder
-import com.persianai.assistant.models.RepeatType
-import org.json.JSONArray
-import org.json.JSONObject
 
 class ReminderStorage(context: Context) {
-    
-    private val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
-    
-    fun saveReminder(reminder: Reminder) {
+
+    private val prefs = context.getSharedPreferences("reminders_v2", Context.MODE_PRIVATE)
+    private val gson = Gson()
+    private val reminderListType = object : TypeToken<List<Reminder>>() {}.type
+
+    fun addReminder(reminder: Reminder): Reminder {
         val reminders = getAllReminders().toMutableList()
         reminders.add(reminder)
-        saveAll(reminders)
+        saveReminders(reminders)
+        return reminder
     }
-    
+
     fun getAllReminders(): List<Reminder> {
-        val json = prefs.getString("all_reminders", "[]") ?: "[]"
-        val jsonArray = JSONArray(json)
-        val reminders = mutableListOf<Reminder>()
-        
-        for (i in 0 until jsonArray.length()) {
-            val obj = jsonArray.getJSONObject(i)
-            reminders.add(
-                Reminder(
-                    id = obj.getLong("id"),
-                    title = obj.getString("title"),
-                    persianDate = obj.getString("persianDate"),
-                    time = obj.getString("time"),
-                    repeatType = RepeatType.valueOf(obj.getString("repeatType")),
-                    isActive = obj.getBoolean("isActive")
-                )
-            )
+        val json = prefs.getString("all_reminders", null)
+        return if (json != null) {
+            gson.fromJson(json, reminderListType)
+        } else {
+            emptyList()
         }
-        
-        return reminders
+    }
+
+    fun saveReminders(reminders: List<Reminder>) {
+        val json = gson.toJson(reminders)
+        prefs.edit().putString("all_reminders", json).apply()
+    }
+
+    fun deleteReminder(id: String) {
+        val reminders = getAllReminders().toMutableList()
+        reminders.removeAll { it.id == id }
+        saveReminders(reminders)
     }
     
-    fun deleteReminder(id: Long) {
-        val reminders = getAllReminders().filter { it.id != id }
-        saveAll(reminders)
+    fun getReminder(id: String): Reminder? {
+        return getAllReminders().firstOrNull { it.id == id }
     }
     
-    fun updateReminder(reminder: Reminder) {
-        val reminders = getAllReminders().map {
-            if (it.id == reminder.id) reminder else it
+    fun updateReminder(updatedReminder: Reminder) {
+        val reminders = getAllReminders().toMutableList()
+        val index = reminders.indexOfFirst { it.id == updatedReminder.id }
+        if (index != -1) {
+            reminders[index] = updatedReminder
+            saveReminders(reminders)
         }
-        saveAll(reminders)
-    }
-    
-    private fun saveAll(reminders: List<Reminder>) {
-        val jsonArray = JSONArray()
-        reminders.forEach { reminder ->
-            val obj = JSONObject().apply {
-                put("id", reminder.id)
-                put("title", reminder.title)
-                put("persianDate", reminder.persianDate)
-                put("time", reminder.time)
-                put("repeatType", reminder.repeatType.name)
-                put("isActive", reminder.isActive)
-            }
-            jsonArray.put(obj)
-        }
-        prefs.edit().putString("all_reminders", jsonArray.toString()).apply()
     }
 }

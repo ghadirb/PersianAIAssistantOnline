@@ -53,10 +53,12 @@ class RemindersAdapter(
             
             // Description
             if (reminder.description.isNotEmpty()) {
-                descriptionText.text = reminder.description
-                descriptionText.visibility = android.view.View.VISIBLE
+                reminderTitle.text = reminder.description
+                reminderTitle.paint.isStrikeThruText = reminder.isCompleted
+                reminderCheckbox.isChecked = reminder.isCompleted
+                reminderTitle.visibility = android.view.View.VISIBLE
             } else {
-                descriptionText.visibility = android.view.View.GONE
+                reminderTitle.visibility = android.view.View.GONE
             }
             
             // Time
@@ -108,6 +110,18 @@ class RemindersAdapter(
                 recurringIcon.visibility = android.view.View.GONE
             }
             
+            if (reminder.tags.isNotEmpty()) {
+                tagsLayout.visibility = View.VISIBLE
+                tagsLayout.removeAllViews()
+                reminder.tags.forEach { tag ->
+                    val chip = Chip(holder.itemView.context)
+                    chip.text = tag
+                    tagsLayout.addView(chip)
+                }
+            } else {
+                tagsLayout.visibility = View.GONE
+            }
+            
             // Click listeners
             root.setOnClickListener {
                 onAction(reminder, "view")
@@ -118,8 +132,9 @@ class RemindersAdapter(
                 true
             }
             
-            completeButton.setOnClickListener {
-                onAction(reminder, "complete")
+            reminderCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                reminder.isCompleted = isChecked
+                onReminderChecked(reminder)
             }
         }
     }
