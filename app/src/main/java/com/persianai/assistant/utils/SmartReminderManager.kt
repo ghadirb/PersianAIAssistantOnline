@@ -495,7 +495,6 @@ class SmartReminderManager(private val context: Context) {
                     "لطفاً در تنظیمات، اجازهٔ آلارم دقیق را برای برنامه فعال کنید.",
                     Toast.LENGTH_LONG
                 ).show()
-                return
             }
         }
 

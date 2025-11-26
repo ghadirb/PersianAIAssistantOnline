@@ -213,35 +213,40 @@ class AIClient(private val apiKeys: List<APIKey>) {
             throw IllegalArgumentException("فایل صوتی یافت نشد")
         }
 
-        val requestBody = okhttp3.MultipartBody.Builder()
-            .setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart(
-                "file",
-                file.name,
-                okhttp3.RequestBody.Companion.create(
-                    "audio/mpeg".toMediaType(),
-                    file
+        try {
+            val requestBody = okhttp3.MultipartBody.Builder()
+                .setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart(
+                    "file",
+                    file.name,
+                    okhttp3.RequestBody.Companion.create(
+                        "audio/mpeg".toMediaType(),
+                        file
+                    )
                 )
-            )
-            .addFormDataPart("model", "whisper-1")
-            .addFormDataPart("language", "fa")
-            .build()
+                .addFormDataPart("model", "whisper-1")
+                .addFormDataPart("language", "fa")
+                .build()
 
-        val request = Request.Builder()
-            .url("https://api.openai.com/v1/audio/transcriptions")
-            .addHeader("Authorization", "Bearer ${openAIKey.key}")
-            .post(requestBody)
-            .build()
+            val request = Request.Builder()
+                .url("https://api.openai.com/v1/audio/transcriptions")
+                .addHeader("Authorization", "Bearer ${openAIKey.key}")
+                .post(requestBody)
+                .build()
 
-        client.newCall(request).execute().use { response ->
-            val responseBody = response.body?.string()
-            
-            if (!response.isSuccessful) {
-                throw Exception("خطای Whisper API: ${response.code} - $responseBody")
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                
+                if (!response.isSuccessful) {
+                    throw Exception("خطای Whisper API: ${response.code} - $responseBody")
+                }
+
+                val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
+                jsonResponse.get("text")?.asString ?: throw Exception("متن خالی از Whisper")
             }
-
-            val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
-            jsonResponse.get("text")?.asString ?: throw Exception("متن خالی از Whisper")
+        } catch (e: Exception) {
+            // اگر Whisper ناموفق بود، خطا را پرتاب کن تا BaseChatActivity بتواند fallback کند
+            throw Exception("Whisper API خطا: ${e.message}")
         }
     }
 }

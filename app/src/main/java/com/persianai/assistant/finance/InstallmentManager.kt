@@ -1,6 +1,7 @@
 package com.persianai.assistant.finance
 
 import android.content.Context
+import com.persianai.assistant.utils.PersianDateConverter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.*
@@ -23,7 +24,18 @@ class InstallmentManager(private val context: Context) {
         val description: String,
         val alertDaysBefore: Int = 3, // چند روز قبل هشدار بده
         val autoRemind: Boolean = true // یادآوری خودکار
-    )
+    ) {
+        fun getFormattedStartDate(): String {
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = startDate
+            val persianDate = PersianDateConverter.gregorianToPersian(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+            )
+            return persianDate.toReadableString()
+        }
+    }
     
     private val prefs = context.getSharedPreferences("installments", Context.MODE_PRIVATE)
     

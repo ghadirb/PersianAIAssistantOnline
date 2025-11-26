@@ -1,6 +1,7 @@
 package com.persianai.assistant.finance
 
 import android.content.Context
+import com.persianai.assistant.utils.PersianDateConverter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -24,7 +25,18 @@ class CheckManager(private val context: Context) {
         val accountNumber: String,
         val description: String,
         val alertDays: Int = 7 // چند روز قبل هشدار بده
-    )
+    ) {
+        fun getFormattedDueDate(): String {
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = dueDate
+            val persianDate = PersianDateConverter.gregorianToPersian(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+            )
+            return persianDate.toReadableString()
+        }
+    }
     
     enum class CheckStatus {
         PENDING, // در انتظار

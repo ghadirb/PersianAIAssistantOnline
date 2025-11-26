@@ -1,6 +1,7 @@
 package com.persianai.assistant.finance
 
 import android.content.Context
+import com.persianai.assistant.utils.PersianDateConverter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -18,7 +19,18 @@ class FinanceManager(private val context: Context) {
         val category: String,
         val description: String,
         val date: Long
-    )
+    ) {
+        fun getFormattedDate(): String {
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = date
+            val persianDate = PersianDateConverter.gregorianToPersian(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+            )
+            return persianDate.toReadableString()
+        }
+    }
     
     private val prefs = context.getSharedPreferences("finance", Context.MODE_PRIVATE)
     
