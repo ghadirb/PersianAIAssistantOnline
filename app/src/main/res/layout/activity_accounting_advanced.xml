@@ -218,7 +218,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:src="@drawable/ic_chat"
+        android:src="@drawable/ic_mic"
         android:contentDescription="چت حسابداری" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
