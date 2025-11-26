@@ -173,7 +173,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.expensesCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, AccountingActivity::class.java)
+                val intent = Intent(this, AccountingAdvancedActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 150)
