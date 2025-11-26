@@ -519,14 +519,84 @@ class SmartReminderManager(private val context: Context) {
         )
         
         try {
+            // اگر زمان گذشته است، برای اولین بار بعد از الآن تنظیم کن
+            var triggerTime = reminder.triggerTime
+            val now = System.currentTimeMillis()
+            
+            if (triggerTime < now && reminder.repeatPattern != RepeatPattern.ONCE) {
+                // برای یادآوری‌های تکراری، اگر زمان گذشته بود، برای دفعهٔ بعد محاسبه کن
+                triggerTime = calculateNextTriggerTime(reminder, now)
+            } else if (triggerTime < now && reminder.repeatPattern == RepeatPattern.ONCE) {
+                // برای یادآوری‌های یکبار، اگر زمان گذشته بود، فوراً اجرا کن
+                triggerTime = now + 1000 // یک ثانیه بعد
+            }
+            
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                reminder.triggerTime,
+                triggerTime,
                 pendingIntent
             )
-            Log.d(TAG, "⏰ آلارم تنظیم شد: ${reminder.title}")
+            Log.d(TAG, "⏰ آلارم تنظیم شد: ${reminder.title} برای ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(triggerTime)}")
         } catch (e: SecurityException) {
             Log.e(TAG, "خطا در تنظیم آلارم: ${e.message}")
+            // اگر setExactAndAllowWhileIdle ناموفق بود، از setAndAllowWhileIdle استفاده کن
+            try {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    reminder.triggerTime,
+                    pendingIntent
+                )
+                Log.d(TAG, "⏰ آلارم (غیر دقیق) تنظیم شد: ${reminder.title}")
+            } catch (e2: Exception) {
+                Log.e(TAG, "خطا در تنظیم آلارم (غیر دقیق): ${e2.message}")
+            }
+        }
+    }
+    
+    /**
+     * محاسبهٔ زمان بعدی برای یادآوری تکراری
+     */
+    private fun calculateNextTriggerTime(reminder: SmartReminder, now: Long): Long {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = reminder.triggerTime
+        
+        return when (reminder.repeatPattern) {
+            RepeatPattern.DAILY -> {
+                calendar.add(Calendar.DAY_OF_MONTH, 1)
+                calendar.timeInMillis
+            }
+            RepeatPattern.WEEKLY -> {
+                calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                calendar.timeInMillis
+            }
+            RepeatPattern.MONTHLY -> {
+                calendar.add(Calendar.MONTH, 1)
+                calendar.timeInMillis
+            }
+            RepeatPattern.YEARLY -> {
+                calendar.add(Calendar.YEAR, 1)
+                calendar.timeInMillis
+            }
+            RepeatPattern.WEEKDAYS -> {
+                // روزهای کاری: دوشنبه تا جمعه
+                do {
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                } while (calendar.get(Calendar.DAY_OF_WEEK) in listOf(Calendar.SATURDAY, Calendar.SUNDAY))
+                calendar.timeInMillis
+            }
+            RepeatPattern.WEEKENDS -> {
+                // آخر هفته: شنبه و یکشنبه
+                do {
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                } while (calendar.get(Calendar.DAY_OF_WEEK) !in listOf(Calendar.SATURDAY, Calendar.SUNDAY))
+                calendar.timeInMillis
+            }
+            RepeatPattern.CUSTOM -> {
+                // سفارشی: برای الآن مثل هفتگی
+                calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                calendar.timeInMillis
+            }
+            RepeatPattern.ONCE -> now + 1000
         }
     }
     

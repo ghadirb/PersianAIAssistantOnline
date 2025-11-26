@@ -69,6 +69,21 @@ class ReminderReceiver : BroadcastReceiver() {
                     } else {
                         showNotification(context, message, reminderId, smartReminderId)
                     }
+                    
+                    // برای یادآوری‌های تکراری، دوباره برنامه‌ریزی کن
+                    if (!smartReminderId.isNullOrEmpty()) {
+                        try {
+                            val mgr = SmartReminderManager(context)
+                            val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
+                            if (reminder != null && reminder.repeatPattern != SmartReminderManager.RepeatPattern.ONCE) {
+                                // یادآوری را دوباره برنامه‌ریزی کن
+                                mgr.addReminder(reminder)
+                                android.util.Log.d("ReminderReceiver", "Recurring reminder rescheduled: $message")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ReminderReceiver", "Error rescheduling recurring reminder", e)
+                        }
+                    }
                 }
             }
         } finally {
