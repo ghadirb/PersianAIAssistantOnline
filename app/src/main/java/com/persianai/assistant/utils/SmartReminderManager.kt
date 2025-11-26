@@ -474,7 +474,7 @@ class SmartReminderManager(private val context: Context) {
     /**
      * تنظیم آلارم برای یادآوری
      */
-    private fun scheduleReminder(reminder: SmartReminder) {
+    fun scheduleReminder(reminder: SmartReminder) {
         // برای اندروید 12 به بالا، نیاز به اجازه آلارم دقیق داریم
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!alarmManager.canScheduleExactAlarms()) {
