@@ -403,7 +403,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             hint = "توضیحات (اختیاری)"
         }
 
-        val patterns = arrayOf("روزانه", "هفتگی", "ماهانه", "سالانه")
+        val patterns = arrayOf("روزانه", "هفتگی", "ماهانه", "سالانه", "انتخاب روزهای خاص")
         val patternSpinner = android.widget.Spinner(this).apply {
             adapter = android.widget.ArrayAdapter(
                 this@AdvancedRemindersActivity,
@@ -466,6 +466,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     1 -> SmartReminderManager.RepeatPattern.WEEKLY
                     2 -> SmartReminderManager.RepeatPattern.MONTHLY
                     3 -> SmartReminderManager.RepeatPattern.YEARLY
+                    4 -> SmartReminderManager.RepeatPattern.CUSTOM
                     else -> SmartReminderManager.RepeatPattern.DAILY
                 }
 

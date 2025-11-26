@@ -499,6 +499,7 @@ class SmartReminderManager(private val context: Context) {
         }
 
         val intent = Intent(context, ReminderReceiver::class.java).apply {
+            action = "com.persianai.assistant.REMINDER_ALARM"
             // ID عددی برای استفاده در NotificationManager و requestCode
             putExtra("reminder_id", reminder.id.hashCode())
             // ID اصلی برای کار با SmartReminderManager
