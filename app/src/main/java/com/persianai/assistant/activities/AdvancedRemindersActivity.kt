@@ -631,6 +631,12 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
 
     private fun showEditReminderDialog(reminder: SmartReminderManager.SmartReminder) {
+        // بر اساس نوع یادآوری، dialog مناسب را نمایش بده
+        if (reminder.repeatPattern != SmartReminderManager.RepeatPattern.ONCE) {
+            showEditRecurringReminderDialog(reminder)
+            return
+        }
+        
         val dialogView = layoutInflater.inflate(R.layout.dialog_time_reminder, null)
 
         val titleInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.titleInput)
@@ -742,6 +748,165 @@ class AdvancedRemindersActivity : AppCompatActivity() {
 
                 if (smartReminderManager.updateReminder(updatedReminder)) {
                     Toast.makeText(this, "✅ یادآوری به‌روز شد", Toast.LENGTH_SHORT).show()
+                    loadReminders()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
+    private fun showEditRecurringReminderDialog(reminder: SmartReminderManager.SmartReminder) {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val titleInput = EditText(this).apply {
+            hint = "عنوان یادآوری تکراری"
+            setText(reminder.title)
+        }
+        val descriptionInput = EditText(this).apply {
+            hint = "توضیحات (اختیاری)"
+            setText(reminder.description)
+        }
+
+        val patterns = arrayOf("روزانه", "هفتگی", "ماهانه", "سالانه", "انتخاب روزهای خاص")
+        val patternSpinner = android.widget.Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(
+                this@AdvancedRemindersActivity,
+                android.R.layout.simple_spinner_item,
+                patterns
+            ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        }
+
+        // تنظیم pattern بر اساس reminder موجود
+        val currentPatternIndex = when (reminder.repeatPattern) {
+            SmartReminderManager.RepeatPattern.DAILY -> 0
+            SmartReminderManager.RepeatPattern.WEEKLY -> 1
+            SmartReminderManager.RepeatPattern.MONTHLY -> 2
+            SmartReminderManager.RepeatPattern.YEARLY -> 3
+            SmartReminderManager.RepeatPattern.CUSTOM -> 4
+            else -> 0
+        }
+        patternSpinner.setSelection(currentPatternIndex)
+
+        var selectedHour = Calendar.getInstance().apply { timeInMillis = reminder.triggerTime }.get(Calendar.HOUR_OF_DAY)
+        var selectedMinute = Calendar.getInstance().apply { timeInMillis = reminder.triggerTime }.get(Calendar.MINUTE)
+        
+        val selectedDays = mutableSetOf<Int>()
+        // استخراج روزهای انتخاب شده از tags
+        reminder.tags.forEach { tag ->
+            if (tag.startsWith("days:")) {
+                val days = tag.substring(5).split(",").mapNotNull { it.toIntOrNull() }
+                selectedDays.addAll(days)
+            }
+        }
+
+        val timeButton = com.google.android.material.button.MaterialButton(this).apply {
+            text = String.format("%02d:%02d", selectedHour, selectedMinute)
+            setOnClickListener {
+                val timePicker = MaterialTimePicker.Builder()
+                    .setTimeFormat(TimeFormat.CLOCK_24H)
+                    .setHour(selectedHour)
+                    .setMinute(selectedMinute)
+                    .setTitleText("ساعت یادآوری")
+                    .build()
+
+                timePicker.addOnPositiveButtonClickListener {
+                    selectedHour = timePicker.hour
+                    selectedMinute = timePicker.minute
+                    text = String.format("%02d:%02d", selectedHour, selectedMinute)
+                }
+
+                timePicker.show(supportFragmentManager, "EDIT_RECURRING_TIME_PICKER")
+            }
+        }
+
+        val daysButton = com.google.android.material.button.MaterialButton(this).apply {
+            text = "انتخاب روزهای هفته"
+            isEnabled = currentPatternIndex == 4
+            setOnClickListener {
+                val dayNames = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
+                val checkedDays = BooleanArray(7) { selectedDays.contains(it) }
+
+                MaterialAlertDialogBuilder(this@AdvancedRemindersActivity)
+                    .setTitle("انتخاب روزهای هفته")
+                    .setMultiChoiceItems(dayNames, checkedDays) { _, which, isChecked ->
+                        if (isChecked) {
+                            selectedDays.add(which)
+                        } else {
+                            selectedDays.remove(which)
+                        }
+                    }
+                    .setPositiveButton("تأیید") { _, _ ->
+                        val selectedDayNames = selectedDays.sorted().map { dayNames[it] }.joinToString("، ")
+                        text = "روزهای انتخاب شده: $selectedDayNames"
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
+            }
+        }
+
+        container.addView(titleInput)
+        container.addView(descriptionInput)
+        container.addView(patternSpinner)
+        container.addView(timeButton)
+        container.addView(daysButton)
+
+        patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                daysButton.isEnabled = position == 4
+            }
+
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("✏️ ویرایش یادآوری تکراری")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val title = titleInput.text.toString().trim()
+                val description = descriptionInput.text.toString().trim()
+
+                if (title.isEmpty()) {
+                    Toast.makeText(this, "⚠️ عنوان را وارد کنید", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val calendar = Calendar.getInstance().apply {
+                    timeInMillis = reminder.triggerTime
+                    set(Calendar.HOUR_OF_DAY, selectedHour)
+                    set(Calendar.MINUTE, selectedMinute)
+                    set(Calendar.SECOND, 0)
+                }
+
+                val pattern = when (patternSpinner.selectedItemPosition) {
+                    0 -> SmartReminderManager.RepeatPattern.DAILY
+                    1 -> SmartReminderManager.RepeatPattern.WEEKLY
+                    2 -> SmartReminderManager.RepeatPattern.MONTHLY
+                    3 -> SmartReminderManager.RepeatPattern.YEARLY
+                    4 -> {
+                        if (selectedDays.isEmpty()) {
+                            Toast.makeText(this, "⚠️ حداقل یک روز را انتخاب کنید", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        SmartReminderManager.RepeatPattern.CUSTOM
+                    }
+                    else -> SmartReminderManager.RepeatPattern.DAILY
+                }
+
+                val updatedReminder = reminder.copy(
+                    title = title,
+                    description = description,
+                    triggerTime = calendar.timeInMillis,
+                    repeatPattern = pattern,
+                    tags = if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
+                        listOf("days:${selectedDays.sorted().joinToString(",")}")
+                    } else emptyList()
+                )
+
+                if (smartReminderManager.updateReminder(updatedReminder)) {
+                    Toast.makeText(this, "✅ یادآوری تکراری به‌روز شد", Toast.LENGTH_SHORT).show()
                     loadReminders()
                 }
             }

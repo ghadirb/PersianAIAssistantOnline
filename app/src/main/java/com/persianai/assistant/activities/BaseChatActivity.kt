@@ -45,6 +45,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private var isRecording = false
     private var audioFilePath = ""
     private var recordingTimer: Timer? = null
+    private var permissionRequested = false
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -95,7 +96,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
             sendMessage()
         }
         getVoiceButton().setOnClickListener {
-            checkAudioPermissionAndStartSpeechRecognition()
+            if (isRecording) {
+                stopRecordingAndTranscribe()
+            } else {
+                checkAudioPermissionAndStartRecording()
+            }
         }
     }
 
@@ -142,7 +147,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkAudioPermissionAndStartSpeechRecognition() {
+    private fun checkAudioPermissionAndStartRecording() {
         val permissions = arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -152,7 +157,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
         
         if (missingPermissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), REQUEST_RECORD_AUDIO)
+            if (!permissionRequested) {
+                permissionRequested = true
+                ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), REQUEST_RECORD_AUDIO)
+            } else {
+                Toast.makeText(this, "⚠️ مجوز ضبط صوت لازم است. لطفاً در تنظیمات برنامه مجوز را فعال کنید.", Toast.LENGTH_LONG).show()
+            }
         } else {
             startVoiceRecordingWithFallback()
         }
