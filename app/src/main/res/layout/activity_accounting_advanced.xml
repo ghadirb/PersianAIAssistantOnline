@@ -3,17 +3,21 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:elevation="4dp">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/primaryColor" />
+            android:background="@color/primaryColor"
+            app:title="💼 حسابداری"
+            app:titleTextColor="@android:color/white" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -25,7 +29,8 @@
 
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -33,52 +38,187 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <com.google.android.material.floatingactionbutton.FloatingActionButton
-                    android:id="@+id/chatFab"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="16dp"
-                    android:src="@android:drawable/ic_dialog_email" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_incomes"
+                <!-- درآمدها -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_incomes"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="درآمدها" />
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_expenses"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💰 درآمدها"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مدیریت درآمدهای شما"
+                            android:textSize="14sp"
+                            android:textColor="@android:color/darker_gray"
+                            android:layout_marginTop="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_incomes"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="مشاهده درآمدها"
+                            android:layout_marginTop="12dp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- هزینه‌ها -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_expenses"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="هزینه‌ها" />
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_checks"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💸 هزینه‌ها"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مدیریت هزینه‌های شما"
+                            android:textSize="14sp"
+                            android:textColor="@android:color/darker_gray"
+                            android:layout_marginTop="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_expenses"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="مشاهده هزینه‌ها"
+                            android:layout_marginTop="12dp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- چک‌ها -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_checks"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="چک‌ها" />
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_installments"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📋 چک‌ها"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مدیریت چک‌های شما"
+                            android:textSize="14sp"
+                            android:textColor="@android:color/darker_gray"
+                            android:layout_marginTop="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_checks"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="مشاهده چک‌ها"
+                            android:layout_marginTop="12dp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- اقساط -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_installments"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="اقساط" />
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📊 اقساط"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مدیریت اقساط شما"
+                            android:textSize="14sp"
+                            android:textColor="@android:color/darker_gray"
+                            android:layout_marginTop="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_installments"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="مشاهده اقساط"
+                            android:layout_marginTop="12dp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
         </ScrollView>
 
     </LinearLayout>
 
+    <!-- چت FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/addButton"
+        android:id="@+id/chatFab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:src="@android:drawable/ic_input_add" />
+        android:src="@drawable/ic_chat"
+        android:contentDescription="چت حسابداری" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
