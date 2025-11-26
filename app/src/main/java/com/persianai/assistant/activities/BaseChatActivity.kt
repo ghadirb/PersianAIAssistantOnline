@@ -184,6 +184,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setAudioSamplingRate(16000)
                 setAudioEncodingBitRate(128000)
+                setAudioChannels(1)
                 setOutputFile(audioFilePath)
                 prepare()
                 start()

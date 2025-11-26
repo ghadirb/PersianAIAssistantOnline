@@ -414,6 +414,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
 
         var selectedHour = 9
         var selectedMinute = 0
+        val selectedDays = mutableSetOf<Int>() // 0=شنبه، 1=یکشنبه، ... 6=جمعه
 
         val timeButton = com.google.android.material.button.MaterialButton(this).apply {
             text = "انتخاب ساعت"
@@ -435,10 +436,44 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
         }
 
+        val daysButton = com.google.android.material.button.MaterialButton(this).apply {
+            text = "انتخاب روزهای هفته"
+            isEnabled = false
+            setOnClickListener {
+                val dayNames = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
+                val checkedDays = BooleanArray(7) { selectedDays.contains(it) }
+
+                MaterialAlertDialogBuilder(this@AdvancedRemindersActivity)
+                    .setTitle("انتخاب روزهای هفته")
+                    .setMultiChoiceItems(dayNames, checkedDays) { _, which, isChecked ->
+                        if (isChecked) {
+                            selectedDays.add(which)
+                        } else {
+                            selectedDays.remove(which)
+                        }
+                    }
+                    .setPositiveButton("تأیید") { _, _ ->
+                        val selectedDayNames = selectedDays.sorted().map { dayNames[it] }.joinToString("، ")
+                        text = "روزهای انتخاب شده: $selectedDayNames"
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
+            }
+        }
+
         container.addView(titleInput)
         container.addView(descriptionInput)
         container.addView(patternSpinner)
         container.addView(timeButton)
+        container.addView(daysButton)
+
+        patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                daysButton.isEnabled = position == 4 // فقط برای "انتخاب روزهای خاص"
+            }
+
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
 
         MaterialAlertDialogBuilder(this)
             .setTitle("🔁 یادآوری تکراری")
@@ -466,16 +501,30 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     1 -> SmartReminderManager.RepeatPattern.WEEKLY
                     2 -> SmartReminderManager.RepeatPattern.MONTHLY
                     3 -> SmartReminderManager.RepeatPattern.YEARLY
-                    4 -> SmartReminderManager.RepeatPattern.CUSTOM
+                    4 -> {
+                        if (selectedDays.isEmpty()) {
+                            Toast.makeText(this, "⚠️ حداقل یک روز را انتخاب کنید", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        SmartReminderManager.RepeatPattern.CUSTOM
+                    }
                     else -> SmartReminderManager.RepeatPattern.DAILY
                 }
 
-                smartReminderManager.createRecurringReminder(
+                val reminder = SmartReminderManager.SmartReminder(
+                    id = "recurring_${System.currentTimeMillis()}",
                     title = title,
                     description = description,
-                    firstTriggerTime = calendar.timeInMillis,
-                    repeatPattern = pattern
+                    type = SmartReminderManager.ReminderType.RECURRING,
+                    priority = SmartReminderManager.Priority.MEDIUM,
+                    triggerTime = calendar.timeInMillis,
+                    repeatPattern = pattern,
+                    tags = if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
+                        listOf("days:${selectedDays.sorted().joinToString(",")}")
+                    } else emptyList()
                 )
+
+                smartReminderManager.addReminder(reminder)
 
                 Toast.makeText(this, "✅ یادآوری تکراری ذخیره شد", Toast.LENGTH_SHORT).show()
                 loadReminders()
