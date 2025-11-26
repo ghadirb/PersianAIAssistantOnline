@@ -29,6 +29,17 @@ class ReminderReceiver : BroadcastReceiver() {
         try {
             android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
 
+            // اگر BOOT_COMPLETED است، تمام یادآوری‌های فعال را دوباره برنامه‌ریزی کن
+            if (intent.action == "android.intent.action.BOOT_COMPLETED") {
+                android.util.Log.d("ReminderReceiver", "BOOT_COMPLETED received, rescheduling all reminders")
+                val mgr = SmartReminderManager(context)
+                val reminders = mgr.getActiveReminders()
+                for (reminder in reminders) {
+                    mgr.scheduleReminder(reminder)
+                }
+                return
+            }
+
             val reminderId = intent.getIntExtra("reminder_id", 0)
             val smartReminderId = intent.getStringExtra("smart_reminder_id")
             val message = intent.getStringExtra("message") ?: "یادآوری"

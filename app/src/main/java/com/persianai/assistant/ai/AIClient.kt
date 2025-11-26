@@ -206,11 +206,17 @@ class AIClient(private val apiKeys: List<APIKey>) {
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
         val openAIKey = apiKeys.firstOrNull { 
             it.provider == AIProvider.OPENAI && it.isActive 
-        } ?: throw IllegalStateException("کلید OpenAI یافت نشد برای Whisper")
+        }
+        
+        if (openAIKey == null) {
+            android.util.Log.w("AIClient", "OpenAI key not found for Whisper, returning empty string for fallback")
+            return@withContext ""
+        }
 
         val file = java.io.File(audioFilePath)
         if (!file.exists()) {
-            throw IllegalArgumentException("فایل صوتی یافت نشد")
+            android.util.Log.w("AIClient", "Audio file not found: $audioFilePath")
+            return@withContext ""
         }
 
         try {
@@ -238,15 +244,17 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 val responseBody = response.body?.string()
                 
                 if (!response.isSuccessful) {
-                    throw Exception("خطای Whisper API: ${response.code} - $responseBody")
+                    android.util.Log.e("AIClient", "Whisper API error: ${response.code} - $responseBody")
+                    return@withContext ""
                 }
 
                 val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
-                jsonResponse.get("text")?.asString ?: throw Exception("متن خالی از Whisper")
+                val text = jsonResponse.get("text")?.asString
+                return@withContext text ?: ""
             }
         } catch (e: Exception) {
-            // اگر Whisper ناموفق بود، خطا را پرتاب کن تا BaseChatActivity بتواند fallback کند
-            throw Exception("Whisper API خطا: ${e.message}")
+            android.util.Log.e("AIClient", "Whisper transcription error: ${e.message}", e)
+            return@withContext ""
         }
     }
 }

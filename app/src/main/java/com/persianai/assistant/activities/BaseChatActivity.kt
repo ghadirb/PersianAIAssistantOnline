@@ -237,17 +237,20 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 // ابتدا سعی کن Whisper API را استفاده کن
                 val transcribedText = aiClient?.transcribeAudio(audioFilePath)
                 
-                if (transcribedText.isNullOrEmpty()) {
-                    Toast.makeText(this@BaseChatActivity, "⚠️ متنی شناسایی نشد", Toast.LENGTH_SHORT).show()
+                if (!transcribedText.isNullOrEmpty()) {
+                    getMessageInput().setText(transcribedText)
+                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
+                    sendMessage()
                     return@launch
                 }
                 
-                getMessageInput().setText(transcribedText)
-                Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
-                sendMessage()
+                // اگر Whisper متن خالی برگرداند
+                android.util.Log.w("BaseChatActivity", "Whisper returned empty text, falling back to SpeechRecognizer")
+                Toast.makeText(this@BaseChatActivity, "⚠️ Whisper متن خالی برگرداند، از تشخیص صوت استفاده می‌شود...", Toast.LENGTH_SHORT).show()
+                startSpeechRecognition()
                 
             } catch (e: Exception) {
-                android.util.Log.e("BaseChatActivity", "Whisper transcription failed, using SpeechRecognizer fallback", e)
+                android.util.Log.e("BaseChatActivity", "Whisper transcription failed: ${e.message}", e)
                 Toast.makeText(this@BaseChatActivity, "⚠️ Whisper ناموفق، از تشخیص صوت استفاده می‌شود...", Toast.LENGTH_SHORT).show()
                 // Fallback به SpeechRecognizer
                 startSpeechRecognition()
