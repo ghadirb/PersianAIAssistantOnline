@@ -557,7 +557,7 @@ class SmartReminderManager(private val context: Context) {
     /**
      * محاسبهٔ زمان بعدی برای یادآوری تکراری
      */
-    private fun calculateNextTriggerTime(reminder: SmartReminder, now: Long): Long {
+    fun calculateNextTriggerTime(reminder: SmartReminder, now: Long): Long {
         val calendar = Calendar.getInstance()
         calendar.timeInMillis = reminder.triggerTime
         

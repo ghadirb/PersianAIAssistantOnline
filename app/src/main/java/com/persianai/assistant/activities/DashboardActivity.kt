@@ -40,6 +40,14 @@ class DashboardActivity : AppCompatActivity() {
         // ایجاد کانال‌های نوتیفیکیشن
         NotificationHelper.createNotificationChannels(this)
         
+        // شروع سرویس یادآوری پس‌زمینه
+        val reminderServiceIntent = Intent(this, com.persianai.assistant.services.ReminderService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(reminderServiceIntent)
+        } else {
+            startService(reminderServiceIntent)
+        }
+        
         // بررسی و نمایش دیالوگ امتیازدهی
         AppRatingHelper.checkAndShowRatingDialog(this)
         
