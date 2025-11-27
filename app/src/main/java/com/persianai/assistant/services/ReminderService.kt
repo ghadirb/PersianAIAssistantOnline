@@ -89,6 +89,17 @@ class ReminderService : Service() {
     }
 
     private fun showNotification(reminder: SmartReminderManager.SmartReminder) {
+        val useFullScreen = reminder.tags.any { it.startsWith("use_alarm:true") }
+        if (useFullScreen) {
+            val intent = Intent(this, FullScreenAlarmActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("title", reminder.title)
+                putExtra("description", reminder.description)
+                putExtra("smart_reminder_id", reminder.id)
+            }
+            startActivity(intent)
+            return
+        }
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val ch = NotificationChannel("alerts", "هشدارها", NotificationManager.IMPORTANCE_HIGH)
