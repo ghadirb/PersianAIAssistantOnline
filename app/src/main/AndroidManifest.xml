@@ -245,6 +245,13 @@
             android:parentActivityName=".activities.NavigationActivity"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name=".activities.FullScreenAlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+
         <service
             android:name=".services.ReminderService"
             android:enabled="true"

@@ -7,6 +7,9 @@ import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
@@ -17,10 +20,12 @@ import com.persianai.assistant.utils.AnimationHelper
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.AppRatingHelper
+import com.persianai.assistant.workers.ReminderWorker
 import android.view.View
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 class DashboardActivity : AppCompatActivity() {
@@ -39,6 +44,9 @@ class DashboardActivity : AppCompatActivity() {
         
         // ایجاد کانال‌های نوتیفیکیشن
         NotificationHelper.createNotificationChannels(this)
+        
+        // راه‌اندازی WorkManager برای بررسی یادآوری‌های پس‌زمینه
+        scheduleReminderWorker()
         
         // شروع سرویس یادآوری پس‌زمینه
         val reminderServiceIntent = Intent(this, com.persianai.assistant.services.ReminderService::class.java)
@@ -421,6 +429,22 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showDisabledMessage(featureName: String) {
         Toast.makeText(this, "$featureName به‌زودی فعال می‌شود. $disabledFeatureMessage", Toast.LENGTH_LONG).show()
+    }
+    
+    private fun scheduleReminderWorker() {
+        try {
+            val reminderWork = PeriodicWorkRequestBuilder<ReminderWorker>(
+                1, TimeUnit.MINUTES  // هر دقیقه بررسی کن
+            ).build()
+            
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "reminder_work",
+                ExistingPeriodicWorkPolicy.KEEP,
+                reminderWork
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     companion object {
