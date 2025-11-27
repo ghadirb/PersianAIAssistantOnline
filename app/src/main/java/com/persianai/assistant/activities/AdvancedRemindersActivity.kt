@@ -425,6 +425,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         var useFullScreen = false
 
         val alertTypeGroup = com.google.android.material.chip.ChipGroup(this).apply {
+            isSingleSelection = false  // اجازه انتخاب چندگانه
             val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
                 id = 1
                 text = "📱 نوتیفیکیشن"
@@ -438,9 +439,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
             addView(chipNotification)
             addView(chipFullScreen)
-            setOnCheckedChangeListener { _, checkedId ->
-                useFullScreen = checkedId == 2
-            }
         }
 
         val timeButton = com.google.android.material.button.MaterialButton(this).apply {
@@ -544,7 +542,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
-                if (useFullScreen) {
+                // بررسی کن آیا تمام‌صفحه انتخاب شده است
+                if (alertTypeGroup.checkedChipIds.contains(2)) {
                     tags.add("use_alarm:true")
                 }
 
@@ -889,11 +888,29 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
         }
 
+        val alertTypeGroup = com.google.android.material.chip.ChipGroup(this).apply {
+            isSingleSelection = false
+            val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
+                id = 1
+                text = "📱 نوتیفیکیشن"
+                isCheckable = true
+                isChecked = true
+            }
+            val chipFullScreen = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
+                id = 2
+                text = "🔔 تمام‌صفحه"
+                isCheckable = reminder.tags.any { it.startsWith("use_alarm:true") }
+            }
+            addView(chipNotification)
+            addView(chipFullScreen)
+        }
+        
         container.addView(titleInput)
         container.addView(descriptionInput)
         container.addView(patternSpinner)
         container.addView(timeButton)
         container.addView(daysButton)
+        container.addView(alertTypeGroup)
 
         patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
@@ -937,14 +954,20 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     else -> SmartReminderManager.RepeatPattern.DAILY
                 }
 
+                val tags = mutableListOf<String>()
+                if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
+                    tags.add("days:${selectedDays.sorted().joinToString(",")}")
+                }
+                if (alertTypeGroup.checkedChipIds.contains(2)) {
+                    tags.add("use_alarm:true")
+                }
+                
                 val updatedReminder = reminder.copy(
                     title = title,
                     description = description,
                     triggerTime = calendar.timeInMillis,
                     repeatPattern = pattern,
-                    tags = if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
-                        listOf("days:${selectedDays.sorted().joinToString(",")}")
-                    } else emptyList()
+                    tags = tags
                 )
 
                 if (smartReminderManager.updateReminder(updatedReminder)) {
