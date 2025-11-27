@@ -69,14 +69,31 @@ class ReminderReceiver : BroadcastReceiver() {
                     // اگر smartReminderId خالی باشد، فعلاً snooze انجام نمی‌دهیم تا با منطق قدیمی تداخل نداشته باشد
                 }
                 else -> {
-                    val useAlarm = intent.getBooleanExtra("use_alarm", false)
+                    var useAlarm = intent.getBooleanExtra("use_alarm", false)
+                    
+                    // اگر smartReminderId موجود است، از tags بررسی کن
+                    if (!smartReminderId.isNullOrEmpty()) {
+                        try {
+                            val mgr = SmartReminderManager(context)
+                            val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
+                            if (reminder != null) {
+                                useAlarm = reminder.tags.any { it.startsWith("use_alarm:true") }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ReminderReceiver", "Error checking reminder tags", e)
+                        }
+                    }
+                    
                     android.util.Log.d(
                         "ReminderReceiver",
                         "Reminder triggered: $message (useAlarm: $useAlarm)"
                     )
 
-                    // همیشه تمام‌صفحه نمایش بده
-                    showFullScreenAlarm(context, message, reminderId, smartReminderId)
+                    if (useAlarm) {
+                        showFullScreenAlarm(context, message, reminderId, smartReminderId)
+                    } else {
+                        showNotification(context, message, reminderId, smartReminderId)
+                    }
                     
                     // برای یادآوری‌های تکراری، دوباره برنامه‌ریزی کن
                     if (!smartReminderId.isNullOrEmpty()) {

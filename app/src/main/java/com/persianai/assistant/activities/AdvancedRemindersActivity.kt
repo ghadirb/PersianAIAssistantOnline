@@ -415,6 +415,26 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         var selectedHour = 9
         var selectedMinute = 0
         val selectedDays = mutableSetOf<Int>() // 0=شنبه، 1=یکشنبه، ... 6=جمعه
+        var useFullScreen = false
+
+        val alertTypeGroup = com.google.android.material.chip.ChipGroup(this).apply {
+            val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
+                id = 1
+                text = "📱 نوتیفیکیشن"
+                isCheckable = true
+                isChecked = true
+            }
+            val chipFullScreen = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
+                id = 2
+                text = "🔔 تمام‌صفحه"
+                isCheckable = true
+            }
+            addView(chipNotification)
+            addView(chipFullScreen)
+            setOnCheckedChangeListener { _, checkedId ->
+                useFullScreen = checkedId == 2
+            }
+        }
 
         val timeButton = com.google.android.material.button.MaterialButton(this).apply {
             text = "انتخاب ساعت"
@@ -466,6 +486,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         container.addView(patternSpinner)
         container.addView(timeButton)
         container.addView(daysButton)
+        container.addView(alertTypeGroup)
 
         patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
@@ -511,6 +532,14 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     else -> SmartReminderManager.RepeatPattern.DAILY
                 }
 
+                val tags = mutableListOf<String>()
+                if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
+                    tags.add("days:${selectedDays.sorted().joinToString(",")}")
+                }
+                if (useFullScreen) {
+                    tags.add("use_alarm:true")
+                }
+
                 val reminder = SmartReminderManager.SmartReminder(
                     id = "recurring_${System.currentTimeMillis()}",
                     title = title,
@@ -519,9 +548,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     priority = SmartReminderManager.Priority.MEDIUM,
                     triggerTime = calendar.timeInMillis,
                     repeatPattern = pattern,
-                    tags = if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
-                        listOf("days:${selectedDays.sorted().joinToString(",")}")
-                    } else emptyList()
+                    tags = tags
                 )
 
                 smartReminderManager.addReminder(reminder)
