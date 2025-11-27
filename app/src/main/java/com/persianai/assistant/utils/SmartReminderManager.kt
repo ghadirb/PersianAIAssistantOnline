@@ -509,7 +509,7 @@ class SmartReminderManager(private val context: Context) {
             putExtra("reminder_description", reminder.description)
             putExtra("reminder_priority", reminder.priority.name)
             putExtra("message", reminder.title)
-            putExtra("use_alarm", reminder.alertType == AlertType.FULL_SCREEN)
+            putExtra("use_alarm", reminder.tags.any { it.startsWith("use_alarm:true") } || reminder.alertType == AlertType.FULL_SCREEN)
         }
         
         val pendingIntent = PendingIntent.getBroadcast(
