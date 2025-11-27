@@ -1,12 +1,9 @@
 package com.persianai.assistant.activities
 
 import android.os.Bundle
-import android.view.View
-import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.databinding.ActivityAichatBinding
 import com.persianai.assistant.models.ChatMessage
