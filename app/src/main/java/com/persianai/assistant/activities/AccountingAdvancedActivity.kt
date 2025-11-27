@@ -37,6 +37,42 @@ class AccountingAdvancedActivity : AppCompatActivity() {
         binding.chatFab.setOnClickListener {
             startActivity(Intent(this, AccountingChatActivity::class.java))
         }
+        
+        binding.btnMonthlyBalance.setOnClickListener {
+            showMonthlyBalance()
+        }
+        
+        binding.btnYearlyBalance.setOnClickListener {
+            showYearlyBalance()
+        }
+        
+        binding.btnAddIncomeManual.setOnClickListener {
+            showManualInputDialog("درآمد", "income")
+        }
+        
+        binding.btnAddExpenseManual.setOnClickListener {
+            showManualInputDialog("هزینه", "expense")
+        }
+        
+        binding.btnAddCheckManual.setOnClickListener {
+            showManualInputDialog("چک", "check")
+        }
+        
+        binding.btnAddInstallmentManual.setOnClickListener {
+            showManualInputDialog("قسط", "installment")
+        }
+    }
+    
+    private fun showMonthlyBalance() {
+        android.widget.Toast.makeText(this, "📅 نمایش تراز ماهانه - به‌زودی", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun showYearlyBalance() {
+        android.widget.Toast.makeText(this, "📊 نمایش تراز سالانه - به‌زودی", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun showManualInputDialog(type: String, action: String) {
+        android.widget.Toast.makeText(this, "✏️ ورود دستی $type - به‌زودی", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     override fun onSupportNavigateUp(): Boolean {
