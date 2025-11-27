@@ -75,11 +75,8 @@ class ReminderReceiver : BroadcastReceiver() {
                         "Reminder triggered: $message (useAlarm: $useAlarm)"
                     )
 
-                    if (useAlarm) {
-                        showFullScreenAlarm(context, message, reminderId, smartReminderId)
-                    } else {
-                        showNotification(context, message, reminderId, smartReminderId)
-                    }
+                    // همیشه تمام‌صفحه نمایش بده
+                    showFullScreenAlarm(context, message, reminderId, smartReminderId)
                     
                     // برای یادآوری‌های تکراری، دوباره برنامه‌ریزی کن
                     if (!smartReminderId.isNullOrEmpty()) {

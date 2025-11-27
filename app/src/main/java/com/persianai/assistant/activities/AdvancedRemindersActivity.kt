@@ -823,8 +823,15 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         }
 
         val daysButton = com.google.android.material.button.MaterialButton(this).apply {
-            text = "انتخاب روزهای هفته"
             isEnabled = currentPatternIndex == 4
+            // اگر روزهای خاص انتخاب شده باشند، نمایش بده
+            if (selectedDays.isNotEmpty()) {
+                val dayNames = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
+                val selectedDayNames = selectedDays.sorted().map { dayNames[it] }.joinToString("، ")
+                text = "روزهای انتخاب شده: $selectedDayNames"
+            } else {
+                text = "انتخاب روزهای هفته"
+            }
             setOnClickListener {
                 val dayNames = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
                 val checkedDays = BooleanArray(7) { selectedDays.contains(it) }

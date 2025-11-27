@@ -41,7 +41,8 @@ class ReminderService : Service() {
 
     private fun startForegroundService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel("reminder_service", "یادآوری‌ها", NotificationManager.IMPORTANCE_LOW)
+            val channel = NotificationChannel("reminder_service", "یادآوری‌ها", NotificationManager.IMPORTANCE_MIN)
+            channel.setShowBadge(false)
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(channel)
         }
@@ -49,6 +50,9 @@ class ReminderService : Service() {
             .setContentTitle("🔔 یادآوری‌های هوشمند")
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
+            .setSilent(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
         startForeground(999, notification)
     }
