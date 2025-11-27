@@ -91,13 +91,17 @@ class ReminderService : Service() {
     private fun showNotification(reminder: SmartReminderManager.SmartReminder) {
         val useFullScreen = reminder.tags.any { it.startsWith("use_alarm:true") }
         if (useFullScreen) {
-            val intent = Intent(this, FullScreenAlarmActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("title", reminder.title)
-                putExtra("description", reminder.description)
+            // تمام‌صفحه را از طریق ReminderReceiver نمایش بده
+            val intent = Intent(this, ReminderReceiver::class.java).apply {
+                action = "com.persianai.assistant.REMINDER_ALARM"
+                putExtra("reminder_id", reminder.id.hashCode())
                 putExtra("smart_reminder_id", reminder.id)
+                putExtra("reminder_title", reminder.title)
+                putExtra("reminder_description", reminder.description)
+                putExtra("message", reminder.title)
+                putExtra("use_alarm", true)
             }
-            startActivity(intent)
+            sendBroadcast(intent)
             return
         }
         val nm = getSystemService(NotificationManager::class.java)
