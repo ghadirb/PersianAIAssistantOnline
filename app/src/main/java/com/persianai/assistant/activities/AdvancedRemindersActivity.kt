@@ -411,6 +411,13 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 patterns
             ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         }
+        
+        val patternInfo = android.widget.TextView(this).apply {
+            text = "📌 روزانه: هر روز در ساعت مشخص شده\nهفتگی: هر هفته در همان روز و ساعت\nماهانه: هر ماه در همان روز\nسالانه: هر سال در همان تاریخ\nروزهای خاص: فقط در روزهای انتخاب شده"
+            textSize = 12f
+            setTextColor(android.graphics.Color.GRAY)
+            setPadding(0, 8, 0, 8)
+        }
 
         var selectedHour = 9
         var selectedMinute = 0
@@ -484,6 +491,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         container.addView(titleInput)
         container.addView(descriptionInput)
         container.addView(patternSpinner)
+        container.addView(patternInfo)
         container.addView(timeButton)
         container.addView(daysButton)
         container.addView(alertTypeGroup)
