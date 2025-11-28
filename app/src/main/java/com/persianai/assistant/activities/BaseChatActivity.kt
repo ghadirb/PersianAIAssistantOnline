@@ -88,24 +88,33 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
         
         // تنظیم VoiceRecorderView
-        voiceRecorderView = getVoiceButton() as? VoiceRecorderView
-        voiceRecorderView?.setListener(object : VoiceRecorderView.VoiceRecorderListener {
-            override fun onRecordingStarted() {
-                checkAudioPermissionAndStartRecording()
+        try {
+            voiceRecorderView = getVoiceButton() as? VoiceRecorderView
+            if (voiceRecorderView != null) {
+                voiceRecorderView!!.setListener(object : VoiceRecorderView.VoiceRecorderListener {
+                    override fun onRecordingStarted() {
+                        checkAudioPermissionAndStartRecording()
+                    }
+                    
+                    override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                        transcribeAudio(audioFile)
+                    }
+                    
+                    override fun onRecordingCancelled() {
+                        Toast.makeText(this@BaseChatActivity, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
+                    }
+                    
+                    override fun onAmplitudeChanged(amplitude: Int) {
+                        // نمایش شدت صدا
+                    }
+                })
+                android.util.Log.d("BaseChatActivity", "VoiceRecorderView initialized successfully")
+            } else {
+                android.util.Log.w("BaseChatActivity", "VoiceRecorderView not found, voice recording disabled")
             }
-            
-            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                transcribeAudio(audioFile)
-            }
-            
-            override fun onRecordingCancelled() {
-                Toast.makeText(this@BaseChatActivity, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
-            }
-            
-            override fun onAmplitudeChanged(amplitude: Int) {
-                // نمایش شدت صدا
-            }
-        })
+        } catch (e: Exception) {
+            android.util.Log.e("BaseChatActivity", "Error initializing VoiceRecorderView", e)
+        }
     }
 
     protected fun sendMessage() {

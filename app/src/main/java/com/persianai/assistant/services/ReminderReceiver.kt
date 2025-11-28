@@ -71,22 +71,25 @@ class ReminderReceiver : BroadcastReceiver() {
                 else -> {
                     var useAlarm = intent.getBooleanExtra("use_alarm", false)
                     
-                    // اگر smartReminderId موجود است، از tags بررسی کن
+                    // اگر smartReminderId موجود است، از alertType بررسی کن
                     if (!smartReminderId.isNullOrEmpty()) {
                         try {
                             val mgr = SmartReminderManager(context)
                             val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
                             if (reminder != null) {
-                                useAlarm = reminder.tags.any { it.startsWith("use_alarm:true") }
+                                // اگر alertType FULL_SCREEN است یا tags شامل use_alarm:true است
+                                useAlarm = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN ||
+                                          reminder.tags.any { it.startsWith("use_alarm:true") }
+                                android.util.Log.d("ReminderReceiver", "Reminder alertType: ${reminder.alertType}, useAlarm: $useAlarm")
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("ReminderReceiver", "Error checking reminder tags", e)
+                            android.util.Log.e("ReminderReceiver", "Error checking reminder alertType", e)
                         }
                     }
                     
                     android.util.Log.d(
                         "ReminderReceiver",
-                        "Reminder triggered: $message (useAlarm: $useAlarm)"
+                        "Reminder triggered: $message (useAlarm: $useAlarm, smartReminderId: $smartReminderId)"
                     )
 
                     if (useAlarm) {

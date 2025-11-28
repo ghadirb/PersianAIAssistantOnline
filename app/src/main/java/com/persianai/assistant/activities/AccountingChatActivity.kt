@@ -38,6 +38,12 @@ class AccountingChatActivity : BaseChatActivity() {
         addMessage(com.persianai.assistant.models.ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! می‌تونم درآمد، هزینه، چک یا قسط جدید برات ثبت کنم. فقط کافیه بگی."))
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh data when returning from other activities
+        chatAdapter.notifyDataSetChanged()
+    }
+
     override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = (binding as ActivityChatBinding).recyclerView
     override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = (binding as ActivityChatBinding).messageInput
     override fun getSendButton(): View = (binding as ActivityChatBinding).sendButton
