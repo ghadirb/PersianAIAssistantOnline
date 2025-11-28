@@ -543,8 +543,15 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
                 // بررسی کن آیا تمام‌صفحه انتخاب شده است
-                if (alertTypeGroup.checkedChipIds.contains(2)) {
+                val useFullScreen = alertTypeGroup.checkedChipIds.contains(2)
+                if (useFullScreen) {
                     tags.add("use_alarm:true")
+                }
+
+                val alertType = if (useFullScreen) {
+                    SmartReminderManager.AlertType.FULL_SCREEN
+                } else {
+                    SmartReminderManager.AlertType.NOTIFICATION
                 }
 
                 val reminder = SmartReminderManager.SmartReminder(
@@ -553,6 +560,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     description = description,
                     type = SmartReminderManager.ReminderType.RECURRING,
                     priority = SmartReminderManager.Priority.MEDIUM,
+                    alertType = alertType,
                     triggerTime = calendar.timeInMillis,
                     repeatPattern = pattern,
                     tags = tags
@@ -958,13 +966,21 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
-                if (alertTypeGroup.checkedChipIds.contains(2)) {
+                val useFullScreen = alertTypeGroup.checkedChipIds.contains(2)
+                if (useFullScreen) {
                     tags.add("use_alarm:true")
+                }
+                
+                val newAlertType = if (useFullScreen) {
+                    SmartReminderManager.AlertType.FULL_SCREEN
+                } else {
+                    SmartReminderManager.AlertType.NOTIFICATION
                 }
                 
                 val updatedReminder = reminder.copy(
                     title = title,
                     description = description,
+                    alertType = newAlertType,
                     triggerTime = calendar.timeInMillis,
                     repeatPattern = pattern,
                     tags = tags

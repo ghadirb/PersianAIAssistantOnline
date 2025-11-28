@@ -1,6 +1,9 @@
 package com.persianai.assistant.finance
 
 import android.content.Context
+import com.persianai.assistant.data.AccountingDB
+import com.persianai.assistant.data.Transaction as DBTransaction
+import com.persianai.assistant.data.TransactionType
 import com.persianai.assistant.utils.PersianDateConverter
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,6 +14,8 @@ import java.util.*
  * سیستم حسابداری ساده
  */
 class FinanceManager(private val context: Context) {
+    
+    private val accountingDB: AccountingDB by lazy { AccountingDB(context) }
     
     data class Transaction(
         val id: String,
@@ -38,10 +43,27 @@ class FinanceManager(private val context: Context) {
         val id = UUID.randomUUID().toString()
         val transaction = Transaction(id, amount, type, category, desc, System.currentTimeMillis())
         
-        // ذخیره
+        // ذخیره در SharedPreferences
         val transactions = getAllTransactions().toMutableList()
         transactions.add(transaction)
         saveTransactions(transactions)
+        
+        // ذخیره همزمان در AccountingDB برای نمایش در لیست‌ها
+        try {
+            if (type == "income" || type == "expense") {
+                val dbType = if (type == "income") TransactionType.INCOME else TransactionType.EXPENSE
+                val dbTransaction = DBTransaction(
+                    type = dbType,
+                    amount = amount,
+                    category = category,
+                    description = desc,
+                    date = transaction.date
+                )
+                accountingDB.addTransaction(dbTransaction)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FinanceManager", "خطا در ذخیره در AccountingDB", e)
+        }
         
         return id
     }

@@ -1,6 +1,7 @@
 package com.persianai.assistant.finance
 
 import android.content.Context
+import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.utils.PersianDateConverter
 import org.json.JSONArray
 import org.json.JSONObject
@@ -46,6 +47,7 @@ class CheckManager(private val context: Context) {
     }
     
     private val prefs = context.getSharedPreferences("checks", Context.MODE_PRIVATE)
+    private val accountingDB = AccountingDB(context)
     
     fun addCheck(
         checkNumber: String,
@@ -69,6 +71,25 @@ class CheckManager(private val context: Context) {
         val checks = getAllChecks().toMutableList()
         checks.add(check)
         saveChecks(checks)
+        
+        // Sync to AccountingDB
+        try {
+            accountingDB.addCheck(
+                id = id,
+                checkNumber = checkNumber,
+                amount = amount,
+                issuer = issuer,
+                recipient = recipient,
+                issueDate = issueDate,
+                dueDate = dueDate,
+                bankName = bankName,
+                accountNumber = accountNumber,
+                description = description,
+                status = "PENDING"
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         
         return id
     }
@@ -127,6 +148,13 @@ class CheckManager(private val context: Context) {
     fun deleteCheck(id: String) {
         val checks = getAllChecks().filter { it.id != id }
         saveChecks(checks)
+        
+        // Sync deletion to AccountingDB
+        try {
+            accountingDB.deleteCheck(id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
     
     private fun saveChecks(checks: List<Check>) {

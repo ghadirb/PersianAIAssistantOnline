@@ -1,6 +1,7 @@
 package com.persianai.assistant.finance
 
 import android.content.Context
+import com.persianai.assistant.data.AccountingDB
 import com.persianai.assistant.utils.PersianDateConverter
 import org.json.JSONArray
 import org.json.JSONObject
@@ -38,6 +39,7 @@ class InstallmentManager(private val context: Context) {
     }
     
     private val prefs = context.getSharedPreferences("installments", Context.MODE_PRIVATE)
+    private val accountingDB = AccountingDB(context)
     
     fun addInstallment(
         title: String,
@@ -60,6 +62,24 @@ class InstallmentManager(private val context: Context) {
         val installments = getAllInstallments().toMutableList()
         installments.add(installment)
         saveInstallments(installments)
+        
+        // Sync to AccountingDB
+        try {
+            accountingDB.addInstallment(
+                id = id,
+                title = title,
+                totalAmount = totalAmount,
+                installmentAmount = installmentAmount,
+                totalInstallments = totalInstallments,
+                paidInstallments = 0,
+                startDate = startDate,
+                paymentDay = paymentDay,
+                recipient = recipient,
+                description = description
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         
         return id
     }
@@ -167,6 +187,13 @@ class InstallmentManager(private val context: Context) {
     fun deleteInstallment(id: String) {
         val installments = getAllInstallments().filter { it.id != id }
         saveInstallments(installments)
+        
+        // Sync deletion to AccountingDB
+        try {
+            accountingDB.deleteInstallment(id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
     
     private fun saveInstallments(installments: List<Installment>) {
