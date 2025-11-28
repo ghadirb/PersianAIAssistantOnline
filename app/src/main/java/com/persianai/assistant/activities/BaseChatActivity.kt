@@ -3,7 +3,6 @@ package com.persianai.assistant.activities
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.MediaRecorder
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -20,14 +19,13 @@ import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
+import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Timer
-import java.util.TimerTask
 
 abstract class BaseChatActivity : AppCompatActivity() {
 
@@ -39,17 +37,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected var currentModel: AIModel = AIModel.GPT_4O_MINI
     protected val messages = mutableListOf<ChatMessage>()
     private lateinit var speechRecognizer: SpeechRecognizer
-    
-    // متغیرهای ضبط صوت
-    private var mediaRecorder: MediaRecorder? = null
-    private var isRecording = false
-    private var audioFilePath = ""
-    private var recordingTimer: Timer? = null
-    private var permissionRequested = false
+    private var voiceRecorderView: VoiceRecorderView? = null
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
-        private const val REQUEST_WRITE_EXTERNAL_STORAGE = 1002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,13 +86,26 @@ abstract class BaseChatActivity : AppCompatActivity() {
         getSendButton().setOnClickListener {
             sendMessage()
         }
-        getVoiceButton().setOnClickListener {
-            if (isRecording) {
-                stopRecordingAndTranscribe()
-            } else {
+        
+        // تنظیم VoiceRecorderView
+        voiceRecorderView = getVoiceButton() as? VoiceRecorderView
+        voiceRecorderView?.setListener(object : VoiceRecorderView.VoiceRecorderListener {
+            override fun onRecordingStarted() {
                 checkAudioPermissionAndStartRecording()
             }
-        }
+            
+            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                transcribeAudio(audioFile)
+            }
+            
+            override fun onRecordingCancelled() {
+                Toast.makeText(this@BaseChatActivity, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
+            }
+            
+            override fun onAmplitudeChanged(amplitude: Int) {
+                // نمایش شدت صدا
+            }
+        })
     }
 
     protected fun sendMessage() {
@@ -148,105 +152,20 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun checkAudioPermissionAndStartRecording() {
-        val permissions = arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        )
+        val permissions = arrayOf(Manifest.permission.RECORD_AUDIO)
         val missingPermissions = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         
         if (missingPermissions.isNotEmpty()) {
-            if (!permissionRequested) {
-                permissionRequested = true
-                ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), REQUEST_RECORD_AUDIO)
-            } else {
-                Toast.makeText(this, "❌ مجوز ضبط صوت لازم است. لطفاً در تنظیمات برنامه فعال کنید.", Toast.LENGTH_LONG).show()
-            }
-        } else {
-            permissionRequested = false
-            startVoiceRecordingWithFallback()
+            ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), REQUEST_RECORD_AUDIO)
         }
     }
 
-    private fun startVoiceRecordingWithFallback() {
-        // ابتدا سعی کن ضبط صوت را شروع کن
-        try {
-            startVoiceRecording()
-        } catch (e: Exception) {
-            android.util.Log.e("BaseChatActivity", "Voice recording failed, falling back to SpeechRecognizer", e)
-            // اگر ضبط صوت ناموفق بود، به SpeechRecognizer fallback کن
-            startSpeechRecognition()
-        }
-    }
-
-    private fun startVoiceRecording() {
-        try {
-            val audioDir = File(getExternalFilesDir(null), "audio")
-            if (!audioDir.exists()) {
-                audioDir.mkdirs()
-            }
-            
-            audioFilePath = File(audioDir, "recording_${System.currentTimeMillis()}.m4a").absolutePath
-            
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(16000)
-                setAudioEncodingBitRate(128000)
-                setAudioChannels(1)
-                setOutputFile(audioFilePath)
-                prepare()
-                start()
-            }
-            
-            isRecording = true
-            Toast.makeText(this, "🎤 ضبط صوت شروع شد", Toast.LENGTH_SHORT).show()
-            
-            // خودکار متوقف کن بعد از ۳۰ ثانیه
-            recordingTimer = Timer()
-            recordingTimer?.schedule(object : TimerTask() {
-                override fun run() {
-                    if (isRecording) {
-                        stopRecordingAndTranscribe()
-                    }
-                }
-            }, 30000)
-            
-        } catch (e: Exception) {
-            android.util.Log.e("BaseChatActivity", "Error starting voice recording", e)
-            Toast.makeText(this, "❌ خطا در شروع ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
-            throw e
-        }
-    }
-
-    private fun stopRecordingAndTranscribe() {
-        if (!isRecording) return
-        
-        try {
-            recordingTimer?.cancel()
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            isRecording = false
-            
-            Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
-            transcribeAudioWithFallback()
-            
-        } catch (e: Exception) {
-            android.util.Log.e("BaseChatActivity", "Error stopping recording", e)
-            Toast.makeText(this, "❌ خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun transcribeAudioWithFallback() {
+    private fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
-                // ابتدا سعی کن Whisper API را استفاده کن
-                val transcribedText = aiClient?.transcribeAudio(audioFilePath)
+                val transcribedText = aiClient?.transcribeAudio(audioFile.absolutePath)
                 
                 if (!transcribedText.isNullOrEmpty()) {
                     getMessageInput().setText(transcribedText)
@@ -255,15 +174,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                // اگر Whisper متن خالی برگرداند
-                android.util.Log.w("BaseChatActivity", "Whisper returned empty text, falling back to SpeechRecognizer")
-                Toast.makeText(this@BaseChatActivity, "⚠️ Whisper متن خالی برگرداند، از تشخیص صوت استفاده می‌شود...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseChatActivity, "⚠️ متن خالی برگشت", Toast.LENGTH_SHORT).show()
                 startSpeechRecognition()
                 
             } catch (e: Exception) {
-                android.util.Log.e("BaseChatActivity", "Whisper transcription failed: ${e.message}", e)
-                Toast.makeText(this@BaseChatActivity, "⚠️ Whisper ناموفق، از تشخیص صوت استفاده می‌شود...", Toast.LENGTH_SHORT).show()
-                // Fallback به SpeechRecognizer
+                android.util.Log.e("BaseChatActivity", "Transcription failed: ${e.message}", e)
+                Toast.makeText(this@BaseChatActivity, "⚠️ تبدیل ناموفق", Toast.LENGTH_SHORT).show()
                 startSpeechRecognition()
             }
         }
@@ -298,7 +214,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_RECORD_AUDIO) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                startVoiceRecordingWithFallback()
+                // مجوز داده شد، VoiceRecorderView خودش ضبط را ادامه می‌دهد
             } else {
                 Toast.makeText(this, "⚠️ مجوز ضبط صوت لازم است", Toast.LENGTH_SHORT).show()
             }
@@ -309,14 +225,5 @@ abstract class BaseChatActivity : AppCompatActivity() {
         super.onDestroy()
         ttsHelper.shutdown()
         speechRecognizer.destroy()
-        recordingTimer?.cancel()
-        if (isRecording) {
-            try {
-                mediaRecorder?.stop()
-                mediaRecorder?.release()
-            } catch (e: Exception) {
-                android.util.Log.e("BaseChatActivity", "Error releasing MediaRecorder", e)
-            }
-        }
     }
 }
