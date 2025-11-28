@@ -29,7 +29,6 @@ class ReminderService : Service() {
     override fun onCreate() {
         super.onCreate()
         smartReminderManager = SmartReminderManager(this)
-        startForegroundService()
         startReminderCheck()
     }
 

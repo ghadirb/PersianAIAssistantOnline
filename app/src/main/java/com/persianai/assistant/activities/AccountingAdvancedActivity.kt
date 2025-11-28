@@ -64,15 +64,77 @@ class AccountingAdvancedActivity : AppCompatActivity() {
     }
     
     private fun showMonthlyBalance() {
-        android.widget.Toast.makeText(this, "📅 نمایش تراز ماهانه - به‌زودی", android.widget.Toast.LENGTH_SHORT).show()
+        val financeManager = com.persianai.assistant.finance.FinanceManager(this)
+        val transactions = financeManager.getAllTransactions()
+        val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        
+        var income = 0.0
+        var expense = 0.0
+        
+        for (transaction in transactions) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = transaction.date
+            if (cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear) {
+                if (transaction.type == "income") income += transaction.amount
+                else if (transaction.type == "expense") expense += transaction.amount
+            }
+        }
+        
+        val balance = income - expense
+        val message = "📅 تراز ماهانه:\n💰 درآمد: ${String.format("%,.0f", income)} تومان\n💸 هزینه: ${String.format("%,.0f", expense)} تومان\n📊 تراز: ${String.format("%,.0f", balance)} تومان"
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
     
     private fun showYearlyBalance() {
-        android.widget.Toast.makeText(this, "📊 نمایش تراز سالانه - به‌زودی", android.widget.Toast.LENGTH_SHORT).show()
+        val financeManager = com.persianai.assistant.finance.FinanceManager(this)
+        val transactions = financeManager.getAllTransactions()
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        
+        var income = 0.0
+        var expense = 0.0
+        
+        for (transaction in transactions) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = transaction.date
+            if (cal.get(java.util.Calendar.YEAR) == currentYear) {
+                if (transaction.type == "income") income += transaction.amount
+                else if (transaction.type == "expense") expense += transaction.amount
+            }
+        }
+        
+        val balance = income - expense
+        val message = "📊 تراز سالانه:\n💰 درآمد: ${String.format("%,.0f", income)} تومان\n💸 هزینه: ${String.format("%,.0f", expense)} تومان\n📊 تراز: ${String.format("%,.0f", balance)} تومان"
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
     
     private fun showManualInputDialog(type: String, action: String) {
-        android.widget.Toast.makeText(this, "✏️ ورود دستی $type - به‌زودی", android.widget.Toast.LENGTH_SHORT).show()
+        val builder = android.app.AlertDialog.Builder(this)
+        builder.setTitle("ورود دستی $type")
+        
+        val input = android.widget.EditText(this)
+        input.hint = "مبلغ را وارد کنید"
+        input.inputType = android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        builder.setView(input)
+        
+        builder.setPositiveButton("ثبت") { _, _ ->
+            val amount = input.text.toString().toDoubleOrNull() ?: 0.0
+            if (amount > 0) {
+                val financeManager = com.persianai.assistant.finance.FinanceManager(this)
+                when (action) {
+                    "income" -> {
+                        financeManager.addTransaction(amount, "income", "درآمد", "ورود دستی")
+                        android.widget.Toast.makeText(this, "✅ درآمد ثبت شد", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    "expense" -> {
+                        financeManager.addTransaction(amount, "expense", "هزینه", "ورود دستی")
+                        android.widget.Toast.makeText(this, "✅ هزینه ثبت شد", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        builder.setNegativeButton("لغو", null)
+        builder.show()
     }
 
     override fun onSupportNavigateUp(): Boolean {

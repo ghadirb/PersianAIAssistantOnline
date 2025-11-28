@@ -1,56 +1,31 @@
 package com.persianai.assistant.activities
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.persianai.assistant.adapters.ChatAdapter
+import android.view.View
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.databinding.ActivityAichatBinding
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
-import kotlinx.coroutines.launch
 
-class AIChatActivity : AppCompatActivity() {
+class AIChatActivity : BaseChatActivity() {
     
-    private lateinit var binding: ActivityAichatBinding
-    private val messages = mutableListOf<ChatMessage>()
-    private lateinit var adapter: ChatAdapter
+    private lateinit var chatBinding: ActivityAichatBinding
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityAichatBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        chatBinding = ActivityAichatBinding.inflate(layoutInflater)
+        binding = chatBinding
+        setContentView(chatBinding.root)
         
-        setupRecyclerView()
-        setupSendButton()
-        
+        setupChatUI()
         addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور کمکتون کنم؟"))
     }
     
-    private fun setupRecyclerView() {
-        adapter = ChatAdapter(messages)
-        binding.chatRecyclerView.layoutManager = LinearLayoutManager(this)
-        binding.chatRecyclerView.adapter = adapter
-    }
+    override fun getRecyclerView(): RecyclerView = chatBinding.chatRecyclerView
+    override fun getMessageInput(): TextInputEditText = chatBinding.messageInput
+    override fun getSendButton(): View = chatBinding.sendButton
+    override fun getVoiceButton(): View = chatBinding.voiceButton
     
-    private fun setupSendButton() {
-        binding.sendButton.setOnClickListener {
-            val text = binding.messageInput.text.toString().trim()
-            if (text.isNotEmpty()) {
-                addMessage(ChatMessage(role = MessageRole.USER, content = text))
-                binding.messageInput.text?.clear()
-                
-                lifecycleScope.launch {
-                    val response = "این یک پاسخ نمونه است"
-                    addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = response))
-                }
-            }
-        }
-    }
-    
-    private fun addMessage(message: ChatMessage) {
-        messages.add(message)
-        adapter.notifyItemInserted(messages.size - 1)
-        binding.chatRecyclerView.scrollToPosition(messages.size - 1)
-    }
+    override fun getSystemPrompt(): String = "دستیار هوشمند فارسی"
 }
