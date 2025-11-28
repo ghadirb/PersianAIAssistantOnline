@@ -57,77 +57,75 @@ class AccountingChatActivity : BaseChatActivity() {
 
     override suspend fun handleRequest(text: String): String {
         val responseJson = super.handleRequest(text)
-        return withContext(Dispatchers.Main) {
-            try {
-                // استخراج JSON از پاسخ
-                val jsonStr = extractJsonFromResponse(responseJson)
-                val json = Gson().fromJson(jsonStr, JsonObject::class.java)
-                val action = json.get("action").asString
+        return try {
+            // استخراج JSON از پاسخ
+            val jsonStr = extractJsonFromResponse(responseJson)
+            val json = Gson().fromJson(jsonStr, JsonObject::class.java)
+            val action = json.get("action").asString
 
-                when (action) {
-                    "add_income" -> {
-                        val amount = json.get("amount").asDouble
-                        val description = json.get("description").asString
-                        financeManager.addTransaction(amount, "income", "درآمد", description)
-                        "✅ درآمد «$description» به مبلغ ${String.format("%,.0f", amount)} تومان ثبت شد."
-                    }
-                    "add_expense" -> {
-                        val amount = json.get("amount").asDouble
-                        val description = json.get("description").asString
-                        financeManager.addTransaction(amount, "expense", "هزینه", description)
-                        "✅ هزینه «$description» به مبلغ ${String.format("%,.0f", amount)} تومان ثبت شد."
-                    }
-                    "add_check" -> {
-                        val checkNumber = json.get("checkNumber").asString
-                        val amount = json.get("amount").asDouble
-                        val issuer = json.get("issuer").asString
-                        val recipient = json.get("recipient").asString
-                        val dueDateStr = json.get("dueDate").asString
-                        val bankName = json.get("bankName").asString
-                        val description = json.get("description").asString
-                        
-                        val dueDate = parseDateStringToMillis(dueDateStr)
-                        checkManager.addCheck(
-                            checkNumber = checkNumber,
-                            amount = amount,
-                            issuer = issuer,
-                            recipient = recipient,
-                            issueDate = System.currentTimeMillis(),
-                            dueDate = dueDate,
-                            bankName = bankName,
-                            accountNumber = "",
-                            description = description
-                        )
-                        "✅ چک شماره $checkNumber به مبلغ ${String.format("%,.0f", amount)} تومان ثبت شد."
-                    }
-                    "add_installment" -> {
-                        val title = json.get("title").asString
-                        val totalAmount = json.get("totalAmount").asDouble
-                        val installmentAmount = json.get("installmentAmount").asDouble
-                        val totalInstallments = json.get("totalInstallments").asInt
-                        val startDateStr = json.get("startDate").asString
-                        val paymentDay = json.get("paymentDay").asInt
-                        val recipient = json.get("recipient").asString
-                        val description = json.get("description").asString
-                        
-                        val startDate = parseDateStringToMillis(startDateStr)
-                        installmentManager.addInstallment(
-                            title = title,
-                            totalAmount = totalAmount,
-                            installmentAmount = installmentAmount,
-                            totalInstallments = totalInstallments,
-                            startDate = startDate,
-                            paymentDay = paymentDay,
-                            recipient = recipient,
-                            description = description
-                        )
-                        "✅ قسط «$title» با $totalInstallments قسط ثبت شد."
-                    }
-                    else -> responseJson
+            when (action) {
+                "add_income" -> {
+                    val amount = json.get("amount").asDouble
+                    val description = json.get("description").asString
+                    financeManager.addTransaction(amount, "income", "درآمد", description)
+                    "✅ درآمد «$description» به مبلغ ${String.format("%,.0f", amount)} تومان ثبت شد."
                 }
-            } catch (e: Exception) {
-                responseJson
+                "add_expense" -> {
+                    val amount = json.get("amount").asDouble
+                    val description = json.get("description").asString
+                    financeManager.addTransaction(amount, "expense", "هزینه", description)
+                    "✅ هزینه «$description» به مبلغ ${String.format("%,.0f", amount)} تومان ثبت شد."
+                }
+                "add_check" -> {
+                    val checkNumber = json.get("checkNumber").asString
+                    val amount = json.get("amount").asDouble
+                    val issuer = json.get("issuer").asString
+                    val recipient = json.get("recipient").asString
+                    val dueDateStr = json.get("dueDate").asString
+                    val bankName = json.get("bankName").asString
+                    val description = json.get("description").asString
+                    
+                    val dueDate = parseDateStringToMillis(dueDateStr)
+                    checkManager.addCheck(
+                        checkNumber = checkNumber,
+                        amount = amount,
+                        issuer = issuer,
+                        recipient = recipient,
+                        issueDate = System.currentTimeMillis(),
+                        dueDate = dueDate,
+                        bankName = bankName,
+                        accountNumber = "",
+                        description = description
+                    )
+                    "✅ چک شماره $checkNumber به مبلغ ${String.format("%,.0f", amount)} تومان ثبت شد."
+                }
+                "add_installment" -> {
+                    val title = json.get("title").asString
+                    val totalAmount = json.get("totalAmount").asDouble
+                    val installmentAmount = json.get("installmentAmount").asDouble
+                    val totalInstallments = json.get("totalInstallments").asInt
+                    val startDateStr = json.get("startDate").asString
+                    val paymentDay = json.get("paymentDay").asInt
+                    val recipient = json.get("recipient").asString
+                    val description = json.get("description").asString
+                    
+                    val startDate = parseDateStringToMillis(startDateStr)
+                    installmentManager.addInstallment(
+                        title = title,
+                        totalAmount = totalAmount,
+                        installmentAmount = installmentAmount,
+                        totalInstallments = totalInstallments,
+                        startDate = startDate,
+                        paymentDay = paymentDay,
+                        recipient = recipient,
+                        description = description
+                    )
+                    "✅ قسط «$title» با $totalInstallments قسط ثبت شد."
+                }
+                else -> responseJson
             }
+        } catch (e: Exception) {
+            responseJson
         }
     }
     
