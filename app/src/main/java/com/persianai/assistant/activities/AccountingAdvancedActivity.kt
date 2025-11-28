@@ -61,6 +61,48 @@ class AccountingAdvancedActivity : AppCompatActivity() {
         binding.btnAddInstallmentManual.setOnClickListener {
             showManualInputDialog("قسط", "installment")
         }
+        
+        updateStats()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        updateStats()
+    }
+    
+    private fun updateStats() {
+        val financeManager = com.persianai.assistant.finance.FinanceManager(this)
+        val checkManager = com.persianai.assistant.finance.CheckManager(this)
+        val installmentManager = com.persianai.assistant.finance.InstallmentManager(this)
+        
+        // درآمد و هزینه
+        val transactions = financeManager.getAllTransactions()
+        var totalIncome = 0.0
+        var totalExpense = 0.0
+        for (transaction in transactions) {
+            if (transaction.type == "income") totalIncome += transaction.amount
+            else if (transaction.type == "expense") totalExpense += transaction.amount
+        }
+        
+        // چک‌ها
+        val checks = checkManager.getAllChecks()
+        var totalChecks = 0.0
+        for (check in checks) {
+            totalChecks += check.amount
+        }
+        
+        // اقساط
+        val installments = installmentManager.getAllInstallments()
+        var totalInstallments = 0.0
+        for (installment in installments) {
+            totalInstallments += installment.totalAmount
+        }
+        
+        // نمایش در UI
+        binding.incomeAmount.text = "💰 ${String.format("%,.0f", totalIncome)} تومان"
+        binding.expenseAmount.text = "💸 ${String.format("%,.0f", totalExpense)} تومان"
+        binding.checksAmount.text = "📋 ${String.format("%,.0f", totalChecks)} تومان"
+        binding.installmentsAmount.text = "💳 ${String.format("%,.0f", totalInstallments)} تومان"
     }
     
     private fun showMonthlyBalance() {
