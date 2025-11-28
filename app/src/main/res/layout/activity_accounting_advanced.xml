@@ -62,12 +62,14 @@
                             android:textColor="@color/primaryColor" />
 
                         <TextView
+                            android:id="@+id/incomeAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="مدیریت درآمدهای شما"
-                            android:textSize="14sp"
-                            android:textColor="@android:color/darker_gray"
-                            android:layout_marginTop="4dp" />
+                            android:text="💰 0 تومان"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor"
+                            android:layout_marginTop="8dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_incomes"
@@ -104,12 +106,14 @@
                             android:textColor="@color/primaryColor" />
 
                         <TextView
+                            android:id="@+id/expenseAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="مدیریت هزینه‌های شما"
-                            android:textSize="14sp"
-                            android:textColor="@android:color/darker_gray"
-                            android:layout_marginTop="4dp" />
+                            android:text="💸 0 تومان"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor"
+                            android:layout_marginTop="8dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_expenses"
@@ -146,12 +150,14 @@
                             android:textColor="@color/primaryColor" />
 
                         <TextView
+                            android:id="@+id/checksAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="مدیریت چک‌های شما"
-                            android:textSize="14sp"
-                            android:textColor="@android:color/darker_gray"
-                            android:layout_marginTop="4dp" />
+                            android:text="📋 0 تومان"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor"
+                            android:layout_marginTop="8dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_checks"
@@ -188,12 +194,14 @@
                             android:textColor="@color/primaryColor" />
 
                         <TextView
+                            android:id="@+id/installmentsAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="مدیریت اقساط شما"
-                            android:textSize="14sp"
-                            android:textColor="@android:color/darker_gray"
-                            android:layout_marginTop="4dp" />
+                            android:text="💳 0 تومان"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor"
+                            android:layout_marginTop="8dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_installments"
