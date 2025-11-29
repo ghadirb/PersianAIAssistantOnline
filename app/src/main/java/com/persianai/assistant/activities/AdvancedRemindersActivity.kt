@@ -542,12 +542,14 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
+                
                 // بررسی کن آیا تمام‌صفحه انتخاب شده است
                 val useFullScreen = alertTypeGroup.checkedChipIds.contains(2)
                 if (useFullScreen) {
                     tags.add("use_alarm:true")
                 }
-
+                
+                // اگر هر دو انتخاب شده باشند، اولویت به FULL_SCREEN است
                 val alertType = if (useFullScreen) {
                     SmartReminderManager.AlertType.FULL_SCREEN
                 } else {

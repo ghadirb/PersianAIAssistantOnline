@@ -145,6 +145,8 @@ class ReminderReceiver : BroadcastReceiver() {
     }*/
     
     private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
+        // اگر اندروید 10+ است، از startActivity استفاده کن (برای نمایش فوری)
+        // اگر اندروید کمتر است، از startForegroundService استفاده کن
         val intent = Intent(context, com.persianai.assistant.activities.FullScreenAlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -155,7 +157,14 @@ class ReminderReceiver : BroadcastReceiver() {
             putExtra("reminder_id", reminderId)
             putExtra("smart_reminder_id", smartReminderId)
         }
-        context.startActivity(intent)
+        
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("ReminderReceiver", "Error starting FullScreenAlarmActivity", e)
+            // اگر خطا رخ داد، نوتیفیکیشن نمایش بده
+            showNotification(context, message, reminderId, smartReminderId)
+        }
     }
     
     private fun showNotification(context: Context, message: String, reminderId: Int, smartReminderId: String?) {

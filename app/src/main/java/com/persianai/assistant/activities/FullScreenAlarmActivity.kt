@@ -1,6 +1,8 @@
 package com.persianai.assistant.activities
 
 import android.app.Activity
+import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
@@ -61,8 +63,30 @@ class FullScreenAlarmActivity : Activity() {
     
     private fun startAlarmSound() {
         try {
+            // تنظیم صدای سیستم برای ALARM
+            val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+            val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            
+            // صدا را به حداکثر تنظیم کن
+            if (currentVolume < maxVolume) {
+                audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+            }
+            
             val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             mediaPlayer = MediaPlayer().apply {
+                // تنظیم صدا برای ALARM
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                    setAudioAttributes(audioAttributes)
+                } else {
+                    @Suppress("DEPRECATION")
+                    setAudioStreamType(AudioManager.STREAM_ALARM)
+                }
+                
                 setDataSource(this@FullScreenAlarmActivity, alarmUri)
                 isLooping = true
                 prepare()
