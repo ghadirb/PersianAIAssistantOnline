@@ -35,6 +35,18 @@ class ExpenseListActivity : AppCompatActivity() {
             val expenses = db.getAllTransactions(TransactionType.EXPENSE)
             binding.recyclerView.adapter = TransactionAdapter(expenses.toMutableList()) { transaction ->
                 // Handle delete click
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@ExpenseListActivity)
+                    .setTitle("❌ حذف هزینه")
+                    .setMessage("آیا از حذف این هزینه مطمئن هستید؟")
+                    .setPositiveButton("حذف") { _, _ ->
+                        lifecycleScope.launch {
+                            db.deleteTransaction(transaction.id)
+                            loadExpenses()
+                            android.widget.Toast.makeText(this@ExpenseListActivity, "✅ هزینه حذف شد", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
             }
         }
     }

@@ -3,6 +3,7 @@ package com.persianai.assistant.adapters
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -21,7 +22,8 @@ import java.util.*
  */
 class CheckAdapter(
     private val dateFormat: SimpleDateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()),
-    private val onCheckClick: (Check) -> Unit
+    private val onCheckClick: (Check) -> Unit,
+    private val onDeleteClick: ((Check) -> Unit)? = null
 ) : ListAdapter<Check, CheckAdapter.ViewHolder>(DiffCallback()) {
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -42,6 +44,7 @@ class CheckAdapter(
         private val typeView: TextView = itemView.findViewById(R.id.typeText)
         private val alertView: TextView = itemView.findViewById(R.id.alertText)
         private val statusChip: Chip = itemView.findViewById(R.id.statusChip)
+        private val deleteButton: ImageButton? = itemView.findViewById(R.id.deleteButton)
         
         fun bind(check: Check) {
             // شماره چک
@@ -83,6 +86,11 @@ class CheckAdapter(
             // کلیک روی آیتم
             itemView.setOnClickListener {
                 onCheckClick(check)
+            }
+            
+            // دکمه حذف
+            deleteButton?.setOnClickListener {
+                onDeleteClick?.invoke(check)
             }
         }
         

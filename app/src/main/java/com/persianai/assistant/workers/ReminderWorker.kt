@@ -45,7 +45,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : Worker(contex
                 Log.d("ReminderWorker", "Triggering reminder: ${reminder.title}")
                 
                 // بررسی کن آیا باید تمام‌صفحه نمایش داده شود
-                val useFullScreen = reminder.tags.any { it.startsWith("use_alarm:true") }
+                val useFullScreen = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN ||
+                                   reminder.tags.any { it.startsWith("use_alarm:true") }
                 
                 if (useFullScreen) {
                     showFullScreenAlarm(reminder)

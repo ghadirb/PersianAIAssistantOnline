@@ -35,6 +35,18 @@ class IncomeListActivity : AppCompatActivity() {
             val incomes = db.getAllTransactions(TransactionType.INCOME)
             binding.recyclerView.adapter = TransactionAdapter(incomes.toMutableList()) { transaction ->
                 // Handle delete click
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@IncomeListActivity)
+                    .setTitle("❌ حذف درآمد")
+                    .setMessage("آیا از حذف این درآمد مطمئن هستید؟")
+                    .setPositiveButton("حذف") { _, _ ->
+                        lifecycleScope.launch {
+                            db.deleteTransaction(transaction.id)
+                            loadIncomes()
+                            android.widget.Toast.makeText(this@IncomeListActivity, "✅ درآمد حذف شد", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
             }
         }
     }

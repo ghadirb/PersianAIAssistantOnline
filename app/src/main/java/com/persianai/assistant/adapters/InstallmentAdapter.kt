@@ -3,6 +3,7 @@ package com.persianai.assistant.adapters
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
@@ -19,7 +20,8 @@ import java.util.*
  * آداپتور برای نمایش لیست اقساط
  */
 class InstallmentAdapter(
-    private val onInstallmentClick: (Installment) -> Unit
+    private val onInstallmentClick: (Installment) -> Unit,
+    private val onDeleteClick: ((Installment) -> Unit)? = null
 ) : ListAdapter<Installment, InstallmentAdapter.ViewHolder>(DiffCallback()) {
     
     private fun toJalali(timestamp: Long): String {
@@ -48,6 +50,7 @@ class InstallmentAdapter(
         private val progressTextView: TextView = itemView.findViewById(R.id.progressText)
         private val progressPercentView: TextView = itemView.findViewById(R.id.progressPercentText)
         private val remainingView: TextView = itemView.findViewById(R.id.remainingText)
+        private val deleteButton: ImageButton? = itemView.findViewById(R.id.deleteButton)
         
         fun bind(installment: Installment) {
             // عنوان قسط
@@ -74,6 +77,11 @@ class InstallmentAdapter(
             // تنظیم کلیک
             itemView.setOnClickListener {
                 onInstallmentClick(installment)
+            }
+            
+            // دکمه حذف
+            deleteButton?.setOnClickListener {
+                onDeleteClick?.invoke(installment)
             }
         }
         

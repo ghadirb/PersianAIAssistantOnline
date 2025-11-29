@@ -146,7 +146,10 @@ class ReminderReceiver : BroadcastReceiver() {
     
     private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
         val intent = Intent(context, com.persianai.assistant.activities.FullScreenAlarmActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
+                    Intent.FLAG_ACTIVITY_NO_HISTORY
             putExtra("title", message)
             putExtra("description", "")
             putExtra("reminder_id", reminderId)

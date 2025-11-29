@@ -32,9 +32,26 @@ class InstallmentListActivity : AppCompatActivity() {
     private fun loadInstallments() {
         lifecycleScope.launch {
             val installments = db.getAllInstallments()
-            binding.recyclerView.adapter = InstallmentAdapter { installment ->
-                // Handle installment click
-            }.apply {
+            binding.recyclerView.adapter = InstallmentAdapter(
+                onInstallmentClick = { installment ->
+                    // Handle installment click
+                },
+                onDeleteClick = { installment ->
+                    // Handle delete click
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(this@InstallmentListActivity)
+                        .setTitle("❌ حذف قسط")
+                        .setMessage("آیا از حذف این قسط مطمئن هستید؟")
+                        .setPositiveButton("حذف") { _, _ ->
+                            lifecycleScope.launch {
+                                db.deleteInstallment(installment.id)
+                                loadInstallments()
+                                android.widget.Toast.makeText(this@InstallmentListActivity, "✅ قسط حذف شد", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .setNegativeButton("لغو", null)
+                        .show()
+                }
+            ).apply {
                 submitList(installments)
             }
         }

@@ -32,9 +32,26 @@ class CheckListActivity : AppCompatActivity() {
     private fun loadChecks() {
         lifecycleScope.launch {
             val checks = db.getAllChecks()
-            binding.recyclerView.adapter = CheckAdapter { check ->
-                // Handle check click
-            }.apply {
+            binding.recyclerView.adapter = CheckAdapter(
+                onCheckClick = { check ->
+                    // Handle check click
+                },
+                onDeleteClick = { check ->
+                    // Handle delete click
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(this@CheckListActivity)
+                        .setTitle("❌ حذف چک")
+                        .setMessage("آیا از حذف این چک مطمئن هستید؟")
+                        .setPositiveButton("حذف") { _, _ ->
+                            lifecycleScope.launch {
+                                db.deleteCheck(check.id)
+                                loadChecks()
+                                android.widget.Toast.makeText(this@CheckListActivity, "✅ چک حذف شد", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .setNegativeButton("لغو", null)
+                        .show()
+                }
+            ).apply {
                 submitList(checks)
             }
         }
