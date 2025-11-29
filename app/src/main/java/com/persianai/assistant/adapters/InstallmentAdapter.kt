@@ -21,7 +21,8 @@ import java.util.*
  */
 class InstallmentAdapter(
     private val onInstallmentClick: (Installment) -> Unit,
-    private val onDeleteClick: ((Installment) -> Unit)? = null
+    private val onDeleteClick: ((Installment) -> Unit)? = null,
+    private val onEditClick: ((Installment) -> Unit)? = null
 ) : ListAdapter<Installment, InstallmentAdapter.ViewHolder>(DiffCallback()) {
     
     private fun toJalali(timestamp: Long): String {
@@ -51,6 +52,7 @@ class InstallmentAdapter(
         private val progressPercentView: TextView = itemView.findViewById(R.id.progressPercentText)
         private val remainingView: TextView = itemView.findViewById(R.id.remainingText)
         private val deleteButton: ImageButton? = itemView.findViewById(R.id.deleteButton)
+        private val editButton: ImageButton? = itemView.findViewById(R.id.editButton)
         
         fun bind(installment: Installment) {
             // عنوان قسط
@@ -82,6 +84,11 @@ class InstallmentAdapter(
             // دکمه حذف
             deleteButton?.setOnClickListener {
                 onDeleteClick?.invoke(installment)
+            }
+            
+            // دکمه ویرایش
+            editButton?.setOnClickListener {
+                onEditClick?.invoke(installment)
             }
         }
         

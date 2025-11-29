@@ -23,7 +23,8 @@ import java.util.*
 class CheckAdapter(
     private val dateFormat: SimpleDateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()),
     private val onCheckClick: (Check) -> Unit,
-    private val onDeleteClick: ((Check) -> Unit)? = null
+    private val onDeleteClick: ((Check) -> Unit)? = null,
+    private val onEditClick: ((Check) -> Unit)? = null
 ) : ListAdapter<Check, CheckAdapter.ViewHolder>(DiffCallback()) {
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -45,6 +46,7 @@ class CheckAdapter(
         private val alertView: TextView = itemView.findViewById(R.id.alertText)
         private val statusChip: Chip = itemView.findViewById(R.id.statusChip)
         private val deleteButton: ImageButton? = itemView.findViewById(R.id.deleteButton)
+        private val editButton: ImageButton? = itemView.findViewById(R.id.editButton)
         
         fun bind(check: Check) {
             // شماره چک
@@ -56,8 +58,14 @@ class CheckAdapter(
             // گیرنده
             holderNameView.text = "در وجه: ${check.recipient}"
 
-            // تاریخ سررسید
-            dueDateView.text = "📅 سررسید: ${dateFormat.format(check.dueDate)}"
+            // تاریخ سررسید (شمسی)
+            val calendar = Calendar.getInstance().apply { timeInMillis = check.dueDate }
+            val persianDate = PersianDateConverter.gregorianToPersian(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+            )
+            dueDateView.text = "📅 سررسید: ${persianDate.toReadableString()}"
 
             // نوع/بانک
             typeView.text = if (check.bankName.isNotBlank()) {
@@ -91,6 +99,11 @@ class CheckAdapter(
             // دکمه حذف
             deleteButton?.setOnClickListener {
                 onDeleteClick?.invoke(check)
+            }
+            
+            // دکمه ویرایش
+            editButton?.setOnClickListener {
+                onEditClick?.invoke(check)
             }
         }
         

@@ -50,11 +50,55 @@ class CheckListActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("لغو", null)
                         .show()
+                },
+                onEditClick = { check ->
+                    // Handle edit click
+                    showEditDialog(check)
                 }
             ).apply {
                 submitList(checks)
             }
         }
+    }
+    
+    private fun showEditDialog(check: com.persianai.assistant.models.Check) {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+        
+        val amountInput = android.widget.EditText(this).apply {
+            hint = "مبلغ"
+            setText(check.amount.toString())
+            inputType = android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val recipientInput = android.widget.EditText(this).apply {
+            hint = "گیرنده"
+            setText(check.recipient)
+        }
+        
+        container.addView(amountInput)
+        container.addView(recipientInput)
+        
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("✏️ ویرایش چک")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val newAmount = amountInput.text.toString().toDoubleOrNull() ?: check.amount
+                val newRecipient = recipientInput.text.toString()
+                
+                lifecycleScope.launch {
+                    val updated = check.copy(
+                        amount = newAmount,
+                        recipient = newRecipient
+                    )
+                    db.updateCheck(updated)
+                    loadChecks()
+                    android.widget.Toast.makeText(this@CheckListActivity, "✅ چک ویرایش شد", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
 
     override fun onResume() {

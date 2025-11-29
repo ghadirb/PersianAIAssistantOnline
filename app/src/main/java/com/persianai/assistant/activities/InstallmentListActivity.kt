@@ -50,11 +50,55 @@ class InstallmentListActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("لغو", null)
                         .show()
+                },
+                onEditClick = { installment ->
+                    // Handle edit click
+                    showEditDialog(installment)
                 }
             ).apply {
                 submitList(installments)
             }
         }
+    }
+    
+    private fun showEditDialog(installment: com.persianai.assistant.models.Installment) {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+        
+        val titleInput = android.widget.EditText(this).apply {
+            hint = "عنوان"
+            setText(installment.title)
+        }
+        val amountInput = android.widget.EditText(this).apply {
+            hint = "مبلغ کل"
+            setText(installment.totalAmount.toString())
+            inputType = android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        
+        container.addView(titleInput)
+        container.addView(amountInput)
+        
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("✏️ ویرایش قسط")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val newTitle = titleInput.text.toString()
+                val newAmount = amountInput.text.toString().toDoubleOrNull() ?: installment.totalAmount
+                
+                lifecycleScope.launch {
+                    val updated = installment.copy(
+                        title = newTitle,
+                        totalAmount = newAmount
+                    )
+                    db.updateInstallment(updated)
+                    loadInstallments()
+                    android.widget.Toast.makeText(this@InstallmentListActivity, "✅ قسط ویرایش شد", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
 
     override fun onResume() {

@@ -15,7 +15,8 @@ import java.util.*
 
 class TransactionAdapter(
     private val transactions: MutableList<Transaction>,
-    private val onDeleteClick: (Transaction) -> Unit
+    private val onDeleteClick: (Transaction) -> Unit,
+    private val onEditClick: ((Transaction) -> Unit)? = null
 ) : RecyclerView.Adapter<TransactionAdapter.TransactionViewHolder>() {
 
     inner class TransactionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -24,6 +25,7 @@ class TransactionAdapter(
         val amount: TextView = view.findViewById(R.id.transactionAmount)
         val date: TextView = view.findViewById(R.id.transactionDate)
         val deleteButton: ImageButton = view.findViewById(R.id.deleteButton)
+        val editButton: ImageButton? = view.findViewById(R.id.editButton)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
@@ -71,13 +73,24 @@ class TransactionAdapter(
             transaction.category
         }
         
-        // تاریخ
-        val dateFormat = SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale("fa"))
-        holder.date.text = dateFormat.format(Date(transaction.date))
+        // تاریخ (شمسی)
+        val calendar = java.util.Calendar.getInstance().apply { timeInMillis = transaction.date }
+        val persianDate = com.persianai.assistant.utils.PersianDateConverter.gregorianToPersian(
+            calendar.get(java.util.Calendar.YEAR),
+            calendar.get(java.util.Calendar.MONTH) + 1,
+            calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        )
+        val timeFormat = SimpleDateFormat("HH:mm", Locale("fa"))
+        holder.date.text = "${persianDate.toReadableString()} - ${timeFormat.format(Date(transaction.date))}"
         
         // دکمه حذف
         holder.deleteButton.setOnClickListener {
             onDeleteClick(transaction)
+        }
+        
+        // دکمه ویرایش
+        holder.editButton?.setOnClickListener {
+            onEditClick?.invoke(transaction)
         }
     }
 

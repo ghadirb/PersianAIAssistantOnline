@@ -312,18 +312,16 @@ class FinanceAdvancedActivity : AppCompatActivity() {
     }
     
     private fun showDatePicker(onDateSelected: (Long) -> Unit) {
-        val calendar = Calendar.getInstance()
+        val datePicker = com.google.android.material.datepicker.MaterialDatePicker.Builder.datePicker()
+            .setTitleText("تاریخ را انتخاب کنید")
+            .setSelection(System.currentTimeMillis())
+            .build()
         
-        DatePickerDialog(
-            this,
-            { _, year, month, day ->
-                calendar.set(year, month, day)
-                onDateSelected(calendar.timeInMillis)
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            onDateSelected(selection)
+        }
+        
+        datePicker.show(supportFragmentManager, "DATE_PICKER")
     }
     
     private fun showCheckDetails(check: CheckManager.Check) {

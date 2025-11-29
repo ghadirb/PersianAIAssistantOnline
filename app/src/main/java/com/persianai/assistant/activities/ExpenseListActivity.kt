@@ -33,22 +33,69 @@ class ExpenseListActivity : AppCompatActivity() {
     private fun loadExpenses() {
         lifecycleScope.launch {
             val expenses = db.getAllTransactions(TransactionType.EXPENSE)
-            binding.recyclerView.adapter = TransactionAdapter(expenses.toMutableList()) { transaction ->
-                // Handle delete click
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(this@ExpenseListActivity)
-                    .setTitle("❌ حذف هزینه")
-                    .setMessage("آیا از حذف این هزینه مطمئن هستید؟")
-                    .setPositiveButton("حذف") { _, _ ->
-                        lifecycleScope.launch {
-                            db.deleteTransaction(transaction.id)
-                            loadExpenses()
-                            android.widget.Toast.makeText(this@ExpenseListActivity, "✅ هزینه حذف شد", android.widget.Toast.LENGTH_SHORT).show()
+            binding.recyclerView.adapter = TransactionAdapter(
+                expenses.toMutableList(),
+                onDeleteClick = { transaction ->
+                    // Handle delete click
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(this@ExpenseListActivity)
+                        .setTitle("❌ حذف هزینه")
+                        .setMessage("آیا از حذف این هزینه مطمئن هستید؟")
+                        .setPositiveButton("حذف") { _, _ ->
+                            lifecycleScope.launch {
+                                db.deleteTransaction(transaction.id)
+                                loadExpenses()
+                                android.widget.Toast.makeText(this@ExpenseListActivity, "✅ هزینه حذف شد", android.widget.Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    }
-                    .setNegativeButton("لغو", null)
-                    .show()
-            }
+                        .setNegativeButton("لغو", null)
+                        .show()
+                },
+                onEditClick = { transaction ->
+                    // Handle edit click
+                    showEditDialog(transaction)
+                }
+            )
         }
+    }
+    
+    private fun showEditDialog(transaction: com.persianai.assistant.data.Transaction) {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+        
+        val descriptionInput = android.widget.EditText(this).apply {
+            hint = "توضیح"
+            setText(transaction.description)
+        }
+        val amountInput = android.widget.EditText(this).apply {
+            hint = "مبلغ"
+            setText(transaction.amount.toString())
+            inputType = android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        
+        container.addView(descriptionInput)
+        container.addView(amountInput)
+        
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("✏️ ویرایش هزینه")
+            .setView(container)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val newDescription = descriptionInput.text.toString()
+                val newAmount = amountInput.text.toString().toDoubleOrNull() ?: transaction.amount
+                
+                lifecycleScope.launch {
+                    val updated = transaction.copy(
+                        description = newDescription,
+                        amount = newAmount
+                    )
+                    db.updateTransaction(updated)
+                    loadExpenses()
+                    android.widget.Toast.makeText(this@ExpenseListActivity, "✅ هزینه ویرایش شد", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
     }
 
     override fun onResume() {
