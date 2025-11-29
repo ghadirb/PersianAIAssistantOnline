@@ -247,9 +247,12 @@
 
         <activity
             android:name=".activities.FullScreenAlarmActivity"
-            android:exported="false"
+            android:exported="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
 
         <service

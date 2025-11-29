@@ -9,29 +9,36 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
+import com.persianai.assistant.activities.FullScreenAlarmActivity
 import com.persianai.assistant.utils.SmartReminderManager
 
 /**
  * دریافت‌کننده هشدار یادآوری
  */
 class ReminderReceiver : BroadcastReceiver() {
+    
+    private val TAG = "ReminderReceiver"
 
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "onReceive called with action: ${intent.action}")
+        
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
+            PowerManager.FULL_WAKE_LOCK or 
+            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+            PowerManager.ON_AFTER_RELEASE,
             "PersianAssistant::ReminderWakeLock"
         )
-        wakeLock.acquire(10 * 1000L /* 10 seconds timeout */)
-
+        
         try {
-            android.util.Log.d("ReminderReceiver", "onReceive called with action: ${intent.action}")
-
+            wakeLock.acquire(30 * 1000L)
+            
             // اگر BOOT_COMPLETED است، تمام یادآوری‌های فعال را دوباره برنامه‌ریزی کن
             if (intent.action == "android.intent.action.BOOT_COMPLETED") {
-                android.util.Log.d("ReminderReceiver", "BOOT_COMPLETED received, rescheduling all reminders")
+                Log.d(TAG, "BOOT_COMPLETED received, rescheduling all reminders")
                 val mgr = SmartReminderManager(context)
                 val reminders = mgr.getActiveReminders()
                 for (reminder in reminders) {
@@ -44,12 +51,13 @@ class ReminderReceiver : BroadcastReceiver() {
             val smartReminderId = intent.getStringExtra("smart_reminder_id")
             val message = intent.getStringExtra("message") ?: "یادآوری"
 
+            Log.d(TAG, "Processing reminder: ID=$reminderId, SmartID=$smartReminderId, Message=$message")
+
             when (intent.action) {
                 "MARK_AS_DONE" -> {
-                    android.util.Log.d("ReminderReceiver", "Mark as done: $message")
+                    Log.d(TAG, "Mark as done: $message")
                     if (!smartReminderId.isNullOrEmpty()) {
-                        com.persianai.assistant.utils.SmartReminderManager(context)
-                            .completeReminder(smartReminderId)
+                        SmartReminderManager(context).completeReminder(smartReminderId)
                         val notificationManager =
                             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                         notificationManager.cancel(reminderId)
@@ -58,15 +66,13 @@ class ReminderReceiver : BroadcastReceiver() {
                     }
                 }
                 "SNOOZE_REMINDER" -> {
-                    android.util.Log.d("ReminderReceiver", "Snooze reminder: $message")
+                    Log.d(TAG, "Snooze reminder: $message")
                     if (!smartReminderId.isNullOrEmpty()) {
-                        com.persianai.assistant.utils.SmartReminderManager(context)
-                            .snoozeReminder(smartReminderId, 10)
+                        SmartReminderManager(context).snoozeReminder(smartReminderId, 10)
                         val notificationManager =
                             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                         notificationManager.cancel(reminderId)
                     }
-                    // اگر smartReminderId خالی باشد، فعلاً snooze انجام نمی‌دهیم تا با منطق قدیمی تداخل نداشته باشد
                 }
                 else -> {
                     var useAlarm = intent.getBooleanExtra("use_alarm", false)
@@ -77,22 +83,18 @@ class ReminderReceiver : BroadcastReceiver() {
                             val mgr = SmartReminderManager(context)
                             val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
                             if (reminder != null) {
-                                // اگر alertType FULL_SCREEN است یا tags شامل use_alarm:true است
                                 useAlarm = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN ||
                                           reminder.tags.any { it.startsWith("use_alarm:true") }
-                                android.util.Log.d("ReminderReceiver", "Reminder alertType: ${reminder.alertType}, useAlarm: $useAlarm, tags: ${reminder.tags}")
+                                Log.d(TAG, "Reminder alertType: ${reminder.alertType}, useAlarm: $useAlarm")
                             } else {
-                                android.util.Log.w("ReminderReceiver", "Reminder not found: $smartReminderId")
+                                Log.w(TAG, "Reminder not found: $smartReminderId")
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("ReminderReceiver", "Error checking reminder alertType", e)
+                            Log.e(TAG, "Error checking reminder alertType", e)
                         }
                     }
                     
-                    android.util.Log.d(
-                        "ReminderReceiver",
-                        "Reminder triggered: $message (useAlarm: $useAlarm, smartReminderId: $smartReminderId)"
-                    )
+                    Log.d(TAG, "Triggering reminder: $message (useAlarm: $useAlarm)")
 
                     if (useAlarm) {
                         showFullScreenAlarm(context, message, reminderId, smartReminderId)
@@ -106,150 +108,194 @@ class ReminderReceiver : BroadcastReceiver() {
                             val mgr = SmartReminderManager(context)
                             val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
                             if (reminder != null && reminder.repeatPattern != SmartReminderManager.RepeatPattern.ONCE) {
-                                // یادآوری را دوباره برنامه‌ریزی کن
                                 mgr.addReminder(reminder)
-                                android.util.Log.d("ReminderReceiver", "Recurring reminder rescheduled: $message")
+                                Log.d(TAG, "Recurring reminder rescheduled: $message")
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("ReminderReceiver", "Error rescheduling recurring reminder", e)
+                            Log.e(TAG, "Error rescheduling recurring reminder", e)
                         }
                     }
                 }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onReceive", e)
         } finally {
-            wakeLock.release()
+            if (wakeLock.isHeld) {
+                wakeLock.release()
+            }
         }
     }
     
     private fun markAsDone(context: Context, message: String, reminderId: Int) {
-        // لغو نوتیفیکیشن
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(reminderId)
-        
-        // علامت‌گذاری در لیست یادآوری‌ها
-        val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
-        val count = prefs.getInt("count", 0)
-        
-        for (i in 0 until count) {
-            val savedMessage = prefs.getString("message_$i", "")
-            if (savedMessage == message) {
-                prefs.edit().putBoolean("completed_$i", true).apply()
-                break
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(reminderId)
+            
+            val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+            val count = prefs.getInt("count", 0)
+            
+            for (i in 0 until count) {
+                val savedMessage = prefs.getString("message_$i", "")
+                if (savedMessage == message) {
+                    prefs.edit().putBoolean("completed_$i", true).apply()
+                    break
+                }
             }
+            
+            android.widget.Toast.makeText(context, "✅ انجام شد", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking as done", e)
         }
-        
-        android.widget.Toast.makeText(context, "✅ انجام شد", android.widget.Toast.LENGTH_SHORT).show()
     }
     
-    // This legacy method is no longer needed as snooze is handled by SmartReminderManager
-    /* private fun snoozeReminder(context: Context, message: String) {
-        ...
-    }*/
-    
     private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
-        android.util.Log.d("ReminderReceiver", "showFullScreenAlarm called for: $message")
-        
-        val intent = Intent(context, com.persianai.assistant.activities.FullScreenAlarmActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
-                    Intent.FLAG_ACTIVITY_NO_HISTORY or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("title", message)
-            putExtra("description", "")
-            putExtra("reminder_id", reminderId)
-            putExtra("smart_reminder_id", smartReminderId)
-        }
+        Log.d(TAG, "showFullScreenAlarm called for: $message")
         
         try {
-            context.startActivity(intent)
-            android.util.Log.d("ReminderReceiver", "FullScreenAlarmActivity started successfully")
+            val fullScreenIntent = Intent(context, FullScreenAlarmActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                        Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                        Intent.FLAG_ACTIVITY_NO_USER_ACTION or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                putExtra("title", message)
+                putExtra("description", "")
+                putExtra("reminder_id", reminderId)
+                putExtra("smart_reminder_id", smartReminderId)
+            }
+            
+            // برای اندروید 10 و بالاتر، ابتدا یک نوتیفیکیشن با fullScreenIntent ایجاد کن
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        CHANNEL_ID,
+                        "هشدارهای تمام صفحه",
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply {
+                        description = "هشدارهای تمام صفحه یادآوری"
+                        enableVibration(true)
+                        vibrationPattern = longArrayOf(0, 500, 200, 500)
+                        enableLights(true)
+                        lightColor = android.graphics.Color.RED
+                        setSound(
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                            android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                                .build()
+                        )
+                    }
+                    notificationManager.createNotificationChannel(channel)
+                }
+                
+                val fullScreenPendingIntent = PendingIntent.getActivity(
+                    context,
+                    reminderId,
+                    fullScreenIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                
+                val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle("⏰ یادآوری")
+                    .setContentText(message)
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                    .setCategory(NotificationCompat.CATEGORY_ALARM)
+                    .setFullScreenIntent(fullScreenPendingIntent, true)
+                    .setAutoCancel(true)
+                    .build()
+                
+                notificationManager.notify(reminderId, notification)
+                Log.d(TAG, "Full screen notification posted")
+            } else {
+                context.startActivity(fullScreenIntent)
+                Log.d(TAG, "FullScreenAlarmActivity started directly (Android < 10)")
+            }
+            
         } catch (e: Exception) {
-            android.util.Log.e("ReminderReceiver", "Error starting FullScreenAlarmActivity: ${e.message}", e)
-            // اگر خطا رخ داد، نوتیفیکیشن نمایش بده
+            Log.e(TAG, "Error showing full screen alarm: ${e.message}", e)
             showNotification(context, message, reminderId, smartReminderId)
         }
     }
     
     private fun showNotification(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
-        android.util.Log.d("ReminderReceiver", "showNotification called for: $message")
+        Log.d(TAG, "showNotification called for: $message")
         
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // صدای پیش‌فرض
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        
-        // ایجاد کانال (برای اندروید 8+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val audioAttributes = android.media.AudioAttributes.Builder()
-                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                    .build()
+                
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    "یادآوری‌ها",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "هشدارهای یادآوری"
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 500, 200, 500)
+                    enableLights(true)
+                    lightColor = android.graphics.Color.RED
+                    setSound(defaultSoundUri, audioAttributes)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+            
+            val doneIntent = Intent(context, ReminderReceiver::class.java).apply {
+                action = "MARK_AS_DONE"
+                putExtra("message", message)
+                putExtra("reminder_id", reminderId)
+                putExtra("smart_reminder_id", smartReminderId)
+            }
+            val donePendingIntent = PendingIntent.getBroadcast(
+                context, 
+                reminderId, 
+                doneIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val snoozeIntent = Intent(context, ReminderReceiver::class.java).apply {
+                action = "SNOOZE_REMINDER"
+                putExtra("message", message)
+                putExtra("reminder_id", reminderId)
+                putExtra("smart_reminder_id", smartReminderId)
+            }
+            val snoozePendingIntent = PendingIntent.getBroadcast(
+                context, 
+                reminderId + 1000, 
+                snoozeIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle("⏰ یادآوری")
+                .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setAutoCancel(true)
+                .setSound(defaultSoundUri)
+                .setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setContentIntent(donePendingIntent)
+                .addAction(0, "✅ انجام شد", donePendingIntent)
+                .addAction(0, "⏰ بعداً", snoozePendingIntent)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .build()
             
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "یادآوری‌ها",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "هشدارهای یادآوری"
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 500, 200, 500)
-                enableLights(true)
-                lightColor = android.graphics.Color.RED
-                setSound(defaultSoundUri, audioAttributes)
-            }
-            notificationManager.createNotificationChannel(channel)
+            notificationManager.notify(reminderId, notification)
+            Log.d(TAG, "Notification posted with ID: $reminderId")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing notification", e)
         }
-        
-        // Intent برای علامت‌گذاری به عنوان "انجام شد"
-        val doneIntent = Intent(context, ReminderReceiver::class.java).apply {
-            action = "MARK_AS_DONE"
-            putExtra("message", message)
-            putExtra("reminder_id", reminderId)
-            putExtra("smart_reminder_id", smartReminderId)
-        }
-        val donePendingIntent = PendingIntent.getBroadcast(
-            context, 
-            reminderId, 
-            doneIntent, 
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Intent برای snooze (5 دقیقه بعد)
-        val snoozeIntent = Intent(context, ReminderReceiver::class.java).apply {
-            action = "SNOOZE_REMINDER"
-            putExtra("message", message)
-            putExtra("reminder_id", reminderId)
-            putExtra("smart_reminder_id", smartReminderId)
-        }
-        val snoozePendingIntent = PendingIntent.getBroadcast(
-            context, 
-            reminderId + 1000, 
-            snoozeIntent, 
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // ساخت نوتیفیکیشن با Action Buttons
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("⏰ یادآوری")
-            .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .setSound(defaultSoundUri)
-            .setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setContentIntent(donePendingIntent)
-            .addAction(0, "✅ انجام شد", donePendingIntent)
-            .addAction(0, "⏰ بعداً", snoozePendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(donePendingIntent, true)
-            .build()
-        
-        notificationManager.notify(reminderId, notification)
-        android.util.Log.d("ReminderReceiver", "Notification posted with ID: $reminderId")
     }
     
     companion object {
