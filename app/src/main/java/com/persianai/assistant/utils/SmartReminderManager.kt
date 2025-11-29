@@ -498,6 +498,8 @@ class SmartReminderManager(private val context: Context) {
             }
         }
 
+        val useAlarm = reminder.tags.any { it.startsWith("use_alarm:true") } || reminder.alertType == AlertType.FULL_SCREEN
+        
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             action = "com.persianai.assistant.REMINDER_ALARM"
             // ID عددی برای استفاده در NotificationManager و requestCode
@@ -509,8 +511,10 @@ class SmartReminderManager(private val context: Context) {
             putExtra("reminder_description", reminder.description)
             putExtra("reminder_priority", reminder.priority.name)
             putExtra("message", reminder.title)
-            putExtra("use_alarm", reminder.tags.any { it.startsWith("use_alarm:true") } || reminder.alertType == AlertType.FULL_SCREEN)
+            putExtra("use_alarm", useAlarm)
         }
+        
+        Log.d(TAG, "🔔 Intent prepared: title=${reminder.title}, alertType=${reminder.alertType}, useAlarm=$useAlarm, tags=${reminder.tags}")
         
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -593,8 +597,15 @@ class SmartReminderManager(private val context: Context) {
                 calendar.timeInMillis
             }
             RepeatPattern.CUSTOM -> {
-                // سفارشی: برای الآن مثل هفتگی
-                calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                // سفارشی: روزهای انتخاب شده
+                if (reminder.customRepeatDays.isNotEmpty()) {
+                    do {
+                        calendar.add(Calendar.DAY_OF_MONTH, 1)
+                    } while (calendar.get(Calendar.DAY_OF_WEEK) !in reminder.customRepeatDays)
+                } else {
+                    // اگر روزی انتخاب نشده، مثل هفتگی
+                    calendar.add(Calendar.WEEK_OF_YEAR, 1)
+                }
                 calendar.timeInMillis
             }
             RepeatPattern.ONCE -> now + 1000

@@ -565,6 +565,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     alertType = alertType,
                     triggerTime = calendar.timeInMillis,
                     repeatPattern = pattern,
+                    customRepeatDays = if (pattern == SmartReminderManager.RepeatPattern.CUSTOM) selectedDays.toList() else emptyList(),
                     tags = tags
                 )
 

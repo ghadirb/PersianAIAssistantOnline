@@ -80,7 +80,9 @@ class ReminderReceiver : BroadcastReceiver() {
                                 // اگر alertType FULL_SCREEN است یا tags شامل use_alarm:true است
                                 useAlarm = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN ||
                                           reminder.tags.any { it.startsWith("use_alarm:true") }
-                                android.util.Log.d("ReminderReceiver", "Reminder alertType: ${reminder.alertType}, useAlarm: $useAlarm")
+                                android.util.Log.d("ReminderReceiver", "Reminder alertType: ${reminder.alertType}, useAlarm: $useAlarm, tags: ${reminder.tags}")
+                            } else {
+                                android.util.Log.w("ReminderReceiver", "Reminder not found: $smartReminderId")
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("ReminderReceiver", "Error checking reminder alertType", e)
@@ -145,13 +147,14 @@ class ReminderReceiver : BroadcastReceiver() {
     }*/
     
     private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
-        // اگر اندروید 10+ است، از startActivity استفاده کن (برای نمایش فوری)
-        // اگر اندروید کمتر است، از startForegroundService استفاده کن
+        android.util.Log.d("ReminderReceiver", "showFullScreenAlarm called for: $message")
+        
         val intent = Intent(context, com.persianai.assistant.activities.FullScreenAlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or
-                    Intent.FLAG_ACTIVITY_NO_HISTORY
+                    Intent.FLAG_ACTIVITY_NO_HISTORY or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("title", message)
             putExtra("description", "")
             putExtra("reminder_id", reminderId)
@@ -160,8 +163,9 @@ class ReminderReceiver : BroadcastReceiver() {
         
         try {
             context.startActivity(intent)
+            android.util.Log.d("ReminderReceiver", "FullScreenAlarmActivity started successfully")
         } catch (e: Exception) {
-            android.util.Log.e("ReminderReceiver", "Error starting FullScreenAlarmActivity", e)
+            android.util.Log.e("ReminderReceiver", "Error starting FullScreenAlarmActivity: ${e.message}", e)
             // اگر خطا رخ داد، نوتیفیکیشن نمایش بده
             showNotification(context, message, reminderId, smartReminderId)
         }
