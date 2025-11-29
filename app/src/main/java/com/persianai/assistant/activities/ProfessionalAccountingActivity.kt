@@ -87,18 +87,22 @@ class ProfessionalAccountingActivity : AppCompatActivity() {
         }
         
         // تنظیم RecyclerView برای چک‌ها
-        checkAdapter = CheckAdapter { check ->
-            showCheckDialog(check)
-        }
+        checkAdapter = CheckAdapter(
+            onCheckClick = { check ->
+                showCheckDialog(check)
+            }
+        )
         binding.recyclerViewChecks.apply {
             layoutManager = LinearLayoutManager(this@ProfessionalAccountingActivity)
             adapter = checkAdapter
         }
         
         // تنظیم RecyclerView برای اقساط
-        installmentAdapter = InstallmentAdapter { installment ->
-            showInstallmentDialog(installment)
-        }
+        installmentAdapter = InstallmentAdapter(
+            onInstallmentClick = { installment ->
+                showInstallmentDialog(installment)
+            }
+        )
         binding.recyclerViewInstallments.apply {
             layoutManager = LinearLayoutManager(this@ProfessionalAccountingActivity)
             adapter = installmentAdapter

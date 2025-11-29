@@ -60,7 +60,7 @@ class CheckAdapter(
 
             // تاریخ سررسید (شمسی)
             val calendar = Calendar.getInstance().apply { timeInMillis = check.dueDate }
-            val persianDate = PersianDateConverter.gregorianToPersian(
+            val persianDate = com.persianai.assistant.utils.PersianDateConverter.gregorianToPersian(
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH) + 1,
                 calendar.get(Calendar.DAY_OF_MONTH)

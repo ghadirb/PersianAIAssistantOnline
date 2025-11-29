@@ -139,6 +139,22 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
         return transactions
     }
     
+    fun updateTransaction(transaction: Transaction): Int {
+        val values = ContentValues().apply {
+            put("type", transaction.type.name)
+            put("amount", transaction.amount)
+            put("category", transaction.category)
+            put("description", transaction.description)
+            put("date", transaction.date)
+            put("checkNumber", transaction.checkNumber)
+            put("checkStatus", transaction.checkStatus?.name)
+            put("installmentId", transaction.installmentId)
+            put("installmentNumber", transaction.installmentNumber)
+            put("totalInstallments", transaction.totalInstallments)
+        }
+        return writableDatabase.update("transactions", values, "id = ?", arrayOf(transaction.id.toString()))
+    }
+    
     fun deleteTransaction(id: Long): Int {
         return writableDatabase.delete("transactions", "id = ?", arrayOf(id.toString()))
     }
@@ -193,6 +209,20 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
             put("status", status.name)
         }
         return writableDatabase.update("checks", values, "id = ?", arrayOf(id.toString()))
+    }
+    
+    fun updateCheck(check: com.persianai.assistant.models.Check): Int {
+        val values = ContentValues().apply {
+            put("amount", check.amount)
+            put("checkNumber", check.checkNumber)
+            put("issuer", check.recipient)
+            put("dueDate", check.dueDate.time)
+            put("status", check.status.name)
+            put("type", "PAYMENT")
+            put("description", check.description)
+            put("createdDate", check.issueDate.time)
+        }
+        return writableDatabase.update("checks", values, "id = ?", arrayOf(check.id.toString()))
     }
     
     fun deleteCheck(id: Long): Int {
@@ -272,6 +302,20 @@ class AccountingDB(context: Context) : SQLiteOpenHelper(context, "accounting.db"
             cursor.close()
         }
         return false
+    }
+    
+    fun updateInstallment(installment: com.persianai.assistant.models.Installment): Int {
+        val values = ContentValues().apply {
+            put("totalAmount", installment.totalAmount)
+            put("monthlyAmount", installment.monthlyAmount)
+            put("totalMonths", installment.installmentCount)
+            put("paidMonths", installment.paidInstallments)
+            put("startDate", installment.nextPaymentDate.time)
+            put("description", installment.title)
+            put("category", installment.lender)
+            put("reminderEnabled", 1)
+        }
+        return writableDatabase.update("installments", values, "id = ?", arrayOf(installment.id.toString()))
     }
     
     fun deleteInstallment(id: Long): Int {
