@@ -1,5 +1,6 @@
 package com.persianai.assistant.activities
 
+import android.app.Activity
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
@@ -9,14 +10,13 @@ import android.os.Vibrator
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import com.persianai.assistant.R
 import com.persianai.assistant.utils.SmartReminderManager
 
 /**
  * فعالیت تمام‌صفحه برای نمایش هشدار یادآوری
  */
-class FullScreenAlarmActivity : AppCompatActivity() {
+class FullScreenAlarmActivity : Activity() {
     
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
