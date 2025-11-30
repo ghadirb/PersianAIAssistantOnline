@@ -425,6 +425,12 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         var useFullScreen = false
 
         val alertTypeGroup = com.google.android.material.chip.ChipGroup(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 16, 0, 0)
+            }
             isSingleSelection = false  // اجازه انتخاب چندگانه
             val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
                 id = 1
@@ -486,12 +492,20 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
         }
 
+        val alertTypeLabel = android.widget.TextView(this).apply {
+            text = "نوع هشدار:"
+            textSize = 14f
+            setTextColor(android.graphics.Color.BLACK)
+            setPadding(0, 16, 0, 8)
+        }
+
         container.addView(titleInput)
         container.addView(descriptionInput)
         container.addView(patternSpinner)
         container.addView(patternInfo)
         container.addView(timeButton)
         container.addView(daysButton)
+        container.addView(alertTypeLabel)
         container.addView(alertTypeGroup)
 
         patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
