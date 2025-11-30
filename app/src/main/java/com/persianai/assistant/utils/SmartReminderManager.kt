@@ -601,7 +601,9 @@ class SmartReminderManager(private val context: Context) {
                 if (reminder.customRepeatDays.isNotEmpty()) {
                     do {
                         calendar.add(Calendar.DAY_OF_MONTH, 1)
-                    } while (calendar.get(Calendar.DAY_OF_WEEK) !in reminder.customRepeatDays)
+                        // تبدیل Calendar.DAY_OF_WEEK (1-7) به 0-6
+                        val dayOfWeek = (calendar.get(Calendar.DAY_OF_WEEK) - 1) % 7
+                    } while (dayOfWeek !in reminder.customRepeatDays)
                 } else {
                     // اگر روزی انتخاب نشده، مثل هفتگی
                     calendar.add(Calendar.WEEK_OF_YEAR, 1)
