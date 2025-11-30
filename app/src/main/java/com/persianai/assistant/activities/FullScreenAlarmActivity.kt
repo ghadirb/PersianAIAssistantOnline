@@ -55,46 +55,6 @@ class FullScreenAlarmActivity : Activity() {
                     WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
                 )
             }
-    
-    fun setupSwipeGestures(rootView: View) {
-        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            private val SWIPE_THRESHOLD = 150
-            private val SWIPE_VELOCITY_THRESHOLD = 150
-
-            override fun onFling(
-                e1: MotionEvent,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                val diffX = e2.x - e1.x
-                val diffY = e2.y - e1.y
-
-                if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY)
-                    && kotlin.math.abs(diffX) > SWIPE_THRESHOLD
-                    && kotlin.math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD
-                ) {
-                    if (diffX > 0) {
-                        // سوایپ به راست: انجام شد
-                        Log.d(TAG, "Swipe right detected -> complete")
-                        markAsDone()
-                    } else {
-                        // سوایپ به چپ: تعویق
-                        Log.d(TAG, "Swipe left detected -> snooze")
-                        snoozeReminder()
-                    }
-                    stopAlarm()
-                    finish()
-                    return true
-                }
-                return false
-            }
-        })
-
-        rootView.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
-        }
-    }
             
             setContentView(R.layout.activity_full_screen_alarm)
             
@@ -244,6 +204,46 @@ class FullScreenAlarmActivity : Activity() {
             vibrator?.cancel()
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping alarm", e)
+        }
+    }
+    
+    private fun setupSwipeGestures(rootView: View) {
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            private val SWIPE_THRESHOLD = 150
+            private val SWIPE_VELOCITY_THRESHOLD = 150
+
+            override fun onFling(
+                e1: MotionEvent,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+
+                if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY)
+                    && kotlin.math.abs(diffX) > SWIPE_THRESHOLD
+                    && kotlin.math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD
+                ) {
+                    if (diffX > 0) {
+                        // سوایپ به راست: انجام شد
+                        Log.d(TAG, "Swipe right detected -> complete")
+                        markAsDone()
+                    } else {
+                        // سوایپ به چپ: تعویق
+                        Log.d(TAG, "Swipe left detected -> snooze")
+                        snoozeReminder()
+                    }
+                    stopAlarm()
+                    finish()
+                    return true
+                }
+                return false
+            }
+        })
+
+        rootView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
         }
     }
     
