@@ -431,15 +431,15 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             ).apply {
                 setMargins(0, 16, 0, 0)
             }
-            isSingleSelection = false  // اجازه انتخاب چندگانه
+            isSingleSelection = true  // انتخاب یکی
             val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
-                id = 1
+                id = R.id.chipAlertNotification
                 text = "📱 نوتیفیکیشن"
                 isCheckable = true
                 isChecked = true
             }
             val chipFullScreen = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
-                id = 2
+                id = R.id.chipAlertFullScreen
                 text = "🔔 تمام‌صفحه"
                 isCheckable = true
             }
@@ -558,7 +558,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 }
                 
                 // بررسی کن آیا تمام‌صفحه انتخاب شده است
-                val useFullScreen = alertTypeGroup.checkedChipIds.contains(2)
+                val useFullScreen = alertTypeGroup.checkedChipId == R.id.chipAlertFullScreen
                 if (useFullScreen) {
                     tags.add("use_alarm:true")
                 }
