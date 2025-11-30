@@ -11,6 +11,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -27,6 +30,7 @@ class FullScreenAlarmActivity : Activity() {
     private var vibrator: Vibrator? = null
     private var smartReminderId: String? = null
     private val TAG = "FullScreenAlarm"
+    private lateinit var gestureDetector: GestureDetector
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +55,47 @@ class FullScreenAlarmActivity : Activity() {
                     WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
                 )
             }
+    
+    fun setupSwipeGestures(rootView: View) {
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            private val SWIPE_THRESHOLD = 150
+            private val SWIPE_VELOCITY_THRESHOLD = 150
+
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent?,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (e1 == null || e2 == null) return false
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+
+                if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY)
+                    && kotlin.math.abs(diffX) > SWIPE_THRESHOLD
+                    && kotlin.math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD
+                ) {
+                    if (diffX > 0) {
+                        // سوایپ به راست: انجام شد
+                        Log.d(TAG, "Swipe right detected -> complete")
+                        markAsDone()
+                    } else {
+                        // سوایپ به چپ: تعویق
+                        Log.d(TAG, "Swipe left detected -> snooze")
+                        snoozeReminder()
+                    }
+                    stopAlarm()
+                    finish()
+                    return true
+                }
+                return false
+            }
+        })
+
+        rootView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+        }
+    }
             
             setContentView(R.layout.activity_full_screen_alarm)
             
@@ -66,6 +111,7 @@ class FullScreenAlarmActivity : Activity() {
             val descTextView = findViewById<TextView>(R.id.alarm_description)
             val btnDismiss = findViewById<Button>(R.id.btn_dismiss)
             val btnSnooze = findViewById<Button>(R.id.btn_snooze)
+            val rootView = findViewById<View>(R.id.alarm_root)
             
             titleTextView?.text = title
             descTextView?.text = description
@@ -84,6 +130,9 @@ class FullScreenAlarmActivity : Activity() {
                 stopAlarm()
                 finish()
             }
+            
+            // ژست کشیدن برای انجام/تعویق
+            setupSwipeGestures(rootView)
             
             // شروع صدا و لرزش
             startAlarmSound()
