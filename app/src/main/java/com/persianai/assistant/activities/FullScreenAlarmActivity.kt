@@ -208,16 +208,32 @@ class FullScreenAlarmActivity : Activity() {
     }
     
     private fun setupSwipeGestures(rootView: View) {
-        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+        gestureDetector = GestureDetector(this, object : GestureDetector.OnGestureListener {
             private val SWIPE_THRESHOLD = 150
             private val SWIPE_VELOCITY_THRESHOLD = 150
 
+            override fun onDown(e: MotionEvent): Boolean = false
+
+            override fun onShowPress(e: MotionEvent) {}
+
+            override fun onSingleTapUp(e: MotionEvent): Boolean = false
+
+            override fun onScroll(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                distanceX: Float,
+                distanceY: Float
+            ): Boolean = false
+
+            override fun onLongPress(e: MotionEvent) {}
+
             override fun onFling(
-                e1: MotionEvent,
+                e1: MotionEvent?,
                 e2: MotionEvent,
                 velocityX: Float,
                 velocityY: Float
             ): Boolean {
+                if (e1 == null) return false
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
 
