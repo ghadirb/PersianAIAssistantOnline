@@ -76,6 +76,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 }
                 else -> {
                     var useAlarm = intent.getBooleanExtra("use_alarm", false)
+                    Log.d(TAG, "Intent useAlarm: $useAlarm, smartReminderId: $smartReminderId")
                     
                     // اگر smartReminderId موجود است، از alertType بررسی کن
                     if (!smartReminderId.isNullOrEmpty()) {
@@ -85,7 +86,7 @@ class ReminderReceiver : BroadcastReceiver() {
                             if (reminder != null) {
                                 useAlarm = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN ||
                                           reminder.tags.any { it.startsWith("use_alarm:true") }
-                                Log.d(TAG, "Reminder alertType: ${reminder.alertType}, useAlarm: $useAlarm")
+                                Log.d(TAG, "Found reminder: ${reminder.title}, alertType: ${reminder.alertType}, tags: ${reminder.tags}, useAlarm: $useAlarm")
                             } else {
                                 Log.w(TAG, "Reminder not found: $smartReminderId")
                             }
@@ -94,7 +95,7 @@ class ReminderReceiver : BroadcastReceiver() {
                         }
                     }
                     
-                    Log.d(TAG, "Triggering reminder: $message (useAlarm: $useAlarm)")
+                    Log.d(TAG, "Final decision - Triggering reminder: $message (useAlarm: $useAlarm)")
 
                     if (useAlarm) {
                         showFullScreenAlarm(context, message, reminderId, smartReminderId)
@@ -149,26 +150,26 @@ class ReminderReceiver : BroadcastReceiver() {
     }
     
     private fun showFullScreenAlarm(context: Context, message: String, reminderId: Int, smartReminderId: String?) {
-        Log.d(TAG, "showFullScreenAlarm called for: $message")
+        Log.d(TAG, "showFullScreenAlarm called for: $message, smartReminderId: $smartReminderId")
         
         try {
             val fullScreenIntent = Intent(context, FullScreenAlarmActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                        Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                        Intent.FLAG_ACTIVITY_NO_USER_ACTION or
-                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("title", message)
                 putExtra("description", "")
                 putExtra("reminder_id", reminderId)
                 putExtra("smart_reminder_id", smartReminderId)
             }
             
-            // شروع activity مستقیماً
+            Log.d(TAG, "Starting FullScreenAlarmActivity with flags: ${fullScreenIntent.flags}")
             context.startActivity(fullScreenIntent)
-            Log.d(TAG, "FullScreenAlarmActivity started directly")
+            Log.d(TAG, "FullScreenAlarmActivity started successfully")
             
         } catch (e: Exception) {
             Log.e(TAG, "Error showing full screen alarm: ${e.message}", e)
+            e.printStackTrace()
             showNotification(context, message, reminderId, smartReminderId)
         }
     }
