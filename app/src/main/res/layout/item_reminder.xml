@@ -53,6 +53,14 @@
                     android:textColor="@android:color/black" />
 
                 <TextView
+                    android:id="@+id/alertTypeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginEnd="4dp" />
+
+                <TextView
                     android:id="@+id/recurringIcon"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
