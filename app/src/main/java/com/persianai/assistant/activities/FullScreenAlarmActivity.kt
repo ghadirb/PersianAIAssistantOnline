@@ -123,7 +123,6 @@ class FullScreenAlarmActivity : Activity() {
             
             val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             mediaPlayer = MediaPlayer().apply {
-                // تنظیم صدا برای ALARM
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     val audioAttributes = AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
@@ -138,8 +137,8 @@ class FullScreenAlarmActivity : Activity() {
                 setDataSource(this@FullScreenAlarmActivity, alarmUri)
                 isLooping = true
                 setVolume(1.0f, 1.0f)
-                prepare()
-                start()
+                setOnPreparedListener { mp -> mp.start() }
+                prepareAsync()
             }
             
             Log.d(TAG, "Alarm sound started successfully")

@@ -163,54 +163,9 @@ class ReminderReceiver : BroadcastReceiver() {
                 putExtra("smart_reminder_id", smartReminderId)
             }
             
-            // برای اندروید 10 و بالاتر، ابتدا یک نوتیفیکیشن با fullScreenIntent ایجاد کن
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val channel = NotificationChannel(
-                        CHANNEL_ID,
-                        "هشدارهای تمام صفحه",
-                        NotificationManager.IMPORTANCE_HIGH
-                    ).apply {
-                        description = "هشدارهای تمام صفحه یادآوری"
-                        enableVibration(true)
-                        vibrationPattern = longArrayOf(0, 500, 200, 500)
-                        enableLights(true)
-                        lightColor = android.graphics.Color.RED
-                        setSound(
-                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
-                            android.media.AudioAttributes.Builder()
-                                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
-                                .build()
-                        )
-                    }
-                    notificationManager.createNotificationChannel(channel)
-                }
-                
-                val fullScreenPendingIntent = PendingIntent.getActivity(
-                    context,
-                    reminderId,
-                    fullScreenIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                
-                val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_notification)
-                    .setContentTitle("⏰ یادآوری")
-                    .setContentText(message)
-                    .setPriority(NotificationCompat.PRIORITY_MAX)
-                    .setCategory(NotificationCompat.CATEGORY_ALARM)
-                    .setFullScreenIntent(fullScreenPendingIntent, true)
-                    .setAutoCancel(true)
-                    .build()
-                
-                notificationManager.notify(reminderId, notification)
-                Log.d(TAG, "Full screen notification posted")
-            } else {
-                context.startActivity(fullScreenIntent)
-                Log.d(TAG, "FullScreenAlarmActivity started directly (Android < 10)")
-            }
+            // شروع activity مستقیماً
+            context.startActivity(fullScreenIntent)
+            Log.d(TAG, "FullScreenAlarmActivity started directly")
             
         } catch (e: Exception) {
             Log.e(TAG, "Error showing full screen alarm: ${e.message}", e)
