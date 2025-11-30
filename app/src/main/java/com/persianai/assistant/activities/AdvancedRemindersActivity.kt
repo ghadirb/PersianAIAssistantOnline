@@ -1103,4 +1103,23 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
+    
+    // Test method to trigger full-screen alarm immediately
+    private fun testFullScreenAlarm() {
+        val testReminder = SmartReminderManager.SmartReminder(
+            id = "test_${System.currentTimeMillis()}",
+            title = "🔔 تست یادآوری تمام‌صفحه",
+            description = "این یک تست است",
+            type = SmartReminderManager.ReminderType.SIMPLE,
+            priority = SmartReminderManager.Priority.HIGH,
+            alertType = SmartReminderManager.AlertType.FULL_SCREEN,
+            triggerTime = System.currentTimeMillis() + 2000, // 2 seconds from now
+            repeatPattern = SmartReminderManager.RepeatPattern.ONCE,
+            tags = listOf("use_alarm:true")
+        )
+        
+        smartReminderManager.addReminder(testReminder)
+        Toast.makeText(this, "✅ یادآوری تست برای ۲ ثانیه بعد ایجاد شد", Toast.LENGTH_SHORT).show()
+        loadReminders()
+    }
 }

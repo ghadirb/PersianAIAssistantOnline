@@ -91,7 +91,11 @@ class FullScreenAlarmActivity : Activity() {
             }
             
             // ژست کشیدن برای انجام/تعویق
-            setupSwipeGestures(rootView)
+            if (rootView != null) {
+                setupSwipeGestures(rootView)
+            } else {
+                Log.w(TAG, "rootView is null, skipping swipe gestures setup")
+            }
             
             // شروع صدا و لرزش
             startAlarmSound()
