@@ -429,9 +429,10 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(0, 16, 0, 0)
+                setMargins(0, 16, 0, 16)
             }
             isSingleSelection = true  // انتخاب یکی
+            
             val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
                 id = R.id.chipAlertNotification
                 text = "📱 نوتیفیکیشن"
@@ -559,6 +560,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 
                 // بررسی کن آیا تمام‌صفحه انتخاب شده است
                 val useFullScreen = alertTypeGroup.checkedChipId == R.id.chipAlertFullScreen
+                Log.d("RecurringReminder", "Checked chip ID: ${alertTypeGroup.checkedChipId}, Full screen ID: ${R.id.chipAlertFullScreen}, useFullScreen: $useFullScreen")
+                
                 if (useFullScreen) {
                     tags.add("use_alarm:true")
                 }
