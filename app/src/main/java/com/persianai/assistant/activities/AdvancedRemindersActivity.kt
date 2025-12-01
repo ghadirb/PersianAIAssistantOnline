@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -438,14 +439,17 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                 text = "📱 نوتیفیکیشن"
                 isCheckable = true
                 isChecked = true
+                Log.d("AlertTypeChip", "Created notification chip with ID: $id")
             }
             val chipFullScreen = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
                 id = R.id.chipAlertFullScreen
                 text = "🔔 تمام‌صفحه"
                 isCheckable = true
+                Log.d("AlertTypeChip", "Created full-screen chip with ID: $id")
             }
             addView(chipNotification)
             addView(chipFullScreen)
+            Log.d("AlertTypeChip", "Added chips to group, childCount: ${childCount}")
         }
 
         val timeButton = com.google.android.material.button.MaterialButton(this).apply {
