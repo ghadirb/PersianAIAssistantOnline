@@ -391,7 +391,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun showRecurringReminderDialog() {
+    private fun showRecurringReminderDialog_OLD() {
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(48, 32, 48, 16)
