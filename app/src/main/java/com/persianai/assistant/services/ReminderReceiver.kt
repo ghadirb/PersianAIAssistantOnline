@@ -53,6 +53,8 @@ class ReminderReceiver : BroadcastReceiver() {
 
             Log.d(TAG, "Processing reminder: ID=$reminderId, SmartID=$smartReminderId, Message=$message")
 
+            Log.d(TAG, "Action: ${intent.action}")
+            
             when (intent.action) {
                 "MARK_AS_DONE" -> {
                     Log.d(TAG, "Mark as done: $message")
