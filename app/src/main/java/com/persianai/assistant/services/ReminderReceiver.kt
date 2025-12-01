@@ -55,7 +55,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
             Log.d(TAG, "Action: ${intent.action}")
             
-            when (intent.action) {
+            when (intent.action ?: "com.persianai.assistant.REMINDER_ALARM") {
                 "MARK_AS_DONE" -> {
                     Log.d(TAG, "Mark as done: $message")
                     if (!smartReminderId.isNullOrEmpty()) {
