@@ -536,12 +536,13 @@ class SmartReminderManager(private val context: Context) {
                 triggerTime = now + 1000 // یک ثانیه بعد
             }
             
+            Log.d(TAG, "Alarm will trigger at: $triggerTime (now: $now)")
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime,
                 pendingIntent
             )
-            Log.d(TAG, "⏰ آلارم تنظیم شد: ${reminder.title} برای ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(triggerTime)}")
+            Log.d(TAG, "✅ Alarm set for: ${reminder.title}")
         } catch (e: SecurityException) {
             Log.e(TAG, "خطا در تنظیم آلارم: ${e.message}")
             // اگر setExactAndAllowWhileIdle ناموفق بود، از setAndAllowWhileIdle استفاده کن
