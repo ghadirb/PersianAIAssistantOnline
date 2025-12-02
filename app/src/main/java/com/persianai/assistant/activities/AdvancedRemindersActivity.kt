@@ -525,8 +525,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
                 
-                // بررسی chip انتخاب شده برای نوع هشدار
-                val useFullScreen = alertTypeGroup.checkedChipId == R.id.chipRecurringAlertFullScreen
+                // بررسی chip انتخاب شده برای نوع هشدار (پیش‌فرض: نوتیفیکیشن)
+                val useFullScreen = false
                 val alertType = if (useFullScreen) {
                     SmartReminderManager.AlertType.FULL_SCREEN
                 } else {
@@ -537,7 +537,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags.add("use_alarm:true")
                 }
                 
-                Log.d("RecurringReminder", "Alert type selected: $alertType, checkedChipId: ${alertTypeGroup.checkedChipId}")
+                Log.d("RecurringReminder", "Alert type selected: $alertType")
 
                 val reminder = SmartReminderManager.SmartReminder(
                     id = "recurring_${System.currentTimeMillis()}",
