@@ -500,7 +500,7 @@ class SmartReminderManager(private val context: Context) {
             }
         }
 
-        val useAlarm = reminder.tags.any { it.startsWith("use_alarm:true") } || reminder.alertType == AlertType.FULL_SCREEN
+        val useAlarm = reminder.alertType == AlertType.FULL_SCREEN || reminder.tags.any { it.startsWith("use_alarm:true") }
         
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             action = "com.persianai.assistant.REMINDER_ALARM"
@@ -517,6 +517,7 @@ class SmartReminderManager(private val context: Context) {
         }
         
         Log.d(TAG, "🔔 Intent prepared: title=${reminder.title}, alertType=${reminder.alertType}, useAlarm=$useAlarm, tags=${reminder.tags}")
+        Log.d(TAG, "🔔 FULL_SCREEN check: alertType=${reminder.alertType}, is FULL_SCREEN=${reminder.alertType == AlertType.FULL_SCREEN}")
         
         val pendingIntent = PendingIntent.getBroadcast(
             context,

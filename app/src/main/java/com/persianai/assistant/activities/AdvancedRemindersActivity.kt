@@ -391,7 +391,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun showRecurringReminderDialog_OLD() {
+    private fun showRecurringReminderDialog() {
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(48, 32, 48, 16)
@@ -423,34 +423,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         var selectedHour = 9
         var selectedMinute = 0
         val selectedDays = mutableSetOf<Int>() // 0=شنبه، 1=یکشنبه، ... 6=جمعه
-        var useFullScreen = false
-
-        val alertTypeGroup = com.google.android.material.chip.ChipGroup(this).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 16, 0, 16)
-            }
-            isSingleSelection = true  // انتخاب یکی
-            
-            val chipNotification = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
-                id = R.id.chipAlertNotification
-                text = "📱 نوتیفیکیشن"
-                isCheckable = true
-                isChecked = true
-                Log.d("AlertTypeChip", "Created notification chip with ID: $id")
-            }
-            val chipFullScreen = com.google.android.material.chip.Chip(this@AdvancedRemindersActivity).apply {
-                id = R.id.chipAlertFullScreen
-                text = "🔔 تمام‌صفحه"
-                isCheckable = true
-                Log.d("AlertTypeChip", "Created full-screen chip with ID: $id")
-            }
-            addView(chipNotification)
-            addView(chipFullScreen)
-            Log.d("AlertTypeChip", "Added chips to group, childCount: ${childCount}")
-        }
 
         val timeButton = com.google.android.material.button.MaterialButton(this).apply {
             text = "انتخاب ساعت"
@@ -497,21 +469,12 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
         }
 
-        val alertTypeLabel = android.widget.TextView(this).apply {
-            text = "نوع هشدار:"
-            textSize = 14f
-            setTextColor(android.graphics.Color.BLACK)
-            setPadding(0, 16, 0, 8)
-        }
-
         container.addView(titleInput)
         container.addView(descriptionInput)
         container.addView(patternSpinner)
         container.addView(patternInfo)
         container.addView(timeButton)
         container.addView(daysButton)
-        container.addView(alertTypeLabel)
-        container.addView(alertTypeGroup)
 
         patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
@@ -562,20 +525,19 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
                 
-                // بررسی کن آیا تمام‌صفحه انتخاب شده است
-                val useFullScreen = alertTypeGroup.checkedChipId == R.id.chipAlertFullScreen
-                Log.d("RecurringReminder", "Checked chip ID: ${alertTypeGroup.checkedChipId}, Full screen ID: ${R.id.chipAlertFullScreen}, useFullScreen: $useFullScreen")
-                
-                if (useFullScreen) {
-                    tags.add("use_alarm:true")
-                }
-                
-                // اگر هر دو انتخاب شده باشند، اولویت به FULL_SCREEN است
+                // بررسی chip انتخاب شده برای نوع هشدار
+                val useFullScreen = alertTypeGroup.checkedChipId == R.id.chipRecurringAlertFullScreen
                 val alertType = if (useFullScreen) {
                     SmartReminderManager.AlertType.FULL_SCREEN
                 } else {
                     SmartReminderManager.AlertType.NOTIFICATION
                 }
+                
+                if (useFullScreen) {
+                    tags.add("use_alarm:true")
+                }
+                
+                Log.d("RecurringReminder", "Alert type selected: $alertType, checkedChipId: ${alertTypeGroup.checkedChipId}")
 
                 val reminder = SmartReminderManager.SmartReminder(
                     id = "recurring_${System.currentTimeMillis()}",
@@ -1127,6 +1089,24 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         
         smartReminderManager.addReminder(testReminder)
         Toast.makeText(this, "✅ یادآوری تست برای ۲ ثانیه بعد ایجاد شد", Toast.LENGTH_SHORT).show()
+        loadReminders()
+    }
+    
+    private fun testFullScreenAlarmRecurring() {
+        val testReminder = SmartReminderManager.SmartReminder(
+            id = "test_recurring_${System.currentTimeMillis()}",
+            title = "🔔 تست یادآوری تکراری تمام‌صفحه",
+            description = "این یک تست یادآوری تکراری است",
+            type = SmartReminderManager.ReminderType.RECURRING,
+            priority = SmartReminderManager.Priority.HIGH,
+            alertType = SmartReminderManager.AlertType.FULL_SCREEN,
+            triggerTime = System.currentTimeMillis() + 3000,
+            repeatPattern = SmartReminderManager.RepeatPattern.DAILY,
+            tags = listOf("use_alarm:true")
+        )
+        
+        smartReminderManager.addReminder(testReminder)
+        Toast.makeText(this, "✅ یادآوری تکراری تست برای ۳ ثانیه بعد ایجاد شد", Toast.LENGTH_SHORT).show()
         loadReminders()
     }
 }
