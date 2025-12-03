@@ -392,26 +392,20 @@ class AdvancedRemindersActivity : AppCompatActivity() {
     }
     
     private fun showRecurringReminderDialog() {
-        val container = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 16)
-        }
-
-        val titleInput = EditText(this).apply {
-            hint = "عنوان یادآوری تکراری"
-        }
-        val descriptionInput = EditText(this).apply {
-            hint = "توضیحات (اختیاری)"
-        }
-
+        val dialogView = layoutInflater.inflate(R.layout.dialog_recurring_reminder, null)
+        
+        val titleInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.recurringTitleInput)
+        val descriptionInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.recurringDescriptionInput)
+        val patternSpinner = dialogView.findViewById<android.widget.Spinner>(R.id.recurringPatternSpinner)
+        val timeButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.recurringSelectTimeButton)
+        val daysButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.recurringSelectDaysButton)
+        val alertTypeGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.recurringAlertTypeChipGroup)
+        
         val patterns = arrayOf("روزانه", "هفتگی", "ماهانه", "سالانه", "انتخاب روزهای خاص")
-        val patternSpinner = android.widget.Spinner(this).apply {
-            adapter = android.widget.ArrayAdapter(
-                this@AdvancedRemindersActivity,
-                android.R.layout.simple_spinner_item,
-                patterns
-            ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-        }
+        patternSpinner.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, patterns)
+            .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        
+        alertTypeGroup.check(R.id.chipRecurringAlertNotification)
         
         val patternInfo = android.widget.TextView(this).apply {
             text = "📌 روزانه: هر روز در ساعت مشخص شده\nهفتگی: هر هفته در همان روز و ساعت\nماهانه: هر ماه در همان روز\nسالانه: هر سال در همان تاریخ\nروزهای خاص: فقط در روزهای انتخاب شده"
@@ -422,9 +416,9 @@ class AdvancedRemindersActivity : AppCompatActivity() {
 
         var selectedHour = 9
         var selectedMinute = 0
-        val selectedDays = mutableSetOf<Int>() // 0=شنبه، 1=یکشنبه، ... 6=جمعه
+        val selectedDays = mutableSetOf<Int>()
 
-        val timeButton = com.google.android.material.button.MaterialButton(this).apply {
+        timeButton.apply {
             text = "انتخاب ساعت"
             setOnClickListener {
                 val timePicker = MaterialTimePicker.Builder()
@@ -444,8 +438,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
         }
 
-        val daysButton = com.google.android.material.button.MaterialButton(this).apply {
-            text = "انتخاب روزهای هفته"
+        daysButton.apply {
             isEnabled = false
             setOnClickListener {
                 val dayNames = arrayOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه")
@@ -469,13 +462,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             }
         }
 
-        container.addView(titleInput)
-        container.addView(descriptionInput)
-        container.addView(patternSpinner)
-        container.addView(patternInfo)
-        container.addView(timeButton)
-        container.addView(daysButton)
-
         patternSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 daysButton.isEnabled = position == 4 // فقط برای "انتخاب روزهای خاص"
@@ -486,7 +472,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
 
         MaterialAlertDialogBuilder(this)
             .setTitle("🔁 یادآوری تکراری")
-            .setView(container)
+            .setView(dialogView)
             .setPositiveButton("ذخیره") { _, _ ->
                 val title = titleInput.text.toString().trim()
                 val description = descriptionInput.text.toString().trim()
@@ -525,8 +511,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags.add("days:${selectedDays.sorted().joinToString(",")}")
                 }
                 
-                // بررسی chip انتخاب شده برای نوع هشدار
-                val useFullScreen = alertTypeGroup.checkedChipId == R.id.chipRecurringAlertFullScreen
+                val checkedChipId = alertTypeGroup.checkedChipId
+                val useFullScreen = checkedChipId == R.id.chipRecurringAlertFullScreen
                 val alertType = if (useFullScreen) {
                     SmartReminderManager.AlertType.FULL_SCREEN
                 } else {
@@ -537,7 +523,7 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     tags.add("use_alarm:true")
                 }
                 
-                Log.d("RecurringReminder", "Alert type selected: $alertType, checkedChipId: ${alertTypeGroup.checkedChipId}")
+                Log.d("RecurringReminder", "✅ Alert type selected: $alertType, useFullScreen: $useFullScreen")
 
                 val reminder = SmartReminderManager.SmartReminder(
                     id = "recurring_${System.currentTimeMillis()}",
