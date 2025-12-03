@@ -407,13 +407,6 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         
         alertTypeGroup.check(R.id.chipRecurringAlertNotification)
         
-        val patternInfo = android.widget.TextView(this).apply {
-            text = "📌 روزانه: هر روز در ساعت مشخص شده\nهفتگی: هر هفته در همان روز و ساعت\nماهانه: هر ماه در همان روز\nسالانه: هر سال در همان تاریخ\nروزهای خاص: فقط در روزهای انتخاب شده"
-            textSize = 12f
-            setTextColor(android.graphics.Color.GRAY)
-            setPadding(0, 8, 0, 8)
-        }
-
         var selectedHour = 9
         var selectedMinute = 0
         val selectedDays = mutableSetOf<Int>()
@@ -1094,5 +1087,27 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         smartReminderManager.addReminder(testReminder)
         Toast.makeText(this, "✅ یادآوری تکراری تست برای ۳ ثانیه بعد ایجاد شد", Toast.LENGTH_SHORT).show()
         loadReminders()
+    }
+    
+    // 🧪 Test method for full-screen alarm
+    fun testFullScreenAlarm() {
+        val calendar = Calendar.getInstance().apply {
+            add(Calendar.SECOND, 5)
+        }
+        
+        val reminder = SmartReminderManager.SmartReminder(
+            id = "test_fullscreen_${System.currentTimeMillis()}",
+            title = "🔔 تست آلارم تمام‌صفحه",
+            description = "این یک تست است",
+            type = SmartReminderManager.ReminderType.SIMPLE,
+            priority = SmartReminderManager.Priority.HIGH,
+            alertType = SmartReminderManager.AlertType.FULL_SCREEN,
+            triggerTime = calendar.timeInMillis,
+            tags = listOf("use_alarm:true")
+        )
+        
+        smartReminderManager.addReminder(reminder)
+        Log.d("TestFullScreen", "✅ Test reminder created: ${reminder.id}, alertType: ${reminder.alertType}")
+        Toast.makeText(this, "✅ تست آلارم تمام‌صفحه - 5 ثانیه بعد", Toast.LENGTH_SHORT).show()
     }
 }

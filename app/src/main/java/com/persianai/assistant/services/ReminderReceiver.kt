@@ -186,8 +186,7 @@ class ReminderReceiver : BroadcastReceiver() {
             val intent = Intent(context, FullScreenAlarmActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                         Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_FROM_BACKGROUND
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("title", message)
                 putExtra("description", "")
                 putExtra("reminder_id", reminderId)
