@@ -32,6 +32,11 @@ import kotlin.math.abs
  * Activity تمام‌صفحه با سوایپ بهبود شده
  * - سوایپ راست: انجام شد ✅
  * - سوایپ چپ: تعویق ⏰
+ * 
+ * نسخه 3.0 - بهبود‌های اصلی:
+ * ✅ Swipe detection بهتر
+ * ✅ Persistence اطلاعات روی فایل
+ * ✅ Touch event handling صحیح
  */
 class FullScreenAlarmActivity : Activity() {
     
@@ -73,6 +78,7 @@ class FullScreenAlarmActivity : Activity() {
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in onCreate", e)
+            e.printStackTrace()
             finish()
         }
     }
@@ -120,17 +126,12 @@ class FullScreenAlarmActivity : Activity() {
         }
     }
     
-    /**
-     * تنظیمات پنجره برای نمایش روی lock screen و پس‌زمینه
-     */
     private fun setupWindow() {
-        // تنظیمات اساسی
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         }
         
-        // تنظیمات پنجره قدیمی تر
         @Suppress("DEPRECATION")
         window.apply {
             addFlags(
@@ -142,13 +143,11 @@ class FullScreenAlarmActivity : Activity() {
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
             )
             
-            // برای Android 10+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
         
-        // درخواست dismiss keyguard
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             keyguardManager.requestDismissKeyguard(this, null)
@@ -164,19 +163,20 @@ class FullScreenAlarmActivity : Activity() {
             rightSwipeHint = findViewById(R.id.right_swipe_hint)
             leftIcon = findViewById(R.id.left_icon)
             rightIcon = findViewById(R.id.right_icon)
+            Log.d(TAG, "✅ Views initialized")
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing views", e)
+            Log.e(TAG, "❌ Error initializing views", e)
+            throw e
         }
     }
     
-    /**
-     * تنظیم Gesture Detector برای شناسایی سوایپ
-     */
     private fun setupGestureDetector() {
         gestureDetector = GestureDetectorCompat(this, object : GestureDetector.SimpleOnGestureListener() {
             
             override fun onDown(e: MotionEvent): Boolean {
+                if (isActionTaken) return false
                 currentSwipeDirection = 0
+                Log.d(TAG, "👆 Touch down at X: ${e.x}")
                 return true
             }
             
@@ -192,15 +192,17 @@ class FullScreenAlarmActivity : Activity() {
                 val diffY = e2.y - e1.y
                 
                 // اگر حرکت افقی بیشتر از عمودی است
-                if (abs(diffX) > abs(diffY)) {
+                if (abs(diffX) > abs(diffY) && abs(diffX) > 20) {
                     swipeProgress = diffX / rootLayout.width
                     
                     if (diffX > 0) {
                         currentSwipeDirection = 2 // راست
-                        showRightSwipeIndicator(swipeProgress)
+                        showRightSwipeIndicator(minOf(abs(swipeProgress), 1f))
+                        Log.d(TAG, "→ Scrolling right: ${String.format("%.2f", swipeProgress * 100)}%")
                     } else {
                         currentSwipeDirection = 1 // چپ
-                        showLeftSwipeIndicator(abs(swipeProgress))
+                        showLeftSwipeIndicator(minOf(abs(swipeProgress), 1f))
+                        Log.d(TAG, "← Scrolling left: ${String.format("%.2f", abs(swipeProgress) * 100)}%")
                     }
                     return true
                 }
@@ -218,15 +220,17 @@ class FullScreenAlarmActivity : Activity() {
                 val diffX = e2.x - e1.x
                 val diffY = e2.y - e1.y
                 
+                Log.d(TAG, "🎯 Fling detected - diffX: $diffX, velocityX: $velocityX")
+                
                 // بررسی که سوایپ افقی است
-                if (abs(diffX) > abs(diffY) && abs(velocityX) > MIN_SWIPE_VELOCITY) {
-                    if (abs(diffX) > MIN_SWIPE_DISTANCE) {
+                if (abs(diffX) > abs(diffY)) {
+                    if (abs(diffX) > MIN_SWIPE_DISTANCE && abs(velocityX) > MIN_SWIPE_VELOCITY) {
                         if (diffX > 0) {
-                            Log.d(TAG, "👉 Swipe right - Dismiss")
+                            Log.d(TAG, "👉 SWIPE RIGHT DETECTED - Dismissing")
                             onSwipeRight()
                             return true
                         } else {
-                            Log.d(TAG, "👈 Swipe left - Snooze")
+                            Log.d(TAG, "👈 SWIPE LEFT DETECTED - Snoozing")
                             onSwipeLeft()
                             return true
                         }
@@ -269,11 +273,8 @@ class FullScreenAlarmActivity : Activity() {
         }
     }
     
-    /**
-     * تنظیم UI
-     */
     private fun setupUI() {
-        val title = intent.getStringExtra("title") ?: "یادآوری"
+        val title = intent.getStringExtra("title") ?: "⏰ یادآوری"
         val description = intent.getStringExtra("description") ?: ""
         smartReminderId = intent.getStringExtra("smart_reminder_id")
         
@@ -289,20 +290,15 @@ class FullScreenAlarmActivity : Activity() {
             Log.e(TAG, "Error setting up UI", e)
         }
         
-        // تنظیم touch listener برای کل صفحه
         rootLayout.setOnTouchListener { _, event ->
             gestureDetector.onTouchEvent(event)
-            true
+            false
         }
     }
     
-    /**
-     * نمایش راهنمای سوایپ
-     */
     private fun showSwipeHints() {
         Handler(Looper.getMainLooper()).postDelayed({
             try {
-                // انیمیشن برای نشان دادن که می‌توان سوایپ کرد
                 val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, 30f, 0f, -30f, 0f)
                 animator.duration = 3000
                 animator.interpolator = AccelerateDecelerateInterpolator()
@@ -316,63 +312,59 @@ class FullScreenAlarmActivity : Activity() {
         }, 1500)
     }
     
-    /**
-     * رویداد سوایپ به راست (انجام شد)
-     */
     private fun onSwipeRight() {
         if (isActionTaken) return
         isActionTaken = true
         
-        Log.d(TAG, "✅ Dismissing - Swipe Right")
+        Log.d(TAG, "✅ User dismissed - Swipe Right")
         
-        // انیمیشن خروج به راست
-        val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, rootLayout.width.toFloat())
-        animator.duration = 500
-        animator.interpolator = AccelerateDecelerateInterpolator()
-        animator.start()
-        
-        markAsDone()
-        
-        Handler(Looper.getMainLooper()).postDelayed({
-            stopAlarm()
+        try {
+            val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, rootLayout.width.toFloat())
+            animator.duration = 500
+            animator.interpolator = AccelerateDecelerateInterpolator()
+            animator.start()
+            
+            markAsDone()
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                stopAlarm()
+                finish()
+            }, 500)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in onSwipeRight", e)
             finish()
-        }, 500)
+        }
     }
     
-    /**
-     * رویداد سوایپ به چپ (به تعویق انداختن)
-     */
     private fun onSwipeLeft() {
         if (isActionTaken) return
         isActionTaken = true
         
-        Log.d(TAG, "⏰ Snoozing - Swipe Left")
+        Log.d(TAG, "⏰ User snoozed - Swipe Left")
         
-        // انیمیشن خروج به چپ
-        val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, -rootLayout.width.toFloat())
-        animator.duration = 500
-        animator.interpolator = AccelerateDecelerateInterpolator()
-        animator.start()
-        
-        snoozeReminder()
-        
-        Handler(Looper.getMainLooper()).postDelayed({
-            stopAlarm()
+        try {
+            val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, -rootLayout.width.toFloat())
+            animator.duration = 500
+            animator.interpolator = AccelerateDecelerateInterpolator()
+            animator.start()
+            
+            snoozeReminder()
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                stopAlarm()
+                finish()
+            }, 500)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in onSwipeLeft", e)
             finish()
-        }, 500)
+        }
     }
     
-    /**
-     * شروع صدا و لرزش
-     */
     private fun startAlarmEffects() {
         startAlarmSound()
         startVibration()
     }
     
-    /**
-     * شروع صدای آلارم
-     */
     private fun startAlarmSound() {
         try {
             Log.d(TAG, "🔊 Starting alarm sound")
@@ -429,9 +421,6 @@ class FullScreenAlarmActivity : Activity() {
         }
     }
     
-    /**
-     * شروع لرزش
-     */
     private fun startVibration() {
         try {
             Log.d(TAG, "📳 Starting vibration")
@@ -454,52 +443,70 @@ class FullScreenAlarmActivity : Activity() {
         }
     }
     
-    /**
-     * علامت‌گذاری به عنوان انجام شده
-     */
     private fun markAsDone() {
         if (smartReminderId != null) {
             try {
                 Log.d(TAG, "✅ Marking as done: $smartReminderId")
                 val mgr = SmartReminderManager(this)
                 mgr.completeReminder(smartReminderId!!)
+                saveActionToFile("completed", smartReminderId!!)
+                Log.d(TAG, "✅ Action persisted to file")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error marking as done", e)
             }
         }
     }
     
-    /**
-     * به تعویق انداختن
-     */
     private fun snoozeReminder() {
         if (smartReminderId != null) {
             try {
                 Log.d(TAG, "⏰ Snoozing: $smartReminderId")
                 val mgr = SmartReminderManager(this)
                 mgr.snoozeReminder(smartReminderId!!, 5)
+                saveActionToFile("snoozed", smartReminderId!!)
+                Log.d(TAG, "✅ Snooze action persisted to file")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error snoozing", e)
             }
         }
     }
     
-    /**
-     * توقف صدا و لرزش
-     */
+    private fun saveActionToFile(action: String, reminderId: String) {
+        try {
+            val logDir = getDir("reminder_logs", Context.MODE_PRIVATE)
+            val logFile = java.io.File(logDir, "alarm_actions.log")
+            
+            val timestamp = System.currentTimeMillis()
+            val logEntry = "$timestamp|$reminderId|$action|${Thread.currentThread().name}\n"
+            
+            logFile.appendText(logEntry)
+            Log.d(TAG, "💾 Saved to file: $logEntry")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error saving to file", e)
+        }
+    }
+    
     private fun stopAlarm() {
         try {
             Log.d(TAG, "🛑 Stopping alarm")
             
             mediaPlayer?.apply {
-                if (isPlaying) {
-                    stop()
+                try {
+                    if (isPlaying) {
+                        stop()
+                    }
+                    release()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping media player", e)
                 }
-                release()
             }
             mediaPlayer = null
             
-            vibrator?.cancel()
+            try {
+                vibrator?.cancel()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error canceling vibration", e)
+            }
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error stopping alarm", e)
@@ -513,13 +520,15 @@ class FullScreenAlarmActivity : Activity() {
     }
     
     override fun onBackPressed() {
-        // جلوگیری از بسته شدن با دکمه Back
         Log.d(TAG, "🚫 Back button blocked")
     }
     
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        // ارسال تمام touch events به gesture detector
-        gestureDetector.onTouchEvent(ev)
+        try {
+            gestureDetector.onTouchEvent(ev)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in dispatchTouchEvent", e)
+        }
         return super.dispatchTouchEvent(ev)
     }
 }
