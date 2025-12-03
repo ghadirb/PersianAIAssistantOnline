@@ -57,7 +57,7 @@ class FullScreenAlarmActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        Log.d(TAG, "🚀 onCreate started")
+        Log.d(TAG, "🚀 onCreate started - PID: ${android.os.Process.myPid()}")
         
         try {
             setupWindow()
@@ -74,6 +74,49 @@ class FullScreenAlarmActivity : Activity() {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in onCreate", e)
             finish()
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "📱 onResume called")
+        setupImmersiveMode()
+        dismissKeyguard()
+    }
+    
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        Log.d(TAG, "🪟 onWindowFocusChanged: hasFocus=$hasFocus")
+        if (hasFocus) {
+            setupImmersiveMode()
+        }
+    }
+    
+    private fun setupImmersiveMode() {
+        try {
+            val decorView = window.decorView
+            val flags = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+            decorView.systemUiVisibility = flags
+            Log.d(TAG, "✅ Immersive mode set")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting immersive mode", e)
+        }
+    }
+    
+    private fun dismissKeyguard() {
+        try {
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                keyguardManager.requestDismissKeyguard(this, null)
+            }
+            Log.d(TAG, "✅ Keyguard dismiss requested")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error dismissing keyguard", e)
         }
     }
     

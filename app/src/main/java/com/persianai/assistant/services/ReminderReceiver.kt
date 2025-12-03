@@ -67,7 +67,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 else -> {
                     // Reminder alarm
                     Log.d(TAG, "🔔 Default action - showing reminder")
-                    handleReminderAlarm(context, smartReminderId, message, reminderId)
+                    handleReminderAlarm(context, smartReminderId, message, reminderId, intent)
                 }
             }
             
@@ -129,21 +129,34 @@ class ReminderReceiver : BroadcastReceiver() {
         context: Context,
         smartReminderId: String?,
         message: String,
-        reminderId: Int
+        reminderId: Int,
+        intent: Intent
     ) {
         var useFullScreen = false
         
-        // بررسی نوع آلارم
-        if (!smartReminderId.isNullOrEmpty()) {
-            try {
-                val mgr = SmartReminderManager(context)
-                val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
-                if (reminder != null) {
-                    useFullScreen = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN
-                    Log.d(TAG, "🔎 Found reminder - alertType: ${reminder.alertType}, useFullScreen: $useFullScreen")
+        // 1️⃣ ابتدا از Intent بررسی کن
+        val alertTypeFromIntent = intent.getStringExtra("alert_type")
+        Log.d(TAG, "📦 Intent alert_type: $alertTypeFromIntent")
+        
+        if (alertTypeFromIntent == "FULL_SCREEN") {
+            useFullScreen = true
+            Log.d(TAG, "✅ Alert type from Intent: FULL_SCREEN")
+        } else if (alertTypeFromIntent != null) {
+            useFullScreen = false
+            Log.d(TAG, "✅ Alert type from Intent: NOTIFICATION")
+        } else {
+            // 2️⃣ اگر Intent خالی بود، از DB بررسی کن
+            if (!smartReminderId.isNullOrEmpty()) {
+                try {
+                    val mgr = SmartReminderManager(context)
+                    val reminder = mgr.getAllReminders().find { it.id == smartReminderId }
+                    if (reminder != null) {
+                        useFullScreen = reminder.alertType == SmartReminderManager.AlertType.FULL_SCREEN
+                        Log.d(TAG, "🔎 Found reminder in DB - alertType: ${reminder.alertType}, useFullScreen: $useFullScreen")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking reminder type from DB", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking reminder type", e)
             }
         }
         

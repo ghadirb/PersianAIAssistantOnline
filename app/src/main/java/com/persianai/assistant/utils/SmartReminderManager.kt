@@ -514,6 +514,7 @@ class SmartReminderManager(private val context: Context) {
             putExtra("reminder_priority", reminder.priority.name)
             putExtra("message", reminder.title)
             putExtra("use_alarm", useAlarm)
+            putExtra("alert_type", reminder.alertType.name)
         }
         
         Log.d(TAG, "🔔 Intent prepared: title=${reminder.title}, alertType=${reminder.alertType}, useAlarm=$useAlarm, tags=${reminder.tags}")
