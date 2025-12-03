@@ -183,18 +183,21 @@ class ReminderReceiver : BroadcastReceiver() {
         smartReminderId: String?
     ) {
         try {
-            val intent = Intent(context, FullScreenAlarmActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                        Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // استفاده از Service برای شروع Activity
+            val serviceIntent = Intent(context, FullScreenAlarmService::class.java).apply {
                 putExtra("title", message)
                 putExtra("description", "")
                 putExtra("reminder_id", reminderId)
                 putExtra("smart_reminder_id", smartReminderId)
             }
             
-            Log.d(TAG, "🎬 Starting full-screen activity: $message")
-            context.startActivity(intent)
+            Log.d(TAG, "🎬 Starting FullScreenAlarmService: $message")
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error showing full-screen", e)

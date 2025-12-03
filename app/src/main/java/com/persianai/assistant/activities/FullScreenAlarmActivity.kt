@@ -63,6 +63,10 @@ class FullScreenAlarmActivity : Activity() {
         super.onCreate(savedInstanceState)
         
         Log.d(TAG, "🚀 onCreate started - PID: ${android.os.Process.myPid()}")
+        Log.d(TAG, "📦 Intent extras: ${intent.extras?.keySet()}")
+        Log.d(TAG, "📦 Title: ${intent.getStringExtra("title")}")
+        Log.d(TAG, "📦 Description: ${intent.getStringExtra("description")}")
+        Log.d(TAG, "📦 SmartID: ${intent.getStringExtra("smart_reminder_id")}")
         
         try {
             setupWindow()
