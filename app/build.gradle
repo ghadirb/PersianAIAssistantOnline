@@ -16,38 +16,100 @@ android {
         versionName "5.11"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Enable multidex if needed
+        multiDexEnabled true
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "BUILD_TYPE", '"release"'
+            buildConfigField "boolean", "DEBUG_LOG", 'false'
+            debuggable false
+            
+            // Resource optimization
+            shrinkResources false
         }
         debug {
             debuggable true
+            buildConfigField "String", "BUILD_TYPE", '"debug"'
+            buildConfigField "boolean", "DEBUG_LOG", 'true'
+            
+            // Faster builds
+            shrinkResources false
         }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
         jvmTarget = '17'
+        useIr = true
     }
 
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
     
+    // Proper lint configuration
+    lint {
+        checkReleaseBuilds true
+        abortOnError false
+        
+        // Disable non-critical warnings
+        disable 'MissingTranslation'
+        disable 'ExtraTranslation'
+        disable 'MissingDimensionality'
+        disable 'UnusedResources'
+        disable 'TypographyFractions'
+        disable 'TypographyQuotes'
+        
+        // Enable important checks
+        enable 'GradleCompatible'
+        enable 'SdkVersionWarning'
+        enable 'InvalidPackage'
+    }
+    
+    // Proper packaging configuration
     packagingOptions {
+        // Exclude problematic files
         exclude 'META-INF/proguard/androidx-*.pro'
         exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude 'META-INF/LGPL2.1'
+        exclude 'META-INF/*.kotlin_module'
+        
+        resources {
+            excludes += [
+                'META-INF/AL2.0',
+                'META-INF/LGPL2.1',
+                'META-INF/MANIFEST.MF',
+                'META-INF/proguard/androidx-*.pro'
+            ]
+        }
+    }
+    
+    // Source set configuration
+    sourceSets {
+        main {
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+        }
     }
 }
 
 dependencies {
+    // Core desugaring
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
+    
     // AndroidX Core
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -75,8 +137,15 @@ dependencies {
     // Kotlin Serialization
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
     
-    // Google Services (simplified)
+    // Google Services
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+    implementation 'com.google.android.gms:play-services-places:17.0.0'
+    
+    // Google Places
+    implementation 'com.google.android.libraries.places:places:3.3.0'
+    implementation 'com.google.maps.android:android-maps-utils:2.3.0'
     
     // Crypto
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
@@ -104,18 +173,13 @@ dependencies {
     implementation 'com.google.android.exoplayer:exoplayer-hls:2.19.1'
     implementation 'com.google.android.exoplayer:extension-mediasession:2.19.1'
     
-    // Media support for notifications
+    // Media support
     implementation 'androidx.media:media:1.7.0'
     
-    // Google Maps & Location for Navigation
-    implementation 'com.google.android.gms:play-services-maps:18.2.0'
-    implementation 'com.google.android.gms:play-services-location:21.0.1'
-    implementation 'com.google.android.gms:play-services-places:17.0.0'
-    implementation 'com.google.android.libraries.places:places:3.3.0'
-    implementation 'com.google.maps.android:android-maps-utils:2.3.0'
+    // SLF4J for logging
     implementation 'org.slf4j:slf4j-simple:1.7.25'
     
-    // OpenStreetMap (OSM) - Alternative navigation solution
+    // OpenStreetMap (OSM) - Alternative navigation
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
     
