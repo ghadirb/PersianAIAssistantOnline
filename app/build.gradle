@@ -1,8 +1,8 @@
 plugins {
     id 'com.android.application'
-        id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization'
-    }
+}
 
 android {
     namespace 'com.persianai.assistant'
@@ -10,18 +10,21 @@ android {
 
     defaultConfig {
         applicationId "com.persianai.assistant"
-        minSdk 26  // اندروید 8.0 - کاملاً سازگار با اندروید 10
+        minSdk 26
         targetSdk 34
-        versionCode 34
-        versionName "5.10-WEATHER"
+        versionCode 35
+        versionName "5.11"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
         }
     }
 
@@ -37,6 +40,16 @@ android {
     buildFeatures {
         viewBinding true
     }
+    
+    packagingOptions {
+        exclude 'META-INF/proguard/androidx-*.pro'
+        exclude 'META-INF/DEPENDENCIES'
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
 }
 
 dependencies {
@@ -67,16 +80,8 @@ dependencies {
     // Kotlin Serialization
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
     
-    // Database - Temporarily disabled for initial build
-    // Will be re-added with KSP in next version
-    // implementation 'androidx.room:room-runtime:2.6.1'
-    // implementation 'androidx.room:room-ktx:2.6.1'
-    
     // Google Services (simplified)
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
-    
-    // HTTP Client for API calls (alternative to complex Google libs)
-    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
     
     // Crypto
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
@@ -113,22 +118,11 @@ dependencies {
     implementation 'com.google.android.gms:play-services-places:17.0.0'
     implementation 'com.google.android.libraries.places:places:3.3.0'
     implementation 'com.google.maps.android:android-maps-utils:2.3.0'
-    implementation 'com.google.maps:google-maps-services:2.2.0'
     implementation 'org.slf4j:slf4j-simple:1.7.25'
-    
-    // Sherpa-ONNX for Offline Persian TTS (صدای حانیه)
-    // TODO: Add when model is ready
-    // implementation 'com.k2fsa.sherpa.onnx:sherpa-onnx:1.10.27'
-    
-    // ONNX Runtime (fallback) - Disabled for now
-    // implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.3'
     
     // OpenStreetMap (OSM) - Alternative navigation solution
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
-    implementation('org.osmdroid:osmdroid-geopackage:6.1.17') {
-        exclude group: 'com.j256.ormlite', module: 'ormlite-core'
-    }
     
     // Testing
     testImplementation 'junit:junit:4.13.2'
