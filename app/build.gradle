@@ -50,7 +50,6 @@ android {
 
     kotlinOptions {
         jvmTarget = '17'
-        useIr = true
     }
 
     buildFeatures {
