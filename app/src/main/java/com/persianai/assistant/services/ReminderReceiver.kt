@@ -163,13 +163,15 @@ class ReminderReceiver : BroadcastReceiver() {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setFullScreenIntent(fullScreenPendingIntent, true)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setOngoing(true)
+                .setAutoCancel(true)
                 .build()
 
             NotificationManagerCompat.from(context).notify(9001, notification)
 
             // همچنین Activity را صراحتاً استارت کنیم تا در فورگراند هم کار کند
             context.startActivity(alarmIntent)
+            // نوتیفیکیشن را پس از درخواست Activity پاک کنیم تا در استاتوس‌بار نماند
+            NotificationManagerCompat.from(context).cancel(9001)
             Log.d(TAG, "✅ fullScreen notification posted & Activity start requested")
 
         } catch (e: Exception) {

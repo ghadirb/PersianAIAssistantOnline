@@ -84,6 +84,24 @@
 
     </LinearLayout>
 
+    <!-- دستهٔ کشیدنی مرکزی -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/swipe_handle"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:background="@drawable/bg_swipe_handle"
+            android:src="@drawable/ic_notification"
+            android:tint="@android:color/white"
+            android:padding="32dp"
+            android:elevation="8dp"
+            android:contentDescription="Drag to snooze or dismiss" />
+    </FrameLayout>
+
     <!-- نشانگر سوایپ به راست (انجام شد) -->
     <LinearLayout
         android:layout_width="match_parent"

@@ -22,8 +22,8 @@ import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.GestureDetectorCompat
 import com.persianai.assistant.R
 import com.persianai.assistant.utils.SmartReminderManager
@@ -52,6 +52,7 @@ class FullScreenAlarmActivity : Activity() {
     private lateinit var rightSwipeHint: TextView
     private lateinit var leftIcon: ImageView
     private lateinit var rightIcon: ImageView
+    private lateinit var swipeHandle: ImageView
     
     private var isActionTaken = false
     private var currentSwipeDirection = 0 // 0=none, 1=left, 2=right
@@ -78,6 +79,7 @@ class FullScreenAlarmActivity : Activity() {
             initializeViews()
             setupGestureDetector()
             setupUI()
+            cancelAlarmNotification()
             startAlarmEffects()
             showSwipeHints()
             
@@ -170,6 +172,7 @@ class FullScreenAlarmActivity : Activity() {
             rightSwipeHint = findViewById(R.id.right_swipe_hint)
             leftIcon = findViewById(R.id.left_icon)
             rightIcon = findViewById(R.id.right_icon)
+            swipeHandle = findViewById(R.id.swipe_handle)
             Log.d(TAG, "✅ Views initialized")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error initializing views", e)
@@ -296,35 +299,7 @@ class FullScreenAlarmActivity : Activity() {
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up UI", e)
         }
-        
-        rootLayout.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
-
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    downX = event.x
-                    downY = event.y
-                    Log.d(TAG, "👆 ACTION_DOWN x=$downX y=$downY")
-                }
-                MotionEvent.ACTION_UP -> {
-                    val diffX = event.x - downX
-                    val diffY = event.y - downY
-                    Log.d(TAG, "🖐️ ACTION_UP diffX=$diffX diffY=$diffY")
-
-                    if (!isActionTaken && abs(diffX) > abs(diffY) && abs(diffX) > MIN_SWIPE_DISTANCE * 0.8) {
-                        if (diffX > 0) {
-                            Log.d(TAG, "👉 ACTION_UP swipe right detected")
-                            onSwipeRight()
-                        } else {
-                            Log.d(TAG, "👈 ACTION_UP swipe left detected")
-                            onSwipeLeft()
-                        }
-                        return@setOnTouchListener true
-                    }
-                }
-            }
-            true
-        }
+        setupHandleDrag()
     }
     
     private fun showSwipeHints() {
@@ -394,6 +369,15 @@ class FullScreenAlarmActivity : Activity() {
     private fun startAlarmEffects() {
         startAlarmSound()
         startVibration()
+    }
+
+    private fun cancelAlarmNotification() {
+        try {
+            NotificationManagerCompat.from(this).cancel(9001)
+            Log.d(TAG, "🔕 Notification 9001 cancelled to hide status bar item")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cancelling notification", e)
+        }
     }
     
     private fun startAlarmSound() {
