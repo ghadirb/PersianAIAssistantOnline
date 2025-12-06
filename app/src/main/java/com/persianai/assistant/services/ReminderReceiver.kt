@@ -146,7 +146,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     "Full Screen Alarm",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Full screen alarm reminders"
+                    this.description = "Full screen alarm reminders"
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 }
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
