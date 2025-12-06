@@ -301,6 +301,65 @@ class FullScreenAlarmActivity : Activity() {
         }
         setupHandleDrag()
     }
+
+    /**
+     * درگ روی دستهٔ مرکزی برای سوایپ چپ/راست (مشابه ساعت اندروید)
+     */
+    private fun setupHandleDrag() {
+        var handleDownX = 0f
+        swipeHandle.setOnTouchListener { v, event ->
+            if (isActionTaken) return@setOnTouchListener true
+
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    handleDownX = event.rawX
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                    Log.d(TAG, "🎯 Handle DOWN x=${event.x}")
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val diffX = event.rawX - handleDownX
+                    swipeProgress = diffX / rootLayout.width
+
+                    // محدودسازی جابه‌جایی برای حس بهتر
+                    val clamped = diffX.coerceIn(-rootLayout.width * 0.45f, rootLayout.width * 0.45f)
+                    v.translationX = clamped
+
+                    if (diffX > 0) {
+                        showRightSwipeIndicator(minOf(abs(swipeProgress), 1f))
+                    } else {
+                        showLeftSwipeIndicator(minOf(abs(swipeProgress), 1f))
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    val diffX = event.rawX - handleDownX
+                    Log.d(TAG, "🏁 Handle UP diffX=$diffX")
+
+                    val threshold = rootLayout.width * 0.25f
+                    if (!isActionTaken && abs(diffX) > threshold) {
+                        if (diffX > 0) {
+                            Log.d(TAG, "👉 Handle drag right -> done")
+                            onSwipeRight()
+                        } else {
+                            Log.d(TAG, "👈 Handle drag left -> snooze")
+                            onSwipeLeft()
+                        }
+                    } else {
+                        // برگرداندن به مرکز
+                        v.animate().translationX(0f).setDuration(150).start()
+                        leftSwipeHint.visibility = View.GONE
+                        rightSwipeHint.visibility = View.GONE
+                        leftIcon.visibility = View.GONE
+                        rightIcon.visibility = View.GONE
+                    }
+                    v.parent.requestDisallowInterceptTouchEvent(false)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
     
     private fun showSwipeHints() {
         Handler(Looper.getMainLooper()).postDelayed({
