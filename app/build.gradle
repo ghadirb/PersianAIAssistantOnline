@@ -47,11 +47,6 @@ android {
     }
 }
 
-repositories {
-    google()
-    mavenCentral()
-}
-
 dependencies {
     // AndroidX Core
     implementation 'androidx.core:core-ktx:1.12.0'
