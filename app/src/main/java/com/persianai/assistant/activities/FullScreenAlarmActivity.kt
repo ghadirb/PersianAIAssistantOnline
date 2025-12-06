@@ -20,6 +20,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -45,7 +46,7 @@ class FullScreenAlarmActivity : Activity() {
     private var smartReminderId: String? = null
     private val TAG = "FullScreenAlarm"
     
-    private lateinit var rootLayout: LinearLayout
+    private lateinit var rootLayout: FrameLayout
     private lateinit var gestureDetector: GestureDetectorCompat
     private lateinit var leftSwipeHint: TextView
     private lateinit var rightSwipeHint: TextView
@@ -55,6 +56,8 @@ class FullScreenAlarmActivity : Activity() {
     private var isActionTaken = false
     private var currentSwipeDirection = 0 // 0=none, 1=left, 2=right
     private var swipeProgress = 0f
+    private var downX = 0f
+    private var downY = 0f
     
     private val MIN_SWIPE_DISTANCE = 100
     private val MIN_SWIPE_VELOCITY = 100
@@ -296,7 +299,31 @@ class FullScreenAlarmActivity : Activity() {
         
         rootLayout.setOnTouchListener { _, event ->
             gestureDetector.onTouchEvent(event)
-            false
+
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.x
+                    downY = event.y
+                    Log.d(TAG, "👆 ACTION_DOWN x=$downX y=$downY")
+                }
+                MotionEvent.ACTION_UP -> {
+                    val diffX = event.x - downX
+                    val diffY = event.y - downY
+                    Log.d(TAG, "🖐️ ACTION_UP diffX=$diffX diffY=$diffY")
+
+                    if (!isActionTaken && abs(diffX) > abs(diffY) && abs(diffX) > MIN_SWIPE_DISTANCE * 0.8) {
+                        if (diffX > 0) {
+                            Log.d(TAG, "👉 ACTION_UP swipe right detected")
+                            onSwipeRight()
+                        } else {
+                            Log.d(TAG, "👈 ACTION_UP swipe left detected")
+                            onSwipeLeft()
+                        }
+                        return@setOnTouchListener true
+                    }
+                }
+            }
+            true
         }
     }
     

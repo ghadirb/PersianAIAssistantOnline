@@ -118,8 +118,9 @@ class ReminderReceiver : BroadcastReceiver() {
             // Intent برای Activity
             val alarmIntent = Intent(context, FullScreenAlarmActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 putExtra("title", title)
                 putExtra("description", description)
                 putExtra("smart_reminder_id", reminderId)
@@ -133,7 +134,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
             val fullScreenPendingIntent = PendingIntent.getActivity(
                 context,
-                1001,
+                reminderId?.hashCode() ?: 1001,
                 alarmIntent,
                 pendingIntentFlags
             )
@@ -158,10 +159,11 @@ class ReminderReceiver : BroadcastReceiver() {
                 .setContentTitle(title)
                 .setContentText(description.ifEmpty { "یادآوری تمام‌صفحه" })
                 .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setFullScreenIntent(fullScreenPendingIntent, true)
-                .setAutoCancel(true)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setOngoing(true)
                 .build()
 
             NotificationManagerCompat.from(context).notify(9001, notification)
