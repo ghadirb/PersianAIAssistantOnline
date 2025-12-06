@@ -258,7 +258,7 @@
             android:name=".services.FullScreenAlarmService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="manifest" />
+            android:foregroundServiceType="specialUse" />
 
         <service
             android:name=".services.ReminderService"
@@ -337,6 +337,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_persian_calendar_info" />
+        </receiver>
+
+        <receiver
+            android:name=".services.ReminderReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.persianai.assistant.REMINDER_ALARM" />
+                <action android:name="MARK_AS_DONE" />
+                <action android:name="SNOOZE_REMINDER" />
+            </intent-filter>
         </receiver>
 
         <provider

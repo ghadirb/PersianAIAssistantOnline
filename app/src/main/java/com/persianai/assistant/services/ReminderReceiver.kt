@@ -12,7 +12,7 @@ import com.persianai.assistant.activities.FullScreenAlarmActivity
 import com.persianai.assistant.utils.SmartReminderManager
 
 /**
- * BroadcastReceiver برای دریافت الارم
+ * BroadcastReceiver برای دریافت الارم یادآوری
  * این Receiver زمانی فعال می‌شود که AlarmManager الارم را trigger کند
  */
 class ReminderReceiver : BroadcastReceiver() {
@@ -22,28 +22,32 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "🔔 onReceive - action: ${intent.action}")
         
-        // WakeLock بگیری
+        // WakeLock بگیری - خیلی مهم!
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val wakeLock = powerManager.newWakeLock(
             PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
             "PersianAssistant::ReminderReceiver"
         ).apply {
-            acquire(10 * 60 * 1000L)
+            acquire(10 * 60 * 1000L) // 10 دقیقه
         }
         
         try {
             Log.d(TAG, "⚡ WakeLock acquired")
             
             when (intent.action) {
+                // الارم یادآوری
                 "com.persianai.assistant.REMINDER_ALARM" -> {
                     handleReminderAlarm(context, intent)
                 }
+                // علامت‌گذاری به عنوان انجام شده
                 "MARK_AS_DONE" -> {
                     handleMarkAsDone(context, intent)
                 }
+                // تعویق یادآوری
                 "SNOOZE_REMINDER" -> {
                     handleSnoozeReminder(context, intent)
                 }
+                // بوت تمام
                 Intent.ACTION_BOOT_COMPLETED -> {
                     Log.d(TAG, "📱 BOOT_COMPLETED - reschedule reminders")
                     rescheduleAllReminders(context)
@@ -55,6 +59,7 @@ class ReminderReceiver : BroadcastReceiver() {
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in onReceive", e)
+            e.printStackTrace()
         } finally {
             try {
                 if (wakeLock.isHeld) {
@@ -77,14 +82,14 @@ class ReminderReceiver : BroadcastReceiver() {
             val description = intent.getStringExtra("reminder_description") ?: ""
             val alertType = intent.getStringExtra("alert_type") ?: "NOTIFICATION"
             
-            Log.d(TAG, "📝 Reminder: title=$title, alertType=$alertType, id=$reminderId")
+            Log.d(TAG, "📝 Reminder received: title=$title, alertType=$alertType, id=$reminderId")
             
             val useFullScreen = alertType == "FULL_SCREEN"
             
             if (useFullScreen) {
                 showFullScreenAlarm(context, title, description, reminderId)
             } else {
-                Log.d(TAG, "Notification mode - not implemented in receiver")
+                Log.d(TAG, "Notification mode - skipped")
             }
             
         } catch (e: Exception) {
@@ -93,7 +98,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
     
     /**
-     * نمایش Full Screen Alarm
+     * نمایش Full Screen Alarm - مستقیم
      */
     private fun showFullScreenAlarm(
         context: Context,
@@ -102,15 +107,6 @@ class ReminderReceiver : BroadcastReceiver() {
         reminderId: String?
     ) {
         try {
-            // WakeLock جدید برای Activity
-            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-            val wakeLock = powerManager.newWakeLock(
-                PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "PersianAssistant::ShowAlarm"
-            ).apply {
-                acquire(10 * 60 * 1000L)
-            }
-            
             Log.d(TAG, "🎬 Starting FullScreenAlarmActivity directly")
             
             val alarmIntent = Intent(context, FullScreenAlarmActivity::class.java).apply {
@@ -123,11 +119,10 @@ class ReminderReceiver : BroadcastReceiver() {
             }
             
             context.startActivity(alarmIntent)
-            
-            Log.d(TAG, "✅ Activity started")
+            Log.d(TAG, "✅ Activity started successfully")
             
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error showing full-screen alarm", e)
+            Log.e(TAG, "❌ Error starting activity", e)
         }
     }
     
@@ -177,7 +172,11 @@ class ReminderReceiver : BroadcastReceiver() {
                 Log.d(TAG, "📋 Rescheduling ${reminders.size} reminders...")
                 
                 for (reminder in reminders) {
-                    mgr.scheduleReminder(reminder)
+                    try {
+                        mgr.scheduleReminder(reminder)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error scheduling reminder: ${reminder.id}", e)
+                    }
                 }
                 
                 Log.d(TAG, "✅ All reminders rescheduled")
