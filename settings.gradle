@@ -19,12 +19,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Persian AI Assistant"
 include ':app'
-
-// Ensure proper build behavior
-gradle.projectsEvaluated {
-    rootProject.tasks.clean {
-        doFirst {
-            println "Cleaning build directories..."
-        }
-    }
-}
