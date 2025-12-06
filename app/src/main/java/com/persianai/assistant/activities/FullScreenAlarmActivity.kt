@@ -484,7 +484,7 @@ class FullScreenAlarmActivity : Activity() {
             val logEntry = "$timestamp|$reminderId|$action|${Thread.currentThread().name}\n"
             
             logFile.appendText(logEntry)
-            Log.d(TAG, "💾 Saved to file: $logEntry")
+            Log.d(TAG, "💾 Saved to file: action=$action for $reminderId")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error saving to file", e)
         }

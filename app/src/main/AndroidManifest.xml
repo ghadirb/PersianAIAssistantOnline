@@ -257,7 +257,8 @@
         <service
             android:name=".services.FullScreenAlarmService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="manifest" />
 
         <service
             android:name=".services.ReminderService"
