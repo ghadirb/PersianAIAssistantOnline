@@ -9,16 +9,18 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
+import com.google.android.material.textfield.TextInputEditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
+import ir.hamsaa.persiandatepicker.PersianDatePickerDialog
+import ir.hamsaa.persiandatepicker.api.PersianDate
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.RemindersAdapter
 import com.persianai.assistant.ai.AdvancedPersianAssistant
@@ -222,6 +224,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         val priorityGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.priorityChipGroup)
         val categorySpinner = dialogView.findViewById<android.widget.Spinner>(R.id.categorySpinner)
         val alertTypeGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.alertTypeChipGroup)
+        val manualHourInput = dialogView.findViewById<TextInputEditText>(R.id.manualHourInput)
+        val manualMinuteInput = dialogView.findViewById<TextInputEditText>(R.id.manualMinuteInput)
         
         var selectedDate: Long = System.currentTimeMillis()
         var selectedHour = 12
@@ -234,25 +238,40 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         categorySpinner.adapter = adapter
         
         dateButton.setOnClickListener {
-            val datePicker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("تاریخ")
-                .setSelection(selectedDate)
-                .build()
-            
-            datePicker.addOnPositiveButtonClickListener { selection ->
-                selectedDate = selection
-                val calendar = Calendar.getInstance().apply {
-                    timeInMillis = selection
-                }
-                val persianDate = PersianDateConverter.gregorianToPersian(
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH) + 1,
-                    calendar.get(Calendar.DAY_OF_MONTH)
-                )
-                dateButton.text = persianDate.toReadableString()
+            try {
+                PersianDatePickerDialog(this)
+                    .setPositiveButtonString("تایید")
+                    .setNegativeButton("انصراف")
+                    .setTodayButton("امروز")
+                    .setTodayButtonVisible(true)
+                    .setInitDate(PersianDate())
+                    .setMinYear(1390)
+                    .setMaxYear(1450)
+                    .setActionTextColor(ContextCompat.getColor(this, R.color.purple_200))
+                    .setListener(object : ir.hamsaa.persiandatepicker.Listener {
+                        override fun onDateSelected(persianCalendar: PersianDate) {
+                            val gy = persianCalendar.grgYear
+                            val gm = persianCalendar.grgMonth - 1
+                            val gd = persianCalendar.grgDay
+                            val cal = Calendar.getInstance().apply {
+                                set(Calendar.YEAR, gy)
+                                set(Calendar.MONTH, gm)
+                                set(Calendar.DAY_OF_MONTH, gd)
+                                set(Calendar.HOUR_OF_DAY, 12)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                            }
+                            selectedDate = cal.timeInMillis
+                            dateButton.text = "${persianCalendar.shYear}/${persianCalendar.shMonth.toString().padStart(2,'0')}/${persianCalendar.shDay.toString().padStart(2,'0')}"
+                        }
+
+                        override fun onDismissed() {}
+                    })
+                    .show()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            
-            datePicker.show(supportFragmentManager, "DATE_PICKER")
         }
         
         timeButton.setOnClickListener {
@@ -267,6 +286,8 @@ class AdvancedRemindersActivity : AppCompatActivity() {
             timePicker.addOnPositiveButtonClickListener {
                 selectedHour = timePicker.hour
                 selectedMinute = timePicker.minute
+                manualHourInput.setText(selectedHour.toString())
+                manualMinuteInput.setText(selectedMinute.toString())
                 timeButton.text = String.format("%02d:%02d", selectedHour, selectedMinute)
             }
             
@@ -297,6 +318,18 @@ class AdvancedRemindersActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
                 
+                // اگر کاربر مقدار دستی وارد کرده، جایگزین کن
+                val manualH = manualHourInput.text?.toString()?.trim()
+                val manualM = manualMinuteInput.text?.toString()?.trim()
+                if (!manualH.isNullOrEmpty() && manualH.toIntOrNull() != null) {
+                    val h = manualH.toInt()
+                    if (h in 0..23) selectedHour = h
+                }
+                if (!manualM.isNullOrEmpty() && manualM.toIntOrNull() != null) {
+                    val m = manualM.toInt()
+                    if (m in 0..59) selectedMinute = m
+                }
+
                 // محاسبه زمان دقیق
                 val calendar = Calendar.getInstance()
                 calendar.timeInMillis = selectedDate
@@ -695,14 +728,39 @@ class AdvancedRemindersActivity : AppCompatActivity() {
 
         // Listeners for date and time pickers
         dateButton.setOnClickListener {
-            val datePicker = MaterialDatePicker.Builder.datePicker().setTitleText("تاریخ").setSelection(selectedDate).build()
-            datePicker.addOnPositiveButtonClickListener { selection ->
-                selectedDate = selection
-                val cal = Calendar.getInstance().apply { timeInMillis = selection }
-                val pDate = PersianDateConverter.gregorianToPersian(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
-                dateButton.text = pDate.toReadableString()
+            try {
+                val dialog = ir.hamsaa.persiandatepicker.PersianDatePickerDialog(this)
+                    .setPositiveButtonString("تایید")
+                    .setNegativeButton("انصراف")
+                    .setTodayButton("امروز")
+                    .setTodayButtonVisible(true)
+                    .setInitDate(PersianDate())
+                    .setMinYear(1390)
+                    .setMaxYear(1450)
+                    .setActionTextColor(ContextCompat.getColor(this, R.color.purple_200))
+                    .setListener(object : ir.hamsaa.persiandatepicker.Listener {
+                        override fun onDateSelected(persianCalendar: PersianDate) {
+                            val gy = persianCalendar.grgYear
+                            val gm = persianCalendar.grgMonth - 1
+                            val gd = persianCalendar.grgDay
+                            val cal = Calendar.getInstance().apply {
+                                set(Calendar.YEAR, gy)
+                                set(Calendar.MONTH, gm)
+                                set(Calendar.DAY_OF_MONTH, gd)
+                                set(Calendar.HOUR_OF_DAY, 12)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                            }
+                            selectedDate = cal.timeInMillis
+                            dateButton.text = "${persianCalendar.shYear}/${persianCalendar.shMonth.toString().padStart(2,'0')}/${persianCalendar.shDay.toString().padStart(2,'0')}"
+                        }
+                        override fun onDismissed() {}
+                    })
+                dialog.show()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            datePicker.show(supportFragmentManager, "EDIT_DATE_PICKER")
         }
 
         timeButton.setOnClickListener {
