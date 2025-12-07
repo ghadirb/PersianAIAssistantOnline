@@ -176,6 +176,75 @@
 
             </androidx.cardview.widget.CardView>
 
+            <!-- Provisioning Card -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/provisioningCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔑 Provisioning API Key"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#1E88E5" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="کلید پرویزنیگ را وارد کنید تا کلیدهای AI به صورت خودکار Provision شوند."
+                        android:textSize="14sp"
+                        android:textColor="#555555"
+                        android:layout_marginTop="4dp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="Provisioning Key">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/provisioningKeyInput"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/autoProvisionSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Provision خودکار در شروع برنامه"
+                        android:textSize="14sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:layout_marginTop="8dp">
+
+                        <Button
+                            android:id="@+id/provisioningSaveButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:text="ذخیره / فعال‌سازی"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- OpenRouter Card -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/openRouterCard"

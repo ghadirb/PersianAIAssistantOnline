@@ -381,55 +381,319 @@
                         android:textColor="#E8EAF6"
                         android:textSize="12sp" />
 
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-            <!-- About Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/aboutCard"
-                android:layout_width="0dp"
-                android:layout_height="180dp"
-                android:layout_columnWeight="1"
-                android:layout_margin="8dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="8dp"
-                android:clickable="true"
-                android:focusable="true">
+                <!-- About Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/aboutCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="16dp"
-                    android:background="#4CAF50">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#4CAF50">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="ℹ️"
-                        android:textSize="56sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="ℹ️"
+                            android:textSize="56sp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="درباره برنامه"
-                        android:textColor="@android:color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:layout_marginTop="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="درباره برنامه"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="راهنما"
-                        android:textColor="#E8F5E9"
-                        android:textSize="12sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="راهنما و توضیحات"
+                            android:textColor="#E8F5E9"
+                            android:textSize="12sp" />
 
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-        </GridLayout>
+                <!-- مشاور روان / هشدار -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/psychologyCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#6A1B9A">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🧠"
+                            android:textSize="56sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مشاور روان"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="راهنمای سبک زندگی و آرامش"
+                            android:textColor="#E1BEE7"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- کشف استعداد / مصاحبه -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/careerCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#3949AB">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🧭"
+                            android:textSize="56sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مشاور مسیر"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="کشف استعداد و مصاحبه"
+                            android:textColor="#C5CAE9"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- دفتر مشتریان -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/crmCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#00897B">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📇"
+                            android:textSize="56sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="دفتر مشتریان"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CRM سبک و سریع"
+                            android:textColor="#B2DFDB"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- بانک اسناد -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/docsCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#455A64">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🗂️"
+                            android:textSize="56sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="بانک اسناد"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="قرارداد، فاکتور، فایل‌ها"
+                            android:textColor="#CFD8DC"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- یادآوری مالی -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/financeReminderCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#F57C00">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⏰"
+                            android:textSize="56sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="یادآوری مالی"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="قبض، قسط، سررسید وام"
+                            android:textColor="#FFE0B2"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- پیشنهاد فرهنگی -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cultureCard"
+                    android:layout_width="0dp"
+                    android:layout_height="180dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="#7B1FA2">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📚"
+                            android:textSize="56sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="پیشنهاد فرهنگی"
+                            android:textColor="@android:color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="کتاب، فیلم، دوره آموزشی"
+                            android:textColor="#E1BEE7"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </GridLayout>
 
         </LinearLayout>
     </ScrollView>

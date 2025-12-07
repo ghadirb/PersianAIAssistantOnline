@@ -38,6 +38,12 @@ class ApiSettingsActivity : AppCompatActivity() {
     private lateinit var openRouterTestButton: Button
     private lateinit var openRouterToggle: ImageButton
     
+    // Provisioning
+    private lateinit var provisioningKeyInput: TextInputEditText
+    private lateinit var provisioningSaveButton: Button
+    private lateinit var autoProvisionSwitch: com.google.android.material.switchmaterial.SwitchMaterial
+    private lateinit var prefsManager: com.persianai.assistant.utils.PreferencesManager
+    
     private lateinit var aimlCard: CardView
     private lateinit var aimlKeyInput: TextInputEditText
     private lateinit var aimlStatus: TextView
@@ -60,6 +66,7 @@ class ApiSettingsActivity : AppCompatActivity() {
         }
         
         modelManager = AIModelManager(this)
+        prefsManager = com.persianai.assistant.utils.PreferencesManager(this)
         initializeViews()
         loadSavedKeys()
         updateAvailableModels()
@@ -113,6 +120,12 @@ class ApiSettingsActivity : AppCompatActivity() {
             provider = "openrouter",
             providerName = "OpenRouter"
         )
+        
+        // Provisioning
+        provisioningKeyInput = findViewById(R.id.provisioningKeyInput)
+        provisioningSaveButton = findViewById(R.id.provisioningSaveButton)
+        autoProvisionSwitch = findViewById(R.id.autoProvisionSwitch)
+        setupProvisioningCard()
         
         // AIML API
         aimlCard = findViewById(R.id.aimlCard)
@@ -210,6 +223,10 @@ class ApiSettingsActivity : AppCompatActivity() {
         claudeKeyInput.setText(prefs.getString("claude_api_key", ""))
         openRouterKeyInput.setText(prefs.getString("openrouter_api_key", ""))
         aimlKeyInput.setText(prefs.getString("aiml_api_key", ""))
+        
+        // Provisioning saved state
+        provisioningKeyInput.setText(prefsManager.getProvisioningKey() ?: "")
+        autoProvisionSwitch.isChecked = prefsManager.isAutoProvisioningEnabled()
     }
     
     private fun updateAvailableModels() {
@@ -235,6 +252,30 @@ class ApiSettingsActivity : AppCompatActivity() {
             }
             availableModelsText.text = modelsText
             availableModelsText.setTextColor(getColor(android.R.color.darker_gray))
+        }
+    }
+    
+    private fun setupProvisioningCard() {
+        provisioningSaveButton.setOnClickListener {
+            val key = provisioningKeyInput.text?.toString()?.trim() ?: ""
+            prefsManager.saveProvisioningKey(key)
+            prefsManager.setAutoProvisioning(autoProvisionSwitch.isChecked)
+            
+            if (key.isNotEmpty()) {
+                // Provision: فعلاً به عنوان کلید OpenRouter ذخیره می‌کنیم
+                modelManager.saveApiKey("openrouter", key)
+                // هم‌راستا با PreferencesManager برای نمایش تعداد کلیدها
+                val apiKeys = listOf(com.persianai.assistant.models.APIKey(com.persianai.assistant.models.AIProvider.OPENROUTER, key, true))
+                prefsManager.saveAPIKeys(apiKeys)
+                updateAvailableModels()
+                android.widget.Toast.makeText(this, "Provisioning فعال شد و کلید ذخیره شد", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.widget.Toast.makeText(this, "کلید خالی است؛ Provisioning غیرفعال شد", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        autoProvisionSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefsManager.setAutoProvisioning(isChecked)
         }
     }
     

@@ -31,6 +31,9 @@ class SplashActivity : AppCompatActivity() {
             if (prefsManager.hasAPIKeys()) {
                 // اگر کلیدها موجود هستند، مستقیم به صفحه اصلی برویم
                 navigateToMain()
+            } else if (tryAutoProvisioning(prefsManager)) {
+                // اگر Provisioning فعال بود و کلید اعمال شد، خروجی دارد
+                return
             } else {
                 // نمایش دیالوگ توضیحات و دریافت رمز
                 showWelcomeDialog()
@@ -159,6 +162,27 @@ class SplashActivity : AppCompatActivity() {
                 navigateToMain()
             }
         }
+    }
+
+    /**
+     * تلاش برای Provision خودکار کلید OpenRouter در شروع برنامه
+     */
+    private fun tryAutoProvisioning(prefsManager: PreferencesManager): Boolean {
+        if (!prefsManager.isAutoProvisioningEnabled()) return false
+        val provisioningKey = prefsManager.getProvisioningKey()?.takeIf { it.isNotBlank() } ?: return false
+        
+        // ذخیره در SharedPreferences مورد استفاده AIModelManager
+        val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
+        apiPrefs.edit().putString("openrouter_api_key", provisioningKey).apply()
+        
+        // ذخیره در PreferencesManager (لیست APIKey) بدون حذف سایر کلیدها
+        val currentKeys = prefsManager.getAPIKeys().filter { it.provider != AIProvider.OPENROUTER }.toMutableList()
+        currentKeys.add(APIKey(AIProvider.OPENROUTER, provisioningKey, true))
+        prefsManager.saveAPIKeys(currentKeys)
+        
+        Toast.makeText(this, "کلید Provisioning اعمال شد", Toast.LENGTH_SHORT).show()
+        navigateToMain()
+        return true
     }
 
     private fun parseAPIKeys(data: String): List<APIKey> {

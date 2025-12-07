@@ -14,10 +14,13 @@ class PreferencesManager(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
+    private val base64Flags = android.util.Base64.NO_WRAP
 
     companion object {
         private const val PREFS_NAME = "ai_assistant_prefs"
         private const val KEY_API_KEYS = "api_keys"
+        private const val KEY_PROVISIONING_KEY = "provisioning_key_enc"
+        private const val KEY_AUTO_PROVISIONING = "auto_provisioning"
         private const val KEY_SELECTED_MODEL = "selected_model"
         private const val KEY_SYSTEM_PROMPT = "system_prompt"
         private const val KEY_TEMPERATURE = "temperature"
@@ -62,6 +65,35 @@ JSON ONLY."""
 
     fun hasAPIKeys(): Boolean {
         return prefs.contains(KEY_API_KEYS)
+    }
+
+    /**
+     * Provisioning key (ذخیره به صورت Base64 برای جلوگیری از لاگ ساده)
+     */
+    fun saveProvisioningKey(key: String) {
+        if (key.isBlank()) {
+            prefs.edit().remove(KEY_PROVISIONING_KEY).apply()
+        } else {
+            val enc = android.util.Base64.encodeToString(key.trim().toByteArray(Charsets.UTF_8), base64Flags)
+            prefs.edit().putString(KEY_PROVISIONING_KEY, enc).apply()
+        }
+    }
+
+    fun getProvisioningKey(): String? {
+        val enc = prefs.getString(KEY_PROVISIONING_KEY, null) ?: return null
+        return try {
+            String(android.util.Base64.decode(enc, base64Flags), Charsets.UTF_8).trim().ifEmpty { null }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun setAutoProvisioning(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_PROVISIONING, enabled).apply()
+    }
+
+    fun isAutoProvisioningEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AUTO_PROVISIONING, true)
     }
 
     fun clearAPIKeys() {

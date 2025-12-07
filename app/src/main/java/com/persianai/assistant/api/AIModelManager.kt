@@ -32,6 +32,8 @@ class AIModelManager(private val context: Context) {
         const val MODEL_GPT_4 = "gpt-4"
         const val MODEL_CLAUDE_3_OPUS = "claude-3-opus-20240229"
         const val MODEL_CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
+        const val MODEL_LLAMA_3_3_70B = "meta-llama/llama-3.3-70b-instruct"
+        const val MODEL_DEEPSEEK_R1T2 = "deepseek/deepseek-r1-t2-chimera"
         const val MODEL_LLAMA_2_70B = "meta-llama/llama-2-70b-chat"
         const val MODEL_MIXTRAL_8X7B = "mistralai/mixtral-8x7b-instruct"
     }
@@ -117,9 +119,33 @@ class AIModelManager(private val context: Context) {
             )
         }
         
-        // OpenRouter Models
+        // OpenRouter Models (prioritized)
         val openRouterKey = prefs.getString("openrouter_api_key", null)
         if (!openRouterKey.isNullOrEmpty()) {
+            models.add(
+                ModelConfig(
+                    name = MODEL_LLAMA_3_3_70B,
+                    displayName = "Llama 3.3 70B Instruct (Free)",
+                    provider = "OpenRouter",
+                    apiKey = openRouterKey,
+                    endpoint = OPENROUTER_API_URL,
+                    isAvailable = true,
+                    features = listOf("رایگان/مقرون‌به‌صرفه", "قدرتمند", "چندزبانه", "مناسب چت عمومی")
+                )
+            )
+            
+            models.add(
+                ModelConfig(
+                    name = MODEL_DEEPSEEK_R1T2,
+                    displayName = "DeepSeek R1T2 Chimera (Free)",
+                    provider = "OpenRouter",
+                    apiKey = openRouterKey,
+                    endpoint = OPENROUTER_API_URL,
+                    isAvailable = true,
+                    features = listOf("استدلال قوی", "مقرون‌به‌صرفه", "کاهش محدودیت رایگان")
+                )
+            )
+
             models.add(
                 ModelConfig(
                     name = MODEL_LLAMA_2_70B,
@@ -128,7 +154,7 @@ class AIModelManager(private val context: Context) {
                     apiKey = openRouterKey,
                     endpoint = OPENROUTER_API_URL,
                     isAvailable = true,
-                    features = listOf("متن‌باز", "قدرتمند", "چندزبانه", "رایگان در برخی موارد")
+                    features = listOf("متن‌باز", "چندزبانه", "پشتیبان")
                 )
             )
             
@@ -140,7 +166,7 @@ class AIModelManager(private val context: Context) {
                     apiKey = openRouterKey,
                     endpoint = OPENROUTER_API_URL,
                     isAvailable = true,
-                    features = listOf("سریع", "دقیق", "مناسب کدنویسی", "هزینه پایین")
+                    features = listOf("سریع", "دقیق", "مناسب کدنویسی", "پشتیبان")
                 )
             )
         }
@@ -161,7 +187,18 @@ class AIModelManager(private val context: Context) {
             )
         }
         
-        return models
+        // اولویت‌بندی: Llama 3.3 → DeepSeek → Claude → OpenAI → سایر
+        val priority = mapOf(
+            MODEL_LLAMA_3_3_70B to 1,
+            MODEL_DEEPSEEK_R1T2 to 2,
+            MODEL_MIXTRAL_8X7B to 5,
+            MODEL_LLAMA_2_70B to 6,
+            MODEL_CLAUDE_3_OPUS to 10,
+            MODEL_CLAUDE_3_SONNET to 11,
+            MODEL_GPT_4 to 20,
+            MODEL_GPT_35_TURBO to 21
+        )
+        return models.sortedBy { priority[it.name] ?: 100 }
     }
     
     /**

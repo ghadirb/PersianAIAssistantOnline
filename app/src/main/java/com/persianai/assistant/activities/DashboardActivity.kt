@@ -165,6 +165,61 @@ class DashboardActivity : AppCompatActivity() {
             }, 150)
         }
         
+        binding.psychologyCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showCounselingDisclaimer(
+                    title = "مشاور روان / راهنمای آرامش",
+                    message = """
+                        توجه: بخش مشاوره این برنامه صرفاً برای راهنمایی عمومی و خودشناسی طراحی شده است.
+                        این بخش جایگزین مشاوره تخصصی روان‌شناسی یا مشاوره شغلی حرفه‌ای نیست.
+                        برای تصمیم‌های جدی یا مشکلات عمیق، مراجعه به مشاور انسانی ضروری است.
+                    """.trimIndent()
+                )
+            }, 120)
+        }
+        
+        binding.careerCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showCounselingDisclaimer(
+                    title = "مشاور مسیر / کشف استعداد",
+                    message = """
+                        این بخش برای مصاحبه و خودشناسی است و جایگزین مشاوره تخصصی شغلی/تحصیلی نیست.
+                        برای تصمیم‌های مهم، حتماً با مشاور انسانی مشورت کنید.
+                    """.trimIndent()
+                )
+            }, 120)
+        }
+        
+        binding.crmCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showComingSoon("دفتر مشتریان", "مدیریت مشتریان، سوابق و یادآوری پیگیری به‌زودی فعال می‌شود.")
+            }, 120)
+        }
+        
+        binding.docsCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showComingSoon("بانک اسناد", "جستجوی سریع قراردادها، فاکتورها و فایل‌های مهم به‌زودی اضافه می‌شود.")
+            }, 120)
+        }
+        
+        binding.financeReminderCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showComingSoon("یادآوری مالی", "هشدار قبض، قسط و سررسید وام در نسخه بعدی فعال می‌شود.")
+            }, 120)
+        }
+        
+        binding.cultureCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                showComingSoon("پیشنهاد فرهنگی", "کتاب، فیلم و دوره آموزشی متناسب با علایق شما به‌زودی ارائه می‌شود.")
+            }, 120)
+        }
+        
         binding.musicCard?.setOnClickListener {
             if (MUSIC_DISABLED) {
                 showDisabledMessage("پخش موزیک")
@@ -202,6 +257,22 @@ class DashboardActivity : AppCompatActivity() {
                 showAboutDialog()
             }, 150)
         }
+    }
+    
+    private fun showCounselingDisclaimer(title: String, message: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("متوجه شدم", null)
+            .show()
+    }
+    
+    private fun showComingSoon(title: String, message: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage("⏳ به‌زودی:\n\n$message")
+            .setPositiveButton("باشه", null)
+            .show()
     }
     
     private fun loadWeather() {
