@@ -274,13 +274,14 @@ class DashboardActivity : AppCompatActivity() {
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 150)
         }
-        
+
         binding.aboutCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
                 showAboutDialog()
             }, 150)
         }
+        
     }
     
     private fun showCounselingDisclaimer(title: String, message: String) {
