@@ -166,9 +166,6 @@ dependencies {
     // Lottie for animations
     implementation 'com.airbnb.android:lottie:6.2.0'
 
-    // Persian date picker (JitPack)
-    implementation 'com.github.aliab:Persian-Date-Picker-Dialog:1.7.1'
-
     // ExoPlayer for internal music playback
     implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
     implementation 'com.google.android.exoplayer:exoplayer-ui:2.19.1'
