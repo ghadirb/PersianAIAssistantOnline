@@ -17,6 +17,7 @@ import androidx.viewbinding.ViewBinding
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.ui.VoiceRecorderView
@@ -34,13 +35,28 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected lateinit var prefsManager: PreferencesManager
     protected lateinit var ttsHelper: TTSHelper
     protected var aiClient: AIClient? = null
-    protected var currentModel: AIModel = AIModel.GPT_4O_MINI
+    protected var currentModel: AIModel = AIModel.LLAMA_3_3_70B
     protected val messages = mutableListOf<ChatMessage>()
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
+    }
+
+    private fun chooseBestModel(apiKeys: List<APIKey>): AIModel {
+        val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
+        val priority = listOf(
+            AIModel.LLAMA_3_3_70B,
+            AIModel.DEEPSEEK_R1T2,
+            AIModel.MIXTRAL_8X7B,
+            AIModel.LLAMA_2_70B,
+            AIModel.CLAUDE_SONNET,
+            AIModel.CLAUDE_HAIKU,
+            AIModel.GPT_4O,
+            AIModel.GPT_4O_MINI
+        )
+        return priority.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,7 +92,14 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val apiKeys = prefsManager.getAPIKeys()
         if (apiKeys.isNotEmpty()) {
             aiClient = AIClient(apiKeys)
-            currentModel = prefsManager.getSelectedModel()
+            val preferred = prefsManager.getSelectedModel()
+            val resolved = if (apiKeys.any { it.provider == preferred.provider && it.isActive }) {
+                preferred
+            } else {
+                chooseBestModel(apiKeys)
+            }
+            currentModel = resolved
+            prefsManager.saveSelectedModel(currentModel)
         } else {
             Toast.makeText(this, "کلید API یافت نشد.", Toast.LENGTH_LONG).show()
         }

@@ -242,6 +242,11 @@
             android:exported="false"
             android:parentActivityName=".activities.NavigationActivity"
             android:windowSoftInputMode="adjustResize" />
+            
+        <activity
+            android:name=".activities.GenericInfoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PersianAIAssistant" />
 
         <activity
             android:name=".activities.FullScreenAlarmActivity"

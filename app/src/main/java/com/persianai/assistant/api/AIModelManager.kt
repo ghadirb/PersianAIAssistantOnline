@@ -2,6 +2,10 @@ package com.persianai.assistant.api
 
 import android.content.Context
 import android.util.Log
+import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.AIProvider
+import com.persianai.assistant.models.APIKey
+import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -215,6 +219,22 @@ class AIModelManager(private val context: Context) {
         
         prefs.edit().putString(key, apiKey).apply()
         Log.d(TAG, "API key saved for $provider")
+        
+        // همگام‌سازی با PreferencesManager برای AIClient
+        val prefsManager = PreferencesManager(context)
+        val apiProvider = when (provider.toLowerCase()) {
+            "openai" -> AIProvider.OPENAI
+            "claude", "anthropic" -> AIProvider.ANTHROPIC
+            "openrouter" -> AIProvider.OPENROUTER
+            else -> null
+        }
+        if (apiProvider != null) {
+            val updatedKeys = prefsManager.getAPIKeys()
+                .filter { it.provider != apiProvider }
+                .toMutableList()
+            updatedKeys.add(APIKey(apiProvider, apiKey, true))
+            prefsManager.saveAPIKeys(updatedKeys)
+        }
     }
     
     /**

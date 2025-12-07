@@ -25,6 +25,7 @@ import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.finance.FinanceManager
 import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
@@ -63,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var checkManager: CheckManager
     private lateinit var installmentManager: InstallmentManager
     private var aiClient: AIClient? = null
-    private var currentModel: AIModel = AIModel.GPT_4O_MINI
+    private var currentModel: AIModel = AIModel.LLAMA_3_3_70B
     private lateinit var speechRecognizer: SpeechRecognizer
 
     companion object {
@@ -257,7 +258,15 @@ class MainActivity : AppCompatActivity() {
         val apiKeys = prefsManager.getAPIKeys()
         if (apiKeys.isNotEmpty()) {
             aiClient = AIClient(apiKeys)
-            currentModel = prefsManager.getSelectedModel()
+            val preferred = prefsManager.getSelectedModel()
+            val resolved = if (apiKeys.any { it.provider == preferred.provider && it.isActive }) {
+                preferred
+            } else {
+                chooseBestModel(apiKeys)
+            }
+            currentModel = resolved
+            prefsManager.saveSelectedModel(currentModel)
+            updateModelDisplay()
         }
     }
 
@@ -268,6 +277,21 @@ class MainActivity : AppCompatActivity() {
         if (message.role == MessageRole.ASSISTANT && !message.isError) {
             ttsHelper.speak(message.content)
         }
+    }
+
+    private fun chooseBestModel(apiKeys: List<APIKey>): AIModel {
+        val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
+        val priority = listOf(
+            AIModel.LLAMA_3_3_70B,
+            AIModel.DEEPSEEK_R1T2,
+            AIModel.MIXTRAL_8X7B,
+            AIModel.LLAMA_2_70B,
+            AIModel.CLAUDE_SONNET,
+            AIModel.CLAUDE_HAIKU,
+            AIModel.GPT_4O,
+            AIModel.GPT_4O_MINI
+        )
+        return priority.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
     }
 
 

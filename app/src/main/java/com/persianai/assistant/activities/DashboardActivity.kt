@@ -168,55 +168,79 @@ class DashboardActivity : AppCompatActivity() {
         binding.psychologyCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showCounselingDisclaimer(
-                    title = "مشاور روان / راهنمای آرامش",
-                    message = """
-                        توجه: بخش مشاوره این برنامه صرفاً برای راهنمایی عمومی و خودشناسی طراحی شده است.
-                        این بخش جایگزین مشاوره تخصصی روان‌شناسی یا مشاوره شغلی حرفه‌ای نیست.
-                        برای تصمیم‌های جدی یا مشکلات عمیق، مراجعه به مشاور انسانی ضروری است.
-                    """.trimIndent()
-                )
+                val intent = Intent(this, AIChatActivity::class.java).apply {
+                    putExtra(
+                        "presetMessage",
+                        "به عنوان مشاور آرامش و خودشناسی، یک گفت‌وگوی کوتاه برای مدیریت استرس و تنظیم احساسات با من شروع کن."
+                    )
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
         binding.careerCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showCounselingDisclaimer(
-                    title = "مشاور مسیر / کشف استعداد",
-                    message = """
-                        این بخش برای مصاحبه و خودشناسی است و جایگزین مشاوره تخصصی شغلی/تحصیلی نیست.
-                        برای تصمیم‌های مهم، حتماً با مشاور انسانی مشورت کنید.
-                    """.trimIndent()
-                )
+                val intent = Intent(this, AIChatActivity::class.java).apply {
+                    putExtra(
+                        "presetMessage",
+                        "می‌خواهم یک مسیر شغلی/تحصیلی مناسب پیدا کنم. با سوال‌های کوتاه کمکم کن تا مهارت‌ها و علایقم را مشخص کنم."
+                    )
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
         binding.crmCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showComingSoon("دفتر مشتریان", "مدیریت مشتریان، سوابق و یادآوری پیگیری به‌زودی فعال می‌شود.")
+                val intent = Intent(this, GenericInfoActivity::class.java).apply {
+                    putExtra(GenericInfoActivity.EXTRA_TITLE, "دفتر مشتریان")
+                    putExtra(GenericInfoActivity.EXTRA_DESC, "مشتریان، یادداشت‌ها و پیگیری‌ها را در یک جا ثبت کنید. برای افزودن قالب پیام یا پیگیری، گفت‌وگو با دستیار را شروع کنید.")
+                    putExtra(GenericInfoActivity.EXTRA_PRESET, "یک جدول ساده CRM برای پیگیری مشتریان با ستون‌های نام، شماره، آخرین تماس، اقدام بعدی بساز.")
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
         binding.docsCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showComingSoon("بانک اسناد", "جستجوی سریع قراردادها، فاکتورها و فایل‌های مهم به‌زودی اضافه می‌شود.")
+                val intent = Intent(this, GenericInfoActivity::class.java).apply {
+                    putExtra(GenericInfoActivity.EXTRA_TITLE, "بانک اسناد")
+                    putExtra(GenericInfoActivity.EXTRA_DESC, "مدیریت و جستجوی قرارداد، فاکتور و فایل‌های مهم. برای ساخت چک‌لیست برچسب‌گذاری یا خلاصه‌سازی، گفت‌وگو را شروع کنید.")
+                    putExtra(GenericInfoActivity.EXTRA_PRESET, "یک چک‌لیست برچسب‌گذاری و نام‌گذاری برای بایگانی قراردادها و فاکتورها پیشنهاد بده.")
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
         binding.financeReminderCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showComingSoon("یادآوری مالی", "هشدار قبض، قسط و سررسید وام در نسخه بعدی فعال می‌شود.")
+                val intent = Intent(this, AdvancedRemindersActivity::class.java).apply {
+                    putExtra("defaultCategory", "finance")
+                    putExtra("defaultNote", "یادآوری قبض/قسط/سررسید مالی")
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
         binding.cultureCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showComingSoon("پیشنهاد فرهنگی", "کتاب، فیلم و دوره آموزشی متناسب با علایق شما به‌زودی ارائه می‌شود.")
+                val intent = Intent(this, GenericInfoActivity::class.java).apply {
+                    putExtra(GenericInfoActivity.EXTRA_TITLE, "پیشنهاد فرهنگی")
+                    putExtra(GenericInfoActivity.EXTRA_DESC, "کتاب، فیلم و دوره آموزشی متناسب با علایق شما. با دستیار گفتگو کنید تا لیست شخصی دریافت کنید.")
+                    putExtra(GenericInfoActivity.EXTRA_PRESET, "بر اساس علایق من در توسعه فردی و تکنولوژی، ۳ کتاب و ۳ فیلم الهام‌بخش پیشنهاد بده.")
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         

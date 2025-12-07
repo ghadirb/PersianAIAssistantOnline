@@ -20,6 +20,12 @@ class AIChatActivity : BaseChatActivity() {
         
         setupChatUI()
         addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور کمکتون کنم؟"))
+
+        val preset = intent.getStringExtra("presetMessage")?.takeIf { it.isNotBlank() }
+        if (preset != null) {
+            chatBinding.messageInput.setText(preset)
+            sendMessage()
+        }
     }
     
     override fun getRecyclerView(): RecyclerView = chatBinding.chatRecyclerView

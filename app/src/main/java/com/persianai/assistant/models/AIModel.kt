@@ -12,6 +12,37 @@ enum class AIModel(
     val description: String,
     val maxTokens: Int
 ) {
+    // اولویت: OpenRouter رایگان/مقرون‌به‌صرفه
+    LLAMA_3_3_70B(
+        "meta-llama/llama-3.3-70b-instruct",
+        "Llama 3.3 70B (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "مدل قدرتمند و رایگان/مقرون‌به‌صرفه برای مکالمه عمومی",
+        8000
+    ),
+    DEEPSEEK_R1T2(
+        "deepseek/deepseek-r1-t2-chimera",
+        "DeepSeek R1T2 (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "تمرکز بر استدلال و هزینه کم برای پاسخ‌های تحلیلی",
+        8000
+    ),
+    MIXTRAL_8X7B(
+        "mistralai/mixtral-8x7b-instruct",
+        "Mixtral 8x7B (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "سریع و سبک برای کدنویسی و پاسخ‌های کوتاه",
+        8000
+    ),
+    LLAMA_2_70B(
+        "meta-llama/llama-2-70b-chat",
+        "Llama 2 70B (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "مدل پشتیبان متن‌باز و چندزبانه",
+        4000
+    ),
+
+    // OpenAI
     GPT_4O(
         "gpt-4o",
         "GPT-4o",
@@ -26,6 +57,8 @@ enum class AIModel(
         "نسخه سریع و کارآمد GPT-4o",
         128000
     ),
+
+    // Anthropic
     CLAUDE_SONNET(
         "claude-3-5-sonnet-20241022",
         "Claude 3.5 Sonnet",
@@ -46,7 +79,7 @@ enum class AIModel(
             return values().find { it.modelId == modelId }
         }
 
-        fun getDefaultModel(): AIModel = GPT_4O_MINI
+        fun getDefaultModel(): AIModel = LLAMA_3_3_70B
     }
 }
 
