@@ -79,7 +79,6 @@ class FullScreenAlarmActivity : Activity() {
             initializeViews()
             setupGestureDetector()
             setupUI()
-            cancelAlarmNotification()
             startAlarmEffects()
             showSwipeHints()
             
@@ -382,6 +381,7 @@ class FullScreenAlarmActivity : Activity() {
         isActionTaken = true
         
         Log.d(TAG, "✅ User dismissed - Swipe Right")
+        cancelAlarmNotification()
         
         try {
             val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, rootLayout.width.toFloat())
@@ -406,6 +406,7 @@ class FullScreenAlarmActivity : Activity() {
         isActionTaken = true
         
         Log.d(TAG, "⏰ User snoozed - Swipe Left")
+        cancelAlarmNotification()
         
         try {
             val animator = ObjectAnimator.ofFloat(rootLayout, "translationX", 0f, -rootLayout.width.toFloat())
@@ -433,7 +434,7 @@ class FullScreenAlarmActivity : Activity() {
     private fun cancelAlarmNotification() {
         try {
             NotificationManagerCompat.from(this).cancel(9001)
-            Log.d(TAG, "🔕 Notification 9001 cancelled to hide status bar item")
+            Log.d(TAG, "🔕 Notification 9001 cancelled")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error cancelling notification", e)
         }
@@ -590,6 +591,7 @@ class FullScreenAlarmActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "🔚 onDestroy")
+        cancelAlarmNotification()
         stopAlarm()
     }
     
