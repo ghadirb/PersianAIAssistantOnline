@@ -1,12 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#B3000000" />
-    <size android:width="160dp" android:height="160dp" />
-    <padding android:padding="8dp" />
-    <corners android:radius="80dp" />
-    <stroke android:width="2dp" android:color="#55FFFFFF" />
-    <gradient
-        android:startColor="#AA222222"
-        android:endColor="#AA444444"
-        android:angle="90"/>
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- لایهٔ نور پس‌زمینه -->
+    <item>
+        <shape android:shape="oval">
+            <size android:width="220dp" android:height="220dp" />
+            <solid android:color="#442196F3" />
+            <gradient
+                android:startColor="#552196F3"
+                android:endColor="#002196F3"
+                android:angle="270" />
+        </shape>
+    </item>
+
+    <!-- حلقهٔ بیرونی -->
+    <item android:inset="10dp">
+        <shape android:shape="oval">
+            <size android:width="200dp" android:height="200dp" />
+            <solid android:color="#9921254B" />
+            <stroke android:width="3dp" android:color="#CCFFFFFF" />
+        </shape>
+    </item>
+
+    <!-- دایرهٔ مرکزی -->
+    <item android:inset="24dp">
+        <shape android:shape="oval">
+            <size android:width="160dp" android:height="160dp" />
+            <gradient
+                android:startColor="#FF2E3A59"
+                android:centerColor="#FF344C85"
+                android:endColor="#FF2E3A59"
+                android:angle="90" />
+            <stroke android:width="2dp" android:color="#AAFFFFFF" />
+            <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
+        </shape>
+    </item>
+</layer-list>

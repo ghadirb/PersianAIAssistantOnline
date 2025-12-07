@@ -84,11 +84,40 @@
 
     </LinearLayout>
 
-    <!-- دستهٔ کشیدنی مرکزی -->
+    <!-- دستهٔ کشیدنی مرکزی با آیکون‌های راهنما -->
     <FrameLayout
+        android:id="@+id/handle_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center">
+
+        <ImageView
+            android:id="@+id/left_hint_icon"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginEnd="32dp"
+            android:layout_gravity="center_vertical|start"
+            android:src="@drawable/ic_arrow_left"
+            android:tint="@android:color/white"
+            android:alpha="0.15" />
+
+        <ImageView
+            android:id="@+id/right_hint_icon"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginStart="32dp"
+            android:layout_gravity="center_vertical|end"
+            android:src="@drawable/ic_arrow_right"
+            android:tint="@android:color/white"
+            android:alpha="0.15" />
+
+        <ImageView
+            android:id="@+id/swipe_handle_glow"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:background="@drawable/bg_swipe_handle"
+            android:alpha="0.0"
+            android:layout_gravity="center" />
 
         <ImageView
             android:id="@+id/swipe_handle"
@@ -98,7 +127,7 @@
             android:src="@drawable/ic_notification"
             android:tint="@android:color/white"
             android:padding="32dp"
-            android:elevation="8dp"
+            android:elevation="10dp"
             android:contentDescription="Drag to snooze or dismiss" />
     </FrameLayout>
 

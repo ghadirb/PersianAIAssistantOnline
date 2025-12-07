@@ -1,6 +1,8 @@
 package com.persianai.assistant.activities
 
+import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
@@ -53,6 +55,9 @@ class FullScreenAlarmActivity : Activity() {
     private lateinit var leftIcon: ImageView
     private lateinit var rightIcon: ImageView
     private lateinit var swipeHandle: ImageView
+    private lateinit var swipeHandleGlow: ImageView
+    private lateinit var leftHintIcon: ImageView
+    private lateinit var rightHintIcon: ImageView
     
     private var isActionTaken = false
     private var currentSwipeDirection = 0 // 0=none, 1=left, 2=right
@@ -172,6 +177,9 @@ class FullScreenAlarmActivity : Activity() {
             leftIcon = findViewById(R.id.left_icon)
             rightIcon = findViewById(R.id.right_icon)
             swipeHandle = findViewById(R.id.swipe_handle)
+            swipeHandleGlow = findViewById(R.id.swipe_handle_glow)
+            leftHintIcon = findViewById(R.id.left_hint_icon)
+            rightHintIcon = findViewById(R.id.right_hint_icon)
             Log.d(TAG, "✅ Views initialized")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error initializing views", e)
@@ -299,6 +307,7 @@ class FullScreenAlarmActivity : Activity() {
             Log.e(TAG, "Error setting up UI", e)
         }
         setupHandleDrag()
+        startHandlePulse()
     }
 
     /**
@@ -323,11 +332,16 @@ class FullScreenAlarmActivity : Activity() {
                     // محدودسازی جابه‌جایی برای حس بهتر
                     val clamped = diffX.coerceIn(-rootLayout.width * 0.45f, rootLayout.width * 0.45f)
                     v.translationX = clamped
+                    swipeHandleGlow.translationX = clamped * 0.4f
 
                     if (diffX > 0) {
                         showRightSwipeIndicator(minOf(abs(swipeProgress), 1f))
+                        rightHintIcon.alpha = 0.6f
+                        leftHintIcon.alpha = 0.15f
                     } else {
                         showLeftSwipeIndicator(minOf(abs(swipeProgress), 1f))
+                        leftHintIcon.alpha = 0.6f
+                        rightHintIcon.alpha = 0.15f
                     }
                     true
                 }
@@ -347,16 +361,58 @@ class FullScreenAlarmActivity : Activity() {
                     } else {
                         // برگرداندن به مرکز
                         v.animate().translationX(0f).setDuration(150).start()
+                        swipeHandleGlow.animate().translationX(0f).setDuration(150).start()
                         leftSwipeHint.visibility = View.GONE
                         rightSwipeHint.visibility = View.GONE
                         leftIcon.visibility = View.GONE
                         rightIcon.visibility = View.GONE
+                        leftHintIcon.alpha = 0.15f
+                        rightHintIcon.alpha = 0.15f
                     }
                     v.parent.requestDisallowInterceptTouchEvent(false)
                     true
                 }
                 else -> false
             }
+        }
+    }
+
+    /**
+     * انیمیشن ضربان/نور برای آیکون مرکزی و هالهٔ اطراف
+     */
+    private fun startHandlePulse() {
+        try {
+            val scaleUpX = ObjectAnimator.ofFloat(swipeHandle, View.SCALE_X, 1f, 1.08f)
+            val scaleUpY = ObjectAnimator.ofFloat(swipeHandle, View.SCALE_Y, 1f, 1.08f)
+            val scaleDownX = ObjectAnimator.ofFloat(swipeHandle, View.SCALE_X, 1.08f, 1f)
+            val scaleDownY = ObjectAnimator.ofFloat(swipeHandle, View.SCALE_Y, 1.08f, 1f)
+
+            val glowPulse = ValueAnimator.ofFloat(0.0f, 0.35f, 0.0f).apply {
+                duration = 2000
+                repeatCount = ValueAnimator.INFINITE
+                addUpdateListener { anim ->
+                    swipeHandleGlow.alpha = anim.animatedValue as Float
+                }
+            }
+
+            val set = AnimatorSet().apply {
+                play(scaleUpX).with(scaleUpY)
+                play(scaleDownX).with(scaleDownY).after(scaleUpX)
+                duration = 1200
+                interpolator = AccelerateDecelerateInterpolator()
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        if (!isActionTaken) {
+                            start()
+                        }
+                    }
+                })
+            }
+
+            set.start()
+            glowPulse.start()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error starting handle pulse", e)
         }
     }
     
