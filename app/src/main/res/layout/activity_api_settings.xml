@@ -245,6 +245,68 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Provider Preference -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/providerPrefCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="انتخاب مسیر هوشمند"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#333333" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="خودکار: مسیر هوشمند (OpenRouter) سپس OpenAI • مسیر هوشمند: ترجیح OpenRouter • OpenAI: فقط OpenAI"
+                        android:textSize="13sp"
+                        android:textColor="#666666"
+                        android:layout_marginTop="6dp" />
+
+                    <RadioGroup
+                        android:id="@+id/providerPrefGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="8dp">
+
+                        <RadioButton
+                            android:id="@+id/providerAuto"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="خودکار (پیشنهادی)"
+                            android:textSize="14sp" />
+
+                        <RadioButton
+                            android:id="@+id/providerSmart"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="مسیر هوشمند (OpenRouter اول)"
+                            android:textSize="14sp" />
+
+                        <RadioButton
+                            android:id="@+id/providerOpenAI"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="فقط OpenAI"
+                            android:textSize="14sp" />
+                    </RadioGroup>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- OpenRouter Card -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/openRouterCard"

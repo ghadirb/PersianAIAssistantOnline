@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import com.persianai.assistant.ai.PuterBridge
 
 class AIAssistantApplication : Application() {
 
@@ -18,6 +19,7 @@ class AIAssistantApplication : Application() {
         super.onCreate()
         instance = this
         createNotificationChannel()
+        PuterBridge.setContext(this)
     }
 
     private fun createNotificationChannel() {

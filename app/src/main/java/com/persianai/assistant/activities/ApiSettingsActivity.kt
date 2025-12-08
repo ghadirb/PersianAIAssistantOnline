@@ -12,6 +12,8 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.persianai.assistant.R
 import com.persianai.assistant.api.AIModelManager
+import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import kotlinx.coroutines.*
 
 class ApiSettingsActivity : AppCompatActivity() {
@@ -42,7 +44,7 @@ class ApiSettingsActivity : AppCompatActivity() {
     private lateinit var provisioningKeyInput: TextInputEditText
     private lateinit var provisioningSaveButton: Button
     private lateinit var autoProvisionSwitch: com.google.android.material.switchmaterial.SwitchMaterial
-    private lateinit var prefsManager: com.persianai.assistant.utils.PreferencesManager
+    private lateinit var prefsManager: PreferencesManager
     
     private lateinit var aimlCard: CardView
     private lateinit var aimlKeyInput: TextInputEditText
@@ -52,6 +54,10 @@ class ApiSettingsActivity : AppCompatActivity() {
     
     private lateinit var availableModelsText: TextView
     private lateinit var progressBar: ProgressBar
+    private lateinit var providerPrefGroup: RadioGroup
+    private lateinit var providerAuto: RadioButton
+    private lateinit var providerSmart: RadioButton
+    private lateinit var providerOpenAI: RadioButton
     
     private val prefs by lazy { getSharedPreferences("api_keys", MODE_PRIVATE) }
     
@@ -66,7 +72,7 @@ class ApiSettingsActivity : AppCompatActivity() {
         }
         
         modelManager = AIModelManager(this)
-        prefsManager = com.persianai.assistant.utils.PreferencesManager(this)
+        prefsManager = PreferencesManager(this)
         initializeViews()
         loadSavedKeys()
         updateAvailableModels()
@@ -145,6 +151,13 @@ class ApiSettingsActivity : AppCompatActivity() {
         
         availableModelsText = findViewById(R.id.availableModelsText)
         progressBar = findViewById(R.id.progressBar)
+
+        // Provider preference
+        providerPrefGroup = findViewById(R.id.providerPrefGroup)
+        providerAuto = findViewById(R.id.providerAuto)
+        providerSmart = findViewById(R.id.providerSmart)
+        providerOpenAI = findViewById(R.id.providerOpenAI)
+        setupProviderPreference()
         
         // Instructions button
         findViewById<Button>(R.id.instructionsButton)?.setOnClickListener {
@@ -227,6 +240,23 @@ class ApiSettingsActivity : AppCompatActivity() {
         // Provisioning saved state
         provisioningKeyInput.setText(prefsManager.getProvisioningKey() ?: "")
         autoProvisionSwitch.isChecked = prefsManager.isAutoProvisioningEnabled()
+    }
+
+    private fun setupProviderPreference() {
+        when (prefsManager.getProviderPreference()) {
+            ProviderPreference.AUTO -> providerAuto.isChecked = true
+            ProviderPreference.SMART_ROUTE -> providerSmart.isChecked = true
+            ProviderPreference.OPENAI_ONLY -> providerOpenAI.isChecked = true
+        }
+        providerPrefGroup.setOnCheckedChangeListener { _, checkedId ->
+            val pref = when (checkedId) {
+                R.id.providerSmart -> ProviderPreference.SMART_ROUTE
+                R.id.providerOpenAI -> ProviderPreference.OPENAI_ONLY
+                else -> ProviderPreference.AUTO
+            }
+            prefsManager.setProviderPreference(pref)
+            Toast.makeText(this, "مسیر انتخاب شد: ${pref.name}", Toast.LENGTH_SHORT).show()
+        }
     }
     
     private fun updateAvailableModels() {

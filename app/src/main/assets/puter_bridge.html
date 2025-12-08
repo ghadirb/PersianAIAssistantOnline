@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Puter Bridge</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 12px; background: #0f172a; color: #e2e8f0; }
+    .status { font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="status">Puter Bridge Loading...</div>
+  <script>
+    const statusEl = document.querySelector('.status');
+    function setStatus(text) { statusEl.textContent = text; }
+
+    function notifyReady() {
+      try { AndroidPuterBridge.ready(); } catch (_) {}
+    }
+
+    // Load Puter SDK
+    (function loadSDK() {
+      const script = document.createElement('script');
+      script.src = 'https://js.puter.com/v2/puter.js';
+      script.onload = () => {
+        setStatus('Puter SDK loaded');
+        notifyReady();
+      };
+      script.onerror = () => {
+        setStatus('Failed to load Puter SDK');
+        notifyReady();
+      };
+      document.head.appendChild(script);
+    })();
+
+    async function ensureAuth() {
+      if (!window.puter || !puter.auth) {
+        throw new Error('Puter SDK not ready');
+      }
+      try {
+        await puter.auth({ redirect: false });
+      } catch (e) {
+        // اگر کاربر رد کرد، خطا را به اندروید می‌دهیم تا fallback شود
+        throw e;
+      }
+    }
+
+    /**
+     * Called from Android: window.onAndroidMessage(payloadJson)
+     * payload: { id, prompt, history }
+     */
+    window.onAndroidMessage = async function(payload) {
+      let id = null;
+      try {
+        const data = JSON.parse(payload || '{}');
+        id = data.id || 'no-id';
+        const prompt = data.prompt || '';
+        const historyText = data.history || '';
+
+        await ensureAuth();
+
+        if (!puter?.ai?.chat) throw new Error('Puter.ai.chat not available');
+
+        const messages = [];
+        if (historyText) {
+          historyText.split('\n').forEach(line => {
+            const idx = line.indexOf(':');
+            if (idx > 0) {
+              const role = line.substring(0, idx).trim();
+              const content = line.substring(idx + 1).trim();
+              if (content) messages.push({ role, content });
+            }
+          });
+        }
+        messages.push({ role: 'user', content: prompt });
+
+        const response = await puter.ai.chat({ messages });
+        const text = response?.choices?.[0]?.message?.content || response?.message || response?.content || null;
+
+        AndroidPuterBridge.onResponse(JSON.stringify({ id, text }));
+      } catch (err) {
+        const error = (err && err.message) ? err.message : String(err);
+        AndroidPuterBridge.onResponse(JSON.stringify({ id, error }));
+      }
+    };
+  </script>
+</body>
+</html>

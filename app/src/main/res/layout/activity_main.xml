@@ -40,6 +40,19 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
+        <!-- Active Model Indicator -->
+        <com.google.android.material.chip.Chip
+            android:id="@+id/modelIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:text="مدل فعال"
+            android:textSize="12sp"
+            app:chipBackgroundColor="#E8EAF6"
+            app:chipStrokeWidth="0dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <!-- RecyclerView for chat messages -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"

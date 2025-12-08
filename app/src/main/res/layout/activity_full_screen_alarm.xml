@@ -121,13 +121,14 @@
 
         <ImageView
             android:id="@+id/swipe_handle"
-            android:layout_width="160dp"
-            android:layout_height="160dp"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
             android:background="@drawable/bg_swipe_handle"
-            android:src="@drawable/ic_notification"
+            android:src="@android:drawable/ic_lock_idle_alarm"
             android:tint="@android:color/white"
-            android:padding="32dp"
+            android:padding="26dp"
             android:elevation="10dp"
+            android:layout_gravity="center"
             android:contentDescription="Drag to snooze or dismiss" />
     </FrameLayout>
 

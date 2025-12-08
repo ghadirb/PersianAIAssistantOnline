@@ -26,6 +26,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_TEMPERATURE = "temperature"
         private const val KEY_SERVICE_ENABLED = "service_enabled"
         private const val KEY_WORKING_MODE = "working_mode"
+        private const val KEY_PROVIDER_PREF = "provider_pref"
         private const val KEY_WELCOME_COMPLETED = "welcome_completed"
         private const val KEY_TTS_ENABLED = "tts_enabled"
         private const val KEY_OFFLINE_MODEL_DOWNLOADED = "offline_model_downloaded"
@@ -155,6 +156,25 @@ JSON ONLY."""
             WorkingMode.valueOf(modeName!!)
         } catch (e: Exception) {
             WorkingMode.HYBRID
+        }
+    }
+
+    enum class ProviderPreference {
+        AUTO,
+        SMART_ROUTE, // OpenRouter بدون نام بردن
+        OPENAI_ONLY
+    }
+
+    fun setProviderPreference(pref: ProviderPreference) {
+        prefs.edit().putString(KEY_PROVIDER_PREF, pref.name).apply()
+    }
+
+    fun getProviderPreference(): ProviderPreference {
+        val name = prefs.getString(KEY_PROVIDER_PREF, ProviderPreference.AUTO.name)
+        return try {
+            ProviderPreference.valueOf(name!!)
+        } catch (_: Exception) {
+            ProviderPreference.AUTO
         }
     }
 

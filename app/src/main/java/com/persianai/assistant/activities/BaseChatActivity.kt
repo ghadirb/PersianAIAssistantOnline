@@ -23,6 +23,7 @@ import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
+import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,9 +45,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
         private const val REQUEST_RECORD_AUDIO = 1001
     }
 
-    private fun chooseBestModel(apiKeys: List<APIKey>): AIModel {
+    private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
-        val priority = listOf(
+        val fullPriority = listOf(
             AIModel.LLAMA_3_3_70B,
             AIModel.DEEPSEEK_R1T2,
             AIModel.MIXTRAL_8X7B,
@@ -56,7 +57,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
             AIModel.GPT_4O,
             AIModel.GPT_4O_MINI
         )
-        return priority.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
+        val filtered = when (pref) {
+            ProviderPreference.OPENAI_ONLY -> fullPriority.filter { it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
+            ProviderPreference.SMART_ROUTE -> fullPriority.filter { it.provider != com.persianai.assistant.models.AIProvider.OPENAI } + fullPriority.filter { it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
+            ProviderPreference.AUTO -> fullPriority
+        }
+        return filtered.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,10 +99,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
         if (apiKeys.isNotEmpty()) {
             aiClient = AIClient(apiKeys)
             val preferred = prefsManager.getSelectedModel()
+            val providerPref = prefsManager.getProviderPreference()
             val resolved = if (apiKeys.any { it.provider == preferred.provider && it.isActive }) {
                 preferred
             } else {
-                chooseBestModel(apiKeys)
+                chooseBestModel(apiKeys, providerPref)
             }
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)
@@ -166,6 +173,18 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     protected open suspend fun handleRequest(text: String): String = withContext(Dispatchers.IO) {
         if (aiClient == null) return@withContext "سرویس آنلاین در دسترس نیست."
+        // تلاش برای Puter.js (stub) در حالت AUTO یا SMART_ROUTE
+        val providerPref = prefsManager.getProviderPreference()
+        if (providerPref == ProviderPreference.AUTO || providerPref == ProviderPreference.SMART_ROUTE) {
+            try {
+                val puterReply = com.persianai.assistant.ai.PuterBridge.chat(text, messages)
+                if (!puterReply.isNullOrBlank()) {
+                    return@withContext puterReply
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "Puter fallback failed: ${e.message}")
+            }
+        }
         val response = aiClient!!.sendMessage(currentModel, messages, getSystemPrompt() + "\n\nپیام کاربر: " + text)
         return@withContext response.content
     }

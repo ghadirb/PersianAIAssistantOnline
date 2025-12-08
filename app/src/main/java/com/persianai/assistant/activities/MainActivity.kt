@@ -30,6 +30,8 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.*
+import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.services.AIAssistantService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -259,10 +261,11 @@ class MainActivity : AppCompatActivity() {
         if (apiKeys.isNotEmpty()) {
             aiClient = AIClient(apiKeys)
             val preferred = prefsManager.getSelectedModel()
+            val providerPref = prefsManager.getProviderPreference()
             val resolved = if (apiKeys.any { it.provider == preferred.provider && it.isActive }) {
                 preferred
             } else {
-                chooseBestModel(apiKeys)
+                chooseBestModel(apiKeys, providerPref)
             }
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)
@@ -279,9 +282,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun chooseBestModel(apiKeys: List<APIKey>): AIModel {
+    private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
-        val priority = listOf(
+        val fullPriority = listOf(
             AIModel.LLAMA_3_3_70B,
             AIModel.DEEPSEEK_R1T2,
             AIModel.MIXTRAL_8X7B,
@@ -291,7 +294,12 @@ class MainActivity : AppCompatActivity() {
             AIModel.GPT_4O,
             AIModel.GPT_4O_MINI
         )
-        return priority.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
+        val filtered = when (pref) {
+            ProviderPreference.OPENAI_ONLY -> fullPriority.filter { it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
+            ProviderPreference.SMART_ROUTE -> fullPriority.filter { it.provider != com.persianai.assistant.models.AIProvider.OPENAI } + fullPriority.filter { it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
+            ProviderPreference.AUTO -> fullPriority
+        }
+        return filtered.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
     }
 
 
@@ -686,7 +694,19 @@ class MainActivity : AppCompatActivity() {
 
             پیام کاربر: $text
         """.trimIndent()
-        
+
+        val providerPref = prefsManager.getProviderPreference()
+        if (providerPref == ProviderPreference.AUTO || providerPref == ProviderPreference.SMART_ROUTE) {
+            try {
+                val puterReply = PuterBridge.chat(text, messages)
+                if (!puterReply.isNullOrBlank()) {
+                    return@withContext processAIResponse(puterReply)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "Puter fallback failed: ${e.message}")
+            }
+        }
+
         val response = aiClient!!.sendMessage(currentModel, messages, enhancedPrompt)
         return@withContext processAIResponse(response.content)
     }
@@ -1416,6 +1436,13 @@ class MainActivity : AppCompatActivity() {
             title = "دستیار هوش مصنوعی"
             subtitle = "${currentModel.displayName}"
         }
+        val providerLabel = when (currentModel.provider) {
+            com.persianai.assistant.models.AIProvider.OPENROUTER -> "مسیر هوشمند"
+            com.persianai.assistant.models.AIProvider.OPENAI -> "OpenAI"
+            com.persianai.assistant.models.AIProvider.ANTHROPIC -> "Claude"
+            else -> currentModel.provider.name
+        }
+        binding.modelIndicator.text = "مدل: ${currentModel.displayName} • $providerLabel"
     }
     
     private fun updateModeIndicator() {
