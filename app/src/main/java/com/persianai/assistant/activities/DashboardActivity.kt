@@ -171,15 +171,16 @@ class DashboardActivity : AppCompatActivity() {
                 showCounselingDisclaimer(
                     "مشاور آرامش",
                     "این بخش تنها نقش همراه و شنونده دارد و جایگزین درمانگر یا روان‌شناس نیست. در شرایط اضطرار با متخصص تماس بگیرید."
-                )
-                val intent = Intent(this, AIChatActivity::class.java).apply {
-                    putExtra(
-                        "presetMessage",
-                        "به عنوان مشاور آرامش و خودشناسی، یک گفت‌وگوی کوتاه برای مدیریت استرس و تنظیم احساسات با من شروع کن."
-                    )
+                ) {
+                    val intent = Intent(this, AIChatActivity::class.java).apply {
+                        putExtra(
+                            "presetMessage",
+                            "به عنوان مشاور آرامش و خودشناسی، یک گفت‌وگوی کوتاه برای مدیریت استرس و تنظیم احساسات با من شروع کن."
+                        )
+                    }
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                 }
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
@@ -189,15 +190,16 @@ class DashboardActivity : AppCompatActivity() {
                 showCounselingDisclaimer(
                     "مشاور مسیر",
                     "این راهنما پیشنهادهای کلی می‌دهد و مسئولیت تصمیم‌های شغلی یا تحصیلی با خود شماست. برای تصمیم نهایی با یک مشاور انسانی مشورت کنید."
-                )
-                val intent = Intent(this, AIChatActivity::class.java).apply {
-                    putExtra(
-                        "presetMessage",
-                        "می‌خواهم یک مسیر شغلی/تحصیلی مناسب پیدا کنم. با سوال‌های کوتاه کمکم کن تا مهارت‌ها و علایقم را مشخص کنم."
-                    )
+                ) {
+                    val intent = Intent(this, AIChatActivity::class.java).apply {
+                        putExtra(
+                            "presetMessage",
+                            "می‌خواهم یک مسیر شغلی/تحصیلی مناسب پیدا کنم. با سوال‌های کوتاه کمکم کن تا مهارت‌ها و علایقم را مشخص کنم."
+                        )
+                    }
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                 }
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
         }
         
@@ -221,18 +223,6 @@ class DashboardActivity : AppCompatActivity() {
                     putExtra(GenericInfoActivity.EXTRA_TITLE, "بانک اسناد")
                     putExtra(GenericInfoActivity.EXTRA_DESC, "مدیریت و جستجوی قرارداد، فاکتور و فایل‌های مهم. برای ساخت چک‌لیست برچسب‌گذاری یا خلاصه‌سازی، گفت‌وگو را شروع کنید.")
                     putExtra(GenericInfoActivity.EXTRA_PRESET, "یک چک‌لیست برچسب‌گذاری و نام‌گذاری برای بایگانی قراردادها و فاکتورها پیشنهاد بده.")
-                }
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            }, 120)
-        }
-        
-        binding.financeReminderCard?.setOnClickListener {
-            AnimationHelper.clickAnimation(it)
-            it.postDelayed({
-                val intent = Intent(this, AdvancedRemindersActivity::class.java).apply {
-                    putExtra("defaultCategory", "finance")
-                    putExtra("defaultNote", "یادآوری قبض/قسط/سررسید مالی")
                 }
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
@@ -292,11 +282,11 @@ class DashboardActivity : AppCompatActivity() {
         
     }
     
-    private fun showCounselingDisclaimer(title: String, message: String) {
+    private fun showCounselingDisclaimer(title: String, message: String, onConfirmed: (() -> Unit)? = null) {
         MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setMessage(message)
-            .setPositiveButton("متوجه شدم", null)
+            .setPositiveButton("متوجه شدم") { _, _ -> onConfirmed?.invoke() }
             .show()
     }
     

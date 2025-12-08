@@ -114,6 +114,13 @@ class ReminderReceiver : BroadcastReceiver() {
     ) {
         try {
             Log.d(TAG, "🎬 Starting FullScreenAlarmActivity directly (and posting fullScreen notification)")
+            val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val screenOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+                pm.isInteractive
+            } else {
+                @Suppress("DEPRECATION")
+                pm.isScreenOn
+            }
 
             // Intent برای Activity
             val alarmIntent = Intent(context, FullScreenAlarmActivity::class.java).apply {
@@ -126,52 +133,57 @@ class ReminderReceiver : BroadcastReceiver() {
                 putExtra("smart_reminder_id", reminderId)
             }
 
-            // PendingIntent برای fullScreenIntent
-            val pendingIntentFlags =
-                PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    PendingIntent.FLAG_IMMUTABLE
-                } else 0
+            if (!screenOn) {
+                // PendingIntent برای fullScreenIntent
+                val pendingIntentFlags =
+                    PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        PendingIntent.FLAG_IMMUTABLE
+                    } else 0
 
-            val fullScreenPendingIntent = PendingIntent.getActivity(
-                context,
-                reminderId?.hashCode() ?: 1001,
-                alarmIntent,
-                pendingIntentFlags
-            )
+                val fullScreenPendingIntent = PendingIntent.getActivity(
+                    context,
+                    reminderId?.hashCode() ?: 1001,
+                    alarmIntent,
+                    pendingIntentFlags
+                )
 
-            // کانال نوتیفیکیشن با اهمیت بالا
-            val channelId = "full_screen_alarm_channel"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    channelId,
-                    "Full Screen Alarm",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    this.description = "Full screen alarm reminders"
-                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                // کانال نوتیفیکیشن با اهمیت بالا
+                val channelId = "full_screen_alarm_channel"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        channelId,
+                        "Full Screen Alarm",
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply {
+                        this.description = "Full screen alarm reminders"
+                        lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                    }
+                    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    nm.createNotificationChannel(channel)
                 }
-                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                nm.createNotificationChannel(channel)
+
+                val notification = NotificationCompat.Builder(context, channelId)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(title)
+                    .setContentText(description.ifEmpty { "یادآوری تمام‌صفحه" })
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                    .setCategory(NotificationCompat.CATEGORY_ALARM)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .setFullScreenIntent(fullScreenPendingIntent, true)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setAutoCancel(false)
+                    .setOngoing(true)
+                    .build()
+
+                NotificationManagerCompat.from(context).notify(9001, notification)
+                Log.d(TAG, "✅ fullScreen notification posted (screen off/locked)")
+            } else {
+                Log.d(TAG, "✅ Screen is on; skipping notification and launching activity directly")
             }
-
-            val notification = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title)
-                .setContentText(description.ifEmpty { "یادآوری تمام‌صفحه" })
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setFullScreenIntent(fullScreenPendingIntent, true)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .build()
-
-            NotificationManagerCompat.from(context).notify(9001, notification)
 
             // همچنین Activity را صراحتاً استارت کنیم تا در فورگراند هم کار کند
             context.startActivity(alarmIntent)
-            Log.d(TAG, "✅ fullScreen notification posted & Activity start requested")
+            Log.d(TAG, "✅ FullScreen activity start requested")
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error starting activity", e)

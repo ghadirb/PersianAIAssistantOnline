@@ -104,14 +104,15 @@
                         android:layout_marginTop="6dp" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="مناسبت‌ها"
-                        android:textColor="@android:color/white"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:paddingTop="4dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -155,14 +156,15 @@
                         android:layout_marginTop="8dp" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="آب و هوا"
-                        android:textColor="@android:color/white"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="8dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -204,14 +206,15 @@
                         android:layout_marginTop="8dp" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="چت هوشمند"
-                        android:textColor="@android:color/white"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="8dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -253,14 +256,15 @@
                         android:layout_marginTop="8dp" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="آهنگ‌های محلی"
-                        android:textColor="#FFF3E0"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="6dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -302,14 +306,15 @@
                         android:layout_marginTop="8dp" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="مدیریت هزینه‌ها"
-                        android:textColor="#FCE4EC"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="6dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -351,14 +356,15 @@
                         android:layout_marginTop="8dp" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="رویدادهای مهم"
-                        android:textColor="#FFF9C4"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="6dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -399,14 +405,15 @@
                         android:textStyle="bold" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="راهنمای صوتی"
-                        android:textColor="#E8EAF6"
+                        android:textColor="#FDFDFD"
                         android:textSize="13sp"
                         android:maxLines="2"
                         android:ellipsize="end"
-                        android:layout_marginTop="6dp" />
+                        android:paddingTop="6dp"
+                        android:textAlignment="center" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -447,14 +454,15 @@
                             android:layout_marginTop="8dp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="راهنمای سبک زندگی و آرامش"
-                            android:textColor="#E1BEE7"
+                            android:textColor="#FDFDFD"
                             android:textSize="13sp"
                             android:maxLines="2"
                             android:ellipsize="end"
-                            android:paddingTop="4dp" />
+                            android:paddingTop="6dp"
+                            android:textAlignment="center" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -495,14 +503,15 @@
                             android:layout_marginTop="8dp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="کشف استعداد و مصاحبه"
-                            android:textColor="#C5CAE9"
+                            android:textColor="#FDFDFD"
                             android:textSize="13sp"
                             android:maxLines="2"
                             android:ellipsize="end"
-                            android:paddingTop="4dp" />
+                            android:paddingTop="6dp"
+                            android:textAlignment="center" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -543,14 +552,15 @@
                             android:layout_marginTop="8dp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="CRM سبک و سریع"
-                            android:textColor="#B2DFDB"
+                            android:textColor="#FDFDFD"
                             android:textSize="13sp"
                             android:maxLines="2"
                             android:ellipsize="end"
-                            android:paddingTop="4dp" />
+                            android:paddingTop="6dp"
+                            android:textAlignment="center" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -591,62 +601,15 @@
                             android:layout_marginTop="8dp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="قرارداد، فاکتور، فایل‌ها"
-                            android:textColor="#CFD8DC"
+                            android:textColor="#FDFDFD"
                             android:textSize="13sp"
                             android:maxLines="2"
                             android:ellipsize="end"
-                            android:paddingTop="4dp" />
-
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- یادآوری مالی -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/financeReminderCard"
-                    android:layout_width="0dp"
-                    android:layout_height="180dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="8dp"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="16dp"
-                        android:background="#F57C00">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="⏰"
-                            android:textSize="56sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="یادآوری مالی"
-                            android:textColor="@android:color/white"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:layout_marginTop="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="کتاب، فیلم، دوره آموزشی"
-                            android:textColor="#E1BEE7"
-                            android:textSize="13sp"
-                            android:maxLines="2"
-                            android:ellipsize="end"
-                            android:paddingTop="4dp" />
+                            android:paddingTop="6dp"
+                            android:textAlignment="center" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -735,14 +698,15 @@
                             android:textStyle="bold" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="نسخه، حریم خصوصی و حمایت"
-                            android:textColor="#B0BEC5"
+                            android:textColor="#FDFDFD"
                             android:textSize="13sp"
                             android:maxLines="2"
                             android:ellipsize="end"
-                            android:layout_marginTop="6dp" />
+                            android:paddingTop="6dp"
+                            android:textAlignment="center" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

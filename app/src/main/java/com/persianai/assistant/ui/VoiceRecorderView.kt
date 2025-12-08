@@ -49,6 +49,9 @@ class VoiceRecorderView @JvmOverloads constructor(
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val waveformPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val micIconPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val micDrawable = ContextCompat.getDrawable(context, R.drawable.ic_mic)?.mutate()?.apply {
+        setTint(Color.WHITE)
+    }
     
     // Animation
     private var pulseAnimator: ValueAnimator? = null
@@ -118,14 +121,24 @@ class VoiceRecorderView @JvmOverloads constructor(
         
         val centerX = width / 2f
         val centerY = height / 2f
+        val baseRadius = min(width, height) * 0.35f
+        val pulseAdd = min(width, height) * 0.08f
         
-        // Draw background circle with pulse effect
+        // Draw background circle with pulse effect (responsive to view size)
         paint.color = if (isCancelled) cancelColor else recordColor
-        paint.alpha = if (isRecording) (100 + pulseRadius * 1.5f).toInt() else 255
-        canvas.drawCircle(centerX - slideOffset, centerY, 80f + pulseRadius, paint)
+        paint.alpha = if (isRecording) (120 + pulseRadius * 2f).toInt().coerceAtMost(255) else 240
+        canvas.drawCircle(centerX - slideOffset, centerY, baseRadius + pulseRadius * pulseAdd, paint)
         
-        // Draw mic icon
-        canvas.drawText("🎤", centerX - slideOffset, centerY + 20, micIconPaint)
+        // Draw mic icon (Material drawable)
+        micDrawable?.let { drawable ->
+            val iconSize = baseRadius * 0.85f  // smaller icon
+            val left = (centerX - slideOffset - iconSize / 2).toInt()
+            val top = (centerY - iconSize / 2).toInt()
+            val right = (centerX - slideOffset + iconSize / 2).toInt()
+            val bottom = (centerY + iconSize / 2).toInt()
+            drawable.setBounds(left, top, right, bottom)
+            drawable.draw(canvas)
+        }
         
         if (isRecording) {
             // Draw waveform
@@ -151,10 +164,20 @@ class VoiceRecorderView @JvmOverloads constructor(
             if (slideOffset > 150) {
                 paint.color = cancelColor
                 paint.alpha = 200
-                canvas.drawCircle(centerX - slideOffset, centerY, 100f, paint)
+                canvas.drawCircle(centerX - slideOffset, centerY, baseRadius + 12f, paint)
                 textPaint.color = Color.WHITE
                 canvas.drawText("❌", centerX - slideOffset, centerY + 15, textPaint)
             }
+        } else {
+            // Idle hint
+            textPaint.color = Color.WHITE
+            textPaint.alpha = 210
+            textPaint.textSize = 26f
+            canvas.drawText("برای ضبط نگه دارید", centerX, centerY + baseRadius + 32f, textPaint)
+            textPaint.textSize = 20f
+            canvas.drawText("برای لغو به چپ بکشید", centerX, centerY + baseRadius + 64f, textPaint)
+            textPaint.alpha = 255
+            textPaint.textSize = 40f
         }
     }
     
@@ -317,8 +340,8 @@ class VoiceRecorderView @JvmOverloads constructor(
     }
     
     private fun startPulseAnimation() {
-        pulseAnimator = ValueAnimator.ofFloat(0f, 20f).apply {
-            duration = 1500
+        pulseAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1300
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             interpolator = DecelerateInterpolator()
