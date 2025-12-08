@@ -14,6 +14,9 @@ android {
         targetSdk 34
         versionCode 35
         versionName "5.11"
+        
+        // کلید مسیریابی نشان (مقدار پیش‌فرض، لطفا در زمان بیلد مقدار واقعی را جایگزین کنید)
+        buildConfigField "String", "NESHAN_API_KEY", "\"REPLACE_WITH_NESHAN_KEY\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         

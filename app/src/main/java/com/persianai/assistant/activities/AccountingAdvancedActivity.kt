@@ -3,7 +3,11 @@ package com.persianai.assistant.activities
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityAccountingAdvancedBinding
+import com.persianai.assistant.finance.FinanceManager
+import java.util.Calendar
+import kotlin.math.abs
 
 class AccountingAdvancedActivity : AppCompatActivity() {
 
@@ -44,6 +48,14 @@ class AccountingAdvancedActivity : AppCompatActivity() {
         
         binding.btnYearlyBalance.setOnClickListener {
             showYearlyBalance()
+        }
+        
+        binding.btnExpenseInsights.setOnClickListener {
+            showExpenseInsights()
+        }
+        
+        binding.btnMonthCompare.setOnClickListener {
+            showMonthCompare()
         }
         
         binding.btnAddIncomeManual.setOnClickListener {
@@ -148,6 +160,124 @@ class AccountingAdvancedActivity : AppCompatActivity() {
         val balance = income - expense
         val message = "📊 تراز سالانه:\n💰 درآمد: ${String.format("%,.0f", income)} تومان\n💸 هزینه: ${String.format("%,.0f", expense)} تومان\n📊 تراز: ${String.format("%,.0f", balance)} تومان"
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+    }
+    
+    private fun showExpenseInsights() {
+        val financeManager = FinanceManager(this)
+        val transactions = financeManager.getAllTransactions().filter { it.type == "expense" }
+        if (transactions.isEmpty()) {
+            android.widget.Toast.makeText(this, "هزینه‌ای ثبت نشده است", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val now = Calendar.getInstance()
+        val currentMonth = now.get(Calendar.MONTH)
+        val currentYear = now.get(Calendar.YEAR)
+        
+        var monthExpense = 0.0
+        val categoryMap = mutableMapOf<String, Double>()
+        val cal = Calendar.getInstance()
+        
+        transactions.forEach { t ->
+            cal.timeInMillis = t.date
+            if (cal.get(Calendar.MONTH) == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
+                monthExpense += t.amount
+                categoryMap[t.category] = (categoryMap[t.category] ?: 0.0) + t.amount
+            }
+        }
+        
+        val daysPassed = now.get(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+        val dailyAvg = monthExpense / daysPassed
+        val topCategory = categoryMap.maxByOrNull { it.value }
+        
+        // هفته جاری و هفته قبل برای هشدار مصرف
+        val millisInDay = 24 * 60 * 60 * 1000L
+        val currentWeekStart = now.timeInMillis - (6 * millisInDay)
+        val prevWeekStart = currentWeekStart - (7 * millisInDay)
+        val prevWeekEnd = currentWeekStart - 1
+        
+        var currentWeekExpense = 0.0
+        var prevWeekExpense = 0.0
+        transactions.forEach { t ->
+            if (t.date >= currentWeekStart) {
+                currentWeekExpense += t.amount
+            } else if (t.date in prevWeekStart..prevWeekEnd) {
+                prevWeekExpense += t.amount
+            }
+        }
+        
+        val builder = StringBuilder()
+        builder.appendLine("مجموع هزینه‌های ماه جاری: ${formatAmount(monthExpense)}")
+        builder.appendLine("میانگین روزانه ماه جاری: ${formatAmount(dailyAvg)}")
+        if (topCategory != null) {
+            val share = if (monthExpense > 0) (topCategory.value / monthExpense * 100).toInt() else 0
+            builder.appendLine("بیشترین دسته: ${topCategory.key} (${formatAmount(topCategory.value)}، ${share}٪)")
+        }
+        if (prevWeekExpense > 0) {
+            val change = ((currentWeekExpense - prevWeekExpense) / prevWeekExpense) * 100
+            val sign = if (change >= 0) "⬆️" else "⬇️"
+            builder.appendLine("هفته جاری نسبت به هفته قبل: $sign ${change.toInt()}٪")
+        } else {
+            builder.appendLine("برای هشدار هفتگی، داده‌ی هفته قبل کافی نیست.")
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📈 نمودار و هشدار هزینه")
+            .setMessage(builder.toString())
+            .setPositiveButton("باشه", null)
+            .show()
+    }
+    
+    private fun showMonthCompare() {
+        val financeManager = FinanceManager(this)
+        val now = Calendar.getInstance()
+        val currentMonthIndex = now.get(Calendar.MONTH) + 1 // 1-12
+        val currentYear = now.get(Calendar.YEAR)
+        
+        val prevCalendar = Calendar.getInstance().apply { add(Calendar.MONTH, -1) }
+        val prevMonthIndex = prevCalendar.get(Calendar.MONTH) + 1
+        val prevYear = prevCalendar.get(Calendar.YEAR)
+        
+        val current = financeManager.getMonthlyReport(currentYear, currentMonthIndex)
+        val prev = financeManager.getMonthlyReport(prevYear, prevMonthIndex)
+        
+        val incomeDiff = current.first - prev.first
+        val expenseDiff = current.second - prev.second
+        val balanceCurrent = current.first - current.second
+        val balancePrev = prev.first - prev.second
+        
+        val builder = StringBuilder()
+        builder.appendLine("ماه جاری: درآمد ${formatAmount(current.first)} | هزینه ${formatAmount(current.second)} | تراز ${formatAmount(balanceCurrent)}")
+        builder.appendLine("ماه قبل: درآمد ${formatAmount(prev.first)} | هزینه ${formatAmount(prev.second)} | تراز ${formatAmount(balancePrev)}")
+        
+        if (prev.first > 0) {
+            val incChange = ((current.first - prev.first) / prev.first) * 100
+            builder.appendLine("تغییر درآمد: ${formatPercent(incChange)}")
+        } else {
+            builder.appendLine("تغییر درآمد: داده کافی برای ماه قبل نیست.")
+        }
+        
+        if (prev.second > 0) {
+            val expChange = ((current.second - prev.second) / prev.second) * 100
+            builder.appendLine("تغییر هزینه: ${formatPercent(expChange)}")
+        } else {
+            builder.appendLine("تغییر هزینه: داده کافی برای ماه قبل نیست.")
+        }
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("📊 مقایسه ماه جاری و قبل")
+            .setMessage(builder.toString())
+            .setPositiveButton("باشه", null)
+            .show()
+    }
+    
+    private fun formatAmount(amount: Double): String {
+        return "${String.format("%,.0f", amount)} تومان"
+    }
+    
+    private fun formatPercent(value: Double): String {
+        val sign = if (value >= 0) "⬆️" else "⬇️"
+        return "$sign ${abs(value).toInt()}٪"
     }
     
     private fun showManualInputDialog(type: String, action: String) {

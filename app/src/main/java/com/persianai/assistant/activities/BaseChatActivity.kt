@@ -22,6 +22,7 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.SecureMessageStorage
 import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected val messages = mutableListOf<ChatMessage>()
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
+    private lateinit var secureMessageStorage: SecureMessageStorage
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -71,6 +73,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        secureMessageStorage = SecureMessageStorage(this)
     }
 
     protected abstract fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView
@@ -79,9 +82,22 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected abstract fun getVoiceButton(): View
 
     protected open fun setupChatUI() {
+        loadPersistedMessages()
         setupRecyclerView()
         setupListeners()
         setupAIClient()
+    }
+
+    private fun loadPersistedMessages() {
+        try {
+            val persisted = secureMessageStorage.loadMessages()
+            if (persisted.isNotEmpty()) {
+                messages.clear()
+                messages.addAll(persisted)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BaseChatActivity", "Failed to load messages", e)
+        }
     }
 
     private fun setupRecyclerView() {
@@ -197,6 +213,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
         getRecyclerView().smoothScrollToPosition(messages.size - 1)
+        try {
+            secureMessageStorage.saveMessages(messages)
+        } catch (e: Exception) {
+            android.util.Log.e("BaseChatActivity", "Failed to persist messages", e)
+        }
         if (message.role == MessageRole.ASSISTANT && !message.isError) {
             ttsHelper.speak(message.content)
         }

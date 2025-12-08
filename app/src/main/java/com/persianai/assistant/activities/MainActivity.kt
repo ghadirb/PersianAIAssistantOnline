@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private val swipeThreshold = 100f
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private var currentConversation: com.persianai.assistant.models.Conversation? = null
+    private lateinit var secureMessageStorage: SecureMessageStorage
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var chatAdapter: ChatAdapter
@@ -99,6 +100,7 @@ class MainActivity : AppCompatActivity() {
             checkManager = CheckManager(this)
             installmentManager = InstallmentManager(this)
             conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
+            secureMessageStorage = SecureMessageStorage(this)
             
             // Initialize Default API Keys if available
             try {
@@ -110,9 +112,9 @@ class MainActivity : AppCompatActivity() {
             android.util.Log.d("MainActivity", "Managers initialized")
             
             setupChatUI()
-            
-            loadMessages()
-            android.util.Log.d("MainActivity", "Messages loaded")
+        
+        loadMessages()
+        android.util.Log.d("MainActivity", "Messages loaded")
             
             setupListeners()
             android.util.Log.d("MainActivity", "Listeners setup")
@@ -276,7 +278,12 @@ class MainActivity : AppCompatActivity() {
     private fun addMessage(message: ChatMessage) {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
-        binding.recyclerView.smoothScrollToPosition(messages.size - 1)
+        binding.chatRecyclerView.smoothScrollToPosition(messages.size - 1)
+        try {
+            secureMessageStorage.saveMessages(messages)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to persist messages", e)
+        }
         if (message.role == MessageRole.ASSISTANT && !message.isError) {
             ttsHelper.speak(message.content)
         }
@@ -1188,22 +1195,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadMessages() {
-        lifecycleScope.launch {
-            // بررسی اینکه آیا چت قبلی وجود دارد
-            val conversationId = conversationStorage.getCurrentConversationId()
-            
-            if (conversationId != null) {
-                // بارگذاری چت قبلی
-                currentConversation = conversationStorage.getConversation(conversationId)
-                currentConversation?.messages?.let {
-                    messages.addAll(it)
-                    chatAdapter.notifyDataSetChanged()
-                    if (messages.isNotEmpty()) {
-                        binding.recyclerView.scrollToPosition(messages.size - 1)
-                    }
-                }
+        try {
+            messages.clear()
+            val persisted = secureMessageStorage.loadMessages()
+            if (persisted.isNotEmpty()) {
+                messages.addAll(persisted)
             } else {
-                // شروع چت جدید
+                val stored = conversationStorage.getMessages()
+                if (stored.isNotEmpty()) {
+                    messages.addAll(stored)
+                } else {
+                    val history = conversationStorage.getLastConversationMessages()
+                    messages.addAll(history)
+                }
                 startNewConversation()
             }
         }

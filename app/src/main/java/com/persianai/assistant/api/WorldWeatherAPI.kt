@@ -30,6 +30,7 @@ class WorldWeatherAPI {
             val windSpeed: Double,
             val description: String,
             val icon: String,
+            val iconUrl: String?,
             val cityName: String,
             val uvIndex: Int,
             val visibility: Int
@@ -42,6 +43,7 @@ class WorldWeatherAPI {
             val avgTemp: Double,
             val description: String,
             val icon: String,
+            val iconUrl: String?,
             val hourly: List<HourlyForecast>
         )
         
@@ -51,6 +53,7 @@ class WorldWeatherAPI {
             val feelsLike: Double,
             val description: String,
             val icon: String,
+            val iconUrl: String?,
             val chanceOfRain: Int
         )
         
@@ -82,6 +85,7 @@ class WorldWeatherAPI {
                         windSpeed = currentCondition.getDouble("windspeedKmph"),
                         description = currentCondition.getJSONArray("lang_fa").getJSONObject(0).getString("value"),
                         icon = currentCondition.getString("weatherCode"),
+                        iconUrl = currentCondition.getJSONArray("weatherIconUrl").getJSONObject(0).getString("value"),
                         cityName = cityName,
                         uvIndex = currentCondition.optInt("uvIndex", 0),
                         visibility = currentCondition.optInt("visibility", 10)
@@ -128,6 +132,7 @@ class WorldWeatherAPI {
                                 feelsLike = hour.getDouble("FeelsLikeC"),
                                 description = hour.getJSONArray("lang_fa").getJSONObject(0).getString("value"),
                                 icon = hour.getString("weatherCode"),
+                                iconUrl = hour.getJSONArray("weatherIconUrl").getJSONObject(0).getString("value"),
                                 chanceOfRain = hour.optInt("chanceofrain", 0)
                             ))
                         }
@@ -150,6 +155,7 @@ class WorldWeatherAPI {
                             avgTemp = day.getDouble("avgtempC"),
                             description = middayForecast?.description ?: "",
                             icon = middayForecast?.icon ?: "113",
+                            iconUrl = middayForecast?.iconUrl,
                             hourly = hourlyForecasts
                         ))
                     }

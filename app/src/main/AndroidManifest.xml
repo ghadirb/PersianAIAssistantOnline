@@ -104,8 +104,14 @@
 
         <activity
             android:name=".activities.ReminderChatActivity"
-            android:exported="false"
-            android:parentActivityName=".activities.AdvancedRemindersActivity" />
+            android:exported="false" />
+
+        <activity
+            android:name=".activities.CommandLibraryActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.NotesActivity"
+            android:exported="false" />
 
         <activity
             android:name=".activities.ExpensesActivity"
@@ -162,6 +168,18 @@
             android:name=".activities.NavigationActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
+        
+        <!-- ورودی اشتراک‌گذاری مکان (نشان / گوگل‌مپ) -->
+        <activity
+            android:name=".activities.LocationImportActivity"
+            android:exported="true"
+            android:theme="@style/Theme.PersianAIAssistant">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         
         <activity
             android:name=".activities.RealNavigationActivity"

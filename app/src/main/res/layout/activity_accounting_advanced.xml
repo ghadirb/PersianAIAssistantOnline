@@ -265,6 +265,66 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- تحلیل هوشمند مالی -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_smart_analytics"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🤖 تحلیل هوشمند مالی"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primaryColor" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="نمودار هزینه‌ها، هشدار مصرف غیرعادی، مقایسه ماهانه"
+                            android:textSize="13sp"
+                            android:textColor="#666" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="12dp">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_expense_insights"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="📈 نمودار/هشدار" />
+
+                            <Space
+                                android:layout_width="8dp"
+                                android:layout_height="wrap_content" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_month_compare"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="📊 مقایسه ماهانه" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
                 <!-- فرم دستی -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/card_manual_input"

@@ -2,6 +2,8 @@ package com.persianai.assistant.activities
 
 import android.Manifest
 import android.app.Activity
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -16,11 +18,15 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.android.gms.location.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivityNavigationBinding
 import com.persianai.assistant.navigation.models.NavigationRoute
 import com.persianai.assistant.navigation.SavedLocationsManager
+import com.persianai.assistant.navigation.LocationShareParser
 import org.osmdroid.util.GeoPoint as OsmGeoPoint
 import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.ml.LocationHistoryManager
@@ -737,28 +743,250 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showSavedLocations() {
-        val locations = savedLocationsManager.getAllLocations()
-        if (locations.isEmpty()) {
-            Toast.makeText(this, "💾 هیچ مکانی ذخیره نشده", Toast.LENGTH_SHORT).show()
-            return
+        val locations = savedLocationsManager.getAllLocations().sortedByDescending { it.timestamp }
+
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(24.toPx(), 16.toPx(), 24.toPx(), 8.toPx())
         }
-        
-        val items = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
+
+        val actionsRow = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            weightSum = 2f
+        }
+
+        val manualBtn = MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = "✏️ افزودن دستی"
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = 8.toPx()
+            }
+            setOnClickListener { showManualAddLocationDialog() }
+        }
+
+        val clipboardBtn = MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = "📋 از کلیپ‌بورد"
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = 8.toPx()
+            }
+            setOnClickListener { importFromClipboardToSaved() }
+        }
+
+        actionsRow.addView(manualBtn)
+        actionsRow.addView(clipboardBtn)
+        container.addView(actionsRow)
+
+        val listLayout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(0, 12.toPx(), 0, 0)
+        }
+
+        if (locations.isEmpty()) {
+            val empty = TextView(this).apply {
+                text = "هیچ مکانی ذخیره نشده. از دکمه‌های بالا استفاده کنید."
+                setPadding(8.toPx(), 8.toPx(), 8.toPx(), 8.toPx())
+            }
+            listLayout.addView(empty)
+        } else {
+            locations.forEach { loc ->
+                listLayout.addView(buildSavedLocationRow(loc))
+            }
+        }
+
+        val scroll = android.widget.ScrollView(this)
+        scroll.addView(listLayout)
+        container.addView(scroll)
+
         MaterialAlertDialogBuilder(this)
             .setTitle("💾 مکان‌های ذخیره شده")
-            .setItems(items) { _, which ->
-                val location = locations[which]
-                selectedDestination = LatLng(location.latitude, location.longitude)
-                webView.evaluateJavascript("addMarker(${location.latitude}, ${location.longitude}, '${location.name}');", null)
-                Toast.makeText(this, "📍 ${location.name}", Toast.LENGTH_SHORT).show()
-            }
-            .setNeutralButton("مدیریت") { _, _ ->
-                showManageLocationsDialog()
-            }
+            .setView(container)
+            .setNeutralButton("مدیریت") { _, _ -> showManageLocationsDialog() }
             .setNegativeButton("بستن", null)
             .show()
     }
     
+    private fun buildSavedLocationRow(loc: SavedLocationsManager.SavedLocation): android.view.View {
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(12.toPx(), 12.toPx(), 12.toPx(), 12.toPx())
+            background = androidx.core.content.ContextCompat.getDrawable(this@NavigationActivity, com.google.android.material.R.drawable.mtrl_surface)
+        }
+
+        val title = TextView(this).apply {
+            text = "${getCategoryEmoji(loc.category)} ${loc.name}"
+            textSize = 16f
+        }
+
+        val subtitle = TextView(this).apply {
+            text = "${String.format("%.5f", loc.latitude)}, ${String.format("%.5f", loc.longitude)}  ·  منبع: ${loc.source}"
+            textSize = 12f
+            setTextColor(0xFF666666.toInt())
+        }
+
+        val address = TextView(this).apply {
+            text = loc.address.ifBlank { "—" }
+            textSize = 13f
+            setTextColor(0xFF444444.toInt())
+        }
+
+        val actions = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+        }
+
+        val selectBtn = MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = "انتخاب"
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = 8.toPx()
+            }
+            setOnClickListener {
+                selectedDestination = LatLng(loc.latitude, loc.longitude)
+                webView.evaluateJavascript("addMarker(${loc.latitude}, ${loc.longitude}, '${loc.name}');", null)
+                Toast.makeText(this@NavigationActivity, "📍 ${loc.name}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        val deleteBtn = MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = "حذف"
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = 8.toPx()
+            }
+            setOnClickListener {
+                MaterialAlertDialogBuilder(this@NavigationActivity)
+                    .setTitle("حذف ${loc.name}؟")
+                    .setMessage("آیا مطمئن هستید؟")
+                    .setPositiveButton("حذف") { _, _ ->
+                        savedLocationsManager.deleteLocation(loc.id)
+                        Toast.makeText(this@NavigationActivity, "✅ حذف شد", Toast.LENGTH_SHORT).show()
+                        showSavedLocations()
+                    }
+                    .setNegativeButton("لغو", null)
+                    .show()
+            }
+        }
+
+        actions.addView(selectBtn)
+        actions.addView(deleteBtn)
+
+        row.addView(title)
+        row.addView(subtitle)
+        row.addView(address)
+        row.addView(actions)
+        return row
+    }
+
+    private fun showManualAddLocationDialog() {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(24.toPx(), 16.toPx(), 24.toPx(), 0)
+        }
+
+        val nameInput = TextInputEditText(this).apply { hint = "نام" }
+        val latInput = TextInputEditText(this).apply { hint = "عرض جغرافیایی (lat)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED }
+        val lngInput = TextInputEditText(this).apply { hint = "طول جغرافیایی (lng)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED }
+
+        val nameTil = TextInputLayout(this).apply { addView(nameInput) }
+        val latTil = TextInputLayout(this).apply { addView(latInput) }
+        val lngTil = TextInputLayout(this).apply { addView(lngInput) }
+
+        val categories = arrayOf("🏠 خانه", "💼 محل کار", "⭐ علاقه‌مندی")
+        var selectedCategory = "favorite"
+
+        val radioGroup = android.widget.RadioGroup(this).apply {
+            orientation = android.widget.RadioGroup.HORIZONTAL
+            val home = android.widget.RadioButton(context).apply { text = categories[0]; id = 1 }
+            val work = android.widget.RadioButton(context).apply { text = categories[1]; id = 2 }
+            val fav = android.widget.RadioButton(context).apply { text = categories[2]; id = 3; isChecked = true }
+            addView(home); addView(work); addView(fav)
+            setOnCheckedChangeListener { _, checkedId ->
+                selectedCategory = when (checkedId) {
+                    1 -> "home"
+                    2 -> "work"
+                    else -> "favorite"
+                }
+            }
+        }
+
+        layout.addView(nameTil)
+        layout.addView(latTil)
+        layout.addView(lngTil)
+        layout.addView(radioGroup)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("افزودن دستی مکان")
+            .setView(layout)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val name = nameInput.text?.toString()?.ifBlank { "مکان دستی" } ?: "مکان دستی"
+                val lat = latInput.text?.toString()?.toDoubleOrNull()
+                val lng = lngInput.text?.toString()?.toDoubleOrNull()
+                if (lat == null || lng == null) {
+                    Toast.makeText(this, "⚠️ مختصات نامعتبر", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val address = "${String.format("%.6f", lat)}, ${String.format("%.6f", lng)}"
+                val ok = savedLocationsManager.upsertLocation(name, address, LatLng(lat, lng), selectedCategory, "manual")
+                Toast.makeText(this, if (ok) "✅ ذخیره شد" else "❌ خطا در ذخیره", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
+    private fun importFromClipboardToSaved() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()
+        if (text.isNullOrBlank()) {
+            Toast.makeText(this, "کلیپ‌بورد خالی است", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val parsed = LocationShareParser.parse(text)
+        if (parsed == null) {
+            Toast.makeText(this, "مختصات در کلیپ‌بورد قابل شناسایی نیست", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val source = when {
+            text.contains("neshan", true) -> "neshan"
+            text.contains("google", true) -> "gmaps"
+            else -> "shared"
+        }
+        val defaultName = parsed.nameHint ?: "مقصد کلیپ‌بورد"
+
+        val nameInput = TextInputEditText(this).apply { setText(defaultName) }
+        val til = TextInputLayout(this).apply { addView(nameInput) }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("ذخیره از کلیپ‌بورد")
+            .setMessage("مختصات: ${parsed.latLng.latitude}, ${parsed.latLng.longitude}\nمنبع: $source")
+            .setView(til)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val name = nameInput.text?.toString()?.ifBlank { defaultName } ?: defaultName
+                val ok = savedLocationsManager.upsertLocation(
+                    name = name,
+                    address = parsed.raw.take(160),
+                    latLng = parsed.latLng,
+                    category = "favorite",
+                    source = source
+                )
+                Toast.makeText(this, if (ok) "✅ ذخیره شد" else "❌ خطا در ذخیره", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
     private fun showManageLocationsDialog() {
         val locations = savedLocationsManager.getAllLocations()
         val items = locations.map { "${getCategoryEmoji(it.category)} ${it.name}" }.toTypedArray()
@@ -891,7 +1119,7 @@ class NavigationActivity : AppCompatActivity() {
                 val name = input.text.toString().ifEmpty { "مکان ${System.currentTimeMillis()}" }
                 val address = "${String.format("%.6f", latLng.latitude)}, ${String.format("%.6f", latLng.longitude)}"
                 
-                if (savedLocationsManager.saveLocation(name, address, latLng, selectedCategory)) {
+                if (savedLocationsManager.saveLocation(name, address, latLng, selectedCategory, "manual")) {
                     Toast.makeText(this, "✅ ذخیره شد: $name", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "❌ خطا در ذخیره", Toast.LENGTH_SHORT).show()
@@ -908,6 +1136,8 @@ class NavigationActivity : AppCompatActivity() {
             else -> "⭐"
         }
     }
+
+    private fun Int.toPx(): Int = (this * resources.displayMetrics.density).toInt()
     
     private fun showAdvancedSearchDialog() {
         val view = layoutInflater.inflate(android.R.layout.simple_list_item_2, null)

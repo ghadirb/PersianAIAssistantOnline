@@ -155,14 +155,21 @@ class DashboardActivity : AppCompatActivity() {
                 android.util.Log.e("DashboardActivity", "Click error", e)
             }
         }
-        
-        binding.aiChatCard?.setOnClickListener {
+
+        binding.commandLibraryCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, MainActivity::class.java)
-                startActivity(intent)
+                startActivity(Intent(this, CommandLibraryActivity::class.java))
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            }, 150)
+            }, 120)
+        }
+        
+        binding.notesCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                startActivity(Intent(this, NotesActivity::class.java))
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 120)
         }
         
         binding.psychologyCard?.setOnClickListener {

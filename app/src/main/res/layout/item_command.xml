@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/commandTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="عنوان"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/primaryColor" />
+
+        <TextView
+            android:id="@+id/commandCategory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="دسته‌بندی"
+            android:textSize="13sp"
+            android:textColor="#666" />
+
+        <TextView
+            android:id="@+id/commandExample"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="مثال فرمان"
+            android:textSize="14sp"
+            android:textColor="#000" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

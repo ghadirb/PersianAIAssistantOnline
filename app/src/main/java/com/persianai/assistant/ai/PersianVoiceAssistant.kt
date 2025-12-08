@@ -9,6 +9,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import android.util.Log
 import com.persianai.assistant.utils.*
+import com.persianai.assistant.navigation.SavedLocationsManager
+import com.persianai.assistant.activities.NavigationActivity
 import java.util.*
 
 /**
@@ -350,16 +352,42 @@ class PersianVoiceAssistant(private val context: Context) {
      * مدیریت دستورات ناوبری
      */
     private fun handleNavigationCommands(input: String): String {
+        val normalized = input.trim()
+
+        // فرمان: برو به / برم به / مسیر به {نام ذخیره‌شده}
+        extractDestinationName(normalized)?.let { name ->
+            val manager = SavedLocationsManager(context)
+            val saved = manager.findByName(name)
+            return if (saved != null) {
+                NavigationActivity.instance?.startNavigationTo(saved.latitude, saved.longitude)
+                "در حال مسیریابی به ${saved.name}"
+            } else {
+                "مقصدی با نام \"$name\" در ذخیره‌ها پیدا نشد. لطفاً ابتدا ذخیره کنید."
+            }
+        }
+
+        // فرمان: لیست مکان‌های ذخیره شده
+        if (normalized.contains("مکان‌های ذخیره") || normalized.contains("مقصدهای ذخیره") || normalized.contains("ذخیره ها")) {
+            val manager = SavedLocationsManager(context)
+            val list = manager.getAllLocations()
+            return if (list.isEmpty()) {
+                "هیچ مکانی ذخیره نشده است. می‌توانید با «افزودن دستی» یا «از کلیپ‌بورد» اضافه کنید."
+            } else {
+                val top = list.take(5).joinToString("\n") { "• ${it.name} (${it.category})" }
+                "مکان‌های ذخیره‌شده شما:\n$top\nبرای رفتن بگویید: برو به {نام}"
+            }
+        }
+
         return when {
-            input.contains("مسیر") -> {
-                "برای پیدا کردن مسیر، لطفا مبدأ و مقصد خود را مشخص کنید."
+            normalized.contains("مسیر") -> {
+                "برای پیدا کردن مسیر، لطفا مبدأ و مقصد خود را مشخص کنید یا بگویید «برو به نام مقصد ذخیره‌شده»."
             }
             
-            input.contains("موقعیت") || input.contains("کجام") -> {
+            normalized.contains("موقعیت") || normalized.contains("کجام") -> {
                 "شما در حال حاضر در تهران، خیابان ولیعصر قرار دارید."
             }
             
-            input.contains("نزدیک") -> {
+            normalized.contains("نزدیک") -> {
                 "نزدیک‌ترین مکان‌های مورد علاقه شما:\n" +
                 "⛽ پمپ بنزین: ۵۰۰ متر\n" +
                 "🏥 بیمارستان: ۱.۲ کیلومتر\n" +
@@ -367,9 +395,29 @@ class PersianVoiceAssistant(private val context: Context) {
             }
             
             else -> {
-                "برای ناوبری، می‌توانید مسیر، موقعیت یا مکان‌های نزدیک را درخواست کنید."
+                "برای ناوبری، می‌توانید مسیر، موقعیت یا مکان‌های نزدیک را درخواست کنید یا بگویید «برو به {نام مقصد ذخیره‌شده}»."
             }
         }
+    }
+
+    private fun extractDestinationName(input: String): String? {
+        val patterns = listOf(
+            "برو به",
+            "برم به",
+            "مسیر به",
+            "به مقصد",
+            "تا"
+        )
+        val lower = input.lowercase()
+        patterns.forEach { p ->
+            val idx = lower.indexOf(p)
+            if (idx != -1) {
+                val start = idx + p.length
+                val candidate = input.substring(start).trim().trim('\"')
+                if (candidate.length >= 2) return candidate
+            }
+        }
+        return null
     }
     
     /**

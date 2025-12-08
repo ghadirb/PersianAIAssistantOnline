@@ -20,13 +20,14 @@ class SavedLocationsManager(context: Context) {
         val latitude: Double,
         val longitude: Double,
         val category: String, // home, work, favorite
-        val timestamp: Long
+        val timestamp: Long,
+        val source: String = "manual" // manual | shared | neshan | gmaps
     )
     
     /**
      * ذخیره مکان جدید
      */
-    fun saveLocation(name: String, address: String, latLng: LatLng, category: String): Boolean {
+    fun saveLocation(name: String, address: String, latLng: LatLng, category: String, source: String = "manual"): Boolean {
         return try {
             val locations = getAllLocations().toMutableList()
             val newLocation = SavedLocation(
@@ -36,7 +37,8 @@ class SavedLocationsManager(context: Context) {
                 latitude = latLng.latitude,
                 longitude = latLng.longitude,
                 category = category,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                source = source
             )
             locations.add(newLocation)
             saveAllLocations(locations)
@@ -58,15 +60,18 @@ class SavedLocationsManager(context: Context) {
             val jsonArray = JSONArray(locationsJson)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                locations.add(SavedLocation(
-                    id = obj.getString("id"),
-                    name = obj.getString("name"),
-                    address = obj.optString("address", ""),
-                    latitude = obj.getDouble("latitude"),
-                    longitude = obj.getDouble("longitude"),
-                    category = obj.optString("category", "favorite"),
-                    timestamp = obj.optLong("timestamp", 0)
-                ))
+                locations.add(
+                    SavedLocation(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        address = obj.optString("address", ""),
+                        latitude = obj.getDouble("latitude"),
+                        longitude = obj.getDouble("longitude"),
+                        category = obj.optString("category", "favorite"),
+                        timestamp = obj.optLong("timestamp", 0),
+                        source = obj.optString("source", "manual")
+                    )
+                )
             }
         } catch (e: Exception) {
             android.util.Log.e("SavedLocations", "Error loading locations", e)
@@ -105,6 +110,46 @@ class SavedLocationsManager(context: Context) {
         }
     }
     
+    /**
+     * جست‌وجوی مکان ذخیره شده بر اساس نام (تقریبی)
+     */
+    fun findByName(name: String): SavedLocation? {
+        val query = name.trim().lowercase()
+        if (query.isEmpty()) return null
+        return getAllLocations().firstOrNull { it.name.lowercase().contains(query) }
+    }
+    
+    /**
+     * ذخیره یا به‌روزرسانی مکان بر اساس مختصات اگر قبلا ثبت شده باشد
+     */
+    fun upsertLocation(name: String, address: String, latLng: LatLng, category: String = "favorite", source: String = "shared"): Boolean {
+        return try {
+            val existing = getAllLocations().firstOrNull { 
+                Math.abs(it.latitude - latLng.latitude) < 0.0001 && 
+                Math.abs(it.longitude - latLng.longitude) < 0.0001
+            }
+            val locations = getAllLocations().toMutableList().filter {
+                !(Math.abs(it.latitude - latLng.latitude) < 0.0001 && Math.abs(it.longitude - latLng.longitude) < 0.0001)
+            }.toMutableList()
+            val newItem = SavedLocation(
+                id = existing?.id ?: System.currentTimeMillis().toString(),
+                name = name,
+                address = address,
+                latitude = latLng.latitude,
+                longitude = latLng.longitude,
+                category = category,
+                timestamp = System.currentTimeMillis(),
+                source = source
+            )
+            locations.add(newItem)
+            saveAllLocations(locations)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SavedLocations", "Error upserting location", e)
+            false
+        }
+    }
+    
     private fun saveAllLocations(locations: List<SavedLocation>) {
         val jsonArray = JSONArray()
         locations.forEach { location ->
@@ -116,6 +161,7 @@ class SavedLocationsManager(context: Context) {
             obj.put("longitude", location.longitude)
             obj.put("category", location.category)
             obj.put("timestamp", location.timestamp)
+            obj.put("source", location.source)
             jsonArray.put(obj)
         }
         prefs.edit().putString("locations", jsonArray.toString()).apply()
@@ -134,7 +180,8 @@ class SavedLocationsManager(context: Context) {
             latitude = latLng.latitude,
             longitude = latLng.longitude,
             category = "home",
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            source = "manual"
         ))
         saveAllLocations(locations)
     }
@@ -152,7 +199,8 @@ class SavedLocationsManager(context: Context) {
             latitude = latLng.latitude,
             longitude = latLng.longitude,
             category = "work",
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            source = "manual"
         ))
         saveAllLocations(locations)
     }
