@@ -703,7 +703,7 @@ class MainActivity : AppCompatActivity() {
                     return@withContext processAIResponse(puterReply)
                 }
             } catch (e: Exception) {
-                android.util.Log.w("MainActivity", "Puter fallback failed: ${e.message}")
+                // ساکت: مستقیماً fallback
             }
         }
 

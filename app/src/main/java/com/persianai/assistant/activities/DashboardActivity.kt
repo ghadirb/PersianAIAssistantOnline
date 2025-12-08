@@ -168,6 +168,10 @@ class DashboardActivity : AppCompatActivity() {
         binding.psychologyCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
+                showCounselingDisclaimer(
+                    "مشاور آرامش",
+                    "این بخش تنها نقش همراه و شنونده دارد و جایگزین درمانگر یا روان‌شناس نیست. در شرایط اضطرار با متخصص تماس بگیرید."
+                )
                 val intent = Intent(this, AIChatActivity::class.java).apply {
                     putExtra(
                         "presetMessage",
@@ -182,6 +186,10 @@ class DashboardActivity : AppCompatActivity() {
         binding.careerCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
+                showCounselingDisclaimer(
+                    "مشاور مسیر",
+                    "این راهنما پیشنهادهای کلی می‌دهد و مسئولیت تصمیم‌های شغلی یا تحصیلی با خود شماست. برای تصمیم نهایی با یک مشاور انسانی مشورت کنید."
+                )
                 val intent = Intent(this, AIChatActivity::class.java).apply {
                     putExtra(
                         "presetMessage",

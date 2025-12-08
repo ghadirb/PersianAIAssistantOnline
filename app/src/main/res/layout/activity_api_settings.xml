@@ -304,6 +304,14 @@
                             android:text="فقط OpenAI"
                             android:textSize="14sp" />
                     </RadioGroup>
+
+                    <Button
+                        android:id="@+id/puterLoginButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="ورود به Puter"
+                        android:textSize="14sp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

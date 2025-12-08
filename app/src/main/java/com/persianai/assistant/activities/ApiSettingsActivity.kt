@@ -8,12 +8,16 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.widget.addTextChangedListener
+import android.app.Dialog
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.persianai.assistant.R
 import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.persianai.assistant.ai.PuterBridge
 import kotlinx.coroutines.*
 
 class ApiSettingsActivity : AppCompatActivity() {
@@ -58,6 +62,7 @@ class ApiSettingsActivity : AppCompatActivity() {
     private lateinit var providerAuto: RadioButton
     private lateinit var providerSmart: RadioButton
     private lateinit var providerOpenAI: RadioButton
+    private lateinit var puterLoginButton: Button
     
     private val prefs by lazy { getSharedPreferences("api_keys", MODE_PRIVATE) }
     
@@ -157,7 +162,11 @@ class ApiSettingsActivity : AppCompatActivity() {
         providerAuto = findViewById(R.id.providerAuto)
         providerSmart = findViewById(R.id.providerSmart)
         providerOpenAI = findViewById(R.id.providerOpenAI)
+        puterLoginButton = findViewById(R.id.puterLoginButton)
         setupProviderPreference()
+        puterLoginButton.setOnClickListener {
+            attemptPuterLogin()
+        }
         
         // Instructions button
         findViewById<Button>(R.id.instructionsButton)?.setOnClickListener {
@@ -257,6 +266,37 @@ class ApiSettingsActivity : AppCompatActivity() {
             prefsManager.setProviderPreference(pref)
             Toast.makeText(this, "مسیر انتخاب شد: ${pref.name}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun attemptPuterLogin() {
+        try {
+            PuterBridge.init(this)
+            if (PuterBridge.isReady()) {
+                Toast.makeText(this, "Puter آماده است (Logged-in)", Toast.LENGTH_SHORT).show()
+            } else {
+                showPuterLoginDialog()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "خطا در ورود Puter: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showPuterLoginDialog() {
+        val dialog = Dialog(this)
+        val webView = WebView(this)
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.webViewClient = WebViewClient()
+        webView.loadUrl("file:///android_asset/puter_bridge.html")
+        dialog.setContentView(webView)
+        dialog.setTitle("ورود به Puter")
+        dialog.setOnDismissListener {
+            // پس از بستن، وضعیت را چک کن
+            if (PuterBridge.isReady()) {
+                Toast.makeText(this, "Puter آماده شد", Toast.LENGTH_SHORT).show()
+            }
+        }
+        dialog.show()
     }
     
     private fun updateAvailableModels() {

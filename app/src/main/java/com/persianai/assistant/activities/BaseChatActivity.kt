@@ -181,8 +181,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 if (!puterReply.isNullOrBlank()) {
                     return@withContext puterReply
                 }
-            } catch (e: Exception) {
-                android.util.Log.w("BaseChatActivity", "Puter fallback failed: ${e.message}")
+            } catch (_: Exception) {
+                // ساکت: مستقیماً fallback
             }
         }
         val response = aiClient!!.sendMessage(currentModel, messages, getSystemPrompt() + "\n\nپیام کاربر: " + text)

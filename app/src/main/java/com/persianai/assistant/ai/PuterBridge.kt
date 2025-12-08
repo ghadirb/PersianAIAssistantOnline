@@ -29,6 +29,7 @@ object PuterBridge {
     private var webView: WebView? = null
     private val readySignal = CompletableDeferred<Boolean>()
     private val pending = ConcurrentHashMap<String, CompletableDeferred<String?>>()
+    @Volatile private var sdkReady: Boolean = false
 
     @SuppressLint("SetJavaScriptEnabled")
     @MainThread
@@ -42,6 +43,7 @@ object PuterBridge {
                 @JavascriptInterface
                 fun ready() {
                     Log.d("PuterBridge", "WebView ready")
+                    sdkReady = true
                     if (!readySignal.isCompleted) {
                         readySignal.complete(true)
                     }
@@ -53,10 +55,8 @@ object PuterBridge {
                         val obj = JSONObject(payload ?: "{}")
                         val id = obj.optString("id")
                         val text = obj.optString("text", null)
-                        val error = obj.optString("error", null)
-                        pending[id]?.complete(text ?: run {
-                            if (!error.isNullOrBlank()) "⚠️ Puter: $error" else null
-                        })
+                        // اگر خطا بود، خروجی را null می‌فرستیم تا fallback فعال شود
+                        pending[id]?.complete(text)
                         pending.remove(id)
                     } catch (e: Exception) {
                         Log.w("PuterBridge", "Parse error: ${e.message}")
@@ -72,14 +72,20 @@ object PuterBridge {
         mainHandler.post { initWebView(context) }
     }
 
+    fun isReady(): Boolean {
+        return sdkReady && readySignal.isCompleted
+    }
+
     /**
      * @return پاسخ متنی Puter یا null در صورت خطا/تایم‌اوت.
      */
     suspend fun chat(userText: String, history: List<ChatMessage>): String? {
         ensureInitialized()
         // منتظر آماده‌شدن WebView
-        val ready = withTimeoutOrNull(8000) { readySignal.await() } ?: return null
-        if (!ready) return null
+        if (!readySignal.isCompleted) {
+            val ready = withTimeoutOrNull(8000) { readySignal.await() } ?: return null
+            if (!ready) return null
+        }
 
         val requestId = UUID.randomUUID().toString()
         val deferred = CompletableDeferred<String?>()

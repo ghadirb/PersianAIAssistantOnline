@@ -1,3 +1,8 @@
 {
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "editor.inlineCompletionsAccessibilityVerbose": false,
+    "files.simpleDialog.enable": true,
+    "workbench.externalBrowser": "chrome",
+    "git.openRepositoryInParentFolders": "always",
+    "npm.enableRunFromFolder": true
 }

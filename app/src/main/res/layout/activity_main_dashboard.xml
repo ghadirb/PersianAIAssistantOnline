@@ -108,8 +108,10 @@
                         android:layout_height="wrap_content"
                         android:text="مناسبت‌ها"
                         android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:layout_marginTop="8dp" />
+                        android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
+                        android:paddingTop="4dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -157,7 +159,9 @@
                         android:layout_height="wrap_content"
                         android:text="آب و هوا"
                         android:textColor="@android:color/white"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="8dp" />
 
                 </LinearLayout>
@@ -204,7 +208,9 @@
                         android:layout_height="wrap_content"
                         android:text="چت هوشمند"
                         android:textColor="@android:color/white"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="8dp" />
 
                 </LinearLayout>
@@ -252,6 +258,8 @@
                         android:text="آهنگ‌های محلی"
                         android:textColor="#FFF3E0"
                         android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="6dp" />
 
                 </LinearLayout>
@@ -299,6 +307,8 @@
                         android:text="مدیریت هزینه‌ها"
                         android:textColor="#FCE4EC"
                         android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="6dp" />
 
                 </LinearLayout>
@@ -346,6 +356,8 @@
                         android:text="رویدادهای مهم"
                         android:textColor="#FFF9C4"
                         android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="6dp" />
 
                 </LinearLayout>
@@ -392,6 +404,8 @@
                         android:text="راهنمای صوتی"
                         android:textColor="#E8EAF6"
                         android:textSize="13sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:layout_marginTop="6dp" />
 
                     </LinearLayout>
@@ -437,7 +451,11 @@
                             android:layout_height="wrap_content"
                             android:text="راهنمای سبک زندگی و آرامش"
                             android:textColor="#E1BEE7"
-                            android:textSize="12sp" />
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:paddingTop="4dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -481,7 +499,11 @@
                             android:layout_height="wrap_content"
                             android:text="کشف استعداد و مصاحبه"
                             android:textColor="#C5CAE9"
-                            android:textSize="12sp" />
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:paddingTop="4dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -525,7 +547,11 @@
                             android:layout_height="wrap_content"
                             android:text="CRM سبک و سریع"
                             android:textColor="#B2DFDB"
-                            android:textSize="12sp" />
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:paddingTop="4dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -569,7 +595,11 @@
                             android:layout_height="wrap_content"
                             android:text="قرارداد، فاکتور، فایل‌ها"
                             android:textColor="#CFD8DC"
-                            android:textSize="12sp" />
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:paddingTop="4dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -611,9 +641,13 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="قبض، قسط، سررسید وام"
-                            android:textColor="#FFE0B2"
-                            android:textSize="12sp" />
+                            android:text="کتاب، فیلم، دوره آموزشی"
+                            android:textColor="#E1BEE7"
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:paddingTop="4dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -657,7 +691,11 @@
                             android:layout_height="wrap_content"
                             android:text="کتاب، فیلم، دوره آموزشی"
                             android:textColor="#E1BEE7"
-                            android:textSize="12sp" />
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
+                            android:paddingTop="4dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -701,8 +739,11 @@
                             android:layout_height="wrap_content"
                             android:text="نسخه، حریم خصوصی و حمایت"
                             android:textColor="#B0BEC5"
-                            android:textSize="12sp"
+                            android:textSize="13sp"
+                            android:maxLines="2"
+                            android:ellipsize="end"
                             android:layout_marginTop="6dp" />
+
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
