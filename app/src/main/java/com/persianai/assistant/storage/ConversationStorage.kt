@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.persianai.assistant.models.Conversation
+import com.persianai.assistant.models.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -111,5 +112,35 @@ class ConversationStorage(private val context: Context) {
      */
     fun clearCurrentConversationId() {
         prefs.edit().remove("current_conversation_id").apply()
+    }
+
+    /**
+     * دریافت پیام‌های چت فعلی یا آخرین چت (نسخه همگام برای سازگاری قدیمی)
+     */
+    fun getMessages(): List<ChatMessage> {
+        return try {
+            val json = prefs.getString("conversations_list", "[]") ?: "[]"
+            val type = object : TypeToken<List<Conversation>>() {}.type
+            val conversations = gson.fromJson<List<Conversation>>(json, type) ?: emptyList()
+            val currentId = getCurrentConversationId()
+            val conv = conversations.firstOrNull { it.id == currentId } ?: conversations.firstOrNull()
+            conv?.messages ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * دریافت پیام‌های آخرین مکالمه
+     */
+    fun getLastConversationMessages(): List<ChatMessage> {
+        return try {
+            val json = prefs.getString("conversations_list", "[]") ?: "[]"
+            val type = object : TypeToken<List<Conversation>>() {}.type
+            val conversations = gson.fromJson<List<Conversation>>(json, type) ?: emptyList()
+            conversations.firstOrNull()?.messages ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 }
