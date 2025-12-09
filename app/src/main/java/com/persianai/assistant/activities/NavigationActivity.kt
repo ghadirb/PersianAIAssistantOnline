@@ -816,7 +816,6 @@ class NavigationActivity : AppCompatActivity() {
         val row = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(12.toPx(), 12.toPx(), 12.toPx(), 12.toPx())
-            background = androidx.core.content.ContextCompat.getDrawable(this@NavigationActivity, com.google.android.material.R.drawable.mtrl_surface)
         }
 
         val title = TextView(this).apply {

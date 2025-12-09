@@ -278,7 +278,7 @@ class MainActivity : AppCompatActivity() {
     private fun addMessage(message: ChatMessage) {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
-        binding.chatRecyclerView.smoothScrollToPosition(messages.size - 1)
+        binding.recyclerView.smoothScrollToPosition(messages.size - 1)
         try {
             secureMessageStorage.saveMessages(messages)
         } catch (e: Exception) {
@@ -1210,6 +1210,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 startNewConversation()
             }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "loadMessages failed", e)
         }
     }
     

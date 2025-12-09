@@ -153,7 +153,7 @@ class WeatherActivity : AppCompatActivity() {
 
                 if (weatherData != null) {
                     binding.tempText.text = "${weatherData.temp.roundToInt()}°"
-                    loadIcon(binding.weatherIcon, weatherData.iconUrl, weatherData.icon)
+                    loadIcon(binding.weatherIcon, weatherData.icon ?: "113")
                     binding.weatherDescText.text = weatherData.description
                     binding.humidityText.text = "${weatherData.humidity}%"
                     binding.windSpeedText.text = "${weatherData.windSpeed.roundToInt()} km/h"
@@ -180,7 +180,7 @@ class WeatherActivity : AppCompatActivity() {
                     val savedWind = prefs.getFloat("weather_wind_$currentCity", 12f)
 
                     binding.tempText.text = "${savedTemp.roundToInt()}°"
-                    loadIcon(binding.weatherIcon, null, savedIcon)
+                    loadIcon(binding.weatherIcon, savedIcon)
                     binding.weatherDescText.text = savedDesc
                     binding.humidityText.text = "$savedHumidity%"
                     binding.windSpeedText.text = "${savedWind.roundToInt()} km/h"
