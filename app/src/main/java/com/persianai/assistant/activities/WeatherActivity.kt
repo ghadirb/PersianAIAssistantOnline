@@ -16,6 +16,9 @@ import com.persianai.assistant.utils.SharedDataManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class WeatherActivity : AppCompatActivity() {
@@ -149,6 +152,8 @@ class WeatherActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+                prefillFromCache(prefs)
+                showLoading(true)
                 val weatherData = WorldWeatherAPI.getCurrentWeather(currentCity)
 
                 if (weatherData != null) {
@@ -164,6 +169,7 @@ class WeatherActivity : AppCompatActivity() {
                     prefs.edit().putString("weather_desc_$currentCity", weatherData.description).apply()
                     prefs.edit().putInt("weather_humidity_$currentCity", weatherData.humidity).apply()
                     prefs.edit().putFloat("weather_wind_$currentCity", weatherData.windSpeed.toFloat()).apply()
+                    setLastUpdated(System.currentTimeMillis(), prefs)
 
                     SharedDataManager.saveWeatherData(
                         this@WeatherActivity,
@@ -173,31 +179,85 @@ class WeatherActivity : AppCompatActivity() {
                         WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
                     )
                 } else {
-                    val savedTemp = prefs.getFloat("current_temp_$currentCity", 25f)
-                    val savedIcon = prefs.getString("weather_icon_$currentCity", "113") ?: "113"
-                    val savedDesc = prefs.getString("weather_desc_$currentCity", "آفتابی") ?: "آفتابی"
-                    val savedHumidity = prefs.getInt("weather_humidity_$currentCity", 45)
-                    val savedWind = prefs.getFloat("weather_wind_$currentCity", 12f)
-
-                    binding.tempText.text = "${savedTemp.roundToInt()}°"
-                    loadIcon(binding.weatherIcon, savedIcon)
-                    binding.weatherDescText.text = savedDesc
-                    binding.humidityText.text = "$savedHumidity%"
-                    binding.windSpeedText.text = "${savedWind.roundToInt()} km/h"
-                    binding.feelsLikeText.text = "حس ${(savedTemp + 2).roundToInt()}°"
+                    applySavedWeather(prefs)
+                    showSavedLastUpdated(prefs)
                 }
 
                 loadHourlyForecast()
             } catch (e: Exception) {
                 android.util.Log.e("WeatherActivity", "Error loading weather", e)
                 Toast.makeText(this@WeatherActivity, "خطا در دریافت اطلاعات", Toast.LENGTH_SHORT).show()
+            } finally {
+                showLoading(false)
+                binding.weatherMainCard.animate().alpha(1f).setDuration(250).start()
             }
+        }
+    }
+
+    private fun prefillFromCache(prefs: android.content.SharedPreferences) {
+        val savedTemp = prefs.getFloat("current_temp_$currentCity", Float.NaN)
+        val savedIcon = prefs.getString("weather_icon_$currentCity", null)
+        val savedDesc = prefs.getString("weather_desc_$currentCity", null)
+        val savedHumidity = prefs.getInt("weather_humidity_$currentCity", -1)
+        val savedWind = prefs.getFloat("weather_wind_$currentCity", Float.NaN)
+        if (!savedTemp.isNaN() && !savedIcon.isNullOrEmpty()) {
+            binding.tempText.text = "${savedTemp.roundToInt()}°"
+            loadIcon(binding.weatherIcon, savedIcon)
+            binding.weatherDescText.text = savedDesc ?: "—"
+            if (savedHumidity >= 0) binding.humidityText.text = "$savedHumidity%"
+            if (!savedWind.isNaN()) binding.windSpeedText.text = "${savedWind.roundToInt()} km/h"
+            binding.feelsLikeText.text = "حس ${(savedTemp + 2).roundToInt()}°"
+            showSavedLastUpdated(prefs)
+        }
+    }
+
+    private fun applySavedWeather(prefs: android.content.SharedPreferences) {
+        val savedTemp = prefs.getFloat("current_temp_$currentCity", 25f)
+        val savedIcon = prefs.getString("weather_icon_$currentCity", "113") ?: "113"
+        val savedDesc = prefs.getString("weather_desc_$currentCity", "آفتابی") ?: "آفتابی"
+        val savedHumidity = prefs.getInt("weather_humidity_$currentCity", 45)
+        val savedWind = prefs.getFloat("weather_wind_$currentCity", 12f)
+
+        binding.tempText.text = "${savedTemp.roundToInt()}°"
+        loadIcon(binding.weatherIcon, savedIcon)
+        binding.weatherDescText.text = savedDesc
+        binding.humidityText.text = "$savedHumidity%"
+        binding.windSpeedText.text = "${savedWind.roundToInt()} km/h"
+        binding.feelsLikeText.text = "حس ${(savedTemp + 2).roundToInt()}°"
+    }
+
+    private fun setLastUpdated(timestamp: Long, prefs: android.content.SharedPreferences) {
+        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+        binding.lastUpdatedText.text = "به‌روزرسانی: $time"
+        prefs.edit().putLong("weather_last_update_$currentCity", timestamp).apply()
+    }
+
+    private fun showSavedLastUpdated(prefs: android.content.SharedPreferences) {
+        val ts = prefs.getLong("weather_last_update_$currentCity", -1L)
+        if (ts > 0) {
+            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
+            binding.lastUpdatedText.text = "آخرین به‌روزرسانی: $time"
+        } else {
+            binding.lastUpdatedText.text = "به‌روزرسانی: --"
+        }
+    }
+
+    private fun showLoading(show: Boolean) {
+        binding.weatherLoading.visibility = if (show) View.VISIBLE else View.GONE
+        binding.hourlyButton.isEnabled = !show
+        binding.forecastButton.isEnabled = !show
+        if (show) {
+            binding.weatherMainCard.alpha = 0.6f
+        } else {
+            binding.weatherMainCard.alpha = 1f
         }
     }
 
     private fun loadHourlyForecast() {
         lifecycleScope.launch {
             try {
+                binding.hourlySkeleton.visibility = View.VISIBLE
+                binding.hourlyRecyclerView.alpha = 0f
                 val forecasts = WorldWeatherAPI.getForecast(currentCity, 1)
                 val hourlyData = if (forecasts.isNotEmpty() && forecasts[0].hourly.isNotEmpty()) {
                     forecasts[0].hourly.take(12).map { hourly ->
@@ -219,9 +279,12 @@ class WeatherActivity : AppCompatActivity() {
                         false
                     )
                     binding.hourlyRecyclerView.adapter = HourlyWeatherAdapter(hourlyData)
+                    binding.hourlySkeleton.visibility = View.GONE
+                    binding.hourlyRecyclerView.animate().alpha(1f).setDuration(220).start()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("WeatherActivity", "Error loading hourly forecast", e)
+                binding.hourlySkeleton.visibility = View.GONE
             }
         }
     }

@@ -13,6 +13,15 @@
         android:background="@color/primaryColor"
         app:titleTextColor="@android:color/white" />
 
+    <ProgressBar
+        android:id="@+id/weatherLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:indeterminate="true"
+        android:visibility="gone"
+        android:padding="8dp" />
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -25,6 +34,7 @@
 
             <!-- Main Weather Card - یکسان با داشبورد -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/weatherMainCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
@@ -192,7 +202,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center">
+                        android:gravity="center"
+                        android:layout_marginTop="4dp">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/hourlyButton"
@@ -217,6 +228,15 @@
                             app:backgroundTint="@android:color/white"
                             android:textColor="#FF6B6B" />
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/lastUpdatedText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="به‌روزرسانی: --"
+                        android:textColor="#FFE0E0"
+                        android:textSize="12sp"
+                        android:layout_marginTop="10dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -335,6 +355,35 @@
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:layout_marginBottom="12dp" />
+
+                    <LinearLayout
+                        android:id="@+id/hourlySkeleton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingBottom="8dp"
+                        android:visibility="gone">
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="70dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/skeleton_bg" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="70dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/skeleton_bg" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="70dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/skeleton_bg" />
+                    </LinearLayout>
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/hourlyRecyclerView"

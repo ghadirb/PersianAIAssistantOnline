@@ -1,6 +1,7 @@
 package com.persianai.assistant.utils
 
 import android.util.Base64
+import com.persianai.assistant.BuildConfig
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
@@ -12,6 +13,7 @@ object DefaultApiKeys {
     
     private const val ENCRYPTION_KEY = "PersianAI2024Key"  // 16 کاراکتر
     private const val ENCRYPTION_IV = "InitVector123456"    // 16 کاراکتر
+    @Volatile private var runtimeHfKey: String? = null
     
     // ⚠️ توجه: این فایل فقط برای توسعه‌دهندگان است
     // کاربران عادی باید از تنظیمات برنامه (API Settings) کلیدهای خود را وارد کنند
@@ -23,7 +25,8 @@ object DefaultApiKeys {
     private val ENCRYPTED_KEYS = mapOf(
         "openai_1" to encryptKey(""),  // کلید OpenAI - خالی است، از تنظیمات برنامه استفاده کنید
         "aimlapi_1" to encryptKey(""),   // کلید AIML - خالی است
-        "openrouter_1" to encryptKey("")  // کلید OpenRouter - خالی است
+        "openrouter_1" to encryptKey(""),  // کلید OpenRouter - خالی است
+        "huggingface_1" to encryptKey("") // کلید HuggingFace برای STT (خالی، از BuildConfig یا تنظیمات بگیرید)
     )
     
     /**
@@ -57,6 +60,27 @@ object DefaultApiKeys {
         } catch (e: Exception) {
             null
         }
+    }
+    
+    /**
+     * دریافت کلید HuggingFace (برای STT)
+     */
+    fun getHuggingFaceKey(): String? {
+        // اولویت: runtime → BuildConfig → فایل رمزگذاری‌شده (خالی پیش‌فرض)
+        runtimeHfKey?.takeIf { it.isNotEmpty() }?.let { return it }
+        if (!BuildConfig.HF_API_KEY.isNullOrEmpty()) return BuildConfig.HF_API_KEY
+        return try {
+            decryptKey(ENCRYPTED_KEYS["huggingface_1"] ?: return null).ifEmpty { null }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * ست‌کردن کلید در زمان اجرا (مثلاً پس از دانلود از Google Drive)
+     */
+    fun setHuggingFaceKey(key: String?) {
+        runtimeHfKey = key?.trim()?.takeIf { it.isNotEmpty() }
     }
     
     /**

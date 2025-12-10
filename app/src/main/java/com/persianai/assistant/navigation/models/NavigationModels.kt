@@ -21,7 +21,8 @@ data class NavigationRoute(
     val speedCameras: List<SpeedCamera> = emptyList(),
     val speedBumps: List<SpeedBump> = emptyList(),
     val roadConditions: List<RoadCondition> = emptyList(),
-    val confidence: Float = 1.0f // اطمینان مدل هوش مصنوعی
+    val confidence: Float = 1.0f, // اطمینان مدل هوش مصنوعی
+    val steps: List<NavigationStep> = emptyList() // گام‌های ناوبری (اختیاری)
 )
 
 /**

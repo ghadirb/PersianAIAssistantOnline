@@ -2,17 +2,17 @@ package com.persianai.assistant.activities
 
 import android.os.Bundle
 import android.view.View
-import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.persianai.assistant.databinding.ActivityChatBinding
 import com.persianai.assistant.models.MessageRole
-import com.persianai.assistant.models.Reminder
-import com.persianai.assistant.utils.PersianDate
+import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.SmartReminderManager
+import com.persianai.assistant.utils.SmartReminderManager.RepeatPattern
+import com.persianai.assistant.utils.SmartReminderManager.ReminderType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Locale
+import java.util.regex.Pattern
 
 class ReminderChatActivity : BaseChatActivity() {
 
@@ -43,102 +43,218 @@ class ReminderChatActivity : BaseChatActivity() {
     override fun getSendButton(): View = chatBinding.sendButton
     override fun getVoiceButton(): View = chatBinding.voiceButton
 
-    override fun getSystemPrompt(): String {
-        return """
-        شما یک دستیار هوشمند متخصص در زمینه مدیریت یادآوری‌ها هستید.
-        وظیفه شما این است که درخواست‌های کاربر را تحلیل کرده و آن‌ها را به یک ساختار JSON مشخص برای افزودن یادآوری تبدیل کنید.
-        قوانین:
-        - همیشه یک آبجکت JSON با فیلد `action` برگردان.
-        - اگر اطلاعات کافی نبود (مثلاً زمان یا متن یادآوری)، با یک سوال واضح از کاربر بپرس.
-        اکشن‌های پشتیبانی‌شده:
-        1) افزودن یادآوری:
-           {"action":"add_reminder", "time":"HH:mm", "date":"YYYY/MM/DD", "message":"متن یادآوری", "repeat":"none|daily|weekly|monthly"}
-        """
-    }
-
     override suspend fun handleRequest(text: String): String {
-        val responseJson = super.handleRequest(text)
-        return withContext(Dispatchers.Main) {
-            try {
-                // استخراج JSON از پاسخ (ممکن است بین ``` باشد)
-                val jsonStr = extractJsonFromResponse(responseJson)
-                val json = Gson().fromJson(jsonStr, JsonObject::class.java)
-                
-                if (json.has("action") && json.get("action").asString == "add_reminder") {
-                    val message = json.get("message").asString
-                    val time = if (json.has("time")) json.get("time").asString else "09:00"
-                    val dateStr = if (json.has("date")) json.get("date").asString else ""
-                    val repeatStr = if (json.has("repeat")) json.get("repeat").asString else "none"
-                    
-                    // تنظیم زمان
-                    val calendar = Calendar.getInstance()
-                    try {
-                        val parts = time.split(":")
-                        if (parts.size >= 2) {
-                            calendar.set(Calendar.HOUR_OF_DAY, parts[0].toInt())
-                            calendar.set(Calendar.MINUTE, parts[1].toInt())
-                        }
-                    } catch (e: Exception) {
-                        calendar.set(Calendar.HOUR_OF_DAY, 9)
-                        calendar.set(Calendar.MINUTE, 0)
-                    }
-                    calendar.set(Calendar.SECOND, 0)
-                    
-                    // اگر زمان گذشته، برای فردا تنظیم کن
-                    if (calendar.timeInMillis < System.currentTimeMillis()) {
-                        calendar.add(Calendar.DAY_OF_MONTH, 1)
-                    }
-                    
-                    // تبدیل repeat
-                    val repeatPattern = when (repeatStr.lowercase()) {
-                        "daily" -> SmartReminderManager.RepeatPattern.DAILY
-                        "weekly" -> SmartReminderManager.RepeatPattern.WEEKLY
-                        "monthly" -> SmartReminderManager.RepeatPattern.MONTHLY
-                        "yearly" -> SmartReminderManager.RepeatPattern.YEARLY
-                        else -> SmartReminderManager.RepeatPattern.ONCE
-                    }
-                    
-                    // ساخت یادآوری
-                    val mgr = SmartReminderManager(this@ReminderChatActivity)
-                    if (repeatPattern == SmartReminderManager.RepeatPattern.ONCE) {
-                        mgr.createSimpleReminder(
-                            title = message,
-                            description = "",
-                            triggerTime = calendar.timeInMillis
-                        )
-                    } else {
-                        mgr.createRecurringReminder(
-                            title = message,
-                            description = "",
-                            firstTriggerTime = calendar.timeInMillis,
-                            repeatPattern = repeatPattern
-                        )
-                    }
-                    
-                    "✅ یادآوری «$message» برای ساعت $time تنظیم شد."
-                } else {
-                    responseJson // Return the raw JSON if it's not an add_reminder action
-                }
-            } catch (e: Exception) {
-                responseJson // If parsing fails, return the original response
+        return withContext(Dispatchers.Default) {
+            val parsed = parseReminderInput(text)
+            if (parsed == null) {
+                return@withContext "⚠️ متوجه نشدم. نمونه بگو: «فردا ساعت ۹ یادم بنداز قبض پرداخت کنم» یا «جمعه‌ها ۷ صبح بیدارم کن» یا «یک ساعت قبل پرواز یادآوری کن»."
             }
-        }
-    }
-    
-    private fun extractJsonFromResponse(response: String): String {
-        // جستجو برای JSON بین { و }
-        val startIdx = response.indexOf('{')
-        val endIdx = response.lastIndexOf('}')
-        
-        return if (startIdx >= 0 && endIdx > startIdx) {
-            response.substring(startIdx, endIdx + 1)
-        } else {
-            response
+
+            val mgr = SmartReminderManager(this@ReminderChatActivity)
+            val triggerMillis = parsed.triggerTime
+
+            if (parsed.repeat == RepeatPattern.ONCE) {
+                mgr.createSimpleReminder(
+                    title = parsed.message,
+                    description = "",
+                    triggerTime = triggerMillis,
+                    priority = parsed.priority
+                )
+            } else {
+                mgr.createRecurringReminder(
+                    title = parsed.message,
+                    description = "",
+                    firstTriggerTime = triggerMillis,
+                    repeatPattern = parsed.repeat,
+                    customDays = parsed.customDays,
+                    priority = parsed.priority
+                )
+            }
+
+            val repeatText = when (parsed.repeat) {
+                RepeatPattern.DAILY -> "هر روز"
+                RepeatPattern.WEEKLY -> "هفتگی"
+                RepeatPattern.MONTHLY -> "ماهانه"
+                RepeatPattern.YEARLY -> "سالیانه"
+                RepeatPattern.WEEKDAYS -> "روزهای کاری"
+                RepeatPattern.WEEKENDS -> "آخر هفته"
+                RepeatPattern.CUSTOM -> "روزهای انتخابی"
+                else -> "یک‌بار"
+            }
+            val timeText = android.text.format.DateFormat.format("HH:mm", triggerMillis)
+            val dateText = android.text.format.DateFormat.format("yyyy/MM/dd", triggerMillis)
+            return@withContext "✅ یادآوری «${parsed.message}» برای $dateText ساعت $timeText (${repeatText}) تنظیم شد."
         }
     }
     
     override fun onSupportNavigateUp(): Boolean {
         onBackPressedDispatcher.onBackPressed()
         return true
+    }
+
+    // ==================== NLP ساده فارسی ====================
+    private data class ParsedReminder(
+        val message: String,
+        val triggerTime: Long,
+        val repeat: RepeatPattern,
+        val customDays: List<Int> = emptyList(),
+        val priority: SmartReminderManager.Priority = SmartReminderManager.Priority.MEDIUM
+    )
+
+    private val dayMap = mapOf(
+        "شنبه" to Calendar.SATURDAY,
+        "یکشنبه" to Calendar.SUNDAY,
+        "دوشنبه" to Calendar.MONDAY,
+        "سه شنبه" to Calendar.TUESDAY,
+        "سه‌شنبه" to Calendar.TUESDAY,
+        "چهارشنبه" to Calendar.WEDNESDAY,
+        "پنجشنبه" to Calendar.THURSDAY,
+        "جمعه" to Calendar.FRIDAY
+    )
+
+    private fun parseReminderInput(text: String): ParsedReminder? {
+        val lower = text.replace("‌", " ").lowercase(Locale.getDefault())
+
+        val message = extractMessage(lower) ?: return null
+
+        val nowCal = Calendar.getInstance()
+        var cal = Calendar.getInstance()
+
+        // زمان: HH:mm یا "ساعت ۷" یا "7 صبح"
+        val time = extractTime(lower)
+        time?.let {
+            cal.set(Calendar.HOUR_OF_DAY, it.first)
+            cal.set(Calendar.MINUTE, it.second)
+            cal.set(Calendar.SECOND, 0)
+        } ?: run {
+            cal.set(Calendar.HOUR_OF_DAY, 9)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+        }
+
+        // تاریخ: امروز/فردا/پس‌فردا یا تاریخ شمسی 1403/10/12
+        when {
+            lower.contains("پس فردا") || lower.contains("پسفردا") -> cal.add(Calendar.DAY_OF_MONTH, 2)
+            lower.contains("فردا") -> cal.add(Calendar.DAY_OF_MONTH, 1)
+            else -> {
+                val jalali = extractJalaliDate(lower)
+                if (jalali != null) {
+                    val (gy, gm, gd) = PersianDateConverter.persianToGregorian(jalali.first, jalali.second, jalali.third)
+                    cal.set(gy, gm - 1, gd)
+                }
+            }
+        }
+
+        // اگر زمان گذشته، یک روز بعد
+        if (cal.timeInMillis < System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        // تکرار
+        val (repeatPattern, customDays) = extractRepeat(lower)
+
+        // اولویت
+        val priority = when {
+            lower.contains("فوری") || lower.contains("اضطراری") -> SmartReminderManager.Priority.URGENT
+            lower.contains("مهم") -> SmartReminderManager.Priority.HIGH
+            else -> SmartReminderManager.Priority.MEDIUM
+        }
+
+        // الگوهای نسبی: "یک ساعت قبل" یا "نیم ساعت قبل"
+        val offsetMinutes = extractOffsetMinutes(lower)
+        if (offsetMinutes != null) {
+            cal.add(Calendar.MINUTE, -offsetMinutes)
+            if (cal.timeInMillis < System.currentTimeMillis()) {
+                cal = Calendar.getInstance()
+                cal.add(Calendar.MINUTE, offsetMinutes) // برگردان اگر منفی شد
+            }
+        }
+
+        return ParsedReminder(
+            message = message,
+            triggerTime = cal.timeInMillis,
+            repeat = repeatPattern,
+            customDays = customDays,
+            priority = priority
+        )
+    }
+
+    private fun extractMessage(text: String): String? {
+        // حذف عبارات زمان/تکرار برای پیام کوتاه
+        var msg = text
+        listOf("فردا", "پس فردا", "پسفردا", "هر روز", "روزانه", "هفتگی", "ماهانه").forEach {
+            msg = msg.replace(it, "")
+        }
+        dayMap.keys.forEach { msg = msg.replace(it, "") }
+        msg = msg.replace(Regex("\\d{1,2}:\\d{1,2}"), "")
+        msg = msg.replace("ساعت", "")
+        msg = msg.replace("یک ساعت قبل", "")
+        msg = msg.replace("نیم ساعت قبل", "")
+        msg = msg.replace("قبل از", "")
+        msg = msg.trim()
+        return if (msg.isBlank()) null else msg
+    }
+
+    private fun extractTime(text: String): Pair<Int, Int>? {
+        val hhmm = Pattern.compile("(\\d{1,2})[:٫](\\d{1,2})").matcher(text)
+        if (hhmm.find()) {
+            val h = hhmm.group(1)?.toIntOrNull() ?: return null
+            val m = hhmm.group(2)?.toIntOrNull() ?: 0
+            return h.coerceIn(0, 23) to m.coerceIn(0, 59)
+        }
+        val hourOnly = Pattern.compile("ساعت\\s*(\\d{1,2})").matcher(text)
+        if (hourOnly.find()) {
+            val h = hourOnly.group(1)?.toIntOrNull() ?: return null
+            return h.coerceIn(0, 23) to 0
+        }
+        return null
+    }
+
+    private fun extractJalaliDate(text: String): Triple<Int, Int, Int>? {
+        val matcher = Pattern.compile("(\\d{4})[/-](\\d{1,2})[/-](\\d{1,2})").matcher(text)
+        return if (matcher.find()) {
+            val y = matcher.group(1)?.toIntOrNull() ?: return null
+            val m = matcher.group(2)?.toIntOrNull() ?: return null
+            val d = matcher.group(3)?.toIntOrNull() ?: return null
+            Triple(y, m, d)
+        } else null
+    }
+
+    private fun extractRepeat(text: String): Pair<RepeatPattern, List<Int>> {
+        if (text.contains("هر روز") || text.contains("روزانه")) return RepeatPattern.DAILY to emptyList()
+        if (text.contains("هفتگی") || text.contains("هر هفته")) return RepeatPattern.WEEKLY to emptyList()
+        if (text.contains("ماهانه") || text.contains("هر ماه")) return RepeatPattern.MONTHLY to emptyList()
+        if (text.contains("سالیانه") || text.contains("هر سال")) return RepeatPattern.YEARLY to emptyList()
+        if (text.contains("روزهای کاری")) return RepeatPattern.WEEKDAYS to emptyList()
+        if (text.contains("آخر هفته")) return RepeatPattern.WEEKENDS to emptyList()
+
+        // روزهای خاص هفته: جمعه‌ها، دوشنبه‌ها ...
+        val matchedDays = dayMap.filter { text.contains(it.key) }.values.map { toCustomDayIndex(it) }
+        if (matchedDays.isNotEmpty()) {
+            return RepeatPattern.CUSTOM to matchedDays
+        }
+        return RepeatPattern.ONCE to emptyList()
+    }
+
+    // Calendar.DAY_OF_WEEK (1=یکشنبه) -> 0..6 برای custom
+    private fun toCustomDayIndex(dayOfWeek: Int): Int {
+        return when (dayOfWeek) {
+            Calendar.SATURDAY -> 6
+            Calendar.SUNDAY -> 0
+            Calendar.MONDAY -> 1
+            Calendar.TUESDAY -> 2
+            Calendar.WEDNESDAY -> 3
+            Calendar.THURSDAY -> 4
+            Calendar.FRIDAY -> 5
+            else -> 0
+        }
+    }
+
+    private fun extractOffsetMinutes(text: String): Int? {
+        return when {
+            text.contains("یک ساعت قبل") || text.contains("1 ساعت قبل") -> 60
+            text.contains("نیم ساعت قبل") || text.contains("30 دقیقه قبل") -> 30
+            else -> null
+        }
     }
 }

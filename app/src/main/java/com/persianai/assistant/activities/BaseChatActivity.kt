@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.View
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -22,9 +23,9 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.utils.SecureMessageStorage
 import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,11 +38,13 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected lateinit var prefsManager: PreferencesManager
     protected lateinit var ttsHelper: TTSHelper
     protected var aiClient: AIClient? = null
-    protected var currentModel: AIModel = AIModel.LLAMA_3_3_70B
-    protected val messages = mutableListOf<ChatMessage>()
-    private lateinit var speechRecognizer: SpeechRecognizer
+    protected var currentModel: AIModel = AIModel.getDefaultModel()
+    protected var conversationId: Long? = null
+    protected var conversations: MutableList<Conversation> = mutableListOf()
     private var voiceRecorderView: VoiceRecorderView? = null
-    private lateinit var secureMessageStorage: SecureMessageStorage
+    private var directAudioAnalysisEnabled: Boolean = false
+    private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
+    protected var currentConversation: com.persianai.assistant.models.Conversation? = null
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -50,6 +53,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
         val fullPriority = listOf(
+            AIModel.QWEN_2_5_1_5B,
             AIModel.LLAMA_3_3_70B,
             AIModel.DEEPSEEK_R1T2,
             AIModel.MIXTRAL_8X7B,
@@ -73,7 +77,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        secureMessageStorage = SecureMessageStorage(this)
+        conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
     }
 
     protected abstract fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView
@@ -90,11 +94,17 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     private fun loadPersistedMessages() {
         try {
-            val persisted = secureMessageStorage.loadMessages()
-            if (persisted.isNotEmpty()) {
-                messages.clear()
-                messages.addAll(persisted)
+            val ns = getNamespace()
+            val currentId = conversationStorage.getCurrentConversationId()
+            val current = currentId?.let { conversationStorage.getConversationSync(it) }
+            val latestInNamespace = conversationStorage.getLatestConversation(ns)
+            currentConversation = when {
+                current != null && current.namespace == ns -> current
+                latestInNamespace != null -> latestInNamespace
+                else -> conversationStorage.createConversation(namespace = ns, title = "چت جدید")
             }
+            messages.clear()
+            messages.addAll(currentConversation?.messages ?: emptyList())
         } catch (e: Exception) {
             android.util.Log.e("BaseChatActivity", "Failed to load messages", e)
         }
@@ -143,7 +153,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     }
                     
                     override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                        transcribeAudio(audioFile)
+                        if (directAudioAnalysisEnabled) {
+                            analyzeAudio(audioFile)
+                        } else {
+                            transcribeAudio(audioFile)
+                        }
                     }
                     
                     override fun onRecordingCancelled() {
@@ -160,6 +174,18 @@ abstract class BaseChatActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.e("BaseChatActivity", "Error initializing VoiceRecorderView", e)
+        }
+
+        // نگه داشتن دکمه میکروفن برای سوییچ حالت «تحلیل مستقیم صوت»
+        getVoiceButton().setOnLongClickListener {
+            directAudioAnalysisEnabled = !directAudioAnalysisEnabled
+            val msg = if (directAudioAnalysisEnabled) {
+                "🎧 حالت تحلیل مستقیم صوت (HF Qwen-Audio) فعال شد"
+            } else {
+                "📝 حالت تبدیل صوت به متن فعال شد"
+            }
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            true
         }
     }
 
@@ -209,12 +235,117 @@ abstract class BaseChatActivity : AppCompatActivity() {
         return "شما یک دستیار هوشمند فارسی هستید."
     }
 
-    protected fun addMessage(message: ChatMessage) {
+    /**
+     * نام فضای چت برای تفکیک بخش‌ها (دستیار، مشاور آرامش، مشاور مسیر، مسیریابی و ...)
+     */
+    protected open fun getNamespace(): String = "assistant"
+
+    /**
+     * ایجاد چت جدید در namespace فعلی
+     */
+    protected fun startNewConversation(defaultTitle: String = "چت جدید") {
+        val conv = conversationStorage.createConversation(getNamespace(), defaultTitle)
+        currentConversation = conv
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+        scrollToBottom()
+    }
+
+    /**
+     * نمایش لیست چت‌ها در namespace فعلی و امکان انتخاب/ایجاد/تغییر نام/حذف
+     */
+    protected fun showConversationManager() {
+        val ns = getNamespace()
+        val conversations = conversationStorage.getConversationsByNamespace(ns)
+        val items = mutableListOf("➕ چت جدید").apply {
+            addAll(conversations.map { it.title })
+        }
+        val builder = MaterialAlertDialogBuilder(this)
+            .setTitle("چت‌های بخش ${namespaceLabel(ns)}")
+            .setItems(items.toTypedArray()) { _, which ->
+                if (which == 0) {
+                    startNewConversation()
+                } else {
+                    val conv = conversations[which - 1]
+                    loadConversation(conv)
+                }
+            }
+            .setNegativeButton("تغییر نام فعلی") { _, _ -> promptRenameCurrent() }
+            .setNeutralButton("حذف چت فعلی") { _, _ -> deleteCurrentConversation() }
+        builder.show()
+    }
+
+    private fun namespaceLabel(ns: String): String = when (ns) {
+        "counseling" -> "مشاور آرامش"
+        "career" -> "مشاور مسیر"
+        "navigation" -> "مسیریابی"
+        else -> "دستیار"
+    }
+
+    private fun loadConversation(conv: com.persianai.assistant.models.Conversation) {
+        currentConversation = conv
+        conversationStorage.setCurrentConversationId(conv.id)
+        messages.clear()
+        messages.addAll(conv.messages)
+        chatAdapter.notifyDataSetChanged()
+        scrollToBottom()
+    }
+
+    private fun promptRenameCurrent() {
+        val conv = currentConversation ?: return
+        val input = EditText(this).apply {
+            setText(conv.title)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("تغییر نام چت")
+            .setView(input)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val newTitle = input.text.toString().ifBlank { "چت جدید" }
+                conversationStorage.updateConversationTitleSync(conv.id, newTitle)
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
+    }
+
+    private fun deleteCurrentConversation() {
+        val conv = currentConversation ?: return
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("حذف چت")
+            .setMessage("آیا مطمئن هستید؟")
+            .setPositiveButton("حذف") { _, _ ->
+                conversationStorage.deleteConversationSync(conv.id)
+                currentConversation = conversationStorage.getLatestConversation(getNamespace())
+                messages.clear()
+                messages.addAll(currentConversation?.messages ?: emptyList())
+                chatAdapter.notifyDataSetChanged()
+                scrollToBottom()
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
+    }
+
+    private fun persistCurrentConversation() {
+        val conv = currentConversation ?: conversationStorage.createConversation(getNamespace(), "چت جدید").also {
+            currentConversation = it
+        }
+        conv.messages.clear()
+        conv.messages.addAll(messages)
+        conversationStorage.saveConversationSync(conv)
+        conversationStorage.setCurrentConversationId(conv.id)
+    }
+
+    private fun scrollToBottom() {
+        getRecyclerView().post {
+            getRecyclerView().smoothScrollToPosition(messages.size.coerceAtLeast(0))
+        }
+    }
+
+    private fun addMessage(message: ChatMessage) {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
         getRecyclerView().smoothScrollToPosition(messages.size - 1)
         try {
-            secureMessageStorage.saveMessages(messages)
+            persistCurrentConversation()
         } catch (e: Exception) {
             android.util.Log.e("BaseChatActivity", "Failed to persist messages", e)
         }
@@ -246,13 +377,36 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                Toast.makeText(this@BaseChatActivity, "⚠️ متن خالی برگشت", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseChatActivity, "⚠️ متن خالی برگشت (بررسی میکروفن/اینترنت/کلید)", Toast.LENGTH_SHORT).show()
                 startSpeechRecognition()
                 
             } catch (e: Exception) {
                 android.util.Log.e("BaseChatActivity", "Transcription failed: ${e.message}", e)
-                Toast.makeText(this@BaseChatActivity, "⚠️ تبدیل ناموفق", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseChatActivity, "⚠️ تبدیل ناموفق (کلید یا اینترنت را چک کن)", Toast.LENGTH_SHORT).show()
                 startSpeechRecognition()
+            }
+        }
+    }
+
+    /**
+     * تحلیل مستقیم صوت با HF Qwen-Audio (بدون STT)
+     */
+    private fun analyzeAudio(audioFile: File) {
+        lifecycleScope.launch {
+            try {
+                val result = aiClient?.analyzeAudio(audioFile.absolutePath)
+                if (!result.isNullOrBlank()) {
+                    getMessageInput().setText(result)
+                    Toast.makeText(this@BaseChatActivity, "🎧 تحلیل صوتی HF آماده است", Toast.LENGTH_SHORT).show()
+                    sendMessage()
+                    return@launch
+                }
+                Toast.makeText(this@BaseChatActivity, "⚠️ خروجی خالی از تحلیل صوتی؛ تلاش با STT", Toast.LENGTH_SHORT).show()
+                transcribeAudio(audioFile)
+            } catch (e: Exception) {
+                android.util.Log.e("BaseChatActivity", "Audio analysis failed: ${e.message}", e)
+                Toast.makeText(this@BaseChatActivity, "⚠️ تحلیل صوتی ناموفق (کلید یا اینترنت را چک کن)", Toast.LENGTH_SHORT).show()
+                transcribeAudio(audioFile)
             }
         }
     }

@@ -9,16 +9,20 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.R
 import com.persianai.assistant.models.AIProvider
+import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import kotlinx.coroutines.launch
 
 /**
  * صفحه شروع برنامه - نمایش توضیحات و دریافت رمز عبور
  */
 class SplashActivity : AppCompatActivity() {
+
+    private var aimlapiFound: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +47,29 @@ class SplashActivity : AppCompatActivity() {
             android.util.Log.e("SplashActivity", "Error in onCreate", e)
             navigateToMain()
         }
+    }
+
+    /**
+     * استخراج کلید HuggingFace از فایل رمزگشایی‌شده
+     * فرمت‌های پشتیبانی: 
+     *  - huggingface:KEY
+     *  - hf:KEY
+     *  - hf_xxx (خط بدون پیشوند)
+     */
+    private fun extractHuggingFaceKey(data: String): String? {
+        data.lines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
+            val lower = trimmed.lowercase()
+            val key = when {
+                lower.startsWith("huggingface:") -> trimmed.substringAfter(":").trim()
+                lower.startsWith("hf:") -> trimmed.substringAfter(":").trim()
+                trimmed.startsWith("hf_") -> trimmed
+                else -> ""
+            }.trim()
+            if (key.startsWith("hf_") && key.length > 5) return key
+        }
+        return null
     }
 
     private fun showWelcomeDialog() {
@@ -130,6 +157,12 @@ class SplashActivity : AppCompatActivity() {
                 val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
                 
                 // پردازش کلیدها
+                extractHuggingFaceKey(decryptedData)?.let { hf ->
+                    DefaultApiKeys.setHuggingFaceKey(hf)
+                    // ذخیره موقت برای سایر بخش‌ها در صورت نیاز
+                    val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
+                    apiPrefs.edit().putString("huggingface_api_key", hf).apply()
+                }
                 val apiKeys = parseAPIKeys(decryptedData)
                 
                 if (apiKeys.isEmpty()) {
@@ -139,6 +172,11 @@ class SplashActivity : AppCompatActivity() {
                 // ذخیره کلیدها
                 val prefsManager = PreferencesManager(this@SplashActivity)
                 prefsManager.saveAPIKeys(apiKeys)
+                if (aimlapiFound) {
+                    // اولویت کاربر: مدل سبک Qwen2.5 1.5B برای مصرف کم
+                    prefsManager.saveSelectedModel(AIModel.QWEN_2_5_1_5B)
+                    prefsManager.setProviderPreference(ProviderPreference.SMART_ROUTE)
+                }
                 
                 Toast.makeText(
                     this@SplashActivity,
@@ -186,6 +224,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun parseAPIKeys(data: String): List<APIKey> {
+        aimlapiFound = false
         val keys = mutableListOf<APIKey>()
         
         data.lines().forEach { line ->
@@ -196,15 +235,23 @@ class SplashActivity : AppCompatActivity() {
             val parts = trimmed.split(":", limit = 2)
             
             if (parts.size == 2) {
-                val provider = when (parts[0].lowercase()) {
+                val providerRaw = parts[0].lowercase()
+                val keyValue = parts[1].trim()
+                val provider = when (providerRaw) {
                     "openai" -> AIProvider.OPENAI
                     "anthropic", "claude" -> AIProvider.ANTHROPIC
                     "openrouter" -> AIProvider.OPENROUTER
+                    "deepseek" -> AIProvider.OPENROUTER // deepseek روی OpenRouter استفاده می‌شود
+                    "aimlapi" -> {
+                        aimlapiFound = true
+                        AIProvider.OPENROUTER   // برای سادگی روی OpenRouter
+                    }
+                    "hf", "huggingface" -> null           // در extractHuggingFaceKey پردازش می‌شود
                     else -> null
                 }
                 
-                if (provider != null) {
-                    keys.add(APIKey(provider, parts[1].trim(), true))
+                if (provider != null && keyValue.isNotEmpty()) {
+                    keys.add(APIKey(provider, keyValue, true))
                 }
             } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
                 // احتمالاً کلید OpenAI

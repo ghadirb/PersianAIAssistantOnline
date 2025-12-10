@@ -17,6 +17,9 @@ android {
         
         // کلید مسیریابی نشان (مقدار پیش‌فرض، لطفا در زمان بیلد مقدار واقعی را جایگزین کنید)
         buildConfigField "String", "NESHAN_API_KEY", "\"REPLACE_WITH_NESHAN_KEY\""
+        // کلید HuggingFace از gradle.properties (لوکال) یا سکرت CI؛ در گیت نگه ندارید
+        def hfApiKey = project.findProperty("HF_API_KEY") ?: ""
+        buildConfigField "String", "HF_API_KEY", "\"${hfApiKey}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         

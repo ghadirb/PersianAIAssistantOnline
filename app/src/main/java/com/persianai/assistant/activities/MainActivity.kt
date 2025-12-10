@@ -20,6 +20,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.R
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
+import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.databinding.ActivityMainBinding
 import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.finance.FinanceManager
@@ -28,16 +29,16 @@ import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
+import com.persianai.assistant.models.Conversation
+import com.persianai.assistant.storage.ConversationStorage
+import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.*
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
-import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.services.AIAssistantService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.view.MotionEvent
-import android.media.MediaRecorder
 import java.io.File
 
 /**
@@ -46,16 +47,10 @@ import java.io.File
 class MainActivity : AppCompatActivity() {
 
     private val messages = mutableListOf<ChatMessage>()
-    private var mediaRecorder: MediaRecorder? = null
-    private var audioFilePath: String = ""
-    private var isRecording = false
-    private var recordingTimer: java.util.Timer? = null
-    private var initialX: Float = 0f
-    private var initialY: Float = 0f
-    private val swipeThreshold = 100f
-    private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
-    private var currentConversation: com.persianai.assistant.models.Conversation? = null
-    private lateinit var secureMessageStorage: SecureMessageStorage
+    private val namespace = "assistant"
+    private var directAudioAnalysisEnabled = false
+    private lateinit var conversationStorage: ConversationStorage
+    private var currentConversation: Conversation? = null
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var chatAdapter: ChatAdapter
@@ -67,8 +62,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var checkManager: CheckManager
     private lateinit var installmentManager: InstallmentManager
     private var aiClient: AIClient? = null
-    private var currentModel: AIModel = AIModel.LLAMA_3_3_70B
-    private lateinit var speechRecognizer: SpeechRecognizer
+    private var currentModel: AIModel = AIModel.getDefaultModel()
+    private var voiceRecorderView: VoiceRecorderView? = null
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -99,8 +94,7 @@ class MainActivity : AppCompatActivity() {
             financeManager = FinanceManager(this)
             checkManager = CheckManager(this)
             installmentManager = InstallmentManager(this)
-            conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
-            secureMessageStorage = SecureMessageStorage(this)
+            conversationStorage = ConversationStorage(this)
             
             // Initialize Default API Keys if available
             try {
@@ -156,62 +150,40 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        // دکمه صوت مثل تلگرام: نگه دارید = ضبط، رها کنید = ارسال
-        binding.voiceButton.setOnTouchListener { v, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    // شروع ضبط با فشار دادن دکمه
-                    v.alpha = 0.7f
-                    initialX = event.rawX
-                    initialY = event.rawY
-                    checkAudioPermissionAndStartRecording()
-                    binding.messageInput.hint = "🎤 در حال ضبط... برای لغو به چپ بکشید"
-                    android.util.Log.d("MainActivity", "Voice recording started")
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    // اگر به چپ کشید، لغو ضبط
-                    val deltaX = event.rawX - initialX
-                    if (deltaX < -swipeThreshold && isRecording) {
-                        v.alpha = 0.3f
-                        binding.messageInput.hint = "⬅️ رها کنید برای لغو"
-                    } else {
-                        v.alpha = 0.7f
-                        binding.messageInput.hint = "🎤 در حال ضبط..."
-                    }
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    v.alpha = 1.0f
-                    
-                    if (isRecording) {
-                        // اگر به چپ کشیده، لغو کن
-                        val deltaX = event.rawX - initialX
-                        android.util.Log.d("MainActivity", "ACTION_UP: deltaX=$deltaX, threshold=$swipeThreshold")
-                        
-                        if (deltaX < -swipeThreshold) {
-                            cancelRecording()
-                            Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
-                        } else {
-                            // وگرنه ضبط رو تمام کن و ارسال کن
-                            android.util.Log.d("MainActivity", "Sending recorded audio...")
-                            stopRecordingAndProcess()
-                        }
-                    }
-                    
-                    binding.messageInput.hint = "پیام خود را بنویسید..."
-                    true
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    v.alpha = 1.0f
-                    if (isRecording) {
-                        cancelRecording() // Use cancelRecording to also delete the file
-                    }
-                    binding.messageInput.hint = "پیام خود را بنویسید..."
-                    true
-                }
-                else -> false
+        // VoiceRecorderView (مشترک با BaseChatActivity)
+        voiceRecorderView = binding.voiceButton as? VoiceRecorderView
+        voiceRecorderView?.setListener(object : VoiceRecorderView.VoiceRecorderListener {
+            override fun onRecordingStarted() {
+                checkAudioPermissionAndStartRecording()
             }
+
+            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                if (directAudioAnalysisEnabled) {
+                    analyzeAudio(audioFile)
+                } else {
+                    transcribeAudio(audioFile)
+                }
+            }
+
+            override fun onRecordingCancelled() {
+                Toast.makeText(this@MainActivity, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
+            }
+
+            override fun onAmplitudeChanged(amplitude: Int) {
+                // optional UI update
+            }
+        })
+
+        // لانگ‌پرس برای سوییچ حالت تحلیل مستقیم HF ↔ STT
+        voiceRecorderView?.setOnLongClickListener {
+            directAudioAnalysisEnabled = !directAudioAnalysisEnabled
+            val msg = if (directAudioAnalysisEnabled) {
+                "🎧 حالت تحلیل مستقیم صوت (HF Qwen-Audio) فعال شد"
+            } else {
+                "📝 حالت تبدیل صوت به متن فعال شد"
+            }
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            true
         }
 
         // حذف دکمه attach (قابلیت آپلود فایل فعلاً غیرفعال)
@@ -280,7 +252,7 @@ class MainActivity : AppCompatActivity() {
         chatAdapter.notifyItemInserted(messages.size - 1)
         binding.recyclerView.smoothScrollToPosition(messages.size - 1)
         try {
-            secureMessageStorage.saveMessages(messages)
+            persistCurrentConversation()
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Failed to persist messages", e)
         }
@@ -292,6 +264,7 @@ class MainActivity : AppCompatActivity() {
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
         val fullPriority = listOf(
+            AIModel.QWEN_2_5_1_5B,       // سبک/کم‌هزینه (OpenRouter/AIMLAPI) اولویت اول
             AIModel.LLAMA_3_3_70B,
             AIModel.DEEPSEEK_R1T2,
             AIModel.MIXTRAL_8X7B,
@@ -312,52 +285,13 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun checkAudioPermissionAndStartRecording() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
-        } else {
-            startRecording()
+        val permissions = arrayOf(Manifest.permission.RECORD_AUDIO)
+        val missingPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-    }
-
-    private fun startRecording() {
-        try {
-            audioFilePath = "${externalCacheDir?.absolutePath}/audiorecord.mp3"
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setOutputFile(audioFilePath)
-                prepare()
-                start()
-            }
-            isRecording = true
-            recordingTimer = java.util.Timer()
-            recordingTimer?.schedule(object : java.util.TimerTask() {
-                override fun run() {
-                    runOnUiThread {
-                        stopRecordingAndProcess()
-                    }
-                }
-            }, 30000) // 30 seconds max recording
-        } catch (e: Exception) {
-            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+        if (missingPermissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), REQUEST_RECORD_AUDIO)
         }
-    }
-
-
-
-    private fun cancelRecording() {
-        if (!isRecording) return
-        try {
-            mediaRecorder?.stop()
-            mediaRecorder?.release()
-        } catch (e: Exception) {
-            // Ignore
-        }
-        mediaRecorder = null
-        isRecording = false
-        recordingTimer?.cancel()
-        File(audioFilePath).delete()
     }
 
 
@@ -1196,46 +1130,40 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadMessages() {
         try {
+            val latest = conversationStorage.getLatestConversation(namespace)
+            currentConversation = latest ?: conversationStorage.createConversation(namespace, "چت جدید")
+            conversationStorage.setCurrentConversationId(currentConversation!!.id)
             messages.clear()
-            val persisted = secureMessageStorage.loadMessages()
-            if (persisted.isNotEmpty()) {
-                messages.addAll(persisted)
-            } else {
-                val stored = conversationStorage.getMessages()
-                if (stored.isNotEmpty()) {
-                    messages.addAll(stored)
-                } else {
-                    val history = conversationStorage.getLastConversationMessages()
-                    messages.addAll(history)
-                }
-                startNewConversation()
-            }
+            messages.addAll(currentConversation?.messages ?: emptyList())
+            chatAdapter.notifyDataSetChanged()
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "loadMessages failed", e)
         }
     }
     
     private fun startNewConversation() {
-        currentConversation = com.persianai.assistant.models.Conversation()
-        conversationStorage.setCurrentConversationId(currentConversation!!.id)
+        currentConversation = conversationStorage.createConversation(namespace, "چت جدید")
         messages.clear()
         chatAdapter.notifyDataSetChanged()
     }
     
     private fun saveCurrentConversation() {
         lifecycleScope.launch {
-            currentConversation?.let { conversation ->
-                conversation.messages.clear()
-                conversation.messages.addAll(messages)
-                
-                // تولید عنوان خودکار اگر هنوز "چت جدید" است
-                if (conversation.title == "چت جدید" && messages.isNotEmpty()) {
-                    conversation.title = conversation.generateTitle()
-                }
-                
-                conversationStorage.saveConversation(conversation)
-            }
+            persistCurrentConversation()
         }
+    }
+
+    private fun persistCurrentConversation() {
+        val conv = currentConversation ?: conversationStorage.createConversation(namespace, "چت جدید").also {
+            currentConversation = it
+        }
+        conv.messages.clear()
+        conv.messages.addAll(messages)
+        if (conv.title == "چت جدید" && messages.isNotEmpty()) {
+            conv.title = conv.generateTitle()
+        }
+        conversationStorage.saveConversationSync(conv)
+        conversationStorage.setCurrentConversationId(conv.id)
     }
 
     private fun checkAudioPermissionAndStartSpeechRecognition() {
@@ -1250,61 +1178,52 @@ class MainActivity : AppCompatActivity() {
         startSpeechToText()
     }
 
-    private fun stopRecordingAndProcess() {
-        if (!isRecording) return
-        
-        try {
-            recordingTimer?.cancel()
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            isRecording = false
-            
-            // مخفی کردن نشانگر
-            binding.recordingIndicator.visibility = android.view.View.GONE
-            
-            // تبدیل صوت به متن با Whisper API
-            Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
-            transcribeAndSendAudio()
-            
-        } catch (e: Exception) {
-            Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
-            android.util.Log.e("MainActivity", "Stop recording error", e)
-        }
-    }
-    
-    private fun transcribeAndSendAudio() {
-        val filePath = audioFilePath
-        if (filePath.isEmpty()) return
-
+    private fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
-                // تبدیل صوت به متن با Whisper
-                val transcribedText = aiClient?.transcribeAudio(filePath)
-
-                if (transcribedText.isNullOrEmpty()) {
-                    Toast.makeText(this@MainActivity, "⚠️ متنی شناسایی نشد", Toast.LENGTH_SHORT).show()
+                val transcribedText = aiClient?.transcribeAudio(audioFile.absolutePath)
+                
+                if (!transcribedText.isNullOrEmpty()) {
+                    binding.messageInput.setText(transcribedText)
+                    Toast.makeText(this@MainActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
+                    sendMessage()
                     return@launch
                 }
-
-                android.util.Log.d("MainActivity", "Whisper transcribed: $transcribedText")
-
-                // نمایش متن در input
-                binding.messageInput.setText(transcribedText)
-                Toast.makeText(this@MainActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
-
-                // ارسال خودکار
-                sendMessage()
-
+                
+                Toast.makeText(this@MainActivity, "⚠️ متن خالی برگشت (بررسی میکروفن/اینترنت/کلید)", Toast.LENGTH_SHORT).show()
+                startSpeechRecognition()
+                
             } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Transcription error", e)
-                Toast.makeText(this@MainActivity, "❌ خطا در تبدیل: ${e.message}", Toast.LENGTH_LONG).show()
+                android.util.Log.e("MainActivity", "Transcription failed: ${e.message}", e)
+                Toast.makeText(this@MainActivity, "⚠️ تبدیل ناموفق (کلید یا اینترنت را چک کن)", Toast.LENGTH_SHORT).show()
+                startSpeechRecognition()
             }
         }
     }
-    
+
+    /**
+     * تحلیل مستقیم صوت با HF Qwen-Audio (بدون STT)
+     */
+    private fun analyzeAudio(audioFile: File) {
+        lifecycleScope.launch {
+            try {
+                val result = aiClient?.analyzeAudio(audioFile.absolutePath)
+                if (!result.isNullOrBlank()) {
+                    binding.messageInput.setText(result)
+                    Toast.makeText(this@MainActivity, "🎧 تحلیل صوتی HF آماده است", Toast.LENGTH_SHORT).show()
+                    sendMessage()
+                    return@launch
+                }
+                Toast.makeText(this@MainActivity, "⚠️ خروجی خالی از تحلیل صوتی؛ تلاش با STT", Toast.LENGTH_SHORT).show()
+                transcribeAudio(audioFile)
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Audio analysis failed: ${e.message}", e)
+                Toast.makeText(this@MainActivity, "⚠️ تحلیل صوتی ناموفق (کلید یا اینترنت را چک کن)", Toast.LENGTH_SHORT).show()
+                transcribeAudio(audioFile)
+            }
+        }
+    }
+
     private fun startSpeechToText() {
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             binding.messageInput.setText("🎤 پیام صوتی")

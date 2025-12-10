@@ -62,8 +62,18 @@ class NavigationManager(private val context: Context) {
         routeType: RouteType = RouteType.DRIVING
     ): com.persianai.assistant.navigation.models.NavigationRoute = withContext(Dispatchers.IO) {
         // TODO: Implement Google Directions API integration
-        // For now, return a simple default route
-        createDefaultRoute(startLat, startLng, endLat, endLng)
+        // For now, return a simple default route with a fake step
+        val base = createDefaultRoute(startLat, startLng, endLat, endLng)
+        val step = com.persianai.assistant.navigation.models.NavigationStep(
+            instruction = "به مقصد حرکت کنید",
+            distance = base.distance,
+            duration = base.duration,
+            startLocation = com.persianai.assistant.navigation.models.GeoPoint(startLat, startLng),
+            endLocation = com.persianai.assistant.navigation.models.GeoPoint(endLat, endLng),
+            maneuver = "straight",
+            polyline = "${startLat},${startLng};${endLat},${endLng}"
+        )
+        base.copy(steps = listOf(step))
     }
     
     /**

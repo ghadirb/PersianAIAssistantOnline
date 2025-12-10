@@ -3,12 +3,14 @@ package com.persianai.assistant.ai
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.persianai.assistant.models.*
+import com.persianai.assistant.utils.DefaultApiKeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -140,6 +142,52 @@ class AIClient(private val apiKeys: List<APIKey>) {
     }
 
     /**
+     * تحلیل مستقیم صوت (بدون تبدیل متن) با HuggingFace Qwen-Audio
+     */
+    suspend fun analyzeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
+        val file = File(audioFilePath)
+        if (!file.exists()) {
+            android.util.Log.w("AIClient", "Audio file not found: $audioFilePath")
+            return@withContext ""
+        }
+
+        val hfKey = DefaultApiKeys.getHuggingFaceKey()
+        if (hfKey.isNullOrBlank()) {
+            android.util.Log.w("AIClient", "No HuggingFace key for audio analysis")
+            return@withContext ""
+        }
+
+        try {
+            val body = file.readBytes().toRequestBody("audio/mpeg".toMediaType())
+            val request = Request.Builder()
+                .url("https://api-inference.huggingface.co/models/Qwen/Qwen-Audio")
+                .addHeader("Authorization", "Bearer $hfKey")
+                .addHeader("Accept", "application/json")
+                .post(body)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                if (!response.isSuccessful) {
+                    android.util.Log.e("AIClient", "HF audio analysis error: ${response.code} - $responseBody")
+                    return@withContext ""
+                }
+                try {
+                    val json = gson.fromJson(responseBody, JsonObject::class.java)
+                    json.get("text")?.asString
+                        ?: json.get("generated_text")?.asString
+                        ?: responseBody.orEmpty()
+                } catch (_: Exception) {
+                    responseBody.orEmpty()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "HF audio analysis exception: ${e.message}", e)
+            ""
+        }
+    }
+
+    /**
      * ارسال به Claude (Anthropic)
      */
     private suspend fun sendToClaude(
@@ -204,22 +252,37 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        val openAIKey = apiKeys.firstOrNull { 
-            it.provider == AIProvider.OPENAI && it.isActive 
-        }
-        
-        if (openAIKey == null) {
-            android.util.Log.w("AIClient", "OpenAI key not found for Whisper, returning empty string for fallback")
-            return@withContext ""
-        }
-
-        val file = java.io.File(audioFilePath)
+        val file = File(audioFilePath)
         if (!file.exists()) {
             android.util.Log.w("AIClient", "Audio file not found: $audioFilePath")
             return@withContext ""
         }
 
+        val openAIKey = apiKeys.firstOrNull {
+            it.provider == AIProvider.OPENAI && it.isActive
+        }?.key ?: DefaultApiKeys.getOpenAIKey()
+        val hfKey = DefaultApiKeys.getHuggingFaceKey()
+
+        if (openAIKey.isNullOrBlank() && hfKey.isNullOrBlank()) {
+            android.util.Log.w("AIClient", "No OpenAI/HuggingFace key available for transcription")
+            return@withContext ""
+        }
+
         try {
+            if (!openAIKey.isNullOrBlank()) {
+                transcribeWithOpenAI(file, openAIKey)?.let { return@withContext it }
+            }
+            if (!hfKey.isNullOrBlank()) {
+                transcribeWithHuggingFace(file, hfKey)?.let { return@withContext it }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "Whisper transcription error: ${e.message}", e)
+        }
+        ""
+    }
+
+    private fun transcribeWithOpenAI(file: File, key: String): String? {
+        return try {
             val requestBody = okhttp3.MultipartBody.Builder()
                 .setType(okhttp3.MultipartBody.FORM)
                 .addFormDataPart(
@@ -236,25 +299,54 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
             val request = Request.Builder()
                 .url("https://api.openai.com/v1/audio/transcriptions")
-                .addHeader("Authorization", "Bearer ${openAIKey.key}")
+                .addHeader("Authorization", "Bearer $key")
                 .post(requestBody)
                 .build()
 
             client.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful) {
                     android.util.Log.e("AIClient", "Whisper API error: ${response.code} - $responseBody")
-                    return@withContext ""
+                    return null
                 }
 
                 val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
-                val text = jsonResponse.get("text")?.asString
-                return@withContext text ?: ""
+                jsonResponse.get("text")?.asString
             }
         } catch (e: Exception) {
-            android.util.Log.e("AIClient", "Whisper transcription error: ${e.message}", e)
-            return@withContext ""
+            android.util.Log.e("AIClient", "OpenAI transcription error: ${e.message}", e)
+            null
+        }
+    }
+
+    private fun transcribeWithHuggingFace(file: File, key: String): String? {
+        return try {
+            val body = file.readBytes().toRequestBody("audio/mpeg".toMediaType())
+            val request = Request.Builder()
+                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
+                .addHeader("Authorization", "Bearer $key")
+                .addHeader("Accept", "application/json")
+                .post(body)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                if (!response.isSuccessful) {
+                    android.util.Log.e("AIClient", "HuggingFace STT error: ${response.code} - $responseBody")
+                    return null
+                }
+                try {
+                    val json = gson.fromJson(responseBody, JsonObject::class.java)
+                    json.get("text")?.asString
+                        ?: json.get("generated_text")?.asString
+                } catch (_: Exception) {
+                    responseBody?.takeIf { it.isNotBlank() }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "HuggingFace transcription error: ${e.message}", e)
+            null
         }
     }
 }

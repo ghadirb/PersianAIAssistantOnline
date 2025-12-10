@@ -14,6 +14,12 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.persianai.assistant.services.ReminderReceiver
 import java.util.Calendar
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import android.util.Base64
 
 /**
  * مدیریت پیشرفته یادآوری‌های هوشمند
@@ -28,6 +34,12 @@ class SmartReminderManager(private val context: Context) {
     companion object {
         private const val TAG = "SmartReminder"
         private const val KEY_REMINDERS = "reminders"
+        private const val KEY_REMINDERS_ENC = "reminders_enc"
+        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
+        private const val KEY_ALIAS = "smart_reminder_key"
+        private const val AES_MODE = "AES/GCM/NoPadding"
+        private const val IV_LENGTH = 12
+        private const val GCM_TAG_LENGTH = 128
     }
     
     /**
@@ -113,7 +125,6 @@ class SmartReminderManager(private val context: Context) {
         val reminders = getAllReminders().toMutableList()
         reminders.add(reminder)
         saveReminders(reminders)
-        
         // تنظیم آلارم
         scheduleReminder(reminder)
         
@@ -288,9 +299,25 @@ class SmartReminderManager(private val context: Context) {
      * دریافت تمام یادآوری‌ها
      */
     fun getAllReminders(): List<SmartReminder> {
+        // تلاش برای خواندن نسخه رمزگذاری‌شده
+        prefs.getString(KEY_REMINDERS_ENC, null)?.let { enc ->
+            decrypt(enc)?.let { plain ->
+                return try {
+                    val type = object : TypeToken<List<SmartReminder>>() {}.type
+                    gson.fromJson<List<SmartReminder>>(plain, type) ?: emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+        }
+        // خواندن نسخه قدیمی غیررمزگذاری‌شده (سازگاری عقب‌رو)
         val json = prefs.getString(KEY_REMINDERS, "[]") ?: "[]"
         val type = object : TypeToken<List<SmartReminder>>() {}.type
-        return gson.fromJson(json, type)
+        val legacy = gson.fromJson<List<SmartReminder>>(json, type) ?: emptyList()
+        // مهاجرت به نسخه رمزگذاری‌شده
+        saveReminders(legacy)
+        prefs.edit().remove(KEY_REMINDERS).apply()
+        return legacy
     }
     
     /**
@@ -425,14 +452,12 @@ class SmartReminderManager(private val context: Context) {
 
     fun deleteReminder(reminderId: String): Boolean {
         val reminders = getAllReminders().toMutableList()
-        val removed = reminders.removeIf { it.id == reminderId }
-        
+        val removed = reminders.removeAll { it.id == reminderId }
         if (removed) {
             saveReminders(reminders)
             cancelReminder(reminderId)
-            Log.i(TAG, "🗑️ یادآوری حذف شد")
+            Log.i(TAG, "🗑️ یادآوری حذف شد: $reminderId")
         }
-        
         return removed
     }
     
@@ -640,7 +665,13 @@ class SmartReminderManager(private val context: Context) {
      */
     private fun saveReminders(reminders: List<SmartReminder>) {
         val json = gson.toJson(reminders)
-        prefs.edit().putString(KEY_REMINDERS, json).apply()
+        val encrypted = encrypt(json.toByteArray(Charsets.UTF_8))
+        if (encrypted != null) {
+            prefs.edit().putString(KEY_REMINDERS_ENC, encrypted).apply()
+        } else {
+            // در صورت خطای رمزگذاری، نسخه غیررمزگذاری‌شده را به عنوان پشتیبان ذخیره کن
+            prefs.edit().putString(KEY_REMINDERS, json).apply()
+        }
     }
     
     /**

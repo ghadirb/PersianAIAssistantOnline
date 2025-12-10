@@ -53,6 +53,63 @@ object PersianDateConverter {
         return PersianDate(jy, jm, jd)
     }
     
+    /**
+     * تبدیل تاریخ شمسی به میلادی
+     * خروجی: Triple(year, month, day) میلادی
+     */
+    fun persianToGregorian(jy: Int, jm: Int, jd: Int): Triple<Int, Int, Int> {
+        val jy2 = jy - 979
+        val jm2 = jm - 1
+        val jd2 = jd - 1
+        
+        var days = 365 * jy2 + (jy2 / 33) * 8 + ((jy2 % 33 + 3) / 4)
+        for (i in 0 until jm2) {
+            days += if (i < 6) 31 else 30
+        }
+        days += jd2
+        
+        var gy = 1600 + 400 * (days / 146097)
+        days %= 146097
+        
+        var leap = true
+        if (days >= 36525) {
+            days--
+            gy += 100 * (days / 36524)
+            days %= 36524
+            
+            if (days >= 365) {
+                days++
+            } else {
+                leap = false
+            }
+        }
+        
+        gy += 4 * (days / 1461)
+        days %= 1461
+        
+        if (days >= 366) {
+            leap = false
+            days--
+            gy += days / 365
+            days %= 365
+        }
+        
+        val gdArray = intArrayOf(0, 31, if (leap) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        var gm = 0
+        var gd = 0
+        for (i in 1..12) {
+            val v = gdArray[i]
+            if (days < v) {
+                gm = i
+                gd = days + 1
+                break
+            }
+            days -= v
+        }
+        
+        return Triple(gy, gm, gd)
+    }
+    
     fun getMonthName(month: Int): String {
         return if (month in 1..12) persianMonths[month - 1] else ""
     }

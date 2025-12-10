@@ -12,7 +12,14 @@ enum class AIModel(
     val description: String,
     val maxTokens: Int
 ) {
-    // اولویت: OpenRouter رایگان/مقرون‌به‌صرفه
+    // اولویت: مدل سبک و رایگان روی OpenRouter/AIMLAPI
+    QWEN_2_5_1_5B(
+        "qwen2.5-1.5b-instruct",
+        "Qwen2.5 1.5B (OpenRouter/AIMLAPI)",
+        AIProvider.OPENROUTER,
+        "مدل کوچک و کم‌هزینه برای گوشی‌های ضعیف‌تر و مصرف کم اعتبار",
+        4000
+    ),
     LLAMA_3_3_70B(
         "meta-llama/llama-3.3-70b-instruct",
         "Llama 3.3 70B (OpenRouter)",
@@ -79,7 +86,7 @@ enum class AIModel(
             return values().find { it.modelId == modelId }
         }
 
-        fun getDefaultModel(): AIModel = LLAMA_3_3_70B
+        fun getDefaultModel(): AIModel = QWEN_2_5_1_5B
     }
 }
 

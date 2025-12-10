@@ -58,14 +58,26 @@ class WeatherForecastActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
         
+        // Prefill summary card با داده ذخیره‌شده
+        updateSummaryCard(
+            cityName = city,
+            desc = "پیش‌بینی ۷ روزه",
+            icon = "☀️",
+            tempMin = null,
+            tempMax = null,
+            lastUpdateText = formatLastUpdate(prefs.getLong("weather_last_update_$city", -1L))
+        )
+        
         binding.progressBar.visibility = View.VISIBLE
         binding.forecastRecyclerView.visibility = View.GONE
+        binding.forecastSkeleton.visibility = View.VISIBLE
+        binding.forecastRecyclerView.alpha = 0f
         
         lifecycleScope.launch {
             try {
                 when (forecastType) {
-                    "daily" -> loadDailyForecast(city)
-                    "monthly" -> loadMonthlyForecast(city)
+                    "daily" -> loadDailyForecast(city, prefs)
+                    "monthly" -> loadMonthlyForecast(city, prefs)
                 }
             } catch (e: Exception) {
                 Toast.makeText(
@@ -75,12 +87,14 @@ class WeatherForecastActivity : AppCompatActivity() {
                 ).show()
             } finally {
                 binding.progressBar.visibility = View.GONE
+                binding.forecastSkeleton.visibility = View.GONE
                 binding.forecastRecyclerView.visibility = View.VISIBLE
+                binding.forecastRecyclerView.animate().alpha(1f).setDuration(220).start()
             }
         }
     }
     
-    private suspend fun loadDailyForecast(city: String) {
+    private suspend fun loadDailyForecast(city: String, prefs: android.content.SharedPreferences) {
         val forecasts = WorldWeatherAPI.getForecast(city)
         
         if (forecasts.isNotEmpty()) {
@@ -109,18 +123,49 @@ class WeatherForecastActivity : AppCompatActivity() {
             }
             
             forecastAdapter.updateData(dailyForecasts)
+            
+            dailyForecasts.firstOrNull()?.let { first ->
+                updateSummaryCard(
+                    cityName = city,
+                    desc = first.description,
+                    icon = first.icon,
+                    tempMin = first.tempMin,
+                    tempMax = first.tempMax,
+                    lastUpdateText = formatLastUpdate(prefs.getLong("weather_last_update_$city", -1L))
+                )
+            }
         } else {
             // Mock data اگر API کار نکرد
             val mockForecasts = generateMockDailyForecast(city)
             forecastAdapter.updateData(mockForecasts)
+            mockForecasts.firstOrNull()?.let { first ->
+                updateSummaryCard(
+                    cityName = city,
+                    desc = first.description,
+                    icon = first.icon,
+                    tempMin = first.tempMin,
+                    tempMax = first.tempMax,
+                    lastUpdateText = formatLastUpdate(prefs.getLong("weather_last_update_$city", -1L))
+                )
+            }
         }
     }
     
-    private suspend fun loadMonthlyForecast(city: String) {
+    private suspend fun loadMonthlyForecast(city: String, prefs: android.content.SharedPreferences) {
         // برای 30 روز آینده mock data تولید می‌کنیم
         // API رایگان OpenWeather فقط 5 روز می‌دهد
         val monthlyForecasts = generateMockMonthlyForecast(city)
         forecastAdapter.updateData(monthlyForecasts)
+        monthlyForecasts.firstOrNull()?.let { first ->
+            updateSummaryCard(
+                cityName = city,
+                desc = first.description,
+                icon = first.icon,
+                tempMin = first.tempMin,
+                tempMax = first.tempMax,
+                lastUpdateText = formatLastUpdate(prefs.getLong("weather_last_update_$city", -1L))
+            )
+        }
     }
     
     private fun generateMockDailyForecast(city: String): List<DailyForecast> {
@@ -186,6 +231,29 @@ class WeatherForecastActivity : AppCompatActivity() {
         return forecasts
     }
     
+    private fun updateSummaryCard(
+        cityName: String,
+        desc: String,
+        icon: String,
+        tempMin: Double?,
+        tempMax: Double?,
+        lastUpdateText: String?
+    ) {
+        binding.forecastCityText.text = cityName
+        binding.forecastDescText.text = desc
+        binding.forecastIconText.text = WorldWeatherAPI.getWeatherEmoji(icon)
+        binding.forecastTempText.text = if (tempMin != null && tempMax != null) {
+            "${tempMin.roundToInt()}° / ${tempMax.roundToInt()}°"
+        } else "--°"
+        binding.forecastLastUpdateText.text = lastUpdateText ?: "به‌روزرسانی: --"
+    }
+    
+    private fun formatLastUpdate(ts: Long): String? {
+        if (ts <= 0) return null
+        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
+        return "به‌روزرسانی: $timeStr"
+    }
+    
     private fun isSameDay(date1: Date, date2: Date): Boolean {
         val cal1 = Calendar.getInstance()
         cal1.time = date1
@@ -238,6 +306,7 @@ class WeatherForecastActivity : AppCompatActivity() {
             private val iconText: TextView = itemView.findViewById(R.id.forecastIcon)
             private val tempText: TextView = itemView.findViewById(R.id.forecastTemp)
             private val descText: TextView = itemView.findViewById(R.id.forecastDescription)
+            private val rangeText: TextView = itemView.findViewById(R.id.forecastRange)
             
             fun bind(forecast: DailyForecast) {
                 try {
@@ -254,13 +323,17 @@ class WeatherForecastActivity : AppCompatActivity() {
                 
                 iconText.text = WorldWeatherAPI.getWeatherEmoji(forecast.icon)
                 
-                tempText.text = "${forecast.tempMin.roundToInt()}° - ${forecast.tempMax.roundToInt()}°"
+                tempText.text = "${forecast.tempMin.roundToInt()}° / ${forecast.tempMax.roundToInt()}°"
+                val avg = ((forecast.tempMin + forecast.tempMax) / 2).roundToInt()
+                rangeText.text = "میانگین: $avg°"
                 
                 descText.text = forecast.description
                 
                 // رنگ پس‌زمینه برای امروز
                 if (isSameDay(forecast.date, Date())) {
                     itemView.setBackgroundColor(itemView.context.getColor(android.R.color.holo_blue_light))
+                } else {
+                    itemView.setBackgroundColor(itemView.context.getColor(android.R.color.transparent))
                 }
             }
         }

@@ -20,6 +20,10 @@ import com.persianai.assistant.navigation.utils.RouteCache
 import com.persianai.assistant.navigation.sync.GoogleDriveSync
 import java.io.File
 import java.util.*
+import kotlin.math.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 
 /**
  * سیستم مسیریاب پیشرفته با هوش مصنوعی و یادگیری خودکار
@@ -46,6 +50,7 @@ class AdvancedNavigationSystem(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val httpClient = OkHttpClient()
     
     // مدیریت کش و یادگیری
     private val routeCache = RouteCache(context)
@@ -118,6 +123,32 @@ class AdvancedNavigationSystem(private val context: Context) {
         val count = prefs.getInt(KEY_API_USAGE_COUNT, 0)
         prefs.edit().putInt(KEY_API_USAGE_COUNT, count + 1).apply()
     }
+
+    /**
+     * تلاش برای بارگذاری کلید نشان از فایل لایسنس و ذخیره در prefs
+     */
+    private fun ensureNeshanApiKeyLoaded(): String? {
+        val existing = getNeshanApiKey()
+        if (!existing.isNullOrBlank()) return existing
+        val fromFile = loadNeshanKeyFromLicenseFile()
+        if (!fromFile.isNullOrBlank()) {
+            setNeshanApiKey(fromFile)
+            return fromFile
+        }
+        return null
+    }
+
+    private fun loadNeshanKeyFromLicenseFile(): String? {
+        return try {
+            val file = File("C:\\\\Users\\\\Admin\\\\Downloads\\\\Telegram Desktop\\\\neshan.license")
+            if (file.exists()) {
+                file.readText().trim().ifBlank { null }
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read neshan.license", e)
+            null
+        }
+    }
     
     /**
      * دریافت مسیر با هوش مصنوعی
@@ -136,9 +167,10 @@ class AdvancedNavigationSystem(private val context: Context) {
         }
         
         // اگر API در دسترس است و آنلاین هستیم
-        if (canUseApi() && getNeshanApiKey() != null) {
+        val apiKey = ensureNeshanApiKeyLoaded()
+        if (canUseApi() && apiKey != null) {
             try {
-                val apiRoute = getRouteFromNeshanAPI(origin, destination, routeType)
+                val apiRoute = getRouteFromNeshanAPI(origin, destination, routeType, apiKey)
                 if (apiRoute != null) {
                     incrementApiUsage()
                     routeCache.saveRoute(apiRoute)
@@ -169,13 +201,36 @@ class AdvancedNavigationSystem(private val context: Context) {
     /**
      * دریافت مسیر از API نشان
      */
-    private suspend fun getRouteFromNeshanAPI(
+    private fun getRouteFromNeshanAPI(
         origin: GeoPoint,
         destination: GeoPoint,
-        routeType: RouteType
+        routeType: RouteType,
+        apiKey: String
     ): NavigationRoute? {
-        // پیاده‌سازی API نشان
-        return null // TODO: پیاده‌سازی API نشان
+        return try {
+            val typeParam = when (routeType) {
+                RouteType.WALKING -> "foot"
+                RouteType.CYCLING -> "bicycle"
+                else -> "car"
+            }
+            val url =
+                "https://api.neshan.org/v4/direction?type=$typeParam&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}"
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Api-Key", apiKey)
+                .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Neshan API not successful: ${response.code}")
+                    return null
+                }
+                val body = response.body?.string() ?: return null
+                parseNeshanRoute(body, origin, destination, routeType)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Neshan API error", e)
+            null
+        }
     }
     
     /**
@@ -185,8 +240,113 @@ class AdvancedNavigationSystem(private val context: Context) {
         origin: GeoPoint,
         destination: GeoPoint
     ): NavigationRoute? {
-        // پیاده‌سازی مسیریابی OSM
-        return null // TODO: پیاده‌سازی OSM routing
+        // مسیر خط مستقیم ساده به عنوان fallback آفلاین/OSM
+        val waypoints = listOf(origin, destination)
+        val distance = haversineMeters(origin.latitude, origin.longitude, destination.latitude, destination.longitude)
+        val duration = (distance / (40_000.0 / 3600.0)).roundToLong() // فرض سرعت ۴۰km/h
+        val step = NavigationStep(
+            instruction = "مسیر مستقیم تا مقصد",
+            distance = distance,
+            duration = duration,
+            startLocation = com.persianai.assistant.navigation.models.GeoPoint(origin.latitude, origin.longitude),
+            endLocation = com.persianai.assistant.navigation.models.GeoPoint(destination.latitude, destination.longitude),
+            maneuver = "straight",
+            polyline = "${origin.latitude},${origin.longitude};${destination.latitude},${destination.longitude}"
+        )
+        return NavigationRoute(
+            id = UUID.randomUUID().toString(),
+            origin = origin,
+            destination = destination,
+            waypoints = waypoints,
+            distance = distance,
+            duration = duration,
+            routeType = RouteType.DRIVING,
+            steps = listOf(step)
+        )
+    }
+
+    private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371000.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = sin(dLat / 2).pow(2.0) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2.0)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return R * c
+    }
+
+    private fun parseNeshanRoute(
+        jsonBody: String,
+        origin: GeoPoint,
+        destination: GeoPoint,
+        routeType: RouteType
+    ): NavigationRoute? {
+        val json = JSONObject(jsonBody)
+        val routesArr = json.optJSONArray("routes") ?: return null
+        val routeObj = routesArr.optJSONObject(0) ?: return null
+        val legs = routeObj.optJSONArray("legs") ?: return null
+
+        val waypoints = mutableListOf<GeoPoint>()
+        val steps = mutableListOf<NavigationStep>()
+        var totalDistance = 0.0
+        var totalDuration = 0.0
+
+        for (i in 0 until legs.length()) {
+            val leg = legs.optJSONObject(i) ?: continue
+            val stepsArr = leg.optJSONArray("steps") ?: continue
+            for (j in 0 until stepsArr.length()) {
+                val stepObj = stepsArr.optJSONObject(j) ?: continue
+                val dist = stepObj.optJSONObject("distance")?.optDouble("value") ?: 0.0
+                val dur = stepObj.optJSONObject("duration")?.optDouble("value") ?: 0.0
+                val startLoc = stepObj.optJSONObject("start_location")
+                val endLoc = stepObj.optJSONObject("end_location")
+                val startLat = startLoc?.optDouble("lat") ?: origin.latitude
+                val startLng = startLoc?.optDouble("lng") ?: origin.longitude
+                val endLat = endLoc?.optDouble("lat") ?: destination.latitude
+                val endLng = endLoc?.optDouble("lng") ?: destination.longitude
+                val startPoint = GeoPoint(startLat, startLng)
+                val endPoint = GeoPoint(endLat, endLng)
+
+                if (waypoints.isEmpty()) waypoints.add(startPoint)
+                if (waypoints.lastOrNull() != endPoint) waypoints.add(endPoint)
+
+                val rawInstruction = stepObj.optString("html_instructions",
+                    stepObj.optString("instruction",
+                        stepObj.optString("maneuver", "ادامه مسیر")))
+                val cleanInstruction = rawInstruction.replace(Regex("<.*?>"), "").trim()
+                val maneuver = stepObj.optString("maneuver", "straight")
+                val polyline = stepObj.optString("polyline", "")
+
+                steps.add(
+                    NavigationStep(
+                        instruction = cleanInstruction.ifBlank { "ادامه مسیر" },
+                        distance = dist,
+                        duration = dur,
+                        startLocation = com.persianai.assistant.navigation.models.GeoPoint(startLat, startLng),
+                        endLocation = com.persianai.assistant.navigation.models.GeoPoint(endLat, endLng),
+                        maneuver = maneuver,
+                        polyline = polyline
+                    )
+                )
+                totalDistance += dist
+                totalDuration += dur
+            }
+        }
+
+        if (waypoints.isEmpty()) {
+            waypoints.add(origin)
+            waypoints.add(destination)
+        }
+
+        return NavigationRoute(
+            id = UUID.randomUUID().toString(),
+            origin = origin,
+            destination = destination,
+            waypoints = waypoints,
+            distance = if (totalDistance > 0) totalDistance else haversineMeters(origin.latitude, origin.longitude, destination.latitude, destination.longitude),
+            duration = if (totalDuration > 0) totalDuration else (totalDistance / (40_000.0 / 3600.0)),
+            routeType = routeType,
+            steps = steps
+        )
     }
     
     /**

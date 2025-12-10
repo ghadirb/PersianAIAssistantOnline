@@ -47,6 +47,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import com.persianai.assistant.navigation.RouteSheetHelper
+import kotlin.math.*
 
 class NavigationActivity : AppCompatActivity() {
     
@@ -84,6 +85,9 @@ class NavigationActivity : AppCompatActivity() {
     private var isTrafficEnabled = false
     private var currentMapLayer = "normal"
     private var isNavigationActive = false
+    private var isRerouting = false
+    private var lastGuidanceTime: Long = 0L
+    private var currentStepIndex: Int = 0
     
     // TTS Engine
     private var tts: com.persianai.assistant.tts.HybridTTS? = null
@@ -121,6 +125,74 @@ class NavigationActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun provideStepGuidance(route: NavigationRoute, index: Int) {
+        if (!isTTSReady) return
+        val step = route.steps.getOrNull(index) ?: return
+        val message = when (step.maneuver.lowercase()) {
+            "left" -> "در ادامه به چپ بپیچ. ${step.instruction}"
+            "right" -> "در ادامه به راست بپیچ. ${step.instruction}"
+            "straight" -> "مسیر مستقیم ادامه دارد. ${step.instruction}"
+            else -> step.instruction
+        }
+        speak(message)
+        lastGuidanceTime = System.currentTimeMillis()
+    }
+
+    private fun minDistanceToRoute(route: NavigationRoute, location: Location): Double {
+        val pts = route.waypoints
+        if (pts.size < 2) return Double.MAX_VALUE
+        var minDist = Double.MAX_VALUE
+        for (i in 0 until pts.size - 1) {
+            val a = pts[i]
+            val b = pts[i + 1]
+            val d = pointToSegmentMeters(
+                location.latitude, location.longitude,
+                a.latitude, a.longitude,
+                b.latitude, b.longitude
+            )
+            if (d < minDist) minDist = d
+        }
+        return minDist
+    }
+
+    private fun pointToSegmentMeters(px: Double, py: Double, ax: Double, ay: Double, bx: Double, by: Double): Double {
+        // تبدیل به بردار دوبعدی روی کره کوچک (تقریب)
+        val latRad = Math.toRadians((ax + bx) / 2)
+        val x1 = (ax - ay) * 0.0 // dummy to keep structure; we use projection below
+        // استفاده از نگاشت تقریبی متر بر اساس عرض جغرافیایی
+        val metersPerDegLat = 111320.0
+        val metersPerDegLon = 111320.0 * cos(latRad)
+        val axm = ax * metersPerDegLat
+        val aym = ay * metersPerDegLon
+        val bxm = bx * metersPerDegLat
+        val bym = by * metersPerDegLon
+        val pxm = px * metersPerDegLat
+        val pym = py * metersPerDegLon
+        val dx = bxm - axm
+        val dy = bym - aym
+        if (dx == 0.0 && dy == 0.0) {
+            val ddx = pxm - axm
+            val ddy = pym - aym
+            return sqrt(ddx * ddx + ddy * ddy)
+        }
+        val t = ((pxm - axm) * dx + (pym - aym) * dy) / (dx * dx + dy * dy)
+        val clampedT = t.coerceIn(0.0, 1.0)
+        val projX = axm + clampedT * dx
+        val projY = aym + clampedT * dy
+        val ddx = pxm - projX
+        val ddy = pym - projY
+        return sqrt(ddx * ddx + ddy * ddy)
+    }
+
+    private fun distanceMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371000.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = sin(dLat / 2).pow(2.0) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2.0)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return R * c
     }
     
     private fun checkAlerts(location: Location) {
@@ -385,6 +457,7 @@ class NavigationActivity : AppCompatActivity() {
                             currentNavigationRoute = validRoute
                             routeStartTime = System.currentTimeMillis()
                             isNavigationActive = true
+                            currentStepIndex = 0
                             
                             // نمایش مسیر روی نقشه
                             val routePoints = validRoute.waypoints.joinToString(",") { 
@@ -405,6 +478,9 @@ class NavigationActivity : AppCompatActivity() {
                             
                             // فعال کردن هشدارها
                             enableAlerts()
+                            
+                            // راهنمای صوتی گام اول
+                            provideStepGuidance(validRoute, currentStepIndex)
                             
                             // نمایش کارت‌های سرعت و اطلاعات مسیر
                             binding.speedCard.visibility = View.VISIBLE
@@ -1254,7 +1330,7 @@ class NavigationActivity : AppCompatActivity() {
     }
     
     private fun showAIChat() {
-        val intent = Intent(this, AIChatActivity::class.java)
+        val intent = Intent(this, NavigationAssistantActivity::class.java)
         startActivity(intent)
     }
     
@@ -1439,8 +1515,55 @@ class NavigationActivity : AppCompatActivity() {
     
     private fun updateNavigationProgress(location: Location) {
         currentNavigationRoute?.let { route ->
-            // محاسبه فاصله تا مقصد
             val destination = route.waypoints.lastOrNull() ?: return
+            val distToDest = distanceMeters(location.latitude, location.longitude, destination.latitude, destination.longitude)
+            // فاصله تا مسیر فعلی (پلی‌لاین)
+            val offRouteDistance = minDistanceToRoute(route, location)
+            if (offRouteDistance > 120 && !isRerouting) { // بیش از ۱۲۰ متر خارج از مسیر
+                isRerouting = true
+                lifecycleScope.launch {
+                    try {
+                        val newRoute = navigationSystem.getRouteWithAI(
+                            GeoPoint(location.latitude, location.longitude),
+                            GeoPoint(destination.latitude, destination.longitude)
+                        )
+                        if (newRoute != null) {
+                            currentNavigationRoute = newRoute
+                            currentStepIndex = 0
+                            val pts = newRoute.waypoints.joinToString(",") { "new L.LatLng(${it.latitude}, ${it.longitude})" }
+                            webView.evaluateJavascript("showRoute([$pts]);", null)
+                            speak("از مسیر اصلی خارج شدی. مسیر جدید محاسبه شد.")
+                            provideStepGuidance(newRoute, currentStepIndex)
+                        } else {
+                            speak("نتوانستم مسیر جایگزین پیدا کنم. اینترنت را بررسی کن.")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("NavigationActivity", "Reroute error", e)
+                        speak("خطا در محاسبه مسیر جدید")
+                    } finally {
+                        isRerouting = false
+                    }
+                }
+            }
+
+            // راهنمای گام بعدی
+            route.steps.takeIf { it.isNotEmpty() }?.let { steps ->
+                val step = steps.getOrNull(currentStepIndex)
+                if (step != null) {
+                    val distToStepEnd = distanceMeters(
+                        location.latitude, location.longitude,
+                        step.endLocation.latitude, step.endLocation.longitude
+                    )
+                    if (distToStepEnd < 80 && currentStepIndex < steps.size - 1) {
+                        currentStepIndex += 1
+                        provideStepGuidance(route, currentStepIndex)
+                    } else if (System.currentTimeMillis() - lastGuidanceTime > 30_000) {
+                        // یادآوری دوره‌ای
+                        speak("در ${distToStepEnd.toInt()} متر ${step.instruction}")
+                        lastGuidanceTime = System.currentTimeMillis()
+                    }
+                }
+            }
             val results = FloatArray(1)
             Location.distanceBetween(
                 location.latitude, location.longitude,

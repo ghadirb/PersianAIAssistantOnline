@@ -79,6 +79,11 @@ class SavedLocationsManager(context: Context) {
         
         return locations
     }
+
+    /**
+     * نام مستعار برای استفاده در دستیار مکالمه‌ای
+     */
+    fun getSavedLocations(): List<SavedLocation> = getAllLocations()
     
     /**
      * حذف مکان

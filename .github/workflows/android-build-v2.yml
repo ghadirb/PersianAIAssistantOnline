@@ -33,7 +33,9 @@ jobs:
           ${{ runner.os }}-gradle-
           
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace --info
+      env:
+        HF_API_KEY: ${{ secrets.PERSIANAIASSISTANTONLINE }}
+      run: ./gradlew assembleDebug --stacktrace --info -PHF_API_KEY=$HF_API_KEY
       
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4

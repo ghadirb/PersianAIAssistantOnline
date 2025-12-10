@@ -168,6 +168,10 @@
             android:name=".activities.NavigationActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
+        <activity
+            android:name=".activities.NavigationAssistantActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.DashboardActivity" />
         
         <!-- ورودی اشتراک‌گذاری مکان (نشان / گوگل‌مپ) -->
         <activity

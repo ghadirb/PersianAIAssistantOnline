@@ -143,16 +143,11 @@
                     android:maxLines="4"
                     android:inputType="textMultiLine|textCapSentences" />
 
-                <com.google.android.material.button.MaterialButton
+                <com.persianai.assistant.ui.VoiceRecorderView
                     android:id="@+id/voiceButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    app:icon="@drawable/ic_mic"
-                    app:iconGravity="textStart"
-                    app:iconPadding="0dp"
-                    style="@style/Widget.Material3.Button.IconButton" />
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginHorizontal="4dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/sendButton"

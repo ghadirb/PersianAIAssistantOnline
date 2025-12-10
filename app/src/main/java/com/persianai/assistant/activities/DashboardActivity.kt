@@ -63,6 +63,16 @@ class DashboardActivity : AppCompatActivity() {
         animateCards()
     }
     
+    private fun formatLastUpdate(ts: Long): String {
+        if (ts <= 0) return "بروزرسانی: --"
+        return try {
+            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
+            "بروزرسانی: $time"
+        } catch (e: Exception) {
+            "بروزرسانی: --"
+        }
+    }
+    
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
         binding.navigationCard?.alpha = 0f
@@ -72,6 +82,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.remindersCard?.alpha = 0f
         binding.aboutCard?.alpha = 0f
         binding.weatherCard?.alpha = 0f
+        binding.recentActivityCard?.alpha = 0f
     }
     
     private fun setupDate() {
@@ -156,6 +167,22 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
 
+        binding.aiChatCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                try {
+                    val intent = Intent(this, AIChatActivity::class.java).apply {
+                        putExtra("namespace", "assistant")
+                    }
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardActivity", "Error opening AI Chat", e)
+                    Toast.makeText(this, "خطا در باز کردن دستیار", Toast.LENGTH_SHORT).show()
+                }
+            }, 120)
+        }
+        
         binding.commandLibraryCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
@@ -180,6 +207,7 @@ class DashboardActivity : AppCompatActivity() {
                     "این بخش تنها نقش همراه و شنونده دارد و جایگزین درمانگر یا روان‌شناس نیست. در شرایط اضطرار با متخصص تماس بگیرید."
                 ) {
                     val intent = Intent(this, AIChatActivity::class.java).apply {
+                        putExtra("namespace", "counseling")
                         putExtra(
                             "presetMessage",
                             "به عنوان مشاور آرامش و خودشناسی، یک گفت‌وگوی کوتاه برای مدیریت استرس و تنظیم احساسات با من شروع کن."
@@ -199,6 +227,7 @@ class DashboardActivity : AppCompatActivity() {
                     "این راهنما پیشنهادهای کلی می‌دهد و مسئولیت تصمیم‌های شغلی یا تحصیلی با خود شماست. برای تصمیم نهایی با یک مشاور انسانی مشورت کنید."
                 ) {
                     val intent = Intent(this, AIChatActivity::class.java).apply {
+                        putExtra("namespace", "career")
                         putExtra(
                             "presetMessage",
                             "می‌خواهم یک مسیر شغلی/تحصیلی مناسب پیدا کنم. با سوال‌های کوتاه کمکم کن تا مهارت‌ها و علایقم را مشخص کنم."
@@ -280,6 +309,14 @@ class DashboardActivity : AppCompatActivity() {
             }, 150)
         }
 
+        binding.recentActivityCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                updateRecentActivity()
+                showRecentActivityChooser()
+            }, 120)
+        }
+
         binding.aboutCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
@@ -310,16 +347,20 @@ class DashboardActivity : AppCompatActivity() {
             binding.weatherCard?.alpha = 0.4f
             binding.weatherTempText?.text = "--"
             binding.weatherIcon?.text = "🚧"
+            binding.weatherUpdatedText?.text = "بروزرسانی: --"
             return
         }
         val city = prefs.getString("selected_city", "تهران") ?: "تهران"
+        binding.weatherCityText?.text = city
         
         // نمایش فوری cache برای جلوگیری از چشمک زدن
         val savedTemp = prefs.getFloat("current_temp_$city", -999f)
         val savedIcon = prefs.getString("weather_icon_$city", null)
+        val savedUpdate = prefs.getLong("weather_last_update_$city", -1L)
         if (savedTemp != -999f && !savedIcon.isNullOrEmpty()) {
             binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
             binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon)
+            binding.weatherUpdatedText?.text = formatLastUpdate(savedUpdate)
         }
         
         lifecycleScope.launch {
@@ -331,6 +372,8 @@ class DashboardActivity : AppCompatActivity() {
                     android.util.Log.d("DashboardActivity", "Live weather from WorldWeather: ${weatherData.temp}°C for $city")
                     binding.weatherTempText?.text = "${weatherData.temp.roundToInt()}°"
                     binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(weatherData.icon)
+                    val now = System.currentTimeMillis()
+                    binding.weatherUpdatedText?.text = formatLastUpdate(now)
                     
                     // ذخیره دما برای استفاده در WeatherActivity
                     prefs.edit().putFloat("current_temp_$city", weatherData.temp.toFloat()).apply()
@@ -338,32 +381,26 @@ class DashboardActivity : AppCompatActivity() {
                     prefs.edit().putString("weather_desc_$city", weatherData.description).apply()
                     prefs.edit().putInt("weather_humidity_$city", weatherData.humidity).apply()
                     prefs.edit().putFloat("weather_wind_$city", weatherData.windSpeed.toFloat()).apply()
+                    prefs.edit().putLong("weather_last_update_$city", now).apply()
                 } else {
                     // استفاده از داده‌های ذخیره شده
-                    val savedTemp = prefs.getFloat("current_temp_$city", 25f)
-                    val savedIcon = prefs.getString("weather_icon_$city", "113")
-                    binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
+                    val cachedTemp = prefs.getFloat("current_temp_$city", 25f)
+                    val cachedIcon = prefs.getString("weather_icon_$city", "113")
+                    binding.weatherTempText?.text = "${cachedTemp.roundToInt()}°"
+                    binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(cachedIcon ?: "113")
+                    binding.weatherUpdatedText?.text = formatLastUpdate(savedUpdate)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading weather", e)
                 // استفاده از داده ذخیره شده
-                val savedTemp = prefs.getFloat("current_temp_$city", 25f)
-                val savedIcon = prefs.getString("weather_icon_$city", "113")
-                binding.weatherTempText?.text = "${savedTemp.roundToInt()}°"
-                binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(savedIcon ?: "113")
+                val cachedTemp = prefs.getFloat("current_temp_$city", 25f)
+                val cachedIcon = prefs.getString("weather_icon_$city", "113")
+                binding.weatherTempText?.text = "${cachedTemp.roundToInt()}°"
+                binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(cachedIcon ?: "113")
+                binding.recentFinanceText?.text = "مالی: مانده $balance | خرج $monthly"
+            } catch (_: Exception) {
+                binding.recentFinanceText?.text = "مالی: --"
             }
-        }
-        
-    }
-    
-    private fun getWeatherEmoji(temp: Double): String {
-        return when {
-            temp < 0 -> "❄️"
-            temp < 10 -> "🌨️"
-            temp < 20 -> "⛅"
-            temp < 30 -> "☀️"
-            else -> "🔥"
         }
     }
     
@@ -461,6 +498,7 @@ class DashboardActivity : AppCompatActivity() {
                 SharedDataManager.saveWeatherData(this@DashboardActivity, city, temp, desc, WorldWeatherAPI.getWeatherEmoji(icon))
                 
                 android.util.Log.d("DashboardActivity", "✅ داده‌ها به SharedDataManager ذخیره شدند")
+                updateRecentActivity()
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error loading shared data", e)
             }
@@ -484,7 +522,8 @@ class DashboardActivity : AppCompatActivity() {
             binding.musicCard,
             binding.expensesCard,
             binding.remindersCard,
-            binding.aboutCard
+            binding.aboutCard,
+            binding.recentActivityCard
         ).filter { it.visibility == View.VISIBLE }
         
         AnimationHelper.animateListItems(cards, delayBetween = 100)
@@ -542,7 +581,7 @@ class DashboardActivity : AppCompatActivity() {
 
     companion object {
         private const val MUSIC_DISABLED = true
-        private const val NAVIGATION_DISABLED = true
-        private const val WEATHER_DISABLED = true
+        private const val NAVIGATION_DISABLED = false
+        private const val WEATHER_DISABLED = false
     }
 }
