@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.R
+import com.persianai.assistant.BuildConfig
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.APIKey
@@ -17,6 +18,7 @@ import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * صفحه شروع برنامه - نمایش توضیحات و دریافت رمز عبور
@@ -32,17 +34,23 @@ class SplashActivity : AppCompatActivity() {
         try {
             // بررسی اینکه آیا قبلاً کلیدها بارگذاری شده‌اند یا نه
             val prefsManager = PreferencesManager(this)
-            
+
+            // تلاش سایلنت برای دانلود/رمزگشایی/فعال‌سازی کلیدها با اولویت aimlapi > openrouter > openai
             if (prefsManager.hasAPIKeys()) {
-                // اگر کلیدها موجود هستند، مستقیم به صفحه اصلی برویم
                 navigateToMain()
-            } else if (tryAutoProvisioning(prefsManager)) {
-                // اگر Provisioning فعال بود و کلید اعمال شد، خروجی دارد
                 return
-            } else {
-                // نمایش دیالوگ توضیحات و دریافت رمز
-                showWelcomeDialog()
             }
+
+            if (tryAutoDownloadAndActivate(prefsManager)) {
+                return
+            }
+
+            if (tryAutoProvisioning(prefsManager)) {
+                return
+            }
+
+            // نمایش دیالوگ توضیحات و دریافت رمز
+            showWelcomeDialog()
         } catch (e: Exception) {
             // در صورت هر خطایی، به MainActivity برو
             android.util.Log.e("SplashActivity", "Error in onCreate", e)
@@ -260,7 +268,52 @@ class SplashActivity : AppCompatActivity() {
             }
         }
         
-        return keys
+        // اولویت: aimlapi (رو OpenRouter) → openrouter → openai → سایرین
+        return keys.sortedBy { providerPriority(it.provider) }
+    }
+
+    private fun providerPriority(provider: AIProvider): Int {
+        return when (provider) {
+            AIProvider.OPENROUTER -> if (aimlapiFound) 0 else 1
+            AIProvider.OPENAI -> 2
+            AIProvider.ANTHROPIC -> 3
+        }
+    }
+
+    /**
+     * دانلود سایلنت کلیدها از Google Drive و فعال‌سازی بدون تعامل کاربر
+     */
+    private fun tryAutoDownloadAndActivate(prefsManager: PreferencesManager): Boolean {
+        // نیاز به رمز عبور برای رمزگشایی؛ از BuildConfig یا gradle.properties خوانده می‌شود
+        val password = BuildConfig.API_KEYS_PASSWORD.takeIf { it.isNotEmpty() } ?: return false
+
+        return try {
+            val encrypted = runBlocking { DriveHelper.downloadEncryptedKeys() }
+            val decrypted = EncryptionHelper.decrypt(encrypted, password)
+            val keys = parseAPIKeys(decrypted)
+
+            if (keys.isEmpty()) return false
+
+            // ذخیره کلیدها با اولویت
+            prefsManager.saveAPIKeys(keys)
+
+            // مدل پیش‌فرض: Qwen 2.5 1.5B (سبک) در صورت موجود بودن
+            prefsManager.saveSelectedModel(AIModel.QWEN_2_5_1_5B)
+            prefsManager.setProviderPreference(ProviderPreference.SMART_ROUTE)
+
+            // HuggingFace key (برای STT) از BuildConfig یا فایل
+            DefaultApiKeys.setHuggingFaceKey(DefaultApiKeys.getHuggingFaceKey() ?: BuildConfig.HF_API_KEY)
+            val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
+            DefaultApiKeys.getHuggingFaceKey()
+                ?.let { apiPrefs.edit().putString("huggingface_api_key", it).apply() }
+
+            Toast.makeText(this, "کلیدها به‌صورت خودکار فعال شد", Toast.LENGTH_SHORT).show()
+            navigateToMain()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SplashActivity", "Auto download/activate failed", e)
+            false
+        }
     }
 
     private fun navigateToMain() {
@@ -268,4 +321,3 @@ class SplashActivity : AppCompatActivity() {
         startActivity(intent)
         finish()
     }
-}

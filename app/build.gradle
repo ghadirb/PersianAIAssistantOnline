@@ -20,6 +20,9 @@ android {
         // کلید HuggingFace از gradle.properties (لوکال) یا سکرت CI؛ در گیت نگه ندارید
         def hfApiKey = project.findProperty("HF_API_KEY") ?: ""
         buildConfigField "String", "HF_API_KEY", "\"${hfApiKey}\""
+        // رمز عبور فایل کلیدهای رمزگذاری‌شده (برای auto-provision در SplashActivity)
+        def apiKeysPassword = project.findProperty("API_KEYS_PASSWORD") ?: ""
+        buildConfigField "String", "API_KEYS_PASSWORD", "\"${apiKeysPassword}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         

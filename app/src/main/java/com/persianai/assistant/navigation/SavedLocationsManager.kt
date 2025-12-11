@@ -20,7 +20,7 @@ class SavedLocationsManager(context: Context) {
         val latitude: Double,
         val longitude: Double,
         val category: String, // home, work, favorite
-        val timestamp: Long,
+        val timestamp: Long = System.currentTimeMillis(),
         val source: String = "manual" // manual | shared | neshan | gmaps
     )
     

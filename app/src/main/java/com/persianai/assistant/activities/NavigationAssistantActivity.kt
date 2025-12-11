@@ -10,6 +10,7 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.navigation.SavedLocationsManager
 import com.persianai.assistant.navigation.SavedLocationsManager.SavedLocation
+import com.persianai.assistant.utils.TTSHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -21,6 +22,7 @@ class NavigationAssistantActivity : BaseChatActivity() {
 
     private lateinit var chatBinding: ActivityAichatBinding
     private lateinit var savedLocationsManager: SavedLocationsManager
+    private lateinit var ttsHelper: TTSHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,6 +31,7 @@ class NavigationAssistantActivity : BaseChatActivity() {
         setContentView(chatBinding.root)
 
         savedLocationsManager = SavedLocationsManager(this)
+        ttsHelper = TTSHelper(this).also { it.initialize() }
         setupChatUI()
         chatBinding.manageChatsButton.setOnClickListener { showConversationManager() }
         chatBinding.chatTitle.text = "💬 دستیار مسیریابی"
@@ -36,13 +39,15 @@ class NavigationAssistantActivity : BaseChatActivity() {
         val now = System.currentTimeMillis()
         val userMessage = ChatMessage(role = MessageRole.USER, content = "سلام", timestamp = now)
         addMessage(userMessage)
+        val welcome = "سلام! دستیار مسیریابی هوشمند هستم. بگو کجا می‌خوای بری تا مسیر سریع یا خلوت رو پیشنهاد بدم."
         addMessage(
             ChatMessage(
                 role = MessageRole.ASSISTANT,
-                content = "سلام! دستیار مسیریابی هوشمند هستم. بگو کجا می‌خوای بری تا مسیر سریع یا خلوت رو پیشنهاد بدم.",
+                content = welcome,
                 timestamp = now
             )
         )
+        ttsHelper.speak(welcome)
     }
 
     override fun getRecyclerView() = chatBinding.chatRecyclerView
@@ -64,6 +69,11 @@ class NavigationAssistantActivity : BaseChatActivity() {
     override suspend fun handleRequest(text: String): String {
         return SmartNavigationAssistant(this, savedLocationsManager).process(text)
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ttsHelper.shutdown()
+    }
 }
 
 private class SmartNavigationAssistant(
@@ -72,33 +82,80 @@ private class SmartNavigationAssistant(
 ) {
 
     private val prefs = activity.getSharedPreferences("nav_voice_assistant", android.content.Context.MODE_PRIVATE)
+    private val tts = activity.ttsHelper
+    private var guidanceActive = false
+    private var activeDestination: SavedLocation? = null
+    private var lastSuggested: SavedLocation? = null
 
     suspend fun process(input: String): String = withContext(Dispatchers.Default) {
+        val normalized = input.trim()
+
         // 1) فهرست محل‌های ذخیره شده
-        if (input.contains("محل‌های ذخیره") || input.contains("جاهای ذخیره")) {
-            return@withContext listSavedPlaces()
+        if (normalized.contains("محل‌های ذخیره") || normalized.contains("جاهای ذخیره")) {
+            val msg = listSavedPlaces()
+            tts.speak(msg)
+            return@withContext msg
         }
 
-        // 2) درخواست مقصد
-        val destination = extractDestination(input)
+        // 2) شروع هدایت صوتی
+        if (normalized.contains("شروع هدایت") || normalized.contains("راهنمایی") || normalized.contains("هدایت صوتی")) {
+            val dest = lastSuggested ?: getRecentDestinationName()?.let { savedLocationsManager.findByName(it) }
+            if (dest != null) {
+                val msg = startGuidance(dest)
+                tts.speak(msg)
+                return@withContext msg
+            }
+            val msg = "اول مقصد را بگو (مثلا «برو خانه» یا لینک نقشه) بعد بگو شروع هدایت."
+            tts.speak(msg)
+            return@withContext msg
+        }
+
+        // 3) ریران یا گم‌شدن
+        if (normalized.contains("گم شدم") || normalized.contains("مسیر جدید") || normalized.contains("دوباره مسیریابی")) {
+            val msg = reroute()
+            tts.speak(msg)
+            return@withContext msg
+        }
+
+        // 4) توقف هدایت
+        if (normalized.contains("توقف هدایت") || normalized.contains("متوقف") || normalized.contains("خاموش")) {
+            guidanceActive = false
+            activeDestination = null
+            val msg = "هدایت صوتی متوقف شد."
+            tts.speak(msg)
+            return@withContext msg
+        }
+
+        // 5) درخواست مقصد
+        val destination = extractDestination(normalized)
         if (destination != null) {
+            lastSuggested = destination
             saveRecentDestination(destination.name)
-            return@withContext buildRouteSuggestion(destination)
+            val suggestion = buildRouteSuggestion(destination)
+            tts.speak(suggestion)
+            return@withContext suggestion
         }
 
-        // 3) پیشنهاد بر اساس عادت
-        if (input.contains("کجا برم") || input.contains("مسیر بهتر") || input.contains("پیشنهاد")) {
+        // 6) پیشنهاد بر اساس عادت
+        if (normalized.contains("کجا برم") || normalized.contains("مسیر بهتر") || normalized.contains("پیشنهاد")) {
             val recent = getRecentDestination()
             if (recent != null) {
                 val loc = savedLocationsManager.findByName(recent)
                 if (loc != null) {
-                    return@withContext buildRouteSuggestion(loc, mentionHabit = true)
+                    val suggestion = buildRouteSuggestion(loc, mentionHabit = true)
+                    lastSuggested = loc
+                    tts.speak(suggestion)
+                    return@withContext suggestion
                 }
             }
-            return@withContext "بهترین پیشنهاد امروز: مقصد پرتکرارت رو بگو تا مسیر سریع/خلوت رو پیشنهاد بدم. می‌تونی بگی «برو خونه» یا لینک نقشه بفرستی."
+            val msg = "بهترین پیشنهاد امروز: مقصد پرتکرارت رو بگو تا مسیر سریع/خلوت رو پیشنهاد بدم. می‌تونی بگی «برو خونه» یا لینک نقشه بفرستی."
+            tts.speak(msg)
+            return@withContext msg
         }
 
-        return@withContext "برای شروع بگو «برو به ...» یا نام مقصد ذخیره‌شده (مثل خانه/محل کار). اگر لینک نشان/گوگل‌مپ داری، همینجا بفرست."
+        val fallback = "برای شروع بگو «برو به ...» یا نام مقصد ذخیره‌شده (مثل خانه/محل کار). اگر لینک نشان/گوگل‌مپ داری، همینجا بفرست."
+        tts.speak(fallback)
+        return@withContext fallback
     }
 
     private fun listSavedPlaces(): String {
@@ -200,8 +257,33 @@ private class SmartNavigationAssistant(
         } else {
             sb.append("برای زمان تقریبی، GPS را روشن کن یا مبدا را بگو.\n")
         }
-        sb.append("بگو «شروع هدایت» تا راهنمای صوتی ساده فعال شود.")
+        sb.append("بگو «شروع هدایت» تا راهنمای صوتی فعال شود.")
         return sb.toString()
+    }
+
+    private fun startGuidance(dest: SavedLocation): String {
+        val origin = getLastKnownLocation()
+        if (origin == null) {
+            return "هدایت فعال نشد؛ GPS را روشن کن یا اجازه دسترسی بده."
+        }
+        guidanceActive = true
+        activeDestination = dest
+        lastSuggested = dest
+        val distanceKm = haversineKm(origin.latitude, origin.longitude, dest.latitude, dest.longitude)
+        val eta = estimateEtaMinutes(distanceKm).roundToInt()
+        val msg = "هدایت به ${dest.name} شروع شد. مسافت تقریبی ${"%.1f".format(distanceKm)} کیلومتر و زمان حدود $eta دقیقه. هنگام انحراف بگو «مسیر جدید»."
+        return msg
+    }
+
+    private fun reroute(): String {
+        val dest = activeDestination ?: lastSuggested
+        if (dest == null) return "مقصدی برای ریران نیست. ابتدا بگو کجا می‌خوای بری."
+        val origin = getLastKnownLocation()
+        if (origin == null) return "برای ریران نیاز به GPS روشن است."
+        val distanceKm = haversineKm(origin.latitude, origin.longitude, dest.latitude, dest.longitude)
+        val eta = estimateEtaMinutes(distanceKm).roundToInt()
+        val msg = "مسیر جدید به ${dest.name}: حدود ${"%.1f".format(distanceKm)} کیلومتر و $eta دقیقه. مستقیم ادامه بده و در تقاطع بعدی مسیر کم‌ترافیک را پیشنهاد می‌کنم."
+        return msg
     }
 
     private fun getLastKnownLocation(): Location? {
@@ -247,4 +329,5 @@ private class SmartNavigationAssistant(
     }
 
     private fun getRecentDestination(): String? = prefs.getString("recent_dest", null)
+    private fun getRecentDestinationName(): String? = prefs.getString("recent_dest", null)
 }
