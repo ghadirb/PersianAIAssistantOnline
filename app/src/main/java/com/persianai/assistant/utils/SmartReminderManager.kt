@@ -8,18 +8,20 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.persianai.assistant.services.ReminderReceiver
-import java.util.Calendar
 import java.security.KeyStore
+import java.util.Calendar
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import android.util.Base64
 
 /**
  * مدیریت پیشرفته یادآوری‌های هوشمند
@@ -40,6 +42,72 @@ class SmartReminderManager(private val context: Context) {
         private const val AES_MODE = "AES/GCM/NoPadding"
         private const val IV_LENGTH = 12
         private const val GCM_TAG_LENGTH = 128
+    }
+    
+    /**
+     * دریافت یا ایجاد کلید رمزنگاری در Android Keystore
+     */
+    private fun getOrCreateSecretKey(): SecretKey? {
+        return try {
+            val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+            (keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey?.let { return it }
+            
+            val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEY_STORE)
+            val spec = KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+            
+            keyGenerator.init(spec)
+            keyGenerator.generateKey()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ ایجاد/دریافت کلید رمزنگاری ناموفق", e)
+            null
+        }
+    }
+    
+    /**
+     * رمزگذاری داده‌ها (Base64)
+     */
+    private fun encrypt(data: ByteArray): String? {
+        return try {
+            val key = getOrCreateSecretKey() ?: return null
+            val cipher = Cipher.getInstance(AES_MODE)
+            cipher.init(Cipher.ENCRYPT_MODE, key)
+            val iv = cipher.iv
+            val encrypted = cipher.doFinal(data)
+            val combined = ByteArray(iv.size + encrypted.size)
+            System.arraycopy(iv, 0, combined, 0, iv.size)
+            System.arraycopy(encrypted, 0, combined, iv.size, encrypted.size)
+            Base64.encodeToString(combined, Base64.DEFAULT)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ رمزگذاری ناموفق", e)
+            null
+        }
+    }
+    
+    /**
+     * رمزگشایی داده‌ها (Base64)
+     */
+    private fun decrypt(input: String): String? {
+        return try {
+            val raw = Base64.decode(input, Base64.DEFAULT)
+            if (raw.size <= IV_LENGTH) return null
+            val iv = raw.copyOfRange(0, IV_LENGTH)
+            val cipherText = raw.copyOfRange(IV_LENGTH, raw.size)
+            val key = getOrCreateSecretKey() ?: return null
+            val cipher = Cipher.getInstance(AES_MODE)
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_LENGTH, iv))
+            val plain = cipher.doFinal(cipherText)
+            String(plain, Charsets.UTF_8)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ رمزگشایی ناموفق", e)
+            null
+        }
     }
     
     /**

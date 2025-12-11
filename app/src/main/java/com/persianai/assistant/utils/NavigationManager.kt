@@ -68,8 +68,8 @@ class NavigationManager(private val context: Context) {
             instruction = "به مقصد حرکت کنید",
             distance = base.distance,
             duration = base.duration,
-            startLocation = com.persianai.assistant.navigation.models.GeoPoint(startLat, startLng),
-            endLocation = com.persianai.assistant.navigation.models.GeoPoint(endLat, endLng),
+            startLocation = OsmGeoPoint(startLat, startLng),
+            endLocation = OsmGeoPoint(endLat, endLng),
             maneuver = "straight",
             polyline = "${startLat},${startLng};${endLat},${endLng}"
         )
