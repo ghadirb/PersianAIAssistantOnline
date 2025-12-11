@@ -22,7 +22,6 @@ class NavigationAssistantActivity : BaseChatActivity() {
 
     private lateinit var chatBinding: ActivityAichatBinding
     private lateinit var savedLocationsManager: SavedLocationsManager
-    private lateinit var ttsHelper: TTSHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,7 +30,6 @@ class NavigationAssistantActivity : BaseChatActivity() {
         setContentView(chatBinding.root)
 
         savedLocationsManager = SavedLocationsManager(this)
-        ttsHelper = TTSHelper(this).also { it.initialize() }
         setupChatUI()
         chatBinding.manageChatsButton.setOnClickListener { showConversationManager() }
         chatBinding.chatTitle.text = "💬 دستیار مسیریابی"
@@ -49,6 +47,8 @@ class NavigationAssistantActivity : BaseChatActivity() {
         )
         ttsHelper.speak(welcome)
     }
+
+    fun getTtsHelper(): TTSHelper = ttsHelper
 
     override fun getRecyclerView() = chatBinding.chatRecyclerView
     override fun getMessageInput() = chatBinding.messageInput
@@ -82,7 +82,7 @@ private class SmartNavigationAssistant(
 ) {
 
     private val prefs = activity.getSharedPreferences("nav_voice_assistant", android.content.Context.MODE_PRIVATE)
-    private val tts = activity.ttsHelper
+    private val tts = activity.getTtsHelper()
     private var guidanceActive = false
     private var activeDestination: SavedLocation? = null
     private var lastSuggested: SavedLocation? = null

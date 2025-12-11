@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewbinding.ViewBinding
+import com.persianai.assistant.R
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.models.AIModel
