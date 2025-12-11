@@ -133,7 +133,9 @@ private class SmartNavigationAssistant(
                 latitude = coords.first,
                 longitude = coords.second,
                 address = "",
-                category = "shared"
+                category = "shared",
+                timestamp = System.currentTimeMillis(),
+                source = "shared"
             )
         }
 
