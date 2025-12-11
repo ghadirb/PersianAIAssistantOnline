@@ -23,7 +23,13 @@ class AIChatActivity : BaseChatActivity() {
         updateTitleForNamespace()
         setupChatUI()
         chatBinding.manageChatsButton.setOnClickListener { showConversationManager() }
-        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور کمکتون کنم؟"))
+        addMessage(
+            ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = "سلام! چطور کمکتون کنم؟",
+                timestamp = System.currentTimeMillis()
+            )
+        )
 
         val preset = intent.getStringExtra("presetMessage")?.takeIf { it.isNotBlank() }
         if (preset != null) {
