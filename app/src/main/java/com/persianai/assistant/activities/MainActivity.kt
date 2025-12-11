@@ -426,10 +426,16 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, InstallmentsManagementActivity::class.java))
             }
             com.persianai.assistant.ai.AdvancedPersianAssistant.ActionType.OPEN_TRAVEL -> {
-                startActivity(Intent(this, NavigationActivity::class.java))
+                openNavigation()
             }
             else -> {}
         }
+    }
+    
+    private fun openNavigation() {
+        // هدایت به مسیریاب صوتی بدون نقشه
+        val intent = Intent(this, NavigationAssistantActivity::class.java)
+        startActivity(intent)
     }
     
     private fun showFirstRunDialogIfNeeded() {

@@ -285,7 +285,8 @@ class SplashActivity : AppCompatActivity() {
      */
     private fun tryAutoDownloadAndActivate(prefsManager: PreferencesManager): Boolean {
         // نیاز به رمز عبور برای رمزگشایی؛ از BuildConfig یا gradle.properties خوانده می‌شود
-        val password = BuildConfig.API_KEYS_PASSWORD.takeIf { it.isNotEmpty() } ?: return false
+        // اگر API_KEYS_PASSWORD در BuildConfig نبود، از رمز پیش‌فرض (درخواست‌شده توسط کاربر) استفاده کن
+        val password = BuildConfig.API_KEYS_PASSWORD.takeIf { it.isNotEmpty() } ?: "12345"
 
         return try {
             val encrypted = runBlocking { DriveHelper.downloadEncryptedKeys() }
