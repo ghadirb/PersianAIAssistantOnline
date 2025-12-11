@@ -33,6 +33,8 @@ class NavigationAssistantActivity : BaseChatActivity() {
         chatBinding.manageChatsButton.setOnClickListener { showConversationManager() }
         chatBinding.chatTitle.text = "💬 دستیار مسیریابی"
 
+        val userMessage = ChatMessage(role = MessageRole.USER, content = "سلام", timestamp = System.currentTimeMillis())
+        addMessage(userMessage)
         addMessage(
             ChatMessage(
                 role = MessageRole.ASSISTANT,

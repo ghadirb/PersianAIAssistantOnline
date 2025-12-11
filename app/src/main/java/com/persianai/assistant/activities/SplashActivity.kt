@@ -11,6 +11,7 @@ import com.persianai.assistant.R
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.APIKey
+import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager

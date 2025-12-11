@@ -397,8 +397,7 @@ class DashboardActivity : AppCompatActivity() {
                 val cachedIcon = prefs.getString("weather_icon_$city", "113")
                 binding.weatherTempText?.text = "${cachedTemp.roundToInt()}°"
                 binding.weatherIcon?.text = WorldWeatherAPI.getWeatherEmoji(cachedIcon ?: "113")
-                binding.recentFinanceText?.text = "مالی: مانده $balance | خرج $monthly"
-            } catch (_: Exception) {
+                // اگر حسابداری در دسترس نیست، متن مالی را ایمن نگه دار
                 binding.recentFinanceText?.text = "مالی: --"
             }
         }
@@ -482,12 +481,14 @@ class DashboardActivity : AppCompatActivity() {
                     android.util.Log.d("DashboardActivity", "🔔 $reminderCount یادآوری فعال")
                 }
                 
-                // حسابداری
-                val balance = SharedDataManager.getTotalBalance(this@DashboardActivity)
-                val monthlyExpenses = SharedDataManager.getMonthlyExpenses(this@DashboardActivity)
-                
+                // حسابداری (ایمن در برابر نبود داده)
+                val balance = runCatching { SharedDataManager.getTotalBalance(this@DashboardActivity) }.getOrDefault(0.0)
+                val monthlyExpenses = runCatching { SharedDataManager.getMonthlyExpenses(this@DashboardActivity) }.getOrDefault(0.0)
                 if (balance != 0.0 || monthlyExpenses != 0.0) {
+                    binding.recentFinanceText?.text = "مالی: مانده ${balance.toLong()} | خرج ${monthlyExpenses.toLong()}"
                     android.util.Log.d("DashboardActivity", "💰 موجودی: ${balance.toLong()} - هزینه: ${monthlyExpenses.toLong()}")
+                } else {
+                    binding.recentFinanceText?.text = "مالی: --"
                 }
                 
                 // ذخیره دما در SharedDataManager
@@ -510,6 +511,22 @@ class DashboardActivity : AppCompatActivity() {
         // بروزرسانی داده‌ها هنگام بازگشت
         loadWeather()
         loadSharedData()
+    }
+    
+    /**
+     * بروزرسانی فعالیت‌های اخیر - نسخه ایمن برای جلوگیری از خطای کامپایل
+     */
+    private fun updateRecentActivity() {
+        // اگر در آینده داده‌های واقعی اضافه شد، اینجا مقداردهی شود
+        android.util.Log.d("DashboardActivity", "updateRecentActivity (placeholder)")
+    }
+    
+    /**
+     * نمایش انتخابگر فعالیت‌های اخیر - نسخه ایمن برای جلوگیری از خطای کامپایل
+     */
+    private fun showRecentActivityChooser() {
+        // نمایش ساده پیام تا وقتی که منطق نهایی اضافه شود
+        Toast.makeText(this, "فعالیت‌های اخیر به‌زودی فعال می‌شود", Toast.LENGTH_SHORT).show()
     }
     
     private fun animateCards() {

@@ -21,6 +21,7 @@ import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
+import com.persianai.assistant.models.Conversation
 import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
@@ -41,10 +42,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected var currentModel: AIModel = AIModel.getDefaultModel()
     protected var conversationId: Long? = null
     protected var conversations: MutableList<Conversation> = mutableListOf()
+    protected var messages: MutableList<ChatMessage> = mutableListOf()
+    protected lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
     private var directAudioAnalysisEnabled: Boolean = false
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
-    protected var currentConversation: com.persianai.assistant.models.Conversation? = null
+    protected var currentConversation: Conversation? = null
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -340,7 +343,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun addMessage(message: ChatMessage) {
+    protected fun addMessage(message: ChatMessage) {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
         getRecyclerView().smoothScrollToPosition(messages.size - 1)

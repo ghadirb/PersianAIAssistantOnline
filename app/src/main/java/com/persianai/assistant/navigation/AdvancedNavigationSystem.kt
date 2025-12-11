@@ -248,8 +248,8 @@ class AdvancedNavigationSystem(private val context: Context) {
             instruction = "مسیر مستقیم تا مقصد",
             distance = distance,
             duration = duration,
-            startLocation = com.persianai.assistant.navigation.models.GeoPoint(origin.latitude, origin.longitude),
-            endLocation = com.persianai.assistant.navigation.models.GeoPoint(destination.latitude, destination.longitude),
+            startLocation = org.osmdroid.util.GeoPoint(origin.latitude, origin.longitude),
+            endLocation = org.osmdroid.util.GeoPoint(destination.latitude, destination.longitude),
             maneuver = "straight",
             polyline = "${origin.latitude},${origin.longitude};${destination.latitude},${destination.longitude}"
         )
@@ -320,9 +320,9 @@ class AdvancedNavigationSystem(private val context: Context) {
                     NavigationStep(
                         instruction = cleanInstruction.ifBlank { "ادامه مسیر" },
                         distance = dist,
-                        duration = dur,
-                        startLocation = com.persianai.assistant.navigation.models.GeoPoint(startLat, startLng),
-                        endLocation = com.persianai.assistant.navigation.models.GeoPoint(endLat, endLng),
+                        duration = dur.roundToLong(),
+                        startLocation = org.osmdroid.util.GeoPoint(startLat, startLng),
+                        endLocation = org.osmdroid.util.GeoPoint(endLat, endLng),
                         maneuver = maneuver,
                         polyline = polyline
                     )
@@ -343,7 +343,7 @@ class AdvancedNavigationSystem(private val context: Context) {
             destination = destination,
             waypoints = waypoints,
             distance = if (totalDistance > 0) totalDistance else haversineMeters(origin.latitude, origin.longitude, destination.latitude, destination.longitude),
-            duration = if (totalDuration > 0) totalDuration else (totalDistance / (40_000.0 / 3600.0)),
+            duration = if (totalDuration > 0) totalDuration.roundToLong() else (totalDistance / (40_000.0 / 3600.0)).roundToLong(),
             routeType = routeType,
             steps = steps
         )
