@@ -48,7 +48,7 @@ class NavigationAssistantActivity : BaseChatActivity() {
         ttsHelper.speak(welcome)
     }
 
-    fun getTtsHelper(): TTSHelper = ttsHelper
+    fun navTtsHelper(): TTSHelper = ttsHelper
 
     override fun getRecyclerView() = chatBinding.chatRecyclerView
     override fun getMessageInput() = chatBinding.messageInput
@@ -82,7 +82,7 @@ private class SmartNavigationAssistant(
 ) {
 
     private val prefs = activity.getSharedPreferences("nav_voice_assistant", android.content.Context.MODE_PRIVATE)
-    private val tts = activity.getTtsHelper()
+    private val tts = activity.navTtsHelper()
     private var guidanceActive = false
     private var activeDestination: SavedLocation? = null
     private var lastSuggested: SavedLocation? = null
