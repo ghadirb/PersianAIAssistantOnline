@@ -33,7 +33,8 @@ class ReminderChatActivity : BaseChatActivity() {
         addMessage(
             com.persianai.assistant.models.ChatMessage(
                 role = MessageRole.ASSISTANT,
-                content = "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"
+                content = "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»",
+                timestamp = System.currentTimeMillis()
             )
         )
     }
