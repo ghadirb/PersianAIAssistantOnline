@@ -35,7 +35,13 @@ class AccountingChatActivity : BaseChatActivity() {
 
         setupChatUI()
 
-        addMessage(com.persianai.assistant.models.ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! می‌تونم درآمد، هزینه، چک یا قسط جدید برات ثبت کنم. فقط کافیه بگی."))
+        addMessage(
+            com.persianai.assistant.models.ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = "سلام! می‌تونم درآمد، هزینه، چک یا قسط جدید برات ثبت کنم. فقط کافیه بگی.",
+                timestamp = System.currentTimeMillis()
+            )
+        )
     }
 
     override fun onResume() {
