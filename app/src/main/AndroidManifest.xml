@@ -165,10 +165,6 @@
             android:parentActivityName=".activities.SettingsActivity" />
 
         <activity
-            android:name=".activities.NavigationActivity"
-            android:exported="false"
-            android:parentActivityName=".activities.DashboardActivity" />
-        <activity
             android:name=".activities.NavigationAssistantActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
@@ -185,12 +181,6 @@
             </intent-filter>
         </activity>
         
-        <activity
-            android:name=".activities.RealNavigationActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:parentActivityName=".activities.NavigationActivity" />
-
         <activity
             android:name=".activities.AccountingActivity"
             android:exported="false"
@@ -254,16 +244,7 @@
             android:label="حسابداری حرفه‌ای"
             android:parentActivityName=".activities.MainActivity" />
 
-        <activity
-            android:name=".activities.SearchDestinationActivity"
-            android:exported="false"
-            android:parentActivityName=".activities.NavigationActivity" />
-
-        <activity
-            android:name=".activities.AIChatActivity"
-            android:exported="false"
-            android:parentActivityName=".activities.NavigationActivity"
-            android:windowSoftInputMode="adjustResize" />
+        <!-- Activities مربوط به مسیریاب نقشه‌ای قدیمی حذف شد؛ فقط NavigationAssistantActivity باقی است -->
             
         <activity
             android:name=".activities.GenericInfoActivity"

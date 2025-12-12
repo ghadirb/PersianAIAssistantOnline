@@ -10,7 +10,8 @@ import kotlinx.serialization.json.Json
 import android.util.Log
 import com.persianai.assistant.utils.*
 import com.persianai.assistant.navigation.SavedLocationsManager
-import com.persianai.assistant.activities.NavigationActivity
+import com.persianai.assistant.activities.NavigationAssistantActivity
+import android.content.Intent
 import java.util.*
 
 /**
@@ -359,8 +360,12 @@ class PersianVoiceAssistant(private val context: Context) {
             val manager = SavedLocationsManager(context)
             val saved = manager.findByName(name)
             return if (saved != null) {
-                NavigationActivity.instance?.startNavigationTo(saved.latitude, saved.longitude)
-                "در حال مسیریابی به ${saved.name}"
+                val intent = Intent(context, NavigationAssistantActivity::class.java).apply {
+                    putExtra("AI_DESTINATION", saved.name)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                "در حال مسیریابی صوتی به ${saved.name}"
             } else {
                 "مقصدی با نام \"$name\" در ذخیره‌ها پیدا نشد. لطفاً ابتدا ذخیره کنید."
             }
@@ -380,7 +385,11 @@ class PersianVoiceAssistant(private val context: Context) {
 
         return when {
             normalized.contains("مسیر") -> {
-                "برای پیدا کردن مسیر، لطفا مبدأ و مقصد خود را مشخص کنید یا بگویید «برو به نام مقصد ذخیره‌شده»."
+                val intent = Intent(context, NavigationAssistantActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                "مسیریاب صوتی بدون نقشه باز شد. مقصد را بگو."
             }
             
             normalized.contains("موقعیت") || normalized.contains("کجام") -> {
