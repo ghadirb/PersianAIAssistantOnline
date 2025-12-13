@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.net.URL
 
 object NeshanAPI {
-    private const val KEY = "service.649ba7521ba04da595c5ab56413b3c84"
+    private val KEY = com.persianai.assistant.utils.NeshanKeyProvider.getApiKey()
     
     data class Route(val distance: Int, val duration: Int, val polyline: String)
     data class SearchResult(val name: String, val latitude: Double, val longitude: Double)

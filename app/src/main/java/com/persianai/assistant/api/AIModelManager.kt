@@ -67,7 +67,23 @@ class AIModelManager(private val context: Context) {
     fun getAvailableModels(): List<ModelConfig> {
         val models = mutableListOf<ModelConfig>()
         
-        // OpenAI Models
+        // AIML API (اولویت اول برای سبک/رایگان)
+        val aimlKey = prefs.getString("aiml_api_key", null)
+        if (!aimlKey.isNullOrEmpty()) {
+            models.add(
+                ModelConfig(
+                    name = "aiml-gpt-3.5",
+                    displayName = "AIML GPT-3.5 (سبک)",
+                    provider = "AIML",
+                    apiKey = aimlKey,
+                    endpoint = AIML_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۱", "رایگان/سبک", "مناسب گوشی‌های ضعیف‌تر")
+                )
+            )
+        }
+        
+        // OpenAI Models (اولویت دوم)
         val openAIKey = prefs.getString("openai_api_key", null)
         if (!openAIKey.isNullOrEmpty()) {
             models.add(
@@ -95,37 +111,45 @@ class AIModelManager(private val context: Context) {
             )
         }
         
-        // Claude Models (Anthropic)
-        val claudeKey = prefs.getString("claude_api_key", null)
-        if (!claudeKey.isNullOrEmpty()) {
-            models.add(
-                ModelConfig(
-                    name = MODEL_CLAUDE_3_OPUS,
-                    displayName = "Claude 3 Opus",
-                    provider = "Anthropic",
-                    apiKey = claudeKey,
-                    endpoint = CLAUDE_API_URL,
-                    isAvailable = true,
-                    features = listOf("قدرتمندترین Claude", "تحلیل عمیق", "خلاقیت بالا", "پاسخ‌های طولانی")
-                )
-            )
-            
-            models.add(
-                ModelConfig(
-                    name = MODEL_CLAUDE_3_SONNET,
-                    displayName = "Claude 3 Sonnet",
-                    provider = "Anthropic",
-                    apiKey = claudeKey,
-                    endpoint = CLAUDE_API_URL,
-                    isAvailable = true,
-                    features = listOf("تعادل سرعت و دقت", "مناسب اکثر کارها", "هزینه متوسط")
-                )
-            )
-        }
-        
-        // OpenRouter Models (prioritized)
+        // OpenRouter Models (اولویت سوم) - سبک‌ها در ابتدای لیست
         val openRouterKey = prefs.getString("openrouter_api_key", null)
         if (!openRouterKey.isNullOrEmpty()) {
+            // سبک و کم‌هزینه برای گوشی‌های ضعیف‌تر
+            models.add(
+                ModelConfig(
+                    name = "qwen/qwen2.5-1.5b-instruct",
+                    displayName = "Qwen2.5 1.5B (Free/Light)",
+                    provider = "OpenRouter",
+                    apiKey = openRouterKey,
+                    endpoint = OPENROUTER_API_URL,
+                    isAvailable = true,
+                    features = listOf("سبک", "فارسی خوب", "مناسب گوشی‌های ضعیف‌تر")
+                )
+            )
+            models.add(
+                ModelConfig(
+                    name = "meta-llama/Llama-3.2-1B-Instruct",
+                    displayName = "LLaMA 3.2 1B (Light)",
+                    provider = "OpenRouter",
+                    apiKey = openRouterKey,
+                    endpoint = OPENROUTER_API_URL,
+                    isAvailable = true,
+                    features = listOf("خیلی سبک", "صرفه‌جو", "پشتیبان سریع")
+                )
+            )
+            models.add(
+                ModelConfig(
+                    name = "meta-llama/Llama-3.2-3B-Instruct",
+                    displayName = "LLaMA 3.2 3B (Light)",
+                    provider = "OpenRouter",
+                    apiKey = openRouterKey,
+                    endpoint = OPENROUTER_API_URL,
+                    isAvailable = true,
+                    features = listOf("سبک", "چندزبانه", "پشتیبان متوسط")
+                )
+            )
+
+            // مدل‌های قوی‌تر ولی بعد از سبک‌ها
             models.add(
                 ModelConfig(
                     name = MODEL_LLAMA_3_3_70B,
@@ -175,32 +199,36 @@ class AIModelManager(private val context: Context) {
             )
         }
         
-        // AIML API Models
-        val aimlKey = prefs.getString("aiml_api_key", null)
-        if (!aimlKey.isNullOrEmpty()) {
+        // Claude Models (Anthropic) - در انتهای اولویت
+        val claudeKey = prefs.getString("claude_api_key", null)
+        if (!claudeKey.isNullOrEmpty()) {
             models.add(
                 ModelConfig(
-                    name = "aiml-gpt-3.5",
-                    displayName = "AIML GPT-3.5",
-                    provider = "AIML API",
-                    apiKey = aimlKey,
-                    endpoint = AIML_API_URL,
+                    name = MODEL_CLAUDE_3_OPUS,
+                    displayName = "Claude 3 Opus",
+                    provider = "Anthropic",
+                    apiKey = claudeKey,
+                    endpoint = CLAUDE_API_URL,
                     isAvailable = true,
-                    features = listOf("رایگان محدود", "API ساده", "مناسب تست")
+                    features = listOf("قدرتمندترین Claude", "تحلیل عمیق", "خلاقیت بالا", "پاسخ‌های طولانی")
                 )
             )
         }
         
-        // اولویت‌بندی: Llama 3.3 → DeepSeek → Claude → OpenAI → سایر
+        // اولویت‌بندی: AIML → OpenAI → OpenRouter سبک → OpenRouter قوی → Claude
         val priority = mapOf(
-            MODEL_LLAMA_3_3_70B to 1,
-            MODEL_DEEPSEEK_R1T2 to 2,
-            MODEL_MIXTRAL_8X7B to 5,
-            MODEL_LLAMA_2_70B to 6,
-            MODEL_CLAUDE_3_OPUS to 10,
-            MODEL_CLAUDE_3_SONNET to 11,
-            MODEL_GPT_4 to 20,
-            MODEL_GPT_35_TURBO to 21
+            "aiml-gpt-3.5" to 1,
+            MODEL_GPT_35_TURBO to 5,
+            MODEL_GPT_4 to 6,
+            "qwen/qwen2.5-1.5b-instruct" to 10,
+            "meta-llama/Llama-3.2-1B-Instruct" to 11,
+            "meta-llama/Llama-3.2-3B-Instruct" to 12,
+            MODEL_LLAMA_3_3_70B to 20,
+            MODEL_DEEPSEEK_R1T2 to 21,
+            MODEL_MIXTRAL_8X7B to 25,
+            MODEL_LLAMA_2_70B to 26,
+            MODEL_CLAUDE_3_OPUS to 40,
+            MODEL_CLAUDE_3_SONNET to 41
         )
         return models.sortedBy { priority[it.name] ?: 100 }
     }

@@ -9,7 +9,7 @@ import java.net.URL
 
 class NeshanDirectionAPI {
     
-    private val apiKey = "service.d81b1f9424414d4ea848931499e60dac"
+    private val apiKey = NeshanKeyProvider.getApiKey()
     
     data class RouteInfo(
         val distance: Double,        // کیلومتر

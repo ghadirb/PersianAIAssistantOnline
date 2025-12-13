@@ -22,6 +22,7 @@ import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.AppRatingHelper
 import com.persianai.assistant.workers.ReminderWorker
 import android.view.View
+import com.persianai.assistant.activities.VoiceNavigationAssistantActivity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -66,6 +67,7 @@ class DashboardActivity : AppCompatActivity() {
     private fun hideAllCards() {
         binding.calendarCard?.alpha = 0f
         binding.navigationCard?.alpha = 0f
+        binding.voiceNavigationAssistantCard?.alpha = 0f
         binding.aiChatCard?.alpha = 0f
         binding.musicCard?.alpha = 0f
         binding.expensesCard?.alpha = 0f
@@ -110,6 +112,20 @@ class DashboardActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Click error", e)
             }
+        }
+
+        binding.voiceNavigationAssistantCard?.setOnClickListener {
+            AnimationHelper.clickAnimation(it)
+            it.postDelayed({
+                try {
+                    val intent = Intent(this, VoiceNavigationAssistantActivity::class.java)
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardActivity", "Error opening voice navigation assistant", e)
+                    Toast.makeText(this, "خطا در باز کردن دستیار مسیریابی صوتی", Toast.LENGTH_SHORT).show()
+                }
+            }, 150)
         }
         
         binding.navigationCard?.setOnClickListener {
@@ -473,6 +489,7 @@ class DashboardActivity : AppCompatActivity() {
             binding.calendarCard,
             binding.weatherCard,
             binding.navigationCard,
+            binding.voiceNavigationAssistantCard,
             binding.aiChatCard,
             binding.musicCard,
             binding.expensesCard,

@@ -162,6 +162,25 @@
             android:name=".activities.NavigationActivity"
             android:exported="false"
             android:parentActivityName=".activities.DashboardActivity" />
+
+        <!-- Voice-only Navigation Assistant -->
+        <activity
+            android:name=".activities.VoiceNavigationAssistantActivity"
+            android:exported="true"
+            android:parentActivityName=".activities.DashboardActivity">
+            <!-- دریافت اشتراک‌گذاری مقصد از سایر اپ‌ها -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <!-- پشتیبانی از geo: -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="geo" />
+            </intent-filter>
+        </activity>
         
         <activity
             android:name=".activities.RealNavigationActivity"

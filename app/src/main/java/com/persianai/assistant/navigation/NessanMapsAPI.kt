@@ -17,13 +17,14 @@ class NessanMapsAPI {
     
     companion object {
         private const val TAG = "NessanMapsAPI"
-        // کلید API نشان
-        private const val API_KEY = "service.649ba7521ba04da595c5ab56413b3c84"
         private const val BASE_URL = "https://api.neshan.org/v1"
         
         // Fallback: Google Directions API (free tier)
         private const val GOOGLE_DIRECTIONS_KEY = "YOUR_GOOGLE_KEY" // می‌تواند همان OpenWeather key باشد
     }
+    
+    // کلید API نشان (از Provider مرکزی)
+    private val apiKey: String = com.persianai.assistant.utils.NeshanKeyProvider.getApiKey()
     
     data class PlaceResult(
         val name: String,
@@ -262,7 +263,7 @@ class NessanMapsAPI {
             val url = URL(urlString)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
-            connection.setRequestProperty("Api-Key", API_KEY)
+            connection.setRequestProperty("Api-Key", apiKey)
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
             

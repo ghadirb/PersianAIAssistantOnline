@@ -1,6 +1,7 @@
 package com.persianai.assistant.activities
 
 import android.Manifest
+import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -21,12 +22,19 @@ import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.ui.VoiceRecorderView
+import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.Log
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.io.File
 
 abstract class BaseChatActivity : AppCompatActivity() {
@@ -40,6 +48,14 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected val messages = mutableListOf<ChatMessage>()
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
+    private val httpClient = OkHttpClient()
+    private val hfApiKey: String by lazy {
+        getSharedPreferences("api_keys", MODE_PRIVATE)
+            .getString("hf_api_key", null)
+            ?.takeIf { it.isNotBlank() }
+            ?: DefaultApiKeys.getHuggingFaceKey()
+            ?: ""
+    }
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
@@ -91,6 +107,41 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 stackFromEnd = true
             }
             adapter = chatAdapter
+        }
+    }
+
+    private suspend fun transcribeWithHuggingFace(audioFile: File): String? = withContext(Dispatchers.IO) {
+        if (hfApiKey.isBlank()) {
+            Log.w("HF-STT", "HuggingFace key not set; skipping HF transcription")
+            return@withContext null
+        }
+        return@withContext try {
+            val bytes = audioFile.readBytes()
+            val body = bytes.toRequestBody("audio/m4a".toMediaType())
+            val request = Request.Builder()
+                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
+                .addHeader("Authorization", "Bearer $hfApiKey")
+                .post(body)
+                .build()
+            httpClient.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    android.util.Log.e("HF-STT", "Failed: ${resp.code} ${resp.message}")
+                    return@use null
+                }
+                val text = resp.body?.string()?.trim() ?: return@use null
+                if (text.startsWith("{")) {
+                    return@use try {
+                        val json = org.json.JSONObject(text)
+                        json.optString("text").ifBlank { json.optString("generated_text") }
+                    } catch (_: Exception) {
+                        text
+                    }
+                }
+                text
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HF-STT", "error: ${e.message}", e)
+            null
         }
     }
 
@@ -216,7 +267,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
+                // تلاش اول: OpenAI/Whisper (اگر کلید موجود باشد)
                 val transcribedText = aiClient?.transcribeAudio(audioFile.absolutePath)
+                    ?.takeIf { !it.isNullOrBlank() }
+                    ?: transcribeWithHuggingFace(audioFile)
                 
                 if (!transcribedText.isNullOrEmpty()) {
                     getMessageInput().setText(transcribedText)

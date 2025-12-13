@@ -35,13 +35,43 @@ class SplashActivity : AppCompatActivity() {
                 // اگر Provisioning فعال بود و کلید اعمال شد، خروجی دارد
                 return
             } else {
-                // نمایش دیالوگ توضیحات و دریافت رمز
-                showWelcomeDialog()
+                // تلاش خودکار با رمز پیش‌فرض 1345 برای فعال‌سازی سریع
+                attemptSilentAutoActivation(prefsManager) {
+                    // اگر موفق نشد، دیالوگ قبلی نمایش داده می‌شود
+                    showWelcomeDialog()
+                }
             }
         } catch (e: Exception) {
             // در صورت هر خطایی، به MainActivity برو
             android.util.Log.e("SplashActivity", "Error in onCreate", e)
             navigateToMain()
+        }
+    }
+
+    /**
+     * تلاش خودکار برای دانلود و فعال‌سازی کلیدها با رمز پیش‌فرض ۱۳۴۵
+     * بدون نمایش دیالوگ؛ در صورت موفقیت مستقیم به Main می‌رود.
+     */
+    private fun attemptSilentAutoActivation(prefsManager: PreferencesManager, onFail: () -> Unit) {
+        lifecycleScope.launch {
+            try {
+                val password = "1345"
+                val encryptedData = DriveHelper.downloadEncryptedKeys()
+                val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
+                val apiKeys = parseAPIKeys(decryptedData)
+                if (apiKeys.isEmpty()) throw Exception("هیچ کلید معتبری یافت نشد")
+
+                prefsManager.saveAPIKeys(apiKeys)
+                Toast.makeText(
+                    this@SplashActivity,
+                    "کلیدها به صورت خودکار فعال شدند (${apiKeys.size})",
+                    Toast.LENGTH_SHORT
+                ).show()
+                navigateToMain()
+            } catch (e: Exception) {
+                android.util.Log.w("SplashActivity", "Silent auto-activation failed: ${e.message}")
+                onFail()
+            }
         }
     }
 
@@ -187,6 +217,7 @@ class SplashActivity : AppCompatActivity() {
 
     private fun parseAPIKeys(data: String): List<APIKey> {
         val keys = mutableListOf<APIKey>()
+        var huggingFaceKey: String? = null
         
         data.lines().forEach { line ->
             val trimmed = line.trim()
@@ -200,6 +231,10 @@ class SplashActivity : AppCompatActivity() {
                     "openai" -> AIProvider.OPENAI
                     "anthropic", "claude" -> AIProvider.ANTHROPIC
                     "openrouter" -> AIProvider.OPENROUTER
+                    "huggingface", "hf" -> {
+                        huggingFaceKey = parts[1].trim()
+                        null
+                    }
                     else -> null
                 }
                 
@@ -210,6 +245,14 @@ class SplashActivity : AppCompatActivity() {
                 // احتمالاً کلید OpenAI
                 keys.add(APIKey(AIProvider.OPENAI, trimmed, true))
             }
+        }
+
+        // ذخیره کلید HuggingFace برای STT
+        huggingFaceKey?.let {
+            getSharedPreferences("api_keys", MODE_PRIVATE)
+                .edit()
+                .putString("hf_api_key", it)
+                .apply()
         }
         
         return keys

@@ -11,7 +11,7 @@ import java.net.URL
 class NeshanAPIManager(private val context: Context) {
     
     private val prefs: SharedPreferences = context.getSharedPreferences("neshan_cache", Context.MODE_PRIVATE)
-    private val apiKey = "service.649ba7521ba04da595c5ab56413b3c84"
+    private val apiKey = NeshanKeyProvider.getApiKey()
     
     // کش دوربین‌ها و سرعت‌گیرها: 7 روز
     private val CAMERA_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000L

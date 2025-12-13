@@ -21,9 +21,10 @@ object DefaultApiKeys {
     // 3. این فایل را هرگز در گیت commit نکنید!
     
     private val ENCRYPTED_KEYS = mapOf(
-        "openai_1" to encryptKey(""),  // کلید OpenAI - خالی است، از تنظیمات برنامه استفاده کنید
-        "aimlapi_1" to encryptKey(""),   // کلید AIML - خالی است
-        "openrouter_1" to encryptKey("")  // کلید OpenRouter - خالی است
+        "openai_1" to encryptKey(""),       // کلید OpenAI - خالی است، از تنظیمات برنامه استفاده کنید
+        "aimlapi_1" to encryptKey(""),      // کلید AIML - خالی است
+        "openrouter_1" to encryptKey(""),   // کلید OpenRouter - خالی است
+        "huggingface_1" to encryptKey("")   // کلید HuggingFace - خالی است
     )
     
     /**
@@ -54,6 +55,17 @@ object DefaultApiKeys {
     fun getOpenRouterKey(): String? {
         return try {
             decryptKey(ENCRYPTED_KEYS["openrouter_1"] ?: return null)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * دریافت کلید HuggingFace (برای STT)
+     */
+    fun getHuggingFaceKey(): String? {
+        return try {
+            decryptKey(ENCRYPTED_KEYS["huggingface_1"] ?: return null)
         } catch (e: Exception) {
             null
         }

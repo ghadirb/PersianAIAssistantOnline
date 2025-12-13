@@ -10,7 +10,7 @@ import java.net.URLEncoder
 
 class NeshanSearchAPI(private val context: Context) {
     
-    private val apiKey = "service.d81b1f9424414d4ea848931499e60dac"
+    private val apiKey = NeshanKeyProvider.getApiKey()
     private val osmSearch = OSMSearchAPI()
     
     data class SearchResult(

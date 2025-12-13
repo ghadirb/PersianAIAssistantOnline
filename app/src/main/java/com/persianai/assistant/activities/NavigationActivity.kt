@@ -183,7 +183,7 @@ class NavigationActivity : AppCompatActivity() {
             initTTS()
             
             // تنظیم کلید API نشان
-            val neshanApiKey = "service.649ba7521ba04da595c5ab56413b3c84"
+            val neshanApiKey = com.persianai.assistant.utils.NeshanKeyProvider.getApiKey()
             navigationSystem.setNeshanApiKey(neshanApiKey)
             
             // تنظیم لینک Google Drive برای اشتراک‌گذاری مسیرها
