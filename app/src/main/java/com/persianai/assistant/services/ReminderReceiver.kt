@@ -1,5 +1,6 @@
 package com.persianai.assistant.services
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -9,6 +10,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.os.PowerManager
+
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.persianai.assistant.activities.AdvancedRemindersActivity
