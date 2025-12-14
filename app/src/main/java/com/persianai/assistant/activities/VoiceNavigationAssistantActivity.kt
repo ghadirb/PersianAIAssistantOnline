@@ -208,6 +208,12 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         }
     }
 
+    data class RouteSummary(
+        val distanceKm: Double,
+        val durationMin: Int,
+        val steps: List<String>
+    )
+
     private fun fetchRoute(dest: LatLng, destName: String, destAddress: String) {
         lifecycleScope.launch {
             binding.statusText.text = "در حال دریافت مسیر..."
@@ -230,7 +236,9 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             val route = withContext(Dispatchers.IO) {
                 neshanDirectionAPI.getDirection(origin.latitude, origin.longitude, dest.latitude, dest.longitude)
                     .firstOrNull()
+                    ?.let { RouteSummary(it.distance, it.duration, it.steps) }
                     ?: nessanMapsAPI.getDirections(origin, dest)
+                        ?.let { RouteSummary(it.distance, it.duration, it.instructions) }
             }
 
             if (route == null) {
@@ -240,7 +248,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
                 return@launch
             }
 
-            val summary = "مسافت تقریبی ${"%.1f".format(route.distance)} کیلومتر، زمان ${route.duration} دقیقه."
+            val summary = "مسافت تقریبی ${"%.1f".format(route.distanceKm)} کیلومتر، زمان ${route.durationMin} دقیقه."
             val instructionsPreview = route.steps.take(2).joinToString(" / ").ifBlank { "دستورالعمل‌ها آماده‌اند." }
 
             binding.statusText.text = "مسیر پیشنهادی به $destName"
