@@ -52,7 +52,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/micButton"
-            style="@style/Widget.Material3.Button.FilledTonalButton"
+            style="@style/Widget.MaterialComponents.Button"
             android:layout_width="0dp"
             android:layout_height="56dp"
             android:text="شروع شنیدن"
