@@ -217,10 +217,10 @@ class SplashActivity : AppCompatActivity() {
         data.lines().forEach { line ->
             val trimmed = line.trim()
             if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
-            
+
             // فرمت: provider:key یا فقط key
             val parts = trimmed.split(":", limit = 2)
-            
+
             if (parts.size == 2) {
                 val provider = when (parts[0].lowercase()) {
                     "openai" -> AIProvider.OPENAI
@@ -233,13 +233,27 @@ class SplashActivity : AppCompatActivity() {
                     }
                     else -> null
                 }
-                
+
                 if (provider != null) {
                     keys.add(APIKey(provider, parts[1].trim(), true))
                 }
-            } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
-                // احتمالاً کلید OpenAI
-                keys.add(APIKey(AIProvider.OPENAI, trimmed, true))
+            } else if (parts.size == 1) {
+                // تشخیص خودکار بر اساس الگو
+                val token = trimmed
+                when {
+                    token.startsWith("sk-or-", ignoreCase = true) -> {
+                        keys.add(APIKey(AIProvider.OPENROUTER, token, true))
+                    }
+                    token.startsWith("sk-", ignoreCase = true) -> {
+                        keys.add(APIKey(AIProvider.OPENAI, token, true))
+                    }
+                    token.startsWith("hf_", ignoreCase = true) -> {
+                        huggingFaceKey = token
+                    }
+                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> {
+                        keys.add(APIKey(AIProvider.AIML, token, true))
+                    }
+                }
             }
         }
 

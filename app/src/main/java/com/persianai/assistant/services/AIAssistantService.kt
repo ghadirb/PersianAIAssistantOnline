@@ -23,19 +23,16 @@ class AIAssistantService : Service() {
         private const val CHANNEL_NAME = "سرویس دستیار هوش مصنوعی"
     }
 
+    // جلوگیری از crash: یک بار startForeground کافی است
+    private var startedForeground = false
+
     override fun onCreate() {
         super.onCreate()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            createNotificationChannel()
-            startForeground(NOTIFICATION_ID, createNotification())
-        }
+        ensureForeground()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            // اطمینان از ادامه داشتن foreground
-            startForeground(NOTIFICATION_ID, createNotification())
-        }
+        ensureForeground()
         return START_STICKY
     }
 
@@ -76,6 +73,20 @@ class AIAssistantService : Service() {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_DEFERRED)
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
+    }
+
+    private fun ensureForeground() {
+        if (startedForeground) return
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                createNotificationChannel()
+                startForeground(NOTIFICATION_ID, createNotification())
+                startedForeground = true
+            } catch (e: Exception) {
+                android.util.Log.e("AIAssistantService", "startForeground failed: ${e.message}", e)
+                stopSelf()
+            }
+        }
     }
 
     override fun onDestroy() {
