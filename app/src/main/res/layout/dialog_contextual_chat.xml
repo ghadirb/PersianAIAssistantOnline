@@ -41,32 +41,53 @@
         android:background="#F5F5F5"
         android:padding="8dp" />
 
-    <!-- Input Area -->
+    <!-- Input Area with dual-mode hint + voice recorder -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:orientation="vertical"
         android:layout_marginTop="16dp">
 
-        <EditText
-            android:id="@+id/messageInput"
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/voiceHint"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="پیام خود را بنویسید..."
-            android:padding="12dp"
-            android:background="@android:drawable/edit_text"
-            android:maxLines="3" />
+            android:text="🎙️ تک‌لمس: گفتار→متن | نگه‌داشتن: ضبط فایل + HuggingFace"
+            android:textSize="13sp"
+            android:textColor="#555"
+            android:paddingBottom="6dp" />
 
-        <ImageButton
-            android:id="@+id/sendButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_send"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="ارسال"
-            android:layout_marginStart="8dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/messageInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="پیام خود را بنویسید..."
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text"
+                android:maxLines="3" />
+
+            <com.persianai.assistant.ui.VoiceRecorderView
+                android:id="@+id/voiceButton"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginStart="6dp" />
+
+            <ImageButton
+                android:id="@+id/sendButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_send"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="ارسال"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

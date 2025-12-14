@@ -12,6 +12,15 @@ enum class AIModel(
     val description: String,
     val maxTokens: Int
 ) {
+    // AIML (اولویت کاربر)
+    AIML_GPT_35(
+        "gpt-3.5-turbo", // مدل عمومی AIMLAPI
+        "AIML GPT-3.5",
+        AIProvider.AIML,
+        "سبک و اقتصادی از aimlapi.com",
+        4000
+    ),
+
     // اولویت: OpenRouter رایگان/مقرون‌به‌صرفه (سبک در ابتدا)
     QWEN_2_5_1B5(
         "qwen/qwen2.5-1.5b-instruct",
@@ -108,6 +117,7 @@ enum class AIModel(
  * ارائه‌دهندگان سرویس هوش مصنوعی
  */
 enum class AIProvider {
+    AIML,
     OPENAI,
     ANTHROPIC,
     OPENROUTER

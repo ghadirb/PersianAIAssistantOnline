@@ -235,6 +235,7 @@ class SplashActivity : AppCompatActivity() {
                     "openai" -> AIProvider.OPENAI
                     "anthropic", "claude" -> AIProvider.ANTHROPIC
                     "openrouter" -> AIProvider.OPENROUTER
+                    "aiml", "aimlapi", "aimlapi.com" -> AIProvider.AIML
                     "huggingface", "hf" -> {
                         huggingFaceKey = parts[1].trim()
                         null
@@ -270,26 +271,29 @@ class SplashActivity : AppCompatActivity() {
         val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
         val editor = apiPrefs.edit()
 
+        // کلید فعلی HuggingFace را نگه داریم تا پاک نشود
+        val existingHfKey = apiPrefs.getString("hf_api_key", null)
+
         // پاک‌سازی کلیدهای قبلی برای جلوگیری از تضاد
         editor.remove("openai_api_key")
         editor.remove("openrouter_api_key")
         editor.remove("claude_api_key")
         editor.remove("aiml_api_key")
-        editor.remove("hf_api_key")
 
         prefsManager.getAPIKeys().forEach { key ->
             when (key.provider) {
                 AIProvider.OPENAI -> editor.putString("openai_api_key", key.key)
                 AIProvider.ANTHROPIC -> editor.putString("claude_api_key", key.key)
                 AIProvider.OPENROUTER -> editor.putString("openrouter_api_key", key.key)
+                AIProvider.AIML -> editor.putString("aiml_api_key", key.key)
             }
         }
 
         // HuggingFace: اگر در prefs نبود، از DefaultApiKeys پر شود
-        val existingHf = apiPrefs.getString("hf_api_key", null)
-        if (existingHf.isNullOrBlank()) {
-            DefaultApiKeys.getHuggingFaceKey()?.let { editor.putString("hf_api_key", it) }
-        }
+        val hfToApply = existingHfKey
+            ?: apiPrefs.getString("hf_api_key", null)
+            ?: DefaultApiKeys.getHuggingFaceKey()
+        hfToApply?.takeIf { it.isNotBlank() }?.let { editor.putString("hf_api_key", it) }
 
         editor.apply()
     }

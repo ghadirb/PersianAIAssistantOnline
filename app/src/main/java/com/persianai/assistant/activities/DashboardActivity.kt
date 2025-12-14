@@ -27,12 +27,13 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
+import com.persianai.assistant.utils.PreferencesManager
+import com.google.android.material.snackbar.Snackbar
 
 class DashboardActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMainDashboardBinding
-    private lateinit var prefs: SharedPreferences
+    private lateinit var prefsManager: PreferencesManager
     private val disabledFeatureMessage = "⛔ این بخش به‌صورت موقت غیرفعال شده است تا روی قابلیت‌های حیاتی تمرکز کنیم"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +42,7 @@ class DashboardActivity : AppCompatActivity() {
         binding = ActivityMainDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        prefs = getSharedPreferences("weather_prefs", MODE_PRIVATE)
+        prefsManager = PreferencesManager(this)
         
         // ایجاد کانال‌های نوتیفیکیشن
         NotificationHelper.createNotificationChannels(this)
@@ -62,6 +63,9 @@ class DashboardActivity : AppCompatActivity() {
         loadWeatherButtons()
         loadSharedData()
         animateCards()
+        
+        // نمایش سریع وضعیت کلیدها پس از ورود به داشبورد
+        showApiKeysStatus()
     }
     
     private fun hideAllCards() {
@@ -174,13 +178,11 @@ class DashboardActivity : AppCompatActivity() {
         
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
-            it.postDelayed({
-                val intent = Intent(this, MainActivity::class.java)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-            }, 150)
+            binding.navigationButton.setOnClickListener {
+            val intent = Intent(this, NavigationActivity::class.java)
+            startActivity(intent)
         }
-        
+
         binding.psychologyCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({

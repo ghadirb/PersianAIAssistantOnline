@@ -303,10 +303,14 @@ class AIModelManager(private val context: Context) {
                     }
                 }
                 model.provider == "OpenRouter" -> {
-                    // OpenRouter format
+                    // OpenRouter format (با پیام system برای جلوگیری از خطاهای 400)
                     JSONObject().apply {
                         put("model", model.name)
                         put("messages", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("role", "system")
+                                put("content", "You are a helpful Persian AI assistant. Answer in Persian when user speaks Persian.")
+                            })
                             put(JSONObject().apply {
                                 put("role", "user")
                                 put("content", message)
@@ -339,6 +343,7 @@ class AIModelManager(private val context: Context) {
             val request = Request.Builder()
                 .url(model.endpoint)
                 .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json")
                 .apply {
                     when (model.provider) {
                         "Anthropic" -> {

@@ -30,7 +30,7 @@ class SplashScreenActivity : AppCompatActivity() {
         // شروع انیمیشن‌ها
         startAnimations()
         
-        // انتقال به صفحه بعدی
+        // انتقال به صفحه بعدی (ابتدا SplashActivity برای فعال‌سازی کلیدها)
         Handler(Looper.getMainLooper()).postDelayed({
             navigateToNextScreen()
         }, SPLASH_DURATION)
@@ -97,15 +97,8 @@ class SplashScreenActivity : AppCompatActivity() {
     }
     
     private fun navigateToNextScreen() {
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val isFirstRun = prefs.getBoolean("is_first_run", true)
-        
-        val intent = if (isFirstRun) {
-            Intent(this, WelcomeActivity::class.java)
-        } else {
-            Intent(this, DashboardActivity::class.java)
-        }
-        
+        // همیشه ابتدا SplashActivity تا کلیدها همگام شود، سپس خودش به Main/W elcome هدایت می‌کند
+        val intent = Intent(this, SplashActivity::class.java)
         startActivity(intent)
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         finish()

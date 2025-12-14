@@ -52,6 +52,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         for (apiKey in availableKeys) {
             try {
                 return@withContext when (model.provider) {
+                    AIProvider.AIML -> sendToOpenAI(model, messages, systemPrompt, apiKey) // AIML API سازگار با OpenAI
                     AIProvider.OPENAI, AIProvider.OPENROUTER -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                 }
@@ -80,10 +81,10 @@ class AIClient(private val apiKeys: List<APIKey>) {
         apiKey: APIKey
     ): ChatMessage = withContext(Dispatchers.IO) {
         
-        val apiUrl = if (apiKey.provider == AIProvider.OPENROUTER) {
-            "https://openrouter.ai/api/v1/chat/completions"
-        } else {
-            "https://api.openai.com/v1/chat/completions"
+        val apiUrl = when (apiKey.provider) {
+            AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1/chat/completions"
+            AIProvider.AIML -> "https://api.aimlapi.com/v1/chat/completions"
+            else -> "https://api.openai.com/v1/chat/completions"
         }
 
         val messageList = mutableListOf<Map<String, String>>()

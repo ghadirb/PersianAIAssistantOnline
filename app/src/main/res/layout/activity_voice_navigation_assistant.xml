@@ -20,109 +20,110 @@
             app:titleTextColor="@android:color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        android:padding="16dp">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="برای شروع روی میکروفون بزنید"
-            android:textSize="16sp"
-            android:textColor="#333333"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
-            android:id="@+id/transcriptText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/black"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/statusText"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/messageInputLayout"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:hint="پیام متنی به مدل (چت)"
-            app:layout_constraintTop_toBottomOf="@id/transcriptText"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/sendButton"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="8dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/messageInput"
+            <TextView
+                android:id="@+id/statusText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:imeOptions="actionSend"
-                android:inputType="text" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:text="برای شروع روی میکروفون بزنید"
+                android:textSize="16sp"
+                android:textColor="#333333" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/sendButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:text="ارسال"
-            android:textAllCaps="false"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/transcriptText"
-            app:layout_constraintEnd_toEndOf="parent" />
+            <TextView
+                android:id="@+id/transcriptText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"
+                android:layout_marginTop="12dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/micButton"
-            style="@style/Widget.MaterialComponents.Button"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:text="شروع شنیدن"
-            android:textAllCaps="false"
-            android:textSize="16sp"
-            android:layout_marginTop="16dp"
-            app:icon="@drawable/ic_mic"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:layout_constraintTop_toBottomOf="@id/messageInputLayout"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            <TextView
+                android:id="@+id/voiceHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🎙️ تک‌لمس: گفتار→متن | نگه‌داشتن: ضبط فایل + HuggingFace"
+                android:textSize="13sp"
+                android:textColor="#555"
+                android:layout_marginTop="12dp" />
 
-        <TextView
-            android:id="@+id/hintText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="نمونه فرمان‌ها:\n- &quot;برو خونه&quot; (با یادگیری عادات)\n- &quot;ذخیره کن خانه مامان&quot; (ذخیره مقصد)\n- &quot;مسیر بدون اتوبان&quot; یا &quot;مسیر خلوت&quot;"
-            android:textSize="14sp"
-            android:textColor="#666666"
-            android:lineSpacingExtra="4dp"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/micButton"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="12dp">
 
-        <TextView
-            android:id="@+id/routeSummaryText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="15sp"
-            android:textColor="#212121"
-            android:lineSpacingExtra="2dp"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/hintText"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/messageInputLayout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="پیام متنی به مدل (چت)"
+                    android:layout_marginEnd="8dp">
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/messageInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:imeOptions="actionSend"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/sendButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:text="ارسال"
+                    android:textAllCaps="false" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/micButton"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="شروع شنیدن"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:layout_marginTop="16dp"
+                app:icon="@drawable/ic_mic"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp" />
+
+            <TextView
+                android:id="@+id/hintText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="نمونه فرمان‌ها:\n- \"برو خونه\" (با یادگیری عادات)\n- \"ذخیره کن خانه مامان\" (ذخیره مقصد)\n- \"مسیر بدون اتوبان\" یا \"مسیر خلوت\""
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginTop="24dp" />
+
+            <TextView
+                android:id="@+id/routeSummaryText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="15sp"
+                android:textColor="#212121"
+                android:lineSpacingExtra="2dp"
+                android:layout_marginTop="24dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

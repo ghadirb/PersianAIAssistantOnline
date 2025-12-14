@@ -227,6 +227,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     protected open suspend fun handleRequest(text: String): String = withContext(Dispatchers.IO) {
         if (aiClient == null) return@withContext "سرویس آنلاین در دسترس نیست."
+
         // تلاش برای Puter.js (stub) در حالت AUTO یا SMART_ROUTE
         val providerPref = prefsManager.getProviderPreference()
         if (providerPref == ProviderPreference.AUTO || providerPref == ProviderPreference.SMART_ROUTE) {
@@ -236,11 +237,59 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     return@withContext puterReply
                 }
             } catch (_: Exception) {
-                // ساکت: مستقیماً fallback
+                // ساکت: مستقیم می‌رویم سراغ مدل بعدی
             }
         }
-        val response = aiClient!!.sendMessage(currentModel, messages, getSystemPrompt() + "\n\nپیام کاربر: " + text)
-        return@withContext response.content
+
+        // اولویت مدل‌ها: مدل انتخاب‌شده → اگر خطا داد، مدل بعدی از لیست OpenRouter سبک → در انتها OpenAI Mini
+        val candidates = buildModelFallbacks()
+        var lastError: String? = null
+
+        for (model in candidates) {
+            try {
+                currentModel = model
+                val response = aiClient!!.sendMessage(
+                    model,
+                    messages,
+                    getSystemPrompt() + "\n\nپیام کاربر: " + text
+                )
+                return@withContext response.content
+            } catch (e: Exception) {
+                lastError = e.message
+                android.util.Log.w("BaseChatActivity", "Model failed: ${model.modelId} -> ${e.message}")
+                continue
+            }
+        }
+
+        return@withContext "❌ همه مدل‌ها خطا دادند: ${lastError ?: "نامشخص"}"
+    }
+
+    private fun buildModelFallbacks(): List<AIModel> {
+        val apiKeys = prefsManager.getAPIKeys()
+        val hasOpenRouter = apiKeys.any { it.provider == AIProvider.OPENROUTER && it.isActive }
+        val hasOpenAI = apiKeys.any { it.provider == AIProvider.OPENAI && it.isActive }
+
+        val openRouterChain = listOf(
+            AIModel.QWEN_2_5_1B5,
+            AIModel.LLAMA_3_2_1B,
+            AIModel.LLAMA_3_2_3B,
+            AIModel.LLAMA_3_3_70B,
+            AIModel.DEEPSEEK_R1T2,
+            AIModel.MIXTRAL_8X7B,
+            AIModel.LLAMA_2_70B
+        )
+
+        val openAIChain = listOf(
+            AIModel.GPT_4O_MINI,
+            AIModel.GPT_4O
+        )
+
+        val chain = mutableListOf<AIModel>()
+        // مدل فعلی در اولویت اول
+        chain.add(currentModel)
+        if (hasOpenRouter) chain.addAll(openRouterChain.filter { it != currentModel })
+        if (hasOpenAI) chain.addAll(openAIChain.filter { it != currentModel })
+        return chain.distinct()
     }
 
     protected open fun getSystemPrompt(): String {

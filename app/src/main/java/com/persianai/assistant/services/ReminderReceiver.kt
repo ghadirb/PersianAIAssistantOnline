@@ -95,7 +95,7 @@ class ReminderReceiver : BroadcastReceiver() {
             if (useFullScreen) {
                 showFullScreenAlarm(context, title, description, reminderId)
             } else {
-                Log.d(TAG, "Notification mode - skipped")
+                showHeadsUpNotification(context, title, description, reminderId)
             }
             
         } catch (e: Exception) {
@@ -171,8 +171,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setFullScreenIntent(fullScreenPendingIntent, true)
                     .setDefaults(NotificationCompat.DEFAULT_ALL)
-                    .setAutoCancel(false)
-                    .setOngoing(true)
+                    .setAutoCancel(true) // عدم ماندگاری در نوار وضعیت
+                    .setOngoing(false)
                     .build()
 
                 NotificationManagerCompat.from(context).notify(9001, notification)
@@ -189,7 +189,65 @@ class ReminderReceiver : BroadcastReceiver() {
             Log.e(TAG, "❌ Error starting activity", e)
         }
     }
-    
+
+    /**
+     * اعلان Heads-up برای حالت نوتیفیکیشن (بدون ماندگاری در نوار)
+     */
+    private fun showHeadsUpNotification(
+        context: Context,
+        title: String,
+        description: String,
+        reminderId: String?
+    ) {
+        try {
+            val channelId = "reminder_alert_channel"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Reminder Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    this.description = "Heads-up reminders"
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                }
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.createNotificationChannel(channel)
+            }
+
+            val pendingIntentFlags =
+                PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_IMMUTABLE
+                } else 0
+
+            val tapIntent = Intent(context, AdvancedRemindersActivity::class.java).let {
+                PendingIntent.getActivity(
+                    context,
+                    reminderId?.hashCode() ?: 2001,
+                    it,
+                    pendingIntentFlags
+                )
+            }
+
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(title)
+                .setContentText(description.ifEmpty { "یادآوری" })
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setAutoCancel(true)
+                .setOngoing(false)
+                .setContentIntent(tapIntent)
+                .build()
+
+            NotificationManagerCompat.from(context).notify(reminderId?.hashCode() ?: 2002, notification)
+            Log.d(TAG, "✅ Heads-up notification posted")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error posting heads-up notification", e)
+        }
+    }
+
     /**
      * علامت‌گذاری به عنوان انجام شده
      */
