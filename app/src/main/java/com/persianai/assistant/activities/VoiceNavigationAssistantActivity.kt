@@ -143,6 +143,14 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupAiClient() {
+        val keys = prefsManager.getAPIKeys()
+        if (keys.isNotEmpty()) {
+            aiClient = AIClient(keys)
+            currentModel = prefsManager.getSelectedModel()
+        }
+    }
+
     private fun checkAudioPermissionAndStart() {
         if (ContextCompat.checkSelfPermission(
                 this,
