@@ -70,7 +70,7 @@
             android:id="@+id/hintText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="نمونه فرمان‌ها:\n- \"برو خونه\" (با یادگیری عادات)\n- \"ذخیره کن خانه مامان\" (ذخیره مقصد)\n- \"مسیر بدون اتوبان\" یا \"مسیر خلوت\""
+            android:text="نمونه فرمان‌ها:\n- &quot;برو خونه&quot; (با یادگیری عادات)\n- &quot;ذخیره کن خانه مامان&quot; (ذخیره مقصد)\n- &quot;مسیر بدون اتوبان&quot; یا &quot;مسیر خلوت&quot;"
             android:textSize="14sp"
             android:textColor="#666666"
             android:lineSpacingExtra="4dp"
