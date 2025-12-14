@@ -14,7 +14,9 @@ import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * صفحه شروع برنامه - نمایش توضیحات و دریافت رمز عبور
@@ -25,28 +27,22 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
 
-        try {
-            // بررسی اینکه آیا قبلاً کلیدها بارگذاری شده‌اند یا نه
-            val prefsManager = PreferencesManager(this)
-            
-            if (prefsManager.hasAPIKeys()) {
-                // اگر کلیدها موجود هستند، کلیدها را به SharedPreferences همگام می‌کنیم و ادامه می‌دهیم
-                syncApiPrefs(prefsManager)
-                navigateToMain()
-            } else if (tryAutoProvisioning(prefsManager)) {
-                // اگر Provisioning فعال بود و کلید اعمال شد، خروجی دارد
-                return
-            } else {
-                // تلاش خودکار با رمز پیش‌فرض 1345 برای فعال‌سازی سریع
-                attemptSilentAutoActivation(prefsManager) {
-                    // اگر موفق نشد، دیالوگ قبلی نمایش داده می‌شود
-                    showWelcomeDialog()
+        lifecycleScope.launch {
+            val prefsManager = PreferencesManager(this@SplashActivity)
+            try {
+                if (prefsManager.hasAPIKeys()) {
+                    // کلیدهای موجود را همگام کن
+                    syncApiPrefs(prefsManager)
+                } else {
+                    // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (بدون دیالوگ)
+                    attemptSilentAutoActivationAndSync(prefsManager)
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("SplashActivity", "Error initializing keys", e)
+            } finally {
+                // همیشه به داشبورد برو
+                navigateToMain()
             }
-        } catch (e: Exception) {
-            // در صورت هر خطایی، به MainActivity برو
-            android.util.Log.e("SplashActivity", "Error in onCreate", e)
-            navigateToMain()
         }
     }
 
@@ -54,27 +50,22 @@ class SplashActivity : AppCompatActivity() {
      * تلاش خودکار برای دانلود و فعال‌سازی کلیدها با رمز پیش‌فرض ۱۳۴۵
      * بدون نمایش دیالوگ؛ در صورت موفقیت مستقیم به Main می‌رود.
      */
-    private fun attemptSilentAutoActivation(prefsManager: PreferencesManager, onFail: () -> Unit) {
-        lifecycleScope.launch {
-            try {
-                val password = "1345"
-                val encryptedData = DriveHelper.downloadEncryptedKeys()
-                val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
-                val apiKeys = parseAPIKeys(decryptedData)
-                if (apiKeys.isEmpty()) throw Exception("هیچ کلید معتبری یافت نشد")
+    private suspend fun attemptSilentAutoActivationAndSync(prefsManager: PreferencesManager): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val password = "1345"
+            val encryptedData = DriveHelper.downloadEncryptedKeys()
+            val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
+            val apiKeys = parseAPIKeys(decryptedData)
+            if (apiKeys.isEmpty()) throw Exception("هیچ کلید معتبری یافت نشد")
 
-                prefsManager.saveAPIKeys(apiKeys)
-                syncApiPrefs(prefsManager)
-                Toast.makeText(
-                    this@SplashActivity,
-                    "کلیدها به صورت خودکار فعال شدند (${apiKeys.size})",
-                    Toast.LENGTH_SHORT
-                ).show()
-                navigateToMain()
-            } catch (e: Exception) {
-                android.util.Log.w("SplashActivity", "Silent auto-activation failed: ${e.message}")
-                onFail()
-            }
+            prefsManager.saveAPIKeys(apiKeys)
+            // همگام‌سازی با SharedPreferences برای سایر ماژول‌ها
+            withContext(Dispatchers.Main) { syncApiPrefs(prefsManager) }
+            android.util.Log.i("SplashActivity", "API keys auto-activated (${apiKeys.size})")
+            true
+        } catch (e: Exception) {
+            android.util.Log.w("SplashActivity", "Silent auto-activation failed: ${e.message}")
+            false
         }
     }
 
@@ -299,7 +290,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToMain() {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, DashboardActivity::class.java)
         startActivity(intent)
         finish()
     }
