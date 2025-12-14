@@ -1,9 +1,10 @@
 package com.persianai.assistant.activities
 
+import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.view.animation.AnimationUtils
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -11,29 +12,28 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
-import com.persianai.assistant.weather.WeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
-import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.AnimationHelper
-import com.persianai.assistant.utils.SharedDataManager
-import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.AppRatingHelper
+import com.persianai.assistant.utils.NotificationHelper
+import com.persianai.assistant.utils.PersianDateConverter
+import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.workers.ReminderWorker
-import android.view.View
-import com.persianai.assistant.activities.VoiceNavigationAssistantActivity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import com.persianai.assistant.utils.PreferencesManager
-import com.google.android.material.snackbar.Snackbar
+import kotlin.math.roundToInt
 
 class DashboardActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMainDashboardBinding
     private lateinit var prefsManager: PreferencesManager
+    private lateinit var prefs: SharedPreferences
     private val disabledFeatureMessage = "⛔ این بخش به‌صورت موقت غیرفعال شده است تا روی قابلیت‌های حیاتی تمرکز کنیم"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +43,7 @@ class DashboardActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         prefsManager = PreferencesManager(this)
+        prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         
         // ایجاد کانال‌های نوتیفیکیشن
         NotificationHelper.createNotificationChannels(this)
@@ -178,11 +179,13 @@ class DashboardActivity : AppCompatActivity() {
         
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
-            binding.navigationButton.setOnClickListener {
-            val intent = Intent(this, NavigationActivity::class.java)
-            startActivity(intent)
+            it.postDelayed({
+                val intent = Intent(this, AIChatActivity::class.java)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+            }, 150)
         }
-
+        
         binding.psychologyCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
@@ -534,6 +537,27 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showDisabledMessage(featureName: String) {
         Toast.makeText(this, "$featureName به‌زودی فعال می‌شود. $disabledFeatureMessage", Toast.LENGTH_LONG).show()
+    }
+    
+    private fun showApiKeysStatus() {
+        try {
+            val keys = prefsManager.getAPIKeys()
+            val openAI = keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }
+            val openRouter = keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }
+            val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
+            val huggingFace = apiPrefs.getString("hf_api_key", null)
+            
+            val status = buildString {
+                append("کلیدها: ")
+                append(if (openAI != null) "OpenAI ✅  " else "OpenAI ⛔  ")
+                append(if (openRouter != null) "OpenRouter ✅  " else "OpenRouter ⛔  ")
+                append(if (!huggingFace.isNullOrBlank()) "HF ✅" else "HF ⛔")
+            }
+            
+            Snackbar.make(binding.root, status, Snackbar.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error showing API key status", e)
+        }
     }
     
     private fun scheduleReminderWorker() {

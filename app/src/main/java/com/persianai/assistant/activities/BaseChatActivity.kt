@@ -18,6 +18,7 @@ import androidx.viewbinding.ViewBinding
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
