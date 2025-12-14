@@ -204,14 +204,10 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        val openAIKey = apiKeys.firstOrNull { 
-            it.provider == AIProvider.OPENAI && it.isActive 
-        }
-        
-        if (openAIKey == null) {
-            android.util.Log.w("AIClient", "OpenAI key not found for Whisper, returning empty string for fallback")
-            return@withContext ""
-        }
+        val openAIKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
+        val hfKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_") }
+            ?: apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.key.startsWith("hf_") }
+        val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
         val file = java.io.File(audioFilePath)
         if (!file.exists()) {
@@ -234,23 +230,52 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 .addFormDataPart("language", "fa")
                 .build()
 
-            val request = Request.Builder()
-                .url("https://api.openai.com/v1/audio/transcriptions")
-                .addHeader("Authorization", "Bearer ${openAIKey.key}")
-                .post(requestBody)
-                .build()
+            // اولویت: OpenAI Whisper -> HF Whisper
+            val responseText = openAIKey?.let { key ->
+                val request = Request.Builder()
+                    .url("https://api.openai.com/v1/audio/transcriptions")
+                    .addHeader("Authorization", "Bearer ${key.key}")
+                    .post(requestBody)
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string()
+                    if (!response.isSuccessful) {
+                        android.util.Log.e("AIClient", "Whisper API error: ${response.code} - $bodyStr")
+                        null
+                    } else {
+                        val jsonResponse = gson.fromJson(bodyStr, JsonObject::class.java)
+                        jsonResponse.get("text")?.asString
+                    }
+                }
+            }
 
-            client.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string()
-                
-                if (!response.isSuccessful) {
-                    android.util.Log.e("AIClient", "Whisper API error: ${response.code} - $responseBody")
+            if (!responseText.isNullOrBlank()) return@withContext responseText
+
+            val hfToken = hfKey?.key ?: fallbackHf
+            if (hfToken.isNullOrBlank()) return@withContext ""
+
+            val hfReqBody = file.readBytes().toRequestBody("audio/mpeg".toMediaType())
+            val hfRequest = Request.Builder()
+                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
+                .addHeader("Authorization", "Bearer $hfToken")
+                .post(hfReqBody)
+                .build()
+            client.newCall(hfRequest).execute().use { resp ->
+                val bodyStr = resp.body?.string()
+                if (!resp.isSuccessful) {
+                    android.util.Log.e("AIClient", "HF STT error: ${resp.code} - $bodyStr")
                     return@withContext ""
                 }
-
-                val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
-                val text = jsonResponse.get("text")?.asString
-                return@withContext text ?: ""
+                if (bodyStr.isNullOrBlank()) return@withContext ""
+                if (bodyStr.trim().startsWith("{")) {
+                    return@withContext try {
+                        val json = gson.fromJson(bodyStr, JsonObject::class.java)
+                        json.get("text")?.asString ?: json.get("generated_text")?.asString ?: ""
+                    } catch (_: Exception) {
+                        bodyStr
+                    }
+                }
+                return@withContext bodyStr
             }
         } catch (e: Exception) {
             android.util.Log.e("AIClient", "Whisper transcription error: ${e.message}", e)

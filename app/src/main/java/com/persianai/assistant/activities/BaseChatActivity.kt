@@ -44,7 +44,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected lateinit var prefsManager: PreferencesManager
     protected lateinit var ttsHelper: TTSHelper
     protected var aiClient: AIClient? = null
-    protected var currentModel: AIModel = AIModel.LLAMA_3_3_70B
+    protected var currentModel: AIModel = AIModel.QWEN_2_5_1B5
     protected val messages = mutableListOf<ChatMessage>()
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
@@ -64,6 +64,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
         val fullPriority = listOf(
+            AIModel.QWEN_2_5_1B5,
+            AIModel.LLAMA_3_2_1B,
+            AIModel.LLAMA_3_2_3B,
             AIModel.LLAMA_3_3_70B,
             AIModel.DEEPSEEK_R1T2,
             AIModel.MIXTRAL_8X7B,

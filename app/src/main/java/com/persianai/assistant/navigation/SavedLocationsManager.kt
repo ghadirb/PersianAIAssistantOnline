@@ -104,6 +104,32 @@ class SavedLocationsManager(context: Context) {
             Math.abs(it.longitude - latLng.longitude) < 0.0001
         }
     }
+
+    fun updateLocationName(id: String, newName: String): Boolean {
+        return try {
+            val updated = getAllLocations().map {
+                if (it.id == id) it.copy(name = newName) else it
+            }
+            saveAllLocations(updated)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SavedLocations", "Error renaming location", e)
+            false
+        }
+    }
+    
+    fun updateLocationAddress(id: String, newAddress: String): Boolean {
+        return try {
+            val updated = getAllLocations().map {
+                if (it.id == id) it.copy(address = newAddress) else it
+            }
+            saveAllLocations(updated)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SavedLocations", "Error updating address", e)
+            false
+        }
+    }
     
     private fun saveAllLocations(locations: List<SavedLocation>) {
         val jsonArray = JSONArray()

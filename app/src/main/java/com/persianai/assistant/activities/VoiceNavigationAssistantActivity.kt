@@ -4,8 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.view.MotionEvent
 import android.speech.RecognizerIntent
+import android.view.MotionEvent
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -17,6 +18,9 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.databinding.ActivityVoiceNavigationAssistantBinding
+import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.navigation.NessanMapsAPI
 import com.persianai.assistant.navigation.SavedLocationsManager
 import com.persianai.assistant.utils.LocationShareParser
@@ -24,6 +28,7 @@ import com.persianai.assistant.utils.NeshanDirectionAPI
 import com.persianai.assistant.utils.NeshanSearchAPI
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.utils.TTSHelper
+import com.persianai.assistant.ai.AIClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.launch
@@ -44,6 +49,9 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     private lateinit var neshanSearchAPI: NeshanSearchAPI
     private lateinit var nessanMapsAPI: NessanMapsAPI
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var prefsManager: PreferencesManager
+    private var aiClient: AIClient? = null
+    private var currentModel: AIModel = AIModel.QWEN_2_5_1B5
     private val httpClient = OkHttpClient()
 
     private var lastDestination: LatLng? = null
@@ -58,7 +66,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
             .getString("hf_api_key", null)
-            ?: ""
+            ?: DefaultApiKeys.getHuggingFaceKey().orEmpty()
     }
 
     private val speechRecognizerLauncher =
@@ -90,6 +98,8 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         neshanSearchAPI = NeshanSearchAPI(this)
         nessanMapsAPI = NessanMapsAPI()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        prefsManager = PreferencesManager(this)
+        setupAiClient()
 
         setupToolbar()
         setupMicButton()
@@ -118,6 +128,18 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             } else {
                 false
             }
+        }
+
+        binding.sendButton.setOnClickListener {
+            val text = binding.messageInput.text?.toString().orEmpty().trim()
+            sendTextToModel(text)
+        }
+        binding.messageInput.setOnEditorActionListener { _, _, _ ->
+            val text = binding.messageInput.text?.toString().orEmpty().trim()
+            if (text.isNotEmpty()) {
+                sendTextToModel(text)
+            }
+            true
         }
     }
 
@@ -168,6 +190,10 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             }
             lower.contains("برو ") || lower.contains("به ") -> {
                 navigateToNamedLocation(text)
+            }
+            lower.contains("پیام") || lower.contains("چت") -> {
+                binding.statusText.text = "پیام در حال ارسال به مدل..."
+                sendTextToModel(text.replace("پیام", "", true).replace("چت", "", true).trim())
             }
             else -> searchAndRoute(text)
         }
@@ -339,7 +365,11 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val text = transcribeWithHuggingFace(file)
             if (text.isNullOrBlank()) {
-                binding.statusText.text = "تحلیل صوت ناموفق بود. دوباره تلاش کنید."
+                binding.statusText.text = if (hfApiKey.isBlank()) {
+                    "کلید HuggingFace تنظیم نیست. لطفاً کلید را وارد کنید."
+                } else {
+                    "تحلیل صوت ناموفق بود. دوباره تلاش کنید."
+                }
                 return@launch
             }
             binding.transcriptText.text = text
@@ -349,6 +379,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     }
 
     private suspend fun transcribeWithHuggingFace(file: File): String? = withContext(Dispatchers.IO) {
+        if (hfApiKey.isBlank()) return@withContext null
         return@withContext try {
             val bytes = file.readBytes()
             val body = bytes.toRequestBody("audio/m4a".toMediaType())
@@ -409,22 +440,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             else -> null
         } ?: return
 
-        val label = parsed.label?.takeIf { it.isNotBlank() } ?: "مکان ذخیره شده"
-        val latLng = LatLng(parsed.latitude, parsed.longitude)
-        val saved = savedLocationsManager.saveLocation(label, "", latLng, "favorite")
-
-        lastDestination = latLng
-        lastDestinationName = label
-        lastDestinationAddress = ""
-
-        val msg = if (saved) {
-            "مکان «$label» ذخیره شد و آماده مسیریابی است."
-        } else {
-            "ذخیره‌سازی انجام نشد."
-        }
-        binding.statusText.text = msg
-        binding.routeSummaryText.text = "مختصات: ${parsed.latitude}, ${parsed.longitude}"
-        ttsHelper.speak(msg)
+        promptSaveSharedLocation(parsed)
     }
 
     private fun handleSaveCommand(text: String) {
@@ -473,10 +489,27 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             ttsHelper.speak(msg)
             return
         }
-        val names = list.joinToString("، ") { it.name }
-        val msg = "مکان‌های ذخیره شده: $names"
-        binding.statusText.text = msg
-        ttsHelper.speak(msg)
+        val items = list.map { it.name }.toTypedArray()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("مکان‌های ذخیره شده")
+            .setItems(items) { _, which ->
+                val loc = list[which]
+                val options = arrayOf("مسیریابی", "تغییر نام", "حذف")
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(loc.name)
+                    .setItems(options) { _, opt ->
+                        when (opt) {
+                            0 -> fetchRoute(LatLng(loc.latitude, loc.longitude), loc.name, loc.address)
+                            1 -> promptRenameLocation(loc.id, loc.name)
+                            2 -> {
+                                savedLocationsManager.deleteLocation(loc.id)
+                                Toast.makeText(this, "حذف شد", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }.show()
+            }
+            .setNegativeButton("بستن", null)
+            .show()
     }
 
     private fun navigateToNamedLocation(text: String) {
@@ -529,5 +562,68 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         }
 
         return@withContext TEHRAN
+    }
+
+    private fun promptSaveSharedLocation(parsed: LocationShareParser.ParsedLocation) {
+        val input = EditText(this).apply {
+            hint = "نام مکان"
+            setText(parsed.label?.takeIf { it.isNotBlank() } ?: "")
+        }
+        val latLng = LatLng(parsed.latitude, parsed.longitude)
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("ذخیره مکان اشتراک‌گذاری‌شده")
+            .setMessage("مکان دریافت شد. یک نام انتخاب کنید.")
+            .setView(input)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val label = input.text.toString().ifBlank { "مکان ذخیره شده" }
+                val saved = savedLocationsManager.saveLocation(label, "", latLng, "favorite")
+                lastDestination = latLng
+                lastDestinationName = label
+                lastDestinationAddress = ""
+                val msg = if (saved) "مکان «$label» ذخیره شد و آماده مسیریابی است." else "ذخیره‌سازی انجام نشد."
+                binding.statusText.text = msg
+                binding.routeSummaryText.text = "مختصات: ${parsed.latitude}, ${parsed.longitude}"
+                ttsHelper.speak(msg)
+            }
+            .setNegativeButton("صرف‌نظر", null)
+            .show()
+    }
+
+    private fun promptRenameLocation(id: String, currentName: String) {
+        val input = EditText(this).apply {
+            hint = "نام جدید"
+            setText(currentName)
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("تغییر نام مکان")
+            .setView(input)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val newName = input.text.toString().ifBlank { currentName }
+                if (savedLocationsManager.updateLocationName(id, newName)) {
+                    Toast.makeText(this, "ذخیره شد", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "خطا در تغییر نام", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("لغو", null)
+            .show()
+    }
+
+    private fun sendTextToModel(text: String) {
+        val client = aiClient ?: run {
+            Toast.makeText(this, "کلید API تنظیم نشده است", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val message = text.ifBlank { return }
+        lifecycleScope.launch {
+            try {
+                val resp = client.sendMessage(currentModel, listOf(com.persianai.assistant.models.ChatMessage(role = com.persianai.assistant.models.MessageRole.USER, content = message)))
+                binding.statusText.text = "پاسخ مدل: ${resp.content}"
+                binding.transcriptText.text = resp.content
+                ttsHelper.speak(resp.content)
+            } catch (e: Exception) {
+                binding.statusText.text = "خطا در ارسال پیام: ${e.message}"
+            }
+        }
     }
 }

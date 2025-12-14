@@ -48,7 +48,7 @@ class AIAssistantService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW  // LOW برای مخفی بودن در status bar
+                NotificationManager.IMPORTANCE_MIN  // کمینه برای پنهان بودن
             ).apply {
                 description = ""
                 setShowBadge(false)
@@ -65,14 +65,15 @@ class AIAssistantService : Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("")
-            .setContentText("")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)  // آیکون سیستمی کوچک
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentTitle("دستیار هوش مصنوعی فعال است")
+            .setContentText("برای مخفی ماندن در پس‌زمینه اجرا می‌شود")
+            .setSmallIcon(android.R.drawable.stat_notify_more)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .setShowWhen(false)
             .setSilent(true)
             .setOngoing(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_DEFERRED)
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
     }

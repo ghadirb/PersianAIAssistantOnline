@@ -148,6 +148,18 @@ class AIModelManager(private val context: Context) {
                     features = listOf("سبک", "چندزبانه", "پشتیبان متوسط")
                 )
             )
+            // در صورت موجود بودن مدل‌های 3B-7B کوانتیزه‌شده (با نام custom)، کاربر می‌تواند اضافه کند
+            models.add(
+                ModelConfig(
+                    name = "meta-llama/Llama-3.2-7B-Instruct",
+                    displayName = "LLaMA 3.2 7B (اختیاری)",
+                    provider = "OpenRouter",
+                    apiKey = openRouterKey,
+                    endpoint = OPENROUTER_API_URL,
+                    isAvailable = true,
+                    features = listOf("متوسط", "گزینه جایگزین در صورت دسترس بودن")
+                )
+            )
 
             // مدل‌های قوی‌تر ولی بعد از سبک‌ها
             models.add(
@@ -223,6 +235,7 @@ class AIModelManager(private val context: Context) {
             "qwen/qwen2.5-1.5b-instruct" to 10,
             "meta-llama/Llama-3.2-1B-Instruct" to 11,
             "meta-llama/Llama-3.2-3B-Instruct" to 12,
+            "meta-llama/Llama-3.2-7B-Instruct" to 13,
             MODEL_LLAMA_3_3_70B to 20,
             MODEL_DEEPSEEK_R1T2 to 21,
             MODEL_MIXTRAL_8X7B to 25,
