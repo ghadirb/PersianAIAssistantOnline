@@ -33,6 +33,7 @@ class SplashActivity : AppCompatActivity() {
                 if (prefsManager.hasAPIKeys()) {
                     // کلیدهای موجود را همگام کن
                     syncApiPrefs(prefsManager)
+                    android.util.Log.i("SplashActivity", "Keys already present (${prefsManager.getAPIKeys().size})")
                 } else {
                     // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (بدون دیالوگ)
                     attemptSilentAutoActivationAndSync(prefsManager)
