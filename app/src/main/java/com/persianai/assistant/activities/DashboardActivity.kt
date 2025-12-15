@@ -645,6 +645,35 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /**
+     * همگام‌سازی کلیدها به SharedPreferences (مشابه SplashActivity)
+     */
+    private fun syncApiPrefs(prefsManager: PreferencesManager) {
+        val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
+        val editor = apiPrefs.edit()
+
+        val existingHfKey = apiPrefs.getString("hf_api_key", null)
+
+        editor.remove("openai_api_key")
+        editor.remove("openrouter_api_key")
+        editor.remove("claude_api_key")
+        editor.remove("aiml_api_key")
+
+        prefsManager.getAPIKeys().forEach { key ->
+            when (key.provider) {
+                AIProvider.OPENAI -> editor.putString("openai_api_key", key.key)
+                AIProvider.ANTHROPIC -> editor.putString("claude_api_key", key.key)
+                AIProvider.OPENROUTER -> editor.putString("openrouter_api_key", key.key)
+                AIProvider.AIML -> editor.putString("aiml_api_key", key.key)
+            }
+        }
+
+        val hfToApply = existingHfKey ?: apiPrefs.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
+        hfToApply?.takeIf { it.isNotBlank() }?.let { editor.putString("hf_api_key", it) }
+
+        editor.apply()
+    }
+
+    /**
      * پارس کلیدها مشابه SplashActivity
      */
     private fun parseAPIKeys(data: String): List<APIKey> {
