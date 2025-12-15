@@ -100,11 +100,20 @@ class MainActivity : AppCompatActivity() {
             installmentManager = InstallmentManager(this)
             conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
             
-            // Initialize Default API Keys if available
-            try {
-                // DefaultApiKeys.initializeDefaultKeys(this)
-            } catch (e: Exception) {
-                // Ignore if DefaultApiKeys is not available
+            // بارگذاری خودکار کلیدهای API
+            lifecycleScope.launch {
+                try {
+                    val result = AutoProvisioningManager.autoProvision(this@MainActivity)
+                    if (result.isSuccess) {
+                        val keys = result.getOrNull() ?: emptyList()
+                        android.util.Log.d("MainActivity", "✅ ${keys.size} کلید API بارگذاری شد")
+                        
+                        // راه‌اندازی مجدد AIClient
+                        setupAIClient()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "خطا در بارگذاری خودکار کلیدها", e)
+                }
             }
             
             android.util.Log.d("MainActivity", "Managers initialized")
@@ -260,16 +269,22 @@ class MainActivity : AppCompatActivity() {
         val apiKeys = prefsManager.getAPIKeys()
         if (apiKeys.isNotEmpty()) {
             aiClient = AIClient(apiKeys)
+            
+            // استفاده از ModelSelector برای انتخاب هوشمند مدل
             val preferred = prefsManager.getSelectedModel()
-            val providerPref = prefsManager.getProviderPreference()
-            val resolved = if (apiKeys.any { it.provider == preferred.provider && it.isActive }) {
+            
+            // چک کردن که آیا مدل انتخابی قابل استفاده است
+            currentModel = if (ModelSelector.isModelAvailable(preferred, apiKeys)) {
                 preferred
             } else {
-                chooseBestModel(apiKeys, providerPref)
+                // انتخاب بهترین مدل سبک
+                ModelSelector.selectBestModel(apiKeys, preferLightweight = true)
             }
-            currentModel = resolved
+            
             prefsManager.saveSelectedModel(currentModel)
             updateModelDisplay()
+            
+            android.util.Log.d("MainActivity", "✅ مدل انتخاب شد: ${currentModel.displayName}")
         }
     }
 
@@ -283,23 +298,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
-        val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
-        val fullPriority = listOf(
-            AIModel.LLAMA_3_3_70B,
-            AIModel.DEEPSEEK_R1T2,
-            AIModel.MIXTRAL_8X7B,
-            AIModel.LLAMA_2_70B,
-            AIModel.CLAUDE_SONNET,
-            AIModel.CLAUDE_HAIKU,
-            AIModel.GPT_4O,
-            AIModel.GPT_4O_MINI
-        )
-        val filtered = when (pref) {
-            ProviderPreference.OPENAI_ONLY -> fullPriority.filter { it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
-            ProviderPreference.SMART_ROUTE -> fullPriority.filter { it.provider != com.persianai.assistant.models.AIProvider.OPENAI } + fullPriority.filter { it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
-            ProviderPreference.AUTO -> fullPriority
-        }
-        return filtered.firstOrNull { activeProviders.contains(it.provider) } ?: AIModel.getDefaultModel()
+        // استفاده از ModelSelector جدید
+        return ModelSelector.selectBestModel(apiKeys, preferLightweight = true)
     }
 
 
