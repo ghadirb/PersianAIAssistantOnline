@@ -32,8 +32,8 @@ class AIAssistantService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        ensureForeground()
-        return START_STICKY
+        val ok = ensureForeground()
+        return if (ok) START_STICKY else START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -75,18 +75,21 @@ class AIAssistantService : Service() {
             .build()
     }
 
-    private fun ensureForeground() {
-        if (startedForeground) return
+    private fun ensureForeground(): Boolean {
+        if (startedForeground) return true
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            try {
+            return try {
                 createNotificationChannel()
                 startForeground(NOTIFICATION_ID, createNotification())
                 startedForeground = true
+                true
             } catch (e: Exception) {
                 android.util.Log.e("AIAssistantService", "startForeground failed: ${e.message}", e)
                 stopSelf()
+                false
             }
         }
+        return true
     }
 
     override fun onDestroy() {

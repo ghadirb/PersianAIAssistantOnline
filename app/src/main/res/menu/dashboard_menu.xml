@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_refresh_keys"
+        android:title="به‌روزرسانی کلیدها"
+        android:icon="@drawable/ic_refresh"
+        android:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_chat_history"
+        android:title="مدیریت چت‌ها/تاریخچه"
+        android:icon="@drawable/ic_history"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_offline_models"
+        android:title="مدل‌های آفلاین"
+        android:icon="@drawable/ic_download"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_settings"
+        android:title="تنظیمات"
+        android:icon="@drawable/ic_settings"
+        android:showAsAction="never" />
+
+</menu>

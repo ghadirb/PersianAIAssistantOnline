@@ -1,10 +1,15 @@
 package com.persianai.assistant.activities
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.R
@@ -17,6 +22,8 @@ import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.nio.charset.Charset
 
 /**
  * صفحه شروع برنامه - نمایش توضیحات و دریافت رمز عبور
@@ -26,6 +33,8 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
+
+        requestNotificationPermissionIfNeeded()
 
         lifecycleScope.launch {
             val prefsManager = PreferencesManager(this@SplashActivity)
@@ -53,8 +62,14 @@ class SplashActivity : AppCompatActivity() {
      */
     private suspend fun attemptSilentAutoActivationAndSync(prefsManager: PreferencesManager): Boolean = withContext(Dispatchers.IO) {
         try {
-            val password = "1345"
-            val encryptedData = DriveHelper.downloadEncryptedKeys()
+            // رمز صحیح فایل Drive (مطابق فایل نمونه در key/): 12345
+            val password = "12345"
+            val encryptedData = try {
+                DriveHelper.downloadEncryptedKeys()
+            } catch (e: Exception) {
+                android.util.Log.w("SplashActivity", "Drive download failed, trying local file", e)
+                readLocalEncryptedKeys()
+            }
             val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
             val apiKeys = parseAPIKeys(decryptedData)
             if (apiKeys.isEmpty()) throw Exception("هیچ کلید معتبری یافت نشد")
@@ -139,14 +154,12 @@ class SplashActivity : AppCompatActivity() {
                 val encryptedData = try {
                     DriveHelper.downloadEncryptedKeys()
                 } catch (e: Exception) {
-                    // اگر دانلود ناموفق بود، از فایل تست استفاده کن
                     Toast.makeText(
                         this@SplashActivity,
-                        "خطا در دانلود از Google Drive. استفاده از حالت تست...",
+                        "دانلود از Drive ناموفق. تلاش از فایل محلی...",
                         Toast.LENGTH_SHORT
                     ).show()
-                    // می‌توانید اینجا یک فایل تست قرار دهید یا از assets بخوانید
-                    throw Exception("عدم دسترسی به Google Drive. لطفاً اتصال اینترنت را بررسی کنید.")
+                    readLocalEncryptedKeys()
                 }
                 
                 Toast.makeText(this@SplashActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
@@ -302,6 +315,52 @@ class SplashActivity : AppCompatActivity() {
         hfToApply?.takeIf { it.isNotBlank() }?.let { editor.putString("hf_api_key", it) }
 
         editor.apply()
+
+        // لاگ برای اطمینان از همگام‌سازی کلیدها
+        val applied = buildString {
+            append("openai=" + apiPrefs.getString("openai_api_key", "")?.take(6))
+            append(", openrouter=" + apiPrefs.getString("openrouter_api_key", "")?.take(6))
+            append(", claude=" + apiPrefs.getString("claude_api_key", "")?.take(6))
+            append(", aiml=" + apiPrefs.getString("aiml_api_key", "")?.take(6))
+            append(", hf=" + apiPrefs.getString("hf_api_key", "")?.take(6))
+        }
+        android.util.Log.i("SplashActivity", "syncApiPrefs applied -> $applied")
+    }
+
+    /**
+     * درخواست runtime مجوز اعلان برای heads-up/full-screen در Android 13+
+     */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    2001
+                )
+            }
+        }
+    }
+
+    /**
+     * خواندن فایل رمزشده از مسیرهای محلی (برای مواقع بدون اینترنت یا اندرویدهای قدیمی)
+     */
+    private fun readLocalEncryptedKeys(): String {
+        val candidatePaths = listOf(
+            File(getExternalFilesDir(null), "encrypted_keys.b64.txt"),
+            File(getExternalFilesDir(null), "key/encrypted_keys.b64.txt"),
+            File(Environment.getExternalStorageDirectory(), "Download/encrypted_keys.b64.txt"),
+            File(Environment.getExternalStorageDirectory(), "PersianAIAssistantOnline/key/encrypted_keys.b64.txt")
+        )
+
+        for (path in candidatePaths) {
+            if (path.exists() && path.canRead()) {
+                android.util.Log.i("SplashActivity", "Reading local encrypted keys: ${path.absolutePath}")
+                return path.readText(Charset.defaultCharset())
+            }
+        }
+        throw Exception("فایل محلی encrypted_keys.b64.txt یافت نشد")
     }
 
     private fun navigateToMain() {

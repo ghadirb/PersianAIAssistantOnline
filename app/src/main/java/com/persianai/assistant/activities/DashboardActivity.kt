@@ -1,12 +1,19 @@
 package com.persianai.assistant.activities
 
+import android.Manifest
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -16,14 +23,21 @@ import com.google.android.material.snackbar.Snackbar
 import com.persianai.assistant.R
 import com.persianai.assistant.api.WorldWeatherAPI
 import com.persianai.assistant.databinding.ActivityMainDashboardBinding
+import com.persianai.assistant.models.AIProvider
+import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.utils.AnimationHelper
 import com.persianai.assistant.utils.AppRatingHelper
+import com.persianai.assistant.utils.DefaultApiKeys
+import com.persianai.assistant.utils.DriveHelper
+import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.workers.ReminderWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -41,6 +55,7 @@ class DashboardActivity : AppCompatActivity() {
         
         binding = ActivityMainDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setSupportActionBar(binding.toolbarDashboard)
         
         prefsManager = PreferencesManager(this)
         prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
@@ -67,6 +82,36 @@ class DashboardActivity : AppCompatActivity() {
         
         // نمایش سریع وضعیت کلیدها پس از ورود به داشبورد
         showApiKeysStatus()
+
+        // درخواست مجوز اعلان برای heads-up/full-screen روی Android 13+
+        requestNotificationPermissionIfNeeded()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.dashboard_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_refresh_keys -> {
+                refreshKeysFromDrive()
+                true
+            }
+            R.id.action_chat_history -> {
+                startActivity(Intent(this, ConversationsActivity::class.java))
+                true
+            }
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            R.id.action_offline_models -> {
+                startActivity(Intent(this, OfflineModelsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
     
     private fun hideAllCards() {
@@ -558,6 +603,86 @@ class DashboardActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.e("DashboardActivity", "Error showing API key status", e)
         }
+    }
+
+    /**
+     * درخواست runtime مجوز اعلان برای heads-up/full-screen در Android 13+
+     */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
+        }
+    }
+
+    /**
+     * دانلود/رمزگشایی مجدد کلیدها از Google Drive با رمز 12345 و همگام‌سازی SharedPreferences
+     */
+    private fun refreshKeysFromDrive() {
+        lifecycleScope.launch {
+            Snackbar.make(binding.root, "در حال دانلود کلیدها...", Snackbar.LENGTH_SHORT).show()
+            try {
+                val encrypted = withContext(Dispatchers.IO) { DriveHelper.downloadEncryptedKeys() }
+                val decrypted = withContext(Dispatchers.IO) { EncryptionHelper.decrypt(encrypted, "12345") }
+                val parsed = parseAPIKeys(decrypted)
+                if (parsed.isEmpty()) throw Exception("هیچ کلیدی پیدا نشد")
+
+                prefsManager.saveAPIKeys(parsed)
+                syncApiPrefs(prefsManager)
+                showApiKeysStatus()
+                Snackbar.make(binding.root, "کلیدها به‌روزرسانی شدند (${parsed.size})", Snackbar.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Error refreshing keys", e)
+                Snackbar.make(binding.root, "خطا در به‌روزرسانی کلیدها: ${e.message}", Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /**
+     * پارس کلیدها مشابه SplashActivity
+     */
+    private fun parseAPIKeys(data: String): List<APIKey> {
+        val keys = mutableListOf<APIKey>()
+        var huggingFaceKey: String? = null
+
+        data.lines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
+
+            val parts = trimmed.split(":", limit = 2)
+            if (parts.size == 2) {
+                when (parts[0].lowercase()) {
+                    "openai" -> keys.add(APIKey(AIProvider.OPENAI, parts[1].trim(), true))
+                    "anthropic", "claude" -> keys.add(APIKey(AIProvider.ANTHROPIC, parts[1].trim(), true))
+                    "openrouter" -> keys.add(APIKey(AIProvider.OPENROUTER, parts[1].trim(), true))
+                    "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(AIProvider.AIML, parts[1].trim(), true))
+                    "huggingface", "hf" -> huggingFaceKey = parts[1].trim()
+                }
+            } else if (parts.size == 1) {
+                val token = trimmed
+                when {
+                    token.startsWith("sk-or-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENROUTER, token, true))
+                    token.startsWith("sk-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENAI, token, true))
+                    token.startsWith("hf_", ignoreCase = true) -> huggingFaceKey = token
+                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> keys.add(APIKey(AIProvider.AIML, token, true))
+                }
+            }
+        }
+
+        huggingFaceKey?.let {
+            getSharedPreferences("api_keys", MODE_PRIVATE)
+                .edit()
+                .putString("hf_api_key", it)
+                .apply()
+        }
+
+        return keys
     }
     
     private fun scheduleReminderWorker() {
