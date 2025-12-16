@@ -260,21 +260,25 @@ class VoiceRecorderView @JvmOverloads constructor(
                 setAudioEncodingBitRate(128000)
                 setAudioSamplingRate(44100)
                 setOutputFile(audioFile?.absolutePath)
-                
-                prepare()
-                start()
+                try {
+                    prepare()
+                    start()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    releaseRecorder()
+                    listener?.onRecordingCancelled()
+                    return
+                }
             }
             
-            isRecording = true
             recordingStartTime = System.currentTimeMillis()
-            amplitudes.clear()
-            
+            isRecording = true
+            isCancelled = false
             // Start amplitude monitoring
             amplitudeHandler.post(amplitudeRunnable)
             
             // Haptic feedback
             performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            
             listener?.onRecordingStarted()
             invalidate()
             

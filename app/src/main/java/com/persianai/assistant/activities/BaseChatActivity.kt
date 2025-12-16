@@ -372,7 +372,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_RECORD_AUDIO) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                // مجوز داده شد، VoiceRecorderView خودش ضبط را ادامه می‌دهد
+                // مجوز داده شد: تشخیص گفتار را شروع کن تا تجربه قطع نشود
+                startSpeechRecognition()
             } else {
                 Toast.makeText(this, "⚠️ مجوز ضبط صوت لازم است", Toast.LENGTH_SHORT).show()
             }

@@ -2,6 +2,7 @@ package com.persianai.assistant.activities
 
 import android.Manifest
 import android.content.Intent
+import androidx.appcompat.app.AlertDialog
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
@@ -28,6 +29,7 @@ import com.persianai.assistant.utils.NeshanDirectionAPI
 import com.persianai.assistant.utils.NeshanSearchAPI
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.utils.TTSHelper
+import com.persianai.assistant.utils.LocationShareParser
 import com.persianai.assistant.ai.AIClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -440,15 +442,43 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         if (intent == null) return
         val action = intent.action
         val dataUri = intent.data
-        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val parsed = LocationShareParser.parseFromUri(dataUri)
+            ?: LocationShareParser.parseFromIntentText(sharedText)
 
-        val parsed = when (action) {
-            Intent.ACTION_SEND -> LocationShareParser.parseFromIntentText(text)
-            Intent.ACTION_VIEW -> LocationShareParser.parseFromUri(dataUri)
-            else -> null
-        } ?: return
+        if (parsed != null) {
+            val latLng = LatLng(parsed.latitude, parsed.longitude)
+            val suggestedName = parsed.label?.takeIf { it.isNotBlank() } ?: "مکان ذخیره‌شده"
+            promptSaveSharedLocation(latLng, suggestedName)
+            return
+        }
 
-        promptSaveSharedLocation(parsed)
+        if (action == Intent.ACTION_VIEW && dataUri != null) {
+            val location = dataUri.getQueryParameter("location") ?: ""
+            binding.messageInput.setText(location)
+            sendTextToModel(location)
+        }
+    }
+
+    private fun promptSaveSharedLocation(latLng: LatLng, defaultName: String) {
+        val input = EditText(this).apply { setText(defaultName) }
+        AlertDialog.Builder(this)
+            .setTitle("ذخیره مکان دریافت‌شده")
+            .setMessage("نام دلخواه را وارد کنید تا در مسیریاب صوتی ذخیره شود.")
+            .setView(input)
+            .setPositiveButton("ذخیره") { _, _ ->
+                val name = input.text.toString().ifBlank { defaultName }
+                val saved = savedLocationsManager.saveLocation(name, "", latLng, "favorite")
+                if (saved) {
+                    binding.statusText.text = "✅ مکان ذخیره شد: $name"
+                    ttsHelper.speak("مکان $name ذخیره شد")
+                } else {
+                    binding.statusText.text = "❌ ذخیره مکان ناموفق بود"
+                    ttsHelper.speak("ذخیره مکان انجام نشد")
+                }
+            }
+            .setNegativeButton("انصراف", null)
+            .show()
     }
 
     private fun handleSaveCommand(text: String) {
