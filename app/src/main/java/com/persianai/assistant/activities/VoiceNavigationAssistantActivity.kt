@@ -29,7 +29,6 @@ import com.persianai.assistant.utils.NeshanDirectionAPI
 import com.persianai.assistant.utils.NeshanSearchAPI
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.utils.TTSHelper
-import com.persianai.assistant.utils.LocationShareParser
 import com.persianai.assistant.ai.AIClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine

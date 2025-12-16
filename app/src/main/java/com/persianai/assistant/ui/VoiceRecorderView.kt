@@ -288,6 +288,18 @@ class VoiceRecorderView @JvmOverloads constructor(
         }
     }
     
+    private fun releaseRecorder() {
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
     private fun stopRecording() {
         if (!isRecording) return
         
