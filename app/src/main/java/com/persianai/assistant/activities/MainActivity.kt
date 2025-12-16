@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 import android.view.MotionEvent
 import android.media.MediaRecorder
 import java.io.File
+import com.persianai.assistant.services.VoiceRecordingHelper
 
 /**
  * صفحه اصلی چت
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private var initialX: Float = 0f
     private var initialY: Float = 0f
     private val swipeThreshold = 100f
+    private lateinit var voiceHelper: VoiceRecordingHelper
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private var currentConversation: com.persianai.assistant.models.Conversation? = null
 
@@ -99,6 +101,10 @@ class MainActivity : AppCompatActivity() {
             checkManager = CheckManager(this)
             installmentManager = InstallmentManager(this)
             conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
+            
+            // Setup Voice Recording Helper
+            voiceHelper = VoiceRecordingHelper(this)
+            setupVoiceRecording()
             
             // بارگذاری خودکار کلیدهای API
             lifecycleScope.launch {
@@ -1550,6 +1556,53 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+    
+    // ===== Voice Recording Setup =====
+    
+    private fun setupVoiceRecording() {
+        voiceHelper.setListener(object : VoiceRecordingHelper.RecordingListener {
+            override fun onRecordingStarted() {
+                android.util.Log.d("MainActivity", "Recording started")
+                isRecording = true
+            }
+            
+            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                android.util.Log.d("MainActivity", "Recording completed: ${audioFile.absolutePath}, Duration: ${durationMs}ms")
+                isRecording = false
+                processAudioFile(audioFile, durationMs)
+            }
+            
+            override fun onRecordingCancelled() {
+                android.util.Log.d("MainActivity", "Recording cancelled")
+                isRecording = false
+            }
+            
+            override fun onRecordingError(error: String) {
+                android.util.Log.e("MainActivity", "Recording error: $error")
+                isRecording = false
+                Toast.makeText(this@MainActivity, "خطا: $error", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+    
+    private fun processAudioFile(audioFile: File, durationMs: Long) {
+        lifecycleScope.launch {
+            try {
+                android.util.Log.d("MainActivity", "Processing audio file: ${audioFile.absolutePath}")
+                // TODO: Send to AI for analysis
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Error processing audio", e)
+            }
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        voiceHelper.cancelRecording()
+    }
+}
         }
     }
 }

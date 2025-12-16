@@ -2,11 +2,14 @@ package com.persianai.assistant.activities
 
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.databinding.ActivityAichatBinding
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
+import kotlinx.coroutines.launch
+import java.io.File
 
 class AIChatActivity : BaseChatActivity() {
     
@@ -26,6 +29,11 @@ class AIChatActivity : BaseChatActivity() {
             chatBinding.messageInput.setText(preset)
             sendMessage()
         }
+        
+        // Setup voice button
+        chatBinding.voiceButton.setOnClickListener {
+            startVoiceRecording()
+        }
     }
     
     override fun getRecyclerView(): RecyclerView = chatBinding.chatRecyclerView
@@ -34,4 +42,31 @@ class AIChatActivity : BaseChatActivity() {
     override fun getVoiceButton(): View = chatBinding.voiceButton
     
     override fun getSystemPrompt(): String = "دستیار هوشمند فارسی"
+    
+    override fun onVoiceRecordingStarted() {
+        super.onVoiceRecordingStarted()
+        // Update UI to show recording
+        chatBinding.voiceButton.alpha = 0.5f
+    }
+    
+    override fun onVoiceRecordingCompleted(audioFile: File, durationMs: Long) {
+        super.onVoiceRecordingCompleted(audioFile, durationMs)
+        chatBinding.voiceButton.alpha = 1.0f
+        
+        // Process audio file
+        lifecycleScope.launch {
+            try {
+                val messageText = "🎙️ ضبط صوتی (${durationMs / 1000} ثانیه)"
+                getMessageInput().setText(messageText)
+                sendMessage()
+            } catch (e: Exception) {
+                Toast.makeText(this@AIChatActivity, "خطا در پردازش صوت", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    override fun onVoiceRecordingError(error: String) {
+        super.onVoiceRecordingError(error)
+        chatBinding.voiceButton.alpha = 1.0f
+    }
 }

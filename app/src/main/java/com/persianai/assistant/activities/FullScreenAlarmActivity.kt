@@ -36,10 +36,13 @@ import kotlin.math.abs
  * - سوایپ راست: انجام شد ✅
  * - سوایپ چپ: تعویق ⏰
  * 
- * نسخه 3.0 - بهبود‌های اصلی:
+ * نسخه 4.0 - بهبود‌های اصلی:
  * ✅ Swipe detection بهتر
  * ✅ Persistence اطلاعات روی فایل
  * ✅ Touch event handling صحیح
+ * ✅ Full Screen Intent برای Background
+ * ✅ WakeLock مدیریت شده
+ * ✅ Display over other apps برای Android 10+
  */
 class FullScreenAlarmActivity : Activity() {
     

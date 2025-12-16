@@ -27,6 +27,7 @@ import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.persianai.assistant.services.VoiceRecordingHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +50,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected val messages = mutableListOf<ChatMessage>()
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
+    protected lateinit var voiceHelper: VoiceRecordingHelper
     private val httpClient = OkHttpClient()
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
@@ -91,6 +93,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        
+        // Setup Voice Recording Helper
+        voiceHelper = VoiceRecordingHelper(this)
+        setupVoiceRecording()
     }
 
     protected abstract fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView
@@ -384,5 +390,71 @@ abstract class BaseChatActivity : AppCompatActivity() {
         super.onDestroy()
         ttsHelper.shutdown()
         speechRecognizer.destroy()
+        voiceHelper.cancelRecording()
+    }
+    
+    // ===== Voice Recording Setup =====
+    
+    protected open fun setupVoiceRecording() {
+        voiceHelper.setListener(object : VoiceRecordingHelper.RecordingListener {
+            override fun onRecordingStarted() {
+                Log.d("BaseChatActivity", "Recording started")
+                onVoiceRecordingStarted()
+            }
+            
+            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                Log.d("BaseChatActivity", "Recording completed: ${audioFile.absolutePath}, Duration: ${durationMs}ms")
+                onVoiceRecordingCompleted(audioFile, durationMs)
+            }
+            
+            override fun onRecordingCancelled() {
+                Log.d("BaseChatActivity", "Recording cancelled")
+                onVoiceRecordingCancelled()
+            }
+            
+            override fun onRecordingError(error: String) {
+                Log.e("BaseChatActivity", "Recording error: $error")
+                onVoiceRecordingError(error)
+            }
+        })
+    }
+    
+    protected open fun onVoiceRecordingStarted() {
+        Log.d("BaseChatActivity", "Voice recording started")
+    }
+    
+    protected open fun onVoiceRecordingCompleted(audioFile: File, durationMs: Long) {
+        Log.d("BaseChatActivity", "Voice recording completed")
+    }
+    
+    protected open fun onVoiceRecordingCancelled() {
+        Log.d("BaseChatActivity", "Voice recording cancelled")
+    }
+    
+    protected open fun onVoiceRecordingError(error: String) {
+        Log.e("BaseChatActivity", "Voice recording error: $error")
+        Toast.makeText(this, "خطا: $error", Toast.LENGTH_SHORT).show()
+    }
+    
+    protected fun startVoiceRecording() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            voiceHelper.startRecording()
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_RECORD_AUDIO
+            )
+        }
+    }
+    
+    protected fun stopVoiceRecording() {
+        voiceHelper.stopRecording()
+    }
+    
+    protected fun cancelVoiceRecording() {
+        voiceHelper.cancelRecording()
     }
 }
