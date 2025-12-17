@@ -275,6 +275,13 @@
             android:exported="false"
             android:theme="@style/Theme.PersianAIAssistant" />
 
+        <!-- Named locations management -->
+        <activity
+            android:name=".ui.NamedLocationsActivity"
+            android:exported="false"
+            android:parentActivityName=".activities.MainActivity"
+            android:label="مکان‌های من" />
+
         <activity
             android:name=".activities.FullScreenAlarmActivity"
             android:exported="true"

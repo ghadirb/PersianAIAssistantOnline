@@ -26,7 +26,7 @@ import com.persianai.assistant.models.MessageRole
  */
 class VoiceConversationManager(
     private val context: Context,
-    private val voiceRecorder: NewHybridVoiceRecorder,
+    private val voiceEngine: UnifiedVoiceEngine,
     private val aiClient: com.persianai.assistant.ai.AIClient? = null
 ) {
     
@@ -110,7 +110,7 @@ class VoiceConversationManager(
             Log.d(TAG, "🎤 Starting voice conversation...")
             
             // Check permissions
-            if (!voiceRecorder.hasRequiredPermissions()) {
+            if (!voiceEngine.hasRequiredPermissions()) {
                 conversationListener?.onError("دسترسی میکروفن لازم است")
                 return@withContext false
             }
@@ -207,7 +207,7 @@ class VoiceConversationManager(
             Log.d(TAG, "🎤 Recording user input...")
             
             // Start recording
-            val startResult = voiceRecorder.startRecording()
+            val startResult = voiceEngine.startRecording()
             if (!startResult.isSuccess) {
                 Log.e(TAG, "Failed to start recording")
                 return@withContext null
@@ -220,7 +220,7 @@ class VoiceConversationManager(
             
             val amplitudeJob = launch {
                 while (isRecording()) {
-                    val amplitude = voiceRecorder.getCurrentAmplitude()
+                    val amplitude = voiceEngine.getCurrentAmplitude()
                     if (amplitude > amplitudeThreshold) {
                         hasSpeech = true
                         lastVoiceTime = System.currentTimeMillis()
@@ -239,11 +239,15 @@ class VoiceConversationManager(
             }
             
             // Stop recording
-            val stopResult = voiceRecorder.stopRecording()
+            val stopResult = voiceEngine.stopRecording()
             amplitudeJob.cancel()
-            
             if (stopResult.isSuccess) {
-                stopResult.getOrThrow()
+                try {
+                    stopResult.getOrThrow()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error retrieving recording result", e)
+                    null
+                }
             } else {
                 null
             }
@@ -261,7 +265,7 @@ class VoiceConversationManager(
         try {
             Log.d(TAG, "🔍 Processing user speech...")
             
-            val analysisResult = voiceRecorder.analyzeHybrid(audioFile)
+            val analysisResult = voiceEngine.analyzeHybrid(audioFile)
             if (analysisResult.isSuccess) {
                 val result = analysisResult.getOrThrow()
                 val processedText = result.primaryText
@@ -500,7 +504,7 @@ class VoiceConversationManager(
      */
     private fun isRecording(): Boolean {
         return try {
-            voiceRecorder.isRecordingInProgress()
+            voiceEngine.isRecordingInProgress()
         } catch (e: Exception) {
             Log.e(TAG, "Error checking recording status", e)
             false
