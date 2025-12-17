@@ -576,3 +576,32 @@ class NewHybridVoiceRecorder(private val context: Context) {
         
         return confidence.coerceIn(0.0, 1.0)
     }
+    
+    /**
+     * Cleanup media recorder resources
+     */
+    private fun cleanupMediaRecorder() {
+        try {
+            if (mediaRecorder != null) {
+                mediaRecorder?.stop()
+                mediaRecorder?.release()
+                mediaRecorder = null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping media recorder", e)
+        }
+    }
+    
+    /**
+     * Complete cleanup of resources
+     */
+    private fun cleanup() {
+        try {
+            cleanupMediaRecorder()
+            isRecording.set(false)
+            recordingStartTime.set(0L)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during cleanup", e)
+        }
+    }
+}

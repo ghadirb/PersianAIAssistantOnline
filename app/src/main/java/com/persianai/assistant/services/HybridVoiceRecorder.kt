@@ -329,12 +329,4 @@ class HybridVoiceRecorder(
     }
     
     fun getRecordingFile(): File? = audioFile
-    
-    override fun finalize() {
-        try {
-            cleanup()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in finalize", e)
-        }
-    }
 }

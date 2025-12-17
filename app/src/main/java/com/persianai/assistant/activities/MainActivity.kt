@@ -1603,6 +1603,3 @@ class MainActivity : AppCompatActivity() {
         voiceHelper.cancelRecording()
     }
 }
-        }
-    }
-}
