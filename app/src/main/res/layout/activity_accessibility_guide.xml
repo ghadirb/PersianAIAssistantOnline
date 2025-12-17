@@ -133,7 +133,8 @@
                 android:text="باز کردن تنظیمات"
                 android:textSize="16sp"
                 app:icon="@android:drawable/ic_menu_preferences"
-                app:iconGravity="textStart" />
+                app:iconGravity="textStart"
+                android:tag="openSettingsButton" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/testButton"
