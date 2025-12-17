@@ -9,22 +9,22 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
-import com.persianai.assistant.storage.NamedLocation
-import com.persianai.assistant.storage.NamedLocationRepository
+import com.persianai.assistant.navigation.SavedLocationsManager
+import com.google.android.gms.maps.model.LatLng
 
 /**
  * Minimal activity to list/add/delete named locations.
- * This is intentionally light-weight and uses a programmatic UI.
+ * Uses the existing `SavedLocationsManager` so locations integrate with navigation flows.
  */
 class NamedLocationsActivity : AppCompatActivity() {
 
-    private lateinit var repo: NamedLocationRepository
+    private lateinit var repo: SavedLocationsManager
     private lateinit var listView: ListView
     private lateinit var adapter: ArrayAdapter<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        repo = NamedLocationRepository(this)
+        repo = SavedLocationsManager(this)
 
         listView = ListView(this)
         listView.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -41,14 +41,15 @@ class NamedLocationsActivity : AppCompatActivity() {
             AlertDialog.Builder(this)
                 .setTitle(item)
                 .setItems(arrayOf("حذف", "استفاده برای ناوبری")) { dialog, which ->
+                    val all = repo.getAllLocations()
                     when (which) {
                         0 -> {
-                            repo.remove(item)
+                            val target = all.firstOrNull { it.name == item }
+                            target?.let { repo.deleteLocation(it.id) }
                             refresh()
                         }
                         1 -> {
-                            // Find coords and send to maps via intent
-                            val loc = repo.list().firstOrNull { it.name == item }
+                            val loc = all.firstOrNull { it.name == item }
                             loc?.let { l ->
                                 val uri = "geo:${l.latitude},${l.longitude}?q=${l.latitude},${l.longitude}(${java.net.URLEncoder.encode(l.name, "utf-8")})"
                                 val intent = Intent(Intent.ACTION_VIEW).apply { data = android.net.Uri.parse(uri) }
@@ -76,7 +77,7 @@ class NamedLocationsActivity : AppCompatActivity() {
     }
 
     private fun refresh() {
-        val items = repo.list().map { it.name }
+        val items = repo.getAllLocations().map { it.name }
         adapter.clear()
         adapter.addAll(items)
         adapter.notifyDataSetChanged()
@@ -104,7 +105,7 @@ class NamedLocationsActivity : AppCompatActivity() {
                 val lat = latInput.text.toString().toDoubleOrNull() ?: 0.0
                 val lng = lngInput.text.toString().toDoubleOrNull() ?: 0.0
                 if (name.isNotEmpty()) {
-                    repo.add(NamedLocation(name, lat, lng))
+                    repo.saveLocation(name, "", LatLng(lat, lng), "favorite")
                     refresh()
                 }
             }
@@ -129,7 +130,7 @@ class NamedLocationsActivity : AppCompatActivity() {
                     .setView(input)
                     .setPositiveButton("ذخیره") { _, _ ->
                         val name = input.text.toString().ifEmpty { "مکان ${System.currentTimeMillis()}" }
-                        repo.add(NamedLocation(name, lat, lng))
+                        repo.saveLocation(name, "", LatLng(lat, lng), "favorite")
                         refresh()
                     }
                     .setNegativeButton("لغو", null)

@@ -4,6 +4,22 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization'
 }
 
+// Copy offline Haaniye model into app assets if developer provided it under project root or via env var
+def haaniyeHost = System.getenv('HAANIYE_HOST_PATH') ?: file(rootDir.toString() + '/haaniye').toString()
+task copyHaaniye(type: Copy) {
+    def src = file(haaniyeHost)
+    if (src.exists()) {
+        from src
+        into "$projectDir/src/main/assets/tts/haaniye"
+    } else {
+        doFirst {
+            println "Haaniye host path not found: ${haaniyeHost} — skipping copyHaaniye"
+        }
+    }
+}
+
+preBuild.dependsOn copyHaaniye
+
 android {
     namespace 'com.persianai.assistant'
     compileSdk 34
