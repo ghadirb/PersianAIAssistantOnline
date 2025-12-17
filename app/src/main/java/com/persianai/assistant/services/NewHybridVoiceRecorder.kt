@@ -18,6 +18,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import com.persianai.assistant.services.HybridAnalysisResult
 
 /**
  * New Hybrid Voice Recorder - Completely rewritten for stability
@@ -396,6 +397,40 @@ class NewHybridVoiceRecorder(private val context: Context) {
     }
     
     /**
+     * Get current amplitude level
+     */
+    fun getCurrentAmplitude(): Int {
+        return try {
+            if (isRecording.get()) {
+                mediaRecorder?.maxAmplitude ?: 0
+            } else {
+                0
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error getting amplitude", e)
+            0
+        }
+    }
+    
+    /**
+     * Check if recording is in progress
+     */
+    fun isRecordingInProgress(): Boolean {
+        return isRecording.get()
+    }
+    
+    /**
+     * Get current recording duration
+     */
+    fun getCurrentRecordingDuration(): Long {
+        return if (isRecording.get()) {
+            System.currentTimeMillis() - recordingStartTime.get()
+        } else {
+            0L
+        }
+    }
+    
+    /**
      * Initialize Haaniye model
      */
     private fun initializeHaaniyeModel() {
@@ -519,4 +554,25 @@ class NewHybridVoiceRecorder(private val context: Context) {
     /**
      * Calculate confidence score from results
      */
-    private fun calculateConfidence
+    private fun calculateConfidence(
+        offlineResult: Result<String>,
+        onlineResult: Result<String>
+    ): Double {
+        // Simple confidence calculation based on result success
+        var confidence = 0.5 // Base confidence
+        
+        if (onlineResult.isSuccess) {
+            confidence += 0.3 // Online result is more reliable
+        }
+        
+        if (offlineResult.isSuccess) {
+            confidence += 0.2 // Offline result adds confidence
+        }
+        
+        // If both succeed, increase confidence
+        if (offlineResult.isSuccess && onlineResult.isSuccess) {
+            confidence = 0.95
+        }
+        
+        return confidence.coerceIn(0.0, 1.0)
+    }

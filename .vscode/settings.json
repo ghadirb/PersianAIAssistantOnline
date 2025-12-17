@@ -4,5 +4,7 @@
     "files.simpleDialog.enable": true,
     "workbench.externalBrowser": "chrome",
     "git.openRepositoryInParentFolders": "always",
-    "npm.enableRunFromFolder": true
+    "npm.enableRunFromFolder": true,
+    "claudeCodeChat.permissions.yoloMode": false,
+    "github.copilot.chat.agent.autoFix": true
 }

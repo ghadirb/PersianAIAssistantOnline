@@ -16,13 +16,13 @@ import java.io.File
 
 /**
  * سرویس صوتی پس‌زمینه - برای ضبط صدا بدون کرش
- * استفاده: HybridVoiceRecorder درون LifecycleService
+ * استفاده: NewHybridVoiceRecorder درون LifecycleService
  */
 class VoiceRecordingService : LifecycleService() {
     
     private val TAG = "VoiceRecordingService"
     private val binder = VoiceRecordingBinder()
-    private var voiceRecorder: HybridVoiceRecorder? = null
+    private var voiceRecorder: NewHybridVoiceRecorder? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     
     interface VoiceRecordingListener {
@@ -40,31 +40,8 @@ class VoiceRecordingService : LifecycleService() {
         super.onCreate()
         Log.d(TAG, "🎤 VoiceRecordingService created")
         
-        // آماده‌سازی HybridVoiceRecorder
-        voiceRecorder = HybridVoiceRecorder(this, serviceScope)
-        voiceRecorder?.setListener(object : HybridVoiceRecorder.RecorderListener {
-            override fun onRecordingStarted() {
-                Log.d(TAG, "✅ Recording started")
-            }
-            
-            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                Log.d(TAG, "✅ Recording complete: ${audioFile.absolutePath}")
-                recordingListener?.onRecordingComplete(audioFile, durationMs)
-            }
-            
-            override fun onRecordingCancelled() {
-                Log.d(TAG, "❌ Recording cancelled")
-            }
-            
-            override fun onRecordingError(error: String) {
-                Log.e(TAG, "❌ Recording error: $error")
-                recordingListener?.onRecordingError(error)
-            }
-            
-            override fun onAmplitudeChanged(amplitude: Int) {
-                // Silent
-            }
-        })
+        // آماده‌سازی NewHybridVoiceRecorder
+        voiceRecorder = NewHybridVoiceRecorder(this)
         
         // مدیریت صدا برای ضبط بهتر
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -91,7 +68,12 @@ class VoiceRecordingService : LifecycleService() {
     fun startRecording() {
         try {
             Log.d(TAG, "🔴 START_RECORDING")
-            voiceRecorder?.startRecording()
+            serviceScope.launch {
+                val result = voiceRecorder?.startRecording()
+                if (result?.isSuccess == false) {
+                    recordingListener?.onRecordingError("Failed to start recording")
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error starting recording", e)
         }
@@ -100,7 +82,17 @@ class VoiceRecordingService : LifecycleService() {
     fun stopRecording() {
         try {
             Log.d(TAG, "⏹️ STOP_RECORDING")
-            voiceRecorder?.stopRecording()
+            serviceScope.launch {
+                val result = voiceRecorder?.stopRecording()
+                if (result?.isSuccess == true) {
+                    val recordingResult = result.getOrNull()
+                    recordingResult?.let {
+                        recordingListener?.onRecordingComplete(it.file, it.duration)
+                    }
+                } else {
+                    recordingListener?.onRecordingError("Failed to stop recording")
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error stopping recording", e)
         }
@@ -109,7 +101,12 @@ class VoiceRecordingService : LifecycleService() {
     fun cancelRecording() {
         try {
             Log.d(TAG, "❌ CANCEL_RECORDING")
-            voiceRecorder?.cancelRecording()
+            serviceScope.launch {
+                val result = voiceRecorder?.cancelRecording()
+                if (result?.isSuccess == false) {
+                    recordingListener?.onRecordingError("Failed to cancel recording")
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error cancelling recording", e)
         }

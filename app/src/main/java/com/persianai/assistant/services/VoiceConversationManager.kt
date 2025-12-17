@@ -9,6 +9,9 @@ import kotlinx.coroutines.*
 import java.io.File
 import java.util.*
 import kotlin.math.max
+import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.ChatMessage
+import com.persianai.assistant.models.MessageRole
 
 /**
  * Voice Conversation Manager - Complete voice-to-voice AI assistant
@@ -526,3 +529,4 @@ class VoiceConversationManager(
         this.currentLanguage = language
         Log.d(TAG, "Language set to: $language")
     }
+}
