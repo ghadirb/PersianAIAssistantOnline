@@ -16,6 +16,7 @@ import com.persianai.assistant.services.HybridVoiceRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.min

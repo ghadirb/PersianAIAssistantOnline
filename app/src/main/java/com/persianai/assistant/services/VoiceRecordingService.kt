@@ -7,18 +7,18 @@ import android.media.AudioManager
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
-import androidx.lifecycle.LifecycleService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
 
 /**
  * سرویس صوتی پس‌زمینه - برای ضبط صدا بدون کرش
- * استفاده: NewHybridVoiceRecorder درون LifecycleService
+ * استفاده: NewHybridVoiceRecorder درون Service
  */
-class VoiceRecordingService : LifecycleService() {
+class VoiceRecordingService : Service() {
     
     private val TAG = "VoiceRecordingService"
     private val binder = VoiceRecordingBinder()
@@ -60,8 +60,7 @@ class VoiceRecordingService : LifecycleService() {
         return START_STICKY
     }
     
-    override fun onBind(intent: Intent): IBinder? {
-        super.onBind(intent)
+    override fun onBind(intent: Intent): IBinder {
         return binder
     }
     
