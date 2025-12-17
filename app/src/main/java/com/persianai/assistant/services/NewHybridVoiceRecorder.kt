@@ -429,6 +429,13 @@ class NewHybridVoiceRecorder(private val context: Context) {
             0L
         }
     }
+
+    /**
+     * Get the current recording file (if any)
+     */
+    fun getRecordingFile(): File? {
+        return currentFile
+    }
     
     /**
      * Initialize Haaniye model
