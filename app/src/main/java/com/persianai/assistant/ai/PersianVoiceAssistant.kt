@@ -350,25 +350,46 @@ class PersianVoiceAssistant(private val context: Context) {
      * مدیریت دستورات ناوبری
      */
     private fun handleNavigationCommands(input: String): String {
-        return when {
-            input.contains("مسیر") -> {
-                "برای پیدا کردن مسیر، لطفا مبدأ و مقصد خود را مشخص کنید."
+        // Try to resolve saved locations and, if found, launch navigation intent as a side-effect.
+        try {
+            val manager = com.persianai.assistant.navigation.SavedLocationsManager(context)
+            val lowered = input.lowercase()
+
+            // common phrasing: "برو به X" or "به X برو"
+            val name = when {
+                lowered.contains("برو به ") -> lowered.substringAfter("برو به ").trim()
+                lowered.contains("برو ") -> lowered.substringAfter("برو ").trim()
+                lowered.contains("به ") -> lowered.substringAfter("به ").trim()
+                else -> ""
             }
-            
-            input.contains("موقعیت") || input.contains("کجام") -> {
-                "شما در حال حاضر در تهران، خیابان ولیعصر قرار دارید."
+
+            if (name.isNotBlank()) {
+                val all = manager.getAllLocations()
+                val target = all.firstOrNull { it.name.contains(name, true) || it.address.contains(name, true) }
+                if (target != null) {
+                    // launch map intent
+                    try {
+                        val uri = "geo:${target.latitude},${target.longitude}?q=${target.latitude},${target.longitude}(${java.net.URLEncoder.encode(target.name, "utf-8")})"
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                            data = android.net.Uri.parse(uri)
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                        return "در حال مسیریابی به ${target.name}"
+                    } catch (e: Exception) {
+                        return "خطا در باز کردن برنامه نقشه: ${e.message}"
+                    }
+                }
             }
-            
-            input.contains("نزدیک") -> {
-                "نزدیک‌ترین مکان‌های مورد علاقه شما:\n" +
-                "⛽ پمپ بنزین: ۵۰۰ متر\n" +
-                "🏥 بیمارستان: ۱.۲ کیلومتر\n" +
-                "🏪 سوپرمارکت: ۳۰۰ متر"
+
+            return when {
+                input.contains("مسیر") -> "برای پیدا کردن مسیر، لطفا مبدأ و مقصد خود را مشخص کنید."
+                input.contains("موقعیت") || input.contains("کجام") -> "شما در حال حاضر در تهران، خیابان ولیعصر قرار دارید."
+                input.contains("نزدیک") -> "نزدیک‌ترین مکان‌های مورد علاقه شما:\n⛽ پمپ بنزین: ۵۰۰ متر\n🏥 بیمارستان: ۱.۲ کیلومتر\n🏪 سوپرمارکت: ۳۰۰ متر"
+                else -> "برای ناوبری، می‌توانید مسیر، موقعیت یا مکان‌های نزدیک را درخواست کنید."
             }
-            
-            else -> {
-                "برای ناوبری، می‌توانید مسیر، موقعیت یا مکان‌های نزدیک را درخواست کنید."
-            }
+        } catch (e: Exception) {
+            return "خطا در دسترسی به مکان‌های ذخیره‌شده: ${e.message}"
         }
     }
     
