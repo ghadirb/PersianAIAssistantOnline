@@ -2,6 +2,7 @@ package com.persianai.assistant.services
 
 import java.io.File
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 
 /**
  * Data class for recording result
