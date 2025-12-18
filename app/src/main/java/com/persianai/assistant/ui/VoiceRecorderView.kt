@@ -351,6 +351,8 @@ class VoiceRecorderView @JvmOverloads constructor(
         if (isRecording) {
             cancelRecording()
         }
-        amplitudeHandler.removeCallbacks(amplitudeRunnable)
+        // Cancel coroutines and let the helper clean up; amplitude handling is internal to helper
+        try { scope.cancel() } catch (_: Exception) {}
+        try { helper.cleanup() } catch (_: Exception) {}
     }
 }

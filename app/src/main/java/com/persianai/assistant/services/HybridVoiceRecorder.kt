@@ -245,22 +245,15 @@ class HybridVoiceRecorder(
      */
     private fun cleanup() {
         try {
-            mediaRecorder?.apply {
-                try {
-                    stop()
-                } catch (e: Exception) {
-                    // Ignore
+            // Delegate cleanup to the engine (cancel asynchronously) and reset local state.
+            try {
+                coroutineScope.launch {
+                    try { engine.cancelRecording() } catch (_: Exception) {}
                 }
-                try {
-                    release()
-                } catch (e: Exception) {
-                    // Ignore
-                }
-            }
+            } catch (_: Exception) {}
         } catch (e: Exception) {
             // Ignore
         } finally {
-            mediaRecorder = null
             isRecording = false
             audioFile = null
         }

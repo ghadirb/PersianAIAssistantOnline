@@ -14,8 +14,7 @@ import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.ContextCompat
 import com.persianai.assistant.R
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+// removed duplicate imports of CoroutineScope/Dispatchers; keep Job/cancel if needed below
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import java.io.File
