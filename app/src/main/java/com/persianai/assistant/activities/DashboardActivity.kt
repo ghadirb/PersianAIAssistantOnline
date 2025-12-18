@@ -102,6 +102,10 @@ class DashboardActivity : AppCompatActivity() {
                 startActivity(Intent(this, ConversationsActivity::class.java))
                 true
             }
+            R.id.action_saved_locations -> {
+                startActivity(Intent(this, com.persianai.assistant.ui.NamedLocationsActivity::class.java))
+                true
+            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true

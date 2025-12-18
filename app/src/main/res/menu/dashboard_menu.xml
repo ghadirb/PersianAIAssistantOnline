@@ -18,6 +18,10 @@
         android:showAsAction="never" />
 
     <item
+        android:id="@+id/action_saved_locations"
+        android:title="مکان‌های ذخیره‌شده"
+        android:showAsAction="never" />
+    <item
         android:id="@+id/action_settings"
         android:title="تنظیمات"
         android:icon="@drawable/ic_settings"

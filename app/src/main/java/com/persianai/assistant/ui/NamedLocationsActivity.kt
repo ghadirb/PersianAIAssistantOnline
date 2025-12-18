@@ -40,17 +40,33 @@ class NamedLocationsActivity : AppCompatActivity() {
             // Offer delete or navigate choice
             AlertDialog.Builder(this)
                 .setTitle(item)
-                .setItems(arrayOf("حذف", "استفاده برای ناوبری")) { dialog, which ->
+                .setItems(arrayOf("ویرایش نام", "حذف", "استفاده برای ناوبری")) { dialog, which ->
                     val all = repo.getAllLocations()
+                    val target = all.firstOrNull { it.name == item }
                     when (which) {
                         0 -> {
-                            val target = all.firstOrNull { it.name == item }
+                            // Edit name
+                            target?.let { t ->
+                                val input = EditText(this)
+                                input.setText(t.name)
+                                AlertDialog.Builder(this)
+                                    .setTitle("ویرایش نام")
+                                    .setView(input)
+                                    .setPositiveButton("ذخیره") { _, _ ->
+                                        val newName = input.text.toString().trim().ifEmpty { t.name }
+                                        repo.updateLocationName(t.id, newName)
+                                        refresh()
+                                    }
+                                    .setNegativeButton("لغو", null)
+                                    .show()
+                            }
+                        }
+                        1 -> {
                             target?.let { repo.deleteLocation(it.id) }
                             refresh()
                         }
-                        1 -> {
-                            val loc = all.firstOrNull { it.name == item }
-                            loc?.let { l ->
+                        2 -> {
+                            target?.let { l ->
                                 val uri = "geo:${l.latitude},${l.longitude}?q=${l.latitude},${l.longitude}(${java.net.URLEncoder.encode(l.name, "utf-8")})"
                                 val intent = Intent(Intent.ACTION_VIEW).apply { data = android.net.Uri.parse(uri) }
                                 startActivity(intent)

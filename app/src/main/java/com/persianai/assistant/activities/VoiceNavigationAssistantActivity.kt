@@ -104,7 +104,20 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
         setupToolbar()
         setupMicButton()
+        setupVoiceFab()
         handleIncomingIntent(intent)
+    }
+
+    private fun setupVoiceFab() {
+        try {
+            binding.voiceFab.setOnClickListener {
+                // Reuse existing speech recognition / recording behavior
+                checkAudioPermissionAndStart()
+            }
+        } catch (e: Exception) {
+            // binding may not include the FAB in some layouts
+            android.util.Log.w("VoiceNav", "voiceFab not available", e)
+        }
     }
 
     private fun setupToolbar() {

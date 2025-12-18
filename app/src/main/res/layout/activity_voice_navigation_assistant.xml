@@ -126,4 +126,16 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/voiceFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:contentDescription="شروع مکالمه صوتی"
+        app:layout_anchorGravity="bottom|end"
+        app:srcCompat="@drawable/ic_mic"
+        app:tint="@android:color/white"
+        app:backgroundTint="@color/colorPrimary"
+        app:layout_anchor="@id/toolbar" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
