@@ -113,7 +113,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             binding.voiceFab.setOnClickListener {
                 // If there's a unified VoiceActionButton included in layout, delegate to it
                 try {
-                    val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(R.id.voiceActionButton)
+                    val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(com.persianai.assistant.R.id.voiceActionButton)
                     if (vab != null) {
                         // Simulate a click to toggle
                         vab.performClick()

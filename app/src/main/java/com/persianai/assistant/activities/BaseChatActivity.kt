@@ -356,7 +356,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun transcribeAudio(audioFile: File) {
+    protected fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
                 // تلاش اول: OpenAI/Whisper (اگر کلید موجود باشد)

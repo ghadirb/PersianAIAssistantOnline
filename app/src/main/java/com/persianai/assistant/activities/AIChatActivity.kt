@@ -31,14 +31,16 @@ class AIChatActivity : BaseChatActivity() {
             sendMessage()
         }
         
-        // Setup voice button
+        // Setup voice button: focus the message input when tapped
         chatBinding.voiceButton.setOnClickListener {
-                showChatInput()
+            try {
+                getMessageInput().requestFocus()
+            } catch (_: Exception) { }
         }
 
         // Setup unified VoiceActionButton if present
         try {
-            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(R.id.voiceActionButton)
+            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(com.persianai.assistant.R.id.voiceActionButton)
                 vab?.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
                     override fun onRecordingStarted() {
                         chatBinding.voiceButton.alpha = 0.5f
