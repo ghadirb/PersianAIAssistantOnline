@@ -178,7 +178,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
             sendMessage()
         }
         
-        // تنظیم VoiceRecorderView
+        // تنظیم VoiceRecorderView یا VoiceActionButton
         try {
             voiceRecorderView = getVoiceButton() as? VoiceRecorderView
             if (voiceRecorderView != null) {
@@ -205,6 +205,39 @@ abstract class BaseChatActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.e("BaseChatActivity", "Error initializing VoiceRecorderView", e)
+        }
+
+        // If a unified VoiceActionButton exists in the layout, wire it up so
+        // chat activities automatically benefit from the unified recorder.
+        try {
+            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
+                resources.getIdentifier("voiceActionButton", "id", packageName)
+            )
+            if (vab != null) {
+                vab.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
+                    override fun onRecordingStarted() {
+                        onVoiceRecordingStarted()
+                    }
+
+                    override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                        transcribeAudio(audioFile)
+                    }
+
+                    override fun onTranscript(text: String) {
+                        try {
+                            getMessageInput().setText(text)
+                            sendMessage()
+                        } catch (_: Exception) { }
+                    }
+
+                    override fun onRecordingError(error: String) {
+                        onVoiceRecordingError(error)
+                    }
+                })
+                android.util.Log.d("BaseChatActivity", "VoiceActionButton wired")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("BaseChatActivity", "VoiceActionButton not present or wiring failed", e)
         }
     }
 

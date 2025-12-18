@@ -33,32 +33,32 @@ class AIChatActivity : BaseChatActivity() {
         
         // Setup voice button
         chatBinding.voiceButton.setOnClickListener {
-            startVoiceRecording()
+                showChatInput()
         }
 
         // Setup unified VoiceActionButton if present
         try {
             val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(R.id.voiceActionButton)
-            vab?.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
-                override fun onRecordingStarted() {
-                    onVoiceRecordingStarted()
-                    chatBinding.voiceButton.alpha = 0.5f
-                }
+                vab?.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
+                    override fun onRecordingStarted() {
+                        chatBinding.voiceButton.alpha = 0.5f
+                    }
 
-                override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                    onVoiceRecordingCompleted(audioFile, durationMs)
-                    chatBinding.voiceButton.alpha = 1.0f
-                }
+                    override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                        chatBinding.voiceButton.alpha = 1.0f
+                        transcribeAudio(audioFile)
+                    }
 
-                override fun onTranscript(text: String) {
-                    getMessageInput().setText(text)
-                    sendMessage()
-                }
+                    override fun onTranscript(text: String) {
+                        chatBinding.voiceButton.alpha = 1.0f
+                        chatBinding.messageInput.setText(text)
+                        sendMessage()
+                    }
 
-                override fun onRecordingError(error: String) {
-                    onVoiceRecordingError(error)
-                }
-            })
+                    override fun onRecordingError(error: String) {
+                        chatBinding.voiceButton.alpha = 1.0f
+                    }
+                })
         } catch (e: Exception) {
             // ignore if view not present
         }

@@ -79,6 +79,12 @@
                 android:layout_height="72dp"
                 android:layout_marginStart="6dp" />
 
+            <com.persianai.assistant.ui.VoiceActionButton
+                android:id="@+id/voiceActionButton"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginStart="6dp" />
+
             <ImageButton
                 android:id="@+id/sendButton"
                 android:layout_width="48dp"
