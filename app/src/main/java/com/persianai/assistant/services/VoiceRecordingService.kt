@@ -22,7 +22,7 @@ class VoiceRecordingService : Service() {
     
     private val TAG = "VoiceRecordingService"
     private val binder = VoiceRecordingBinder()
-    private var voiceRecorder: NewHybridVoiceRecorder? = null
+    private var voiceEngine: UnifiedVoiceEngine? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     
     interface VoiceRecordingListener {
@@ -40,8 +40,8 @@ class VoiceRecordingService : Service() {
         super.onCreate()
         Log.d(TAG, "🎤 VoiceRecordingService created")
         
-        // آماده‌سازی NewHybridVoiceRecorder
-        voiceRecorder = NewHybridVoiceRecorder(this)
+        // آماده‌سازی UnifiedVoiceEngine
+        voiceEngine = UnifiedVoiceEngine(this)
         
         // مدیریت صدا برای ضبط بهتر
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -68,10 +68,10 @@ class VoiceRecordingService : Service() {
         try {
             Log.d(TAG, "🔴 START_RECORDING")
             serviceScope.launch {
-                val result = voiceRecorder?.startRecording()
-                if (result?.isSuccess == false) {
-                    recordingListener?.onRecordingError("Failed to start recording")
-                }
+                    val result = voiceEngine?.startRecording()
+                    if (result?.isSuccess == false) {
+                        recordingListener?.onRecordingError("Failed to start recording")
+                    }
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error starting recording", e)
@@ -82,7 +82,7 @@ class VoiceRecordingService : Service() {
         try {
             Log.d(TAG, "⏹️ STOP_RECORDING")
             serviceScope.launch {
-                val result = voiceRecorder?.stopRecording()
+                val result = voiceEngine?.stopRecording()
                 if (result?.isSuccess == true) {
                     val recordingResult = result.getOrNull()
                     recordingResult?.let {
@@ -101,7 +101,7 @@ class VoiceRecordingService : Service() {
         try {
             Log.d(TAG, "❌ CANCEL_RECORDING")
             serviceScope.launch {
-                val result = voiceRecorder?.cancelRecording()
+                val result = voiceEngine?.cancelRecording()
                 if (result?.isSuccess == false) {
                     recordingListener?.onRecordingError("Failed to cancel recording")
                 }
@@ -116,11 +116,11 @@ class VoiceRecordingService : Service() {
     }
     
     fun isRecording(): Boolean {
-        return voiceRecorder?.isRecordingInProgress() ?: false
+        return voiceEngine?.isRecordingInProgress() ?: false
     }
     
     fun getRecordingDuration(): Long {
-        return voiceRecorder?.getCurrentRecordingDuration() ?: 0
+        return voiceEngine?.getCurrentRecordingDuration() ?: 0
     }
     
     override fun onDestroy() {

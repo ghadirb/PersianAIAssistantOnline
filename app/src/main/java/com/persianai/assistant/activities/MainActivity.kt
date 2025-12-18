@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private var audioFilePath: String = ""
     private var isRecording = false
     private var recordingTimer: java.util.Timer? = null
+    private var voiceEngineHelperInitialized = true
     private var initialX: Float = 0f
     private var initialY: Float = 0f
     private val swipeThreshold = 100f
@@ -314,11 +315,18 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
         } else {
-            startRecording()
+            // Use centralized VoiceRecordingHelper (backed by UnifiedVoiceEngine)
+            try {
+                voiceHelper.startRecording()
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Failed to start recording via helper", e)
+                startRecording() // fallback to legacy method
+            }
         }
     }
 
     private fun startRecording() {
+        // legacy fallback: keep existing MediaRecorder logic if helper fails
         try {
             audioFilePath = "${externalCacheDir?.absolutePath}/audiorecord.mp3"
             mediaRecorder = MediaRecorder().apply {
@@ -348,12 +356,17 @@ class MainActivity : AppCompatActivity() {
     private fun cancelRecording() {
         if (!isRecording) return
         try {
-            mediaRecorder?.stop()
-            mediaRecorder?.release()
-        } catch (e: Exception) {
-            // Ignore
+            // Prefer helper cancel
+            voiceHelper.cancelRecording()
+        } catch (_: Exception) {
+            try {
+                mediaRecorder?.stop()
+                mediaRecorder?.release()
+            } catch (e: Exception) {
+                // Ignore
+            }
+            mediaRecorder = null
         }
-        mediaRecorder = null
         isRecording = false
         recordingTimer?.cancel()
         File(audioFilePath).delete()
@@ -1252,26 +1265,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopRecordingAndProcess() {
         if (!isRecording) return
-        
+
         try {
             recordingTimer?.cancel()
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            isRecording = false
-            
-            // مخفی کردن نشانگر
+            // Prefer helper stop (will call processAudioFile via listener)
+            voiceHelper.stopRecording()
+
+            // Hide UI indicator
             binding.recordingIndicator.visibility = android.view.View.GONE
-            
-            // تبدیل صوت به متن با Whisper API
-            Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
-            transcribeAndSendAudio()
-            
         } catch (e: Exception) {
-            Toast.makeText(this, "خطا در پایان ضبط: ${e.message}", Toast.LENGTH_SHORT).show()
-            android.util.Log.e("MainActivity", "Stop recording error", e)
+            // Fallback to legacy processing
+            try {
+                mediaRecorder?.apply {
+                    stop()
+                    release()
+                }
+                mediaRecorder = null
+                isRecording = false
+                binding.recordingIndicator.visibility = android.view.View.GONE
+                Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
+                transcribeAndSendAudio()
+            } catch (ex: Exception) {
+                Toast.makeText(this, "خطا در پایان ضبط: ${ex.message}", Toast.LENGTH_SHORT).show()
+                android.util.Log.e("MainActivity", "Stop recording error", ex)
+            }
         }
     }
     

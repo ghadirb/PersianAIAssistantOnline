@@ -67,6 +67,18 @@ class UnifiedVoiceEngine(private val context: Context) {
         return record == PackageManager.PERMISSION_GRANTED
     }
 
+    fun setAmplitudeCallback(callback: ((Int) -> Unit)?) {
+        try {
+            if (callback != null) {
+                recorder.setAmplitudeCallback(callback)
+            } else {
+                recorder.setAmplitudeCallback { }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set amplitude callback", e)
+        }
+    }
+
     /**
      * Copy Haaniye offline model directory from a host path into app files directory.
      * This is provided so CI / developer machines can push model artifacts into

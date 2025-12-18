@@ -28,7 +28,8 @@ data class HybridAnalysisResult(
 class SafeVoiceRecordingHelper(private val context: android.content.Context) {
     
     private val TAG = "SafeVoiceHelper"
-    private val recorder = NewHybridVoiceRecorder(context)
+    private val engine = UnifiedVoiceEngine(context)
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main + kotlinx.coroutines.Job())
     
     interface RecordingListener {
         fun onRecordingStarted()
@@ -45,8 +46,17 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
      */
     fun setup() {
         try {
-            recorder.setAmplitudeCallback { amplitude ->
-                currentListener?.onAmplitudeChanged(amplitude)
+            // Poll amplitude periodically while recording
+            scope.launch {
+                while (true) {
+                    try {
+                        if (engine.isRecordingInProgress()) {
+                            val amp = engine.getCurrentAmplitude()
+                            currentListener?.onAmplitudeChanged(amp)
+                        }
+                    } catch (_: Exception) {}
+                    kotlinx.coroutines.delay(150)
+                }
             }
             android.util.Log.d(TAG, "✅ SafeVoiceHelper setup completed")
         } catch (e: Exception) {
@@ -61,7 +71,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
         return try {
             android.util.Log.d(TAG, "🎤 Starting safe recording...")
             
-            val result = recorder.startRecording()
+            val result = engine.startRecording()
             if (result.isSuccess) {
                 android.util.Log.d(TAG, "✅ Recording started successfully")
                 currentListener?.onRecordingStarted()
@@ -86,7 +96,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
         return try {
             android.util.Log.d(TAG, "🛑 Stopping recording...")
             
-            val result = recorder.stopRecording()
+            val result = engine.stopRecording()
             if (result.isSuccess) {
                 val recordingResult = result.getOrThrow()
                 android.util.Log.d(TAG, "✅ Recording stopped: ${recordingResult.file.absolutePath}")
@@ -112,7 +122,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
         return try {
             android.util.Log.d(TAG, "❌ Cancelling recording...")
             
-            val result = recorder.cancelRecording()
+            val result = engine.cancelRecording()
             if (result.isSuccess) {
                 android.util.Log.d(TAG, "✅ Recording cancelled successfully")
                 currentListener?.onRecordingCancelled()
@@ -137,7 +147,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
         return try {
             android.util.Log.d(TAG, "🔍 Starting hybrid analysis...")
             
-            val result = recorder.analyzeHybrid(recordingResult.file)
+            val result = engine.analyzeHybrid(recordingResult.file)
             if (result.isSuccess) {
                 val analysisResult = result.getOrThrow()
                 android.util.Log.d(TAG, "✅ Hybrid analysis completed")
@@ -167,7 +177,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
      */
     fun isRecording(): Boolean {
         return try {
-            recorder.isRecordingInProgress()
+            engine.isRecordingInProgress()
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error checking recording status", e)
             false
@@ -179,7 +189,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
      */
     fun getRecordingDuration(): Long {
         return try {
-            recorder.getCurrentRecordingDuration()
+            engine.getCurrentRecordingDuration()
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error getting recording duration", e)
             0L
@@ -192,6 +202,7 @@ class SafeVoiceRecordingHelper(private val context: android.content.Context) {
     fun cleanup() {
         try {
             android.util.Log.d(TAG, "🧹 Cleaning up SafeVoiceHelper")
+            try { scope.cancel() } catch (_: Exception) {}
             // Additional cleanup if needed
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error during cleanup", e)

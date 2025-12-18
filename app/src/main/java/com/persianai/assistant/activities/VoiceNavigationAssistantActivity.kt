@@ -14,7 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import android.media.MediaRecorder
+import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
@@ -61,8 +61,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     private var pendingDest: LatLng? = null
     private var pendingDestName: String = ""
     private var pendingDestAddress: String = ""
-    private var mediaRecorder: MediaRecorder? = null
-    private var recordingFile: File? = null
+    private var voiceEngine: UnifiedVoiceEngine? = null
     private var isRecording = false
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
@@ -95,6 +94,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         savedLocationsManager = SavedLocationsManager(this)
+        voiceEngine = UnifiedVoiceEngine(this)
         neshanDirectionAPI = NeshanDirectionAPI()
         neshanSearchAPI = NeshanSearchAPI(this)
         nessanMapsAPI = NessanMapsAPI()
@@ -331,47 +331,47 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
             return
         }
-        try {
-            recordingFile = File(cacheDir, "voice_record_${System.currentTimeMillis()}.m4a")
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(96000)
-                setOutputFile(recordingFile?.absolutePath)
-                prepare()
-                start()
+
+        lifecycleScope.launch {
+            binding.statusText.text = "در حال ضبط صوت..."
+            val res = voiceEngine?.startRecording()
+            if (res?.isSuccess == true) {
+                isRecording = true
+                binding.statusText.text = "در حال ضبط صوت... برای توقف رها کنید"
+            } else {
+                isRecording = false
+                binding.statusText.text = "خطا در شروع ضبط"
+                Toast.makeText(this@VoiceNavigationAssistantActivity, "خطا در ضبط صدا", Toast.LENGTH_SHORT).show()
             }
-            isRecording = true
-            binding.statusText.text = "در حال ضبط صوت... برای توقف رها کنید"
-        } catch (e: Exception) {
-            isRecording = false
-            binding.statusText.text = "خطا در شروع ضبط"
-            Toast.makeText(this, "خطا در ضبط صدا: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun stopRecordingAndTranscribe() {
-        try {
-            mediaRecorder?.apply {
-                stop()
-                reset()
-                release()
-            }
-        } catch (_: Exception) {
-        }
-        mediaRecorder = null
-        isRecording = false
-
-        val file = recordingFile
-        if (file == null || !file.exists()) {
-            binding.statusText.text = "فایل ضبط‌شده در دسترس نیست"
-            return
-        }
-
-        binding.statusText.text = "در حال ارسال فایل صوتی برای تحلیل..."
         lifecycleScope.launch {
+            binding.statusText.text = "در حال توقف ضبط و تحلیل..."
+            val stopResult = voiceEngine?.stopRecording()
+            isRecording = false
+
+            val recordingResult = stopResult?.getOrNull()
+            val file = recordingResult?.file
+            if (file == null || !file.exists()) {
+                binding.statusText.text = "فایل ضبط‌شده در دسترس نیست"
+                return@launch
+            }
+
+            binding.statusText.text = "در حال تحلیل هیبریدی..."
+            val hybrid = voiceEngine?.analyzeHybrid(file)
+            val primary = hybrid?.getOrNull()?.primaryText
+
+            if (!primary.isNullOrBlank()) {
+                binding.transcriptText.text = primary
+                binding.statusText.text = "متن استخراج شد. در حال پردازش فرمان..."
+                respondToCommand(primary)
+                return@launch
+            }
+
+            // Fallback to previous HF transcription if hybrid failed
+            binding.statusText.text = "تحلیل محلی ناموفق، ارسال به سرویس آنلاین..."
             val text = transcribeWithHuggingFace(file)
             if (text.isNullOrBlank()) {
                 binding.statusText.text = if (hfApiKey.isBlank()) {
