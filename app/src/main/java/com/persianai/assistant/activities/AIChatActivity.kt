@@ -35,6 +35,33 @@ class AIChatActivity : BaseChatActivity() {
         chatBinding.voiceButton.setOnClickListener {
             startVoiceRecording()
         }
+
+        // Setup unified VoiceActionButton if present
+        try {
+            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(R.id.voiceActionButton)
+            vab?.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
+                override fun onRecordingStarted() {
+                    onVoiceRecordingStarted()
+                    chatBinding.voiceButton.alpha = 0.5f
+                }
+
+                override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                    onVoiceRecordingCompleted(audioFile, durationMs)
+                    chatBinding.voiceButton.alpha = 1.0f
+                }
+
+                override fun onTranscript(text: String) {
+                    getMessageInput().setText(text)
+                    sendMessage()
+                }
+
+                override fun onRecordingError(error: String) {
+                    onVoiceRecordingError(error)
+                }
+            })
+        } catch (e: Exception) {
+            // ignore if view not present
+        }
     }
     
     override fun getRecyclerView(): RecyclerView = chatBinding.chatRecyclerView

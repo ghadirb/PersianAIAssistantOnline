@@ -111,7 +111,17 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     private fun setupVoiceFab() {
         try {
             binding.voiceFab.setOnClickListener {
-                // Reuse existing speech recognition / recording behavior
+                // If there's a unified VoiceActionButton included in layout, delegate to it
+                try {
+                    val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(R.id.voiceActionButton)
+                    if (vab != null) {
+                        // Simulate a click to toggle
+                        vab.performClick()
+                        return@setOnClickListener
+                    }
+                } catch (_: Exception) {}
+
+                // Fallback: start the existing speech recognition flow
                 checkAudioPermissionAndStart()
             }
         } catch (e: Exception) {
