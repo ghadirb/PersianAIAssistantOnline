@@ -3,17 +3,6 @@
     <!-- Explicit id resources to help data-binding/resource generation when layouts reference them -->
     <item type="id" name="addCheckButton" />
     <item type="id" name="addInstallmentButton" />
-    <item name="chipAlertNotification" type="id" />
-    <item name="chipAlertFullScreen" type="id" />
-</resources>
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Explicit id resources to help data-binding/resource generation when layouts reference them -->
-    <item type="id" name="addCheckButton" />
-    <item type="id" name="addInstallmentButton" />
-</resources>
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <item name="chipAlertNotification" type="id" />
-    <item name="chipAlertFullScreen" type="id" />
+    <item type="id" name="chipAlertNotification" />
+    <item type="id" name="chipAlertFullScreen" />
 </resources>
