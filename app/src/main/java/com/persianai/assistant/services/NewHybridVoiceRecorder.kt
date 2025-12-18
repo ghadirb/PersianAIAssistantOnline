@@ -448,9 +448,9 @@ class NewHybridVoiceRecorder(private val context: Context) {
             val modelPath = "$haaniyeAssets/fa-haaniye_low.onnx"
             val modelInfoPath = "$haaniyeAssets/fa-haaniye_low.onnx.json"
             
-            // For now, create a placeholder
-            // In production, this would load the actual ONNX model
-            haaniyeModel = "haaniye_model_placeholder"
+            // For now, check presence via HaaniyeManager and keep a placeholder
+            val available = com.persianai.assistant.services.HaaniyeManager.ensureModelPresent(context)
+            haaniyeModel = if (available) "haaniye_model_placeholder" else null
             
             Log.d(TAG, "✅ Haaniye model initialized")
             
