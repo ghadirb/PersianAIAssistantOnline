@@ -141,7 +141,7 @@
         app:layout_anchorGravity="bottom|end"
         app:srcCompat="@drawable/ic_mic"
         app:tint="@android:color/white"
-        app:backgroundTint="@color/colorPrimary"
+        app:backgroundTint="?attr/colorPrimary"
         app:layout_anchor="@id/toolbar" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

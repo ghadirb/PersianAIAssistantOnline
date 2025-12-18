@@ -5,4 +5,20 @@
     <item type="id" name="addInstallmentButton" />
     <item type="id" name="chipAlertNotification" />
     <item type="id" name="chipAlertFullScreen" />
+    <item type="id" name="addIncomeButton" />
+    <item type="id" name="addExpenseButton" />
+    <item type="id" name="aiChatButton" />
+    <item type="id" name="voiceActionButton" />
+    <item type="id" name="voiceButton" />
+    <item type="id" name="voiceFab" />
+    <item type="id" name="voiceAssistantFab" />
+    <item type="id" name="voiceSearchBtn" />
+    <item type="id" name="savedLocationsButton" />
+    <item type="id" name="saveCurrentLocationButton" />
+    <item type="id" name="myLocationFab" />
+    <item type="id" name="recordingIndicator" />
+    <item type="id" name="incomeRecyclerView" />
+    <item type="id" name="expenseRecyclerView" />
+    <item type="id" name="checksRecyclerView" />
+    <item type="id" name="installmentsRecyclerView" />
 </resources>
