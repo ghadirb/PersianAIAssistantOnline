@@ -544,8 +544,12 @@ class NewHybridVoiceRecorder(private val context: Context) {
      * Get API key from preferences
      */
     private fun getAPIKey(): String? {
-        // TODO: Implement API key retrieval from SharedPreferences
-        return null // Placeholder
+        return try {
+            val prefs = com.persianai.assistant.utils.PreferencesManager(context)
+            prefs.getAPIKeys().firstOrNull()?.key
+        } catch (e: Exception) {
+            null
+        }
     }
     
     /**
