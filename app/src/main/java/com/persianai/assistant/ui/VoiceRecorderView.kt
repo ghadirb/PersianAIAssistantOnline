@@ -4,10 +4,12 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
-import android.media.MediaRecorder
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -36,13 +38,13 @@ class VoiceRecorderView @JvmOverloads constructor(
     }
     
     private var listener: VoiceRecorderListener? = null
-    private var mediaRecorder: MediaRecorder? = null
-    private var audioFile: File? = null
     private var recordingStartTime = 0L
     private var isRecording = false
     private var isCancelled = false
     private var slideOffset = 0f
     private var amplitude = 0
+    private val helper = com.persianai.assistant.services.SafeVoiceRecordingHelper(context)
+    private val scope: CoroutineScope = MainScope()
     
     // UI Elements
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -65,27 +67,7 @@ class VoiceRecorderView @JvmOverloads constructor(
     private val textColor = Color.parseColor("#FFFFFF")
     private val waveformColor = Color.parseColor("#4CAF50")
     
-    // Handler for amplitude updates
-    private val amplitudeHandler = Handler(Looper.getMainLooper())
-    private val amplitudeRunnable = object : Runnable {
-        override fun run() {
-            if (isRecording && mediaRecorder != null) {
-                try {
-                    val amp = mediaRecorder?.maxAmplitude ?: 0
-                    amplitude = amp
-                    amplitudes.add(amp.toFloat() / 32768f)
-                    if (amplitudes.size > maxAmplitudes) {
-                        amplitudes.removeAt(0)
-                    }
-                    listener?.onAmplitudeChanged(amp)
-                    invalidate()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-                amplitudeHandler.postDelayed(this, 100)
-            }
-        }
-    }
+    // Amplitude is provided by `SafeVoiceRecordingHelper`
     
     init {
         textPaint.apply {
@@ -110,6 +92,52 @@ class VoiceRecorderView @JvmOverloads constructor(
         }
         
         startPulseAnimation()
+        helper.setListener(object : com.persianai.assistant.services.SafeVoiceRecordingHelper.RecordingListener {
+            override fun onRecordingStarted() {
+                post {
+                    recordingStartTime = System.currentTimeMillis()
+                    isRecording = true
+                    isCancelled = false
+                    listener?.onRecordingStarted()
+                    invalidate()
+                }
+            }
+
+            override fun onRecordingCompleted(result: com.persianai.assistant.services.RecordingResult) {
+                post {
+                    isRecording = false
+                    listener?.onRecordingCompleted(result.file, result.duration)
+                    invalidate()
+                }
+            }
+
+            override fun onRecordingCancelled() {
+                post {
+                    isRecording = false
+                    listener?.onRecordingCancelled()
+                    invalidate()
+                }
+            }
+
+            override fun onRecordingError(error: String) {
+                post {
+                    isRecording = false
+                    listener?.onRecordingCancelled()
+                    invalidate()
+                }
+            }
+
+            override fun onAmplitudeChanged(amplitudeValue: Int) {
+                post {
+                    amplitude = amplitudeValue
+                    amplitudes.add(amplitudeValue.toFloat() / 32768f)
+                    if (amplitudes.size > maxAmplitudes) amplitudes.removeAt(0)
+                    listener?.onAmplitudeChanged(amplitudeValue)
+                    invalidate()
+                }
+            }
+        })
+        helper.setup()
     }
     
     fun setListener(listener: VoiceRecorderListener) {
@@ -240,90 +268,41 @@ class VoiceRecorderView @JvmOverloads constructor(
     }
     
     private fun startRecording() {
+        // Delegate to SafeVoiceRecordingHelper
         try {
-            // Create audio file
-            val audioDir = File(context.cacheDir, "audio")
-            if (!audioDir.exists()) audioDir.mkdirs()
-            
-            audioFile = File(audioDir, "recording_${System.currentTimeMillis()}.m4a")
-            
-            // Setup MediaRecorder
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(128000)
-                setAudioSamplingRate(44100)
-                setOutputFile(audioFile?.absolutePath)
-                try {
-                    prepare()
-                    start()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    releaseRecorder()
+            helper.setup()
+            scope.launch {
+                val started = helper.startRecording()
+                if (started) {
+                    // helper listener will update UI
+                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                } else {
                     listener?.onRecordingCancelled()
-                    return
                 }
             }
-            
-            recordingStartTime = System.currentTimeMillis()
-            isRecording = true
-            isCancelled = false
-            // Start amplitude monitoring
-            amplitudeHandler.post(amplitudeRunnable)
-            
-            // Haptic feedback
-            performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            listener?.onRecordingStarted()
-            invalidate()
-            
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             e.printStackTrace()
             listener?.onRecordingCancelled()
         }
     }
     
     private fun releaseRecorder() {
-        try {
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        // No-op: handled by helper
     }
     
     private fun stopRecording() {
         if (!isRecording) return
         
         try {
-            mediaRecorder?.apply {
-                stop()
-                release()
+            // Ask helper to stop; helper listener will deliver result
+            scope.launch {
+                helper.stopRecording()
             }
-            mediaRecorder = null
-            
-            val duration = System.currentTimeMillis() - recordingStartTime
-            
-            audioFile?.let { file ->
-                if (file.exists() && file.length() > 0) {
-                    listener?.onRecordingCompleted(file, duration)
-                }
-            }
-            
         } catch (e: Exception) {
             e.printStackTrace()
             listener?.onRecordingCancelled()
         } finally {
             isRecording = false
-            amplitudeHandler.removeCallbacks(amplitudeRunnable)
             performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             invalidate()
         }
@@ -333,20 +312,15 @@ class VoiceRecorderView @JvmOverloads constructor(
         if (!isRecording) return
         
         try {
-            mediaRecorder?.apply {
-                stop()
-                release()
+            // Delegate cancel to helper
+            scope.launch {
+                helper.cancelRecording()
             }
-            mediaRecorder = null
-            
-            // Delete the audio file
-            audioFile?.delete()
-            
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
             isRecording = false
-            amplitudeHandler.removeCallbacks(amplitudeRunnable)
+            // amplitude handling is removed; helper handles it
             listener?.onRecordingCancelled()
             
             // Haptic feedback for cancellation

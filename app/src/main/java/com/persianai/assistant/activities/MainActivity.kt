@@ -37,7 +37,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.view.MotionEvent
-import android.media.MediaRecorder
 import java.io.File
 import com.persianai.assistant.services.VoiceRecordingHelper
 
@@ -47,7 +46,6 @@ import com.persianai.assistant.services.VoiceRecordingHelper
 class MainActivity : AppCompatActivity() {
 
     private val messages = mutableListOf<ChatMessage>()
-    private var mediaRecorder: MediaRecorder? = null
     private var audioFilePath: String = ""
     private var isRecording = false
     private var recordingTimer: java.util.Timer? = null
@@ -326,29 +324,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startRecording() {
-        // legacy fallback: keep existing MediaRecorder logic if helper fails
-        try {
-            audioFilePath = "${externalCacheDir?.absolutePath}/audiorecord.mp3"
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setOutputFile(audioFilePath)
-                prepare()
-                start()
-            }
-            isRecording = true
-            recordingTimer = java.util.Timer()
-            recordingTimer?.schedule(object : java.util.TimerTask() {
-                override fun run() {
-                    runOnUiThread {
-                        stopRecordingAndProcess()
-                    }
-                }
-            }, 30000) // 30 seconds max recording
-        } catch (e: Exception) {
-            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        // Legacy fallback removed; use `VoiceRecordingHelper` only.
     }
 
 
@@ -356,20 +332,14 @@ class MainActivity : AppCompatActivity() {
     private fun cancelRecording() {
         if (!isRecording) return
         try {
-            // Prefer helper cancel
             voiceHelper.cancelRecording()
-        } catch (_: Exception) {
-            try {
-                mediaRecorder?.stop()
-                mediaRecorder?.release()
-            } catch (e: Exception) {
-                // Ignore
-            }
-            mediaRecorder = null
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Error cancelling recording via helper", e)
         }
         isRecording = false
         recordingTimer?.cancel()
-        File(audioFilePath).delete()
+        // If a legacy file path exists, delete it (defensive)
+        try { File(audioFilePath).delete() } catch (_: Exception) {}
     }
 
 
@@ -1274,17 +1244,16 @@ class MainActivity : AppCompatActivity() {
             // Hide UI indicator
             binding.recordingIndicator.visibility = android.view.View.GONE
         } catch (e: Exception) {
-            // Fallback to legacy processing
+            // Fallback: attempt to get file from helper and transcribe
             try {
-                mediaRecorder?.apply {
-                    stop()
-                    release()
-                }
-                mediaRecorder = null
-                isRecording = false
+                val fallback = voiceHelper.getRecordingFile()
                 binding.recordingIndicator.visibility = android.view.View.GONE
-                Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
-                transcribeAndSendAudio()
+                if (fallback != null) {
+                    Toast.makeText(this, "🎤 در حال تبدیل صوت به متن...", Toast.LENGTH_LONG).show()
+                    transcribeAndSendAudio(fallback.absolutePath)
+                } else {
+                    Toast.makeText(this, "خطا در پایان ضبط، فایل صوتی پیدا نشد", Toast.LENGTH_SHORT).show()
+                }
             } catch (ex: Exception) {
                 Toast.makeText(this, "خطا در پایان ضبط: ${ex.message}", Toast.LENGTH_SHORT).show()
                 android.util.Log.e("MainActivity", "Stop recording error", ex)
@@ -1292,8 +1261,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun transcribeAndSendAudio() {
-        val filePath = audioFilePath
+    private fun transcribeAndSendAudio(providedPath: String? = null) {
+        val filePath = providedPath ?: voiceHelper.getRecordingFile()?.absolutePath ?: audioFilePath
         if (filePath.isEmpty()) return
 
         lifecycleScope.launch {

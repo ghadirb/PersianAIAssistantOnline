@@ -4,15 +4,16 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.ContextCompat
 import com.persianai.assistant.R
-import com.persianai.assistant.services.HybridVoiceRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,8 +40,10 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
     }
     
     private var listener: VoiceRecorderListener? = null
-    private var hybridRecorder: HybridVoiceRecorder? = null
+    
     private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
+    private val helper = com.persianai.assistant.services.SafeVoiceRecordingHelper(context)
+    private val mainScope: CoroutineScope = MainScope()
     private var recordingStartTime = 0L
     private var isRecording = false
     private var isCancelled = false
@@ -68,26 +71,7 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
     private val textColor = Color.parseColor("#FFFFFF")
     private val waveformColor = Color.parseColor("#4CAF50")
     
-    // Handler for amplitude updates
-    private val amplitudeHandler = Handler(Looper.getMainLooper())
-    private val amplitudeRunnable = object : Runnable {
-        override fun run() {
-            if (isRecording && hybridRecorder?.isRecordingInProgress() == true) {
-                try {
-                    amplitude = (hybridRecorder?.getCurrentRecordingDuration()?.toInt() ?: 0) / 100
-                    amplitudes.add(amplitude.toFloat() / 32768f)
-                    if (amplitudes.size > maxAmplitudes) {
-                        amplitudes.removeAt(0)
-                    }
-                    listener?.onAmplitudeChanged(amplitude)
-                    invalidate()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-                amplitudeHandler.postDelayed(this, 100)
-            }
-        }
-    }
+    // Amplitude provided by `SafeVoiceRecordingHelper`
     
     init {
         textPaint.apply {
@@ -104,29 +88,29 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
             strokeCap = Paint.Cap.ROUND
         }
         
-        // HybridVoiceRecorder را آماده کن
-        hybridRecorder = HybridVoiceRecorder(context, coroutineScope)
-        hybridRecorder?.setListener(object : HybridVoiceRecorder.RecorderListener {
+        // Initialize helper
+        helper.setListener(object : com.persianai.assistant.services.SafeVoiceRecordingHelper.RecordingListener {
             override fun onRecordingStarted() {
-                listener?.onRecordingStarted()
+                post { isRecording = true; recordingStartTime = System.currentTimeMillis(); listener?.onRecordingStarted(); invalidate() }
             }
-            
-            override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                listener?.onRecordingCompleted(audioFile, durationMs)
+
+            override fun onRecordingCompleted(audioFile: com.persianai.assistant.services.RecordingResult) {
+                post { isRecording = false; listener?.onRecordingCompleted(audioFile.file, audioFile.duration); invalidate() }
             }
-            
+
             override fun onRecordingCancelled() {
-                listener?.onRecordingCancelled()
+                post { isRecording = false; listener?.onRecordingCancelled(); invalidate() }
             }
-            
+
             override fun onRecordingError(error: String) {
-                // Handle error
+                post { isRecording = false; listener?.onRecordingCancelled(); invalidate() }
             }
-            
+
             override fun onAmplitudeChanged(amplitude: Int) {
-                this@VoiceRecorderViewNew.amplitude = amplitude
+                post { this@VoiceRecorderViewNew.amplitude = amplitude; amplitudes.add(amplitude.toFloat() / 32768f); if (amplitudes.size > maxAmplitudes) amplitudes.removeAt(0); listener?.onAmplitudeChanged(amplitude); invalidate() }
             }
         })
+        helper.setup()
         
         startPulseAnimation()
     }
@@ -260,15 +244,7 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
     
     private fun startRecording() {
         try {
-            hybridRecorder?.startRecording()
-            recordingStartTime = System.currentTimeMillis()
-            isRecording = true
-            isCancelled = false
-            
-            // Start amplitude monitoring
-            amplitudeHandler.post(amplitudeRunnable)
-            
-            // Haptic feedback
+            mainScope.launch { helper.startRecording() }
             performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
             invalidate()
             
@@ -282,13 +258,13 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
         if (!isRecording) return
         
         try {
-            hybridRecorder?.stopRecording()
+            mainScope.launch { helper.stopRecording() }
         } catch (e: Exception) {
             e.printStackTrace()
             listener?.onRecordingCancelled()
         } finally {
             isRecording = false
-            amplitudeHandler.removeCallbacks(amplitudeRunnable)
+            // amplitude handled by helper
             performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             invalidate()
         }
@@ -298,12 +274,12 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
         if (!isRecording) return
         
         try {
-            hybridRecorder?.cancelRecording()
+            mainScope.launch { helper.cancelRecording() }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
             isRecording = false
-            amplitudeHandler.removeCallbacks(amplitudeRunnable)
+            // amplitude handled by helper
             listener?.onRecordingCancelled()
             
             // Haptic feedback for cancellation
@@ -334,7 +310,7 @@ class VoiceRecorderViewNew @JvmOverloads constructor(
         if (isRecording) {
             cancelRecording()
         }
-        amplitudeHandler.removeCallbacks(amplitudeRunnable)
+        // amplitude handled by helper
         coroutineScope.cancel()
     }
 }

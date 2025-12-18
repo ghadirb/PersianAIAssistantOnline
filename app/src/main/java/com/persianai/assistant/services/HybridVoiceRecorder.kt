@@ -1,7 +1,6 @@
 package com.persianai.assistant.services
 
 import android.content.Context
-import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
@@ -24,7 +23,7 @@ class HybridVoiceRecorder(
 ) {
     
     private val TAG = "HybridVoiceRecorder"
-    private var mediaRecorder: MediaRecorder? = null
+    private val engine = UnifiedVoiceEngine(context)
     private var audioFile: File? = null
     private var isRecording = false
     private var recordingStartTime = 0L
@@ -42,57 +41,28 @@ class HybridVoiceRecorder(
      * شروع ضبط صدا با محافظت کاملی
      */
     fun startRecording() {
-        try {
-            if (isRecording) {
-                Log.w(TAG, "⚠️ Recording already in progress")
-                return
-            }
-            
-            // آماده‌سازی دایرکتوری
-            val audioDir = File(context.cacheDir, "hybrid_voice")
-            if (!audioDir.exists()) {
-                audioDir.mkdirs()
-            }
-            
-            // ایجاد فایل جدید
-            audioFile = File(audioDir, "recording_${System.currentTimeMillis()}.m4a")
-            
-            // تنظیم MediaRecorder
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }.apply {
-                try {
-                    setAudioSource(MediaRecorder.AudioSource.MIC)
-                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                    setAudioEncodingBitRate(192000) // بیشتر برای کیفیت بالا
-                    setAudioSamplingRate(44100)
-                    setOutputFile(audioFile?.absolutePath)
-                    
-                    prepare()
-                    start()
-                    
-                    Log.d(TAG, "✅ Recording started: ${audioFile?.absolutePath}")
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error preparing recorder", e)
-                    throw e
+        coroutineScope.launch {
+            try {
+                if (isRecording) {
+                    Log.w(TAG, "⚠️ Recording already in progress")
+                    return@launch
                 }
+
+                val result = engine.startRecording()
+                if (result.isSuccess) {
+                    recordingStartTime = System.currentTimeMillis()
+                    isRecording = true
+                    listener?.onRecordingStarted()
+                    // Start amplitude monitoring loop
+                    startAmplitudeMonitoring()
+                } else {
+                    val err = result.exceptionOrNull()?.message ?: "Unknown error"
+                    listener?.onRecordingError("خطا در شروع ضبط: $err")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error starting recording", e)
+                listener?.onRecordingError("خطا در شروع ضبط: ${e.message}")
             }
-            
-            recordingStartTime = System.currentTimeMillis()
-            isRecording = true
-            listener?.onRecordingStarted()
-            
-            // شروع Amplitude Monitoring
-            startAmplitudeMonitoring()
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error starting recording", e)
-            cleanup()
-            listener?.onRecordingError("خطا در شروع ضبط: ${e.message}")
         }
     }
     
@@ -100,38 +70,30 @@ class HybridVoiceRecorder(
      * توقف ضبط و پردازش صدا
      */
     fun stopRecording() {
-        try {
-            if (!isRecording) {
-                Log.w(TAG, "⚠️ No recording in progress")
-                return
-            }
-            
-            mediaRecorder?.apply {
-                try {
-                    stop()
-                    release()
-                } catch (e: Exception) {
-                    Log.e(TAG, "⚠️ Error stopping recorder", e)
+        coroutineScope.launch {
+            try {
+                if (!isRecording) {
+                    Log.w(TAG, "⚠️ No recording in progress")
+                    return@launch
                 }
-            }
-            mediaRecorder = null
-            isRecording = false
-            
-            val duration = System.currentTimeMillis() - recordingStartTime
-            
-            audioFile?.let { file ->
-                if (file.exists() && file.length() > 0) {
-                    Log.d(TAG, "✅ Recording completed: ${file.absolutePath} (${file.length()} bytes)")
-                    listener?.onRecordingCompleted(file, duration)
+
+                val result = engine.stopRecording()
+                if (result.isSuccess) {
+                    val rec = result.getOrNull()
+                    if (rec != null) {
+                        isRecording = false
+                        listener?.onRecordingCompleted(rec.file, rec.duration)
+                    } else {
+                        listener?.onRecordingError("Recording result empty")
+                    }
                 } else {
-                    Log.w(TAG, "⚠️ Audio file is empty")
-                    listener?.onRecordingError("فایل صوتی خالی است")
+                    val err = result.exceptionOrNull()?.message ?: "Unknown error"
+                    listener?.onRecordingError("خطا در توقف ضبط: $err")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error stopping recording", e)
+                listener?.onRecordingError("خطا در توقف ضبط: ${e.message}")
             }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error stopping recording", e)
-            listener?.onRecordingError("خطا در توقف ضبط: ${e.message}")
         }
     }
     
@@ -139,30 +101,21 @@ class HybridVoiceRecorder(
      * لغو ضبط و حذف فایل
      */
     fun cancelRecording() {
-        try {
-            if (!isRecording) return
-            
-            mediaRecorder?.apply {
-                try {
-                    stop()
-                    release()
-                } catch (e: Exception) {
-                    Log.e(TAG, "⚠️ Error during cancel", e)
+        coroutineScope.launch {
+            try {
+                if (!isRecording) return@launch
+                val result = engine.cancelRecording()
+                if (result.isSuccess) {
+                    isRecording = false
+                    listener?.onRecordingCancelled()
+                } else {
+                    val err = result.exceptionOrNull()?.message ?: "Unknown error"
+                    listener?.onRecordingError("خطا در لغو ضبط: $err")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error cancelling recording", e)
+                listener?.onRecordingError("خطا در لغو ضبط: ${e.message}")
             }
-            mediaRecorder = null
-            
-            // حذف فایل
-            audioFile?.delete()
-            audioFile = null
-            
-            isRecording = false
-            Log.d(TAG, "✅ Recording cancelled")
-            listener?.onRecordingCancelled()
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error cancelling recording", e)
-            cleanup()
         }
     }
     
@@ -173,10 +126,9 @@ class HybridVoiceRecorder(
         coroutineScope.launch {
             while (isRecording) {
                 try {
-                    mediaRecorder?.maxAmplitude?.let { amplitude ->
-                        listener?.onAmplitudeChanged(amplitude)
-                    }
-                    delay(100) // هر 100ms
+                    val amp = engine.getCurrentAmplitude()
+                    listener?.onAmplitudeChanged(amp)
+                    delay(100)
                 } catch (e: Exception) {
                     Log.e(TAG, "⚠️ Error monitoring amplitude", e)
                 }
