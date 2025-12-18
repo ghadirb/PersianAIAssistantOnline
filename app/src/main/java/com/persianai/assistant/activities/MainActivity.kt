@@ -160,6 +160,44 @@ class MainActivity : AppCompatActivity() {
             // بستن برنامه
             finish()
         }
+
+        // Wire unified VoiceActionButton if present to reuse existing helpers
+        try {
+            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
+                resources.getIdentifier("voiceActionButton", "id", packageName)
+            )
+            if (vab != null) {
+                vab.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
+                    override fun onRecordingStarted() {
+                        isRecording = true
+                        binding.recordingIndicator.visibility = View.VISIBLE
+                    }
+
+                    override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                        isRecording = false
+                        binding.recordingIndicator.visibility = View.GONE
+                        try {
+                            transcribeAndSendAudio(audioFile.absolutePath)
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Error processing recorded file", e)
+                        }
+                    }
+
+                    override fun onTranscript(text: String) {
+                        binding.messageInput.setText(text)
+                        sendMessage()
+                    }
+
+                    override fun onRecordingError(error: String) {
+                        isRecording = false
+                        binding.recordingIndicator.visibility = View.GONE
+                        Toast.makeText(this@MainActivity, "خطا در ضبط: $error", Toast.LENGTH_SHORT).show()
+                    }
+                })
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "VoiceActionButton not present or wiring failed", e)
+        }
     }
 
 

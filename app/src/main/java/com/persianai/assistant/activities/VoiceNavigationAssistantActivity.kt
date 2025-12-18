@@ -134,6 +134,21 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        menuInflater.inflate(com.persianai.assistant.R.menu.dashboard_menu, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return when (item.itemId) {
+            com.persianai.assistant.R.id.action_saved_locations -> {
+                startActivity(Intent(this, com.persianai.assistant.ui.NamedLocationsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     private fun setupMicButton() {
         binding.micButton.setOnClickListener {
             checkAudioPermissionAndStart() // حالت تبدیل صوت به متن (SpeechRecognizer)
