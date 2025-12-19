@@ -670,6 +670,9 @@ class DashboardActivity : AppCompatActivity() {
                 AIProvider.ANTHROPIC -> editor.putString("claude_api_key", key.key)
                 AIProvider.OPENROUTER -> editor.putString("openrouter_api_key", key.key)
                 AIProvider.AIML -> editor.putString("aiml_api_key", key.key)
+                AIProvider.LOCAL -> {
+                    // مدل آفلاین کلید نیاز ندارد
+                }
             }
         }
 

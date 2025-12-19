@@ -260,6 +260,10 @@ object AutoProvisioningManager {
                         .addHeader("anthropic-version", "2023-06-01")
                         .build()
                 }
+                AIProvider.LOCAL -> {
+                    // مدل آفلاین نیاز به تست شبکه ندارد؛ معتبر فرض می‌شود
+                    return@withContext true
+                }
             }
             
             client.newCall(request).execute().use { response ->
