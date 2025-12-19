@@ -15,6 +15,7 @@ import java.io.File
 class AIChatActivity : BaseChatActivity() {
     
     private lateinit var chatBinding: ActivityAichatBinding
+    private var forceOnlineAnalysis: Boolean = false
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,6 +23,9 @@ class AIChatActivity : BaseChatActivity() {
         binding = chatBinding
         setContentView(chatBinding.root)
         
+        forceOnlineAnalysis = intent.getBooleanExtra("forceOnlineAnalysis", false)
+        updateAdvancedBadge()
+
         setupChatUI()
         addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور کمکتون کنم؟"))
 
@@ -66,12 +70,21 @@ class AIChatActivity : BaseChatActivity() {
         }
     }
     
+    private fun updateAdvancedBadge() {
+        chatBinding.advancedBadge?.apply {
+            visibility = if (forceOnlineAnalysis) View.VISIBLE else View.GONE
+            text = "⚡ تحلیل پیشرفته فعال شد"
+        }
+    }
+
     override fun getRecyclerView(): RecyclerView = chatBinding.chatRecyclerView
     override fun getMessageInput(): TextInputEditText = chatBinding.messageInput
     override fun getSendButton(): View = chatBinding.sendButton
     override fun getVoiceButton(): View = chatBinding.voiceButton
     
     override fun getSystemPrompt(): String = "دستیار هوشمند فارسی"
+
+    override fun shouldUseOnlinePriority(): Boolean = forceOnlineAnalysis
     
     override fun onVoiceRecordingStarted() {
         super.onVoiceRecordingStarted()

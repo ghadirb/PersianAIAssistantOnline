@@ -247,6 +247,7 @@ class DashboardActivity : AppCompatActivity() {
                             "presetMessage",
                             "به عنوان مشاور آرامش و خودشناسی، یک گفت‌وگوی کوتاه برای مدیریت استرس و تنظیم احساسات با من شروع کن."
                         )
+                        putExtra("forceOnlineAnalysis", true)
                     }
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
@@ -266,6 +267,7 @@ class DashboardActivity : AppCompatActivity() {
                             "presetMessage",
                             "می‌خواهم یک مسیر شغلی/تحصیلی مناسب پیدا کنم. با سوال‌های کوتاه کمکم کن تا مهارت‌ها و علایقم را مشخص کنم."
                         )
+                        putExtra("forceOnlineAnalysis", true)
                     }
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)

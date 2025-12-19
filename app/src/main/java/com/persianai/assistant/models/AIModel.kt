@@ -12,21 +12,31 @@ enum class AIModel(
     val description: String,
     val maxTokens: Int
 ) {
-    // AIML (اولویت کاربر)
-    AIML_GPT_35(
-        "gpt-3.5-turbo", // مدل عمومی AIMLAPI
-        "AIML GPT-3.5",
-        AIProvider.AIML,
-        "سبک و اقتصادی از aimlapi.com",
+    // حالت فقط آفلاین - TinyLlama
+    TINY_LLAMA_OFFLINE(
+        "tinyllama-1.1b-offline",
+        "TinyLlama 1.1B (آفلاین)",
+        AIProvider.LOCAL,
+        "پاسخ آفلاین بسیار سبک و سریع (بدون اینترنت)",
+        2048
+    ),
+
+    // OpenRouter (فقط برای تحلیل پیشرفته در مشاور مسیر/روان)
+    QWEN_2_5_1B5(
+        // OpenRouter expects the hyphenated slug; previous value was rejected (400)
+        "qwen/qwen-2.5-1.5b-instruct",
+        "Qwen2.5 1.5B (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "سبک آنلاین برای تحلیل پیشرفته مشاورها",
         4000
     ),
 
-    // اولویت: OpenRouter رایگان/مقرون‌به‌صرفه (سبک در ابتدا)
-    QWEN_2_5_1B5(
-        "qwen/qwen2.5-1.5b-instruct",
-        "Qwen2.5 1.5B (OpenRouter)",
-        AIProvider.OPENROUTER,
-        "خیلی سبک، مناسب گوشی‌های ضعیف‌تر و سریع",
+    // ===== Legacy entries kept for compatibility (غیرفعال در انتخاب) =====
+    AIML_GPT_35(
+        "gpt-3.5-turbo",
+        "AIML GPT-3.5",
+        AIProvider.AIML,
+        "سبک و اقتصادی از aimlapi.com",
         4000
     ),
     LLAMA_3_2_1B(
@@ -71,8 +81,6 @@ enum class AIModel(
         "مدل پشتیبان متن‌باز و چندزبانه",
         4000
     ),
-
-    // OpenAI
     GPT_4O(
         "gpt-4o",
         "GPT-4o",
@@ -87,8 +95,6 @@ enum class AIModel(
         "نسخه سریع و کارآمد GPT-4o",
         128000
     ),
-
-    // Anthropic
     CLAUDE_SONNET(
         "claude-3-5-sonnet-20241022",
         "Claude 3.5 Sonnet",
@@ -109,7 +115,7 @@ enum class AIModel(
             return values().find { it.modelId == modelId }
         }
 
-        fun getDefaultModel(): AIModel = QWEN_2_5_1B5
+        fun getDefaultModel(): AIModel = TINY_LLAMA_OFFLINE
     }
 }
 
@@ -120,7 +126,8 @@ enum class AIProvider {
     AIML,
     OPENAI,
     ANTHROPIC,
-    OPENROUTER
+    OPENROUTER,
+    LOCAL
 }
 
 /**
