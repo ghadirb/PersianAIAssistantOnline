@@ -14,6 +14,9 @@ endif()
 
 message(STATUS "LLAMA_CPP_DIR = ${LLAMA_CPP_DIR}")
 
+# روی armeabi-v7a از کدهای llamafile (FP16 NEON) استفاده نکن تا با دستگاه‌های 32بیتی سازگار شود
+set(GGML_LLAMAFILE OFF CACHE BOOL "Disable llamafile kernels for compatibility")
+
 if (EXISTS "${LLAMA_CPP_DIR}/CMakeLists.txt")
     add_definitions(-DLLAMA_CPP_AVAILABLE=1)
     # خروجی باینری جداگانه برای جلوگیری از تداخل
