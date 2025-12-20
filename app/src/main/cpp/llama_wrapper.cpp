@@ -34,16 +34,15 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeLoad(JNIEnv *env, jo
     llama_backend_init();
 
     llama_model_params mparams = llama_model_default_params();
-    auto *model = llama_load_model_from_file(path.c_str(), mparams);
+    auto *model = llama_model_load_from_file(path.c_str(), mparams);
     if (!model) return 0;
 
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = 2048;
-    cparams.seed = 1234;
 
-    auto *ctx = llama_new_context_with_model(model, cparams);
+    auto *ctx = llama_init_from_model(model, cparams);
     if (!ctx) {
-        llama_free_model(model);
+        llama_model_free(model);
         return 0;
     }
 
@@ -70,7 +69,8 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
 
     // Tokenize prompt
     std::vector<llama_token> tokens(prompt.size() + 128);
-    int n_tokens = llama_tokenize(model, prompt.c_str(), (int)prompt.size(), tokens.data(), (int)tokens.size(), true, false);
+    const llama_vocab * vocab = llama_model_get_vocab(model);
+    int n_tokens = llama_tokenize(vocab, prompt.c_str(), (int)prompt.size(), tokens.data(), (int)tokens.size(), true, false);
     if (n_tokens < 1) return nullptr;
     tokens.resize(n_tokens);
 
@@ -84,14 +84,14 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
 
     int n_past = (int)tokens.size();
     llama_token current = tokens.back();
-    const int eos = llama_token_eos(model);
-    const int vocab = llama_n_vocab(model);
+    const int eos = llama_vocab_eos(vocab);
+    const int vocab_size = llama_vocab_n_tokens(vocab);
 
     for (int i = 0; i < maxTokens; ++i) {
         if (llama_eval(ctx, &current, 1, n_past, 4) != 0) break;
         n_past += 1;
         const float *logits = llama_get_logits(ctx);
-        int next = pick_greedy(logits, vocab);
+        int next = pick_greedy(logits, vocab_size);
         if (next == eos) break;
         output.push_back(next);
         current = next;
@@ -100,7 +100,11 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
     std::string result;
     result.reserve(output.size() * 4);
     for (auto t : output) {
-        result += llama_token_to_piece(model, t);
+        char buf[512];
+        int32_t written = llama_token_to_piece(vocab, t, buf, sizeof(buf), 0, true);
+        if (written > 0) {
+            result.append(buf, buf + written);
+        }
     }
 
     return env->NewStringUTF(result.c_str());
@@ -111,7 +115,7 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeUnload(JNIEnv *env, 
     if (h == 0) return;
     auto *handle = reinterpret_cast<LlamaHandle *>(h);
     if (handle->ctx) llama_free(handle->ctx);
-    if (handle->model) llama_free_model(handle->model);
+    if (handle->model) llama_model_free(handle->model);
     delete handle;
     // آزادسازی منابع سراسری بک‌اند
     llama_backend_free();
