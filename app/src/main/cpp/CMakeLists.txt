@@ -26,7 +26,9 @@ if (EXISTS "${LLAMA_CPP_DIR}/CMakeLists.txt")
         llama_wrapper.cpp
     )
     target_include_directories(local_llama PRIVATE ${LLAMA_CPP_DIR})
-    target_link_libraries(local_llama PUBLIC llama log)
+    # Android logcat symbols (__android_log_print) باید لینک شود
+    find_library(log_lib log)
+    target_link_libraries(local_llama PUBLIC llama ${log_lib})
 else()
     message(WARNING "llama.cpp not found at ${LLAMA_CPP_DIR}. Building stub (no real offline inference).")
     add_definitions(-DLLAMA_CPP_AVAILABLE=0)
