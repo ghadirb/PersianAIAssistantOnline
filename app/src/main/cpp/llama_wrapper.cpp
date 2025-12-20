@@ -30,7 +30,8 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeLoad(JNIEnv *env, jo
 
     if (path.empty()) return 0;
 
-    llama_backend_init(false);
+    // llama.cpp جدید دیگر آرگومان نمی‌گیرد
+    llama_backend_init();
 
     llama_model_params mparams = llama_model_default_params();
     auto *model = llama_load_model_from_file(path.c_str(), mparams);
@@ -112,4 +113,6 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeUnload(JNIEnv *env, 
     if (handle->ctx) llama_free(handle->ctx);
     if (handle->model) llama_free_model(handle->model);
     delete handle;
+    // آزادسازی منابع سراسری بک‌اند
+    llama_backend_free();
 }
