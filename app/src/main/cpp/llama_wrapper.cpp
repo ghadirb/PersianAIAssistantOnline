@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstring>
 #include "llama.h"
 
 struct LlamaHandle {
@@ -74,9 +75,14 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
     if (n_tokens < 1) return nullptr;
     tokens.resize(n_tokens);
 
-    // Prime the context
-    if (llama_eval(ctx, tokens.data(), (int)tokens.size(), 0, 4) != 0) {
-        return nullptr;
+    // Prime the context using batch API
+    {
+        llama_batch batch = llama_batch_get_one(tokens.data(), (int)tokens.size());
+        // ensure logits for last token
+        batch.logits[(int)tokens.size() - 1] = 1;
+        if (llama_decode(ctx, batch) != 0) {
+            return nullptr;
+        }
     }
 
     std::vector<llama_token> output;
@@ -88,7 +94,10 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
     const int vocab_size = llama_vocab_n_tokens(vocab);
 
     for (int i = 0; i < maxTokens; ++i) {
-        if (llama_eval(ctx, &current, 1, n_past, 4) != 0) break;
+        llama_batch batch = llama_batch_get_one(&current, 1);
+        batch.pos[0] = n_past;
+        batch.logits[0] = 1;
+        if (llama_decode(ctx, batch) != 0) break;
         n_past += 1;
         const float *logits = llama_get_logits(ctx);
         int next = pick_greedy(logits, vocab_size);
