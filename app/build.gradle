@@ -4,6 +4,24 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization'
 }
 
+// می‌توان با -PskipNativeBuild=true ساخت بومی را در CI غیرفعال کرد (در این حالت استنتاج آفلاین واقعی غیرفعال می‌شود)
+def enableNativeBuild = !project.hasProperty("skipNativeBuild")
+// مسیر resolve شده llama.cpp
+def resolvedLlamaDir = null
+
+if (enableNativeBuild) {
+    def candidate = System.getenv("LLAMA_CPP_DIR")
+    if (candidate == null || candidate.trim().isEmpty()) {
+        candidate = file(rootDir.absolutePath + "/../Compressed/llama.cpp-master").absolutePath
+    }
+    if (file(candidate).exists()) {
+        resolvedLlamaDir = candidate
+    } else {
+        enableNativeBuild = false
+        logger.lifecycle("llama.cpp not found at ${candidate} -> skipping native build (use -PskipNativeBuild=true or set LLAMA_CPP_DIR)")
+    }
+}
+
 // Copy offline Haaniye model into app assets if developer provided it under project root or via env var
 def haaniyeHost = System.getenv('HAANIYE_HOST_PATH') ?: file(rootDir.toString() + '/haaniye').toString()
 task copyHaaniye(type: Copy) {
@@ -35,6 +53,21 @@ android {
         
         // Enable multidex if needed
         multiDexEnabled true
+
+        if (enableNativeBuild) {
+            externalNativeBuild {
+                cmake {
+                    // در صورت نیاز به فلگ‌های اضافی می‌توان اینجا اضافه کرد
+                    cppFlags "-std=c++17"
+                    // مسیر llama.cpp را می‌توان با متغیر محیطی LLAMA_CPP_DIR یا مسیر پیش‌فرض مشخص کرد
+                    arguments "-DLLAMA_CPP_DIR=${resolvedLlamaDir}"
+                }
+            }
+
+            ndk {
+                abiFilters "arm64-v8a"
+            }
+        }
     }
 
     buildTypes {
@@ -55,6 +88,15 @@ android {
             
             // Faster builds
             shrinkResources false
+        }
+    }
+
+    if (enableNativeBuild) {
+        externalNativeBuild {
+            cmake {
+                // فایل CMake برای اتصال به llama.cpp
+                path "src/main/cpp/CMakeLists.txt"
+            }
         }
     }
 

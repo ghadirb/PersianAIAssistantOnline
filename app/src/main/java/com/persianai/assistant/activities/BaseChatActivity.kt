@@ -276,9 +276,42 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun offlineRespond(text: String): String {
-        // پاسخ بسیار ساده آفلاین (TinyLlama جایگزین شبیه‌سازی شده)
+        // تلاش برای استنتاج واقعی از مدل آفلاین (اگر موجود باشد)
+        val modelPath = findOfflineModelPath()
+        if (modelPath != null) {
+            val prompt = buildString {
+                append("شما یک دستیار فارسی هستید. پاسخ کوتاه و مستقیم بده.\n")
+                append("کاربر: ").append(text).append("\nدستیار:")
+            }
+            try {
+                val generated = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
+                if (!generated.isNullOrBlank()) {
+                    return "🟢 پاسخ آفلاین (TinyLlama):\n$generated"
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "Local inference failed: ${e.message}")
+            }
+        }
+
+        // در صورت نبود مدل یا خطا، خلاصه ساده
         val summary = if (text.length > 140) text.take(140) + "…" else text
-        return "🟢 پاسخ آفلاین TinyLlama:\n$summary"
+        return "🟢 پاسخ آفلاین (placeholder):\n$summary"
+    }
+
+    /**
+     * یافتن مسیر مدل tinyllama دانلود‌شده (دستی یا از طریق OfflineModelManager)
+     */
+    private fun findOfflineModelPath(): String? {
+        return try {
+            val manager = com.persianai.assistant.models.OfflineModelManager(this)
+            val list = manager.getDownloadedModels()
+            // اول TinyLlama
+            list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
+                ?: list.firstOrNull()?.second
+        } catch (e: Exception) {
+            android.util.Log.w("BaseChatActivity", "findOfflineModelPath failed: ${e.message}")
+            null
+        }
     }
 
     protected open fun shouldUseOnlinePriority(): Boolean = false
@@ -378,6 +411,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
     
     protected open fun onVoiceRecordingCompleted(audioFile: File, durationMs: Long) {
         Log.d("BaseChatActivity", "Voice recording completed")
+        // پس از اتمام ضبط: تبدیل گفتار به متن و ارسال به چت
+        transcribeAudio(audioFile)
     }
     
     protected open fun onVoiceRecordingCancelled() {
