@@ -284,7 +284,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 append("کاربر: ").append(text).append("\nدستیار:")
             }
             try {
+                android.util.Log.d("BaseChatActivity", "offlineRespond using model: $modelPath, promptLen=${prompt.length}")
                 val generated = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
+                android.util.Log.d("BaseChatActivity", "offlineRespond generated len=${generated?.length ?: 0}")
                 if (!generated.isNullOrBlank()) {
                     return "🟢 پاسخ آفلاین (TinyLlama):\n$generated"
                 }
@@ -343,6 +345,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
+                val workingMode = prefsManager.getWorkingMode()
+                if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                    Toast.makeText(this@BaseChatActivity, "🎙️ ضبط آفلاین انجام شد (تبدیل گفتار به متن در حالت آفلاین غیرفعال است)", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
                 // در حالت جدید: بدون پنجره گوگل، فقط تلاش آنلاین (در صورت فعال بودن) وگرنه پیام آفلاین
                 val transcribedText = aiClient?.transcribeAudio(audioFile.absolutePath)
                     ?.takeIf { !it.isNullOrBlank() }

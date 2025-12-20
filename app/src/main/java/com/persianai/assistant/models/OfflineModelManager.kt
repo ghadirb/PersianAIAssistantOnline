@@ -300,40 +300,44 @@ class OfflineModelManager(private val context: Context) {
         val editor = prefs.edit()
         
         for (file in files) {
-            if (!file.name.endsWith(".gguf")) continue
-            
+            if (!file.name.endsWith(".gguf", ignoreCase = true)) continue
+
             android.util.Log.d("OfflineModelManager", "Found file: ${file.name} - ${formatSize(file.length())}")
-            
-            // تطبیق با مدل‌ها
-            for (model in availableModels) {
-                val expectedFileName = "${model.name.replace(" ", "_")}.gguf"
-                
-                if (file.name.equals(expectedFileName, ignoreCase = true)) {
-                    val fileSize = file.length()
-                    val expectedSize = (model.size * 1024 * 1024 * 1024).toLong()
-                    
-                    // چک حجم - باید حداقل 80% باشد
-                    if (fileSize >= expectedSize * 0.8) {
-                        // ذخیره در SharedPreferences
-                        val json = JSONObject().apply {
-                            put("name", model.name)
-                            put("path", file.absolutePath)
-                            put("size", model.size)
-                            put("description", model.description)
-                            put("downloadDate", System.currentTimeMillis())
-                            put("manualDownload", true)
-                        }
-                        
-                        editor.putString(model.name, json.toString())
-                        android.util.Log.d("OfflineModelManager", "✅ Registered: ${model.name} - ${file.absolutePath}")
-                    } else {
-                        android.util.Log.w("OfflineModelManager", "⚠️ Size too small: ${file.name} - ${formatSize(fileSize)} (expected: ${formatSize(expectedSize)})")
-                    }
-                    break
+
+            // تشخیص دستی TinyLlama بر اساس نام فایل واقعی کاربر (مثلاً tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf)
+            val matchedModel = when {
+                file.name.contains("tinyllama", ignoreCase = true) ||
+                        file.name.contains("tiny_llama", ignoreCase = true) -> availableModels.firstOrNull()
+                else -> availableModels.firstOrNull { model ->
+                    file.name.equals("${model.name.replace(" ", "_")}.gguf", ignoreCase = true)
                 }
             }
+
+            if (matchedModel != null) {
+                val fileSize = file.length()
+                val expectedSize = (matchedModel.size * 1024 * 1024 * 1024).toLong()
+
+                // چک حجم - باید حداقل 80% باشد
+                if (fileSize >= expectedSize * 0.8) {
+                    // ذخیره در SharedPreferences
+                    val json = JSONObject().apply {
+                        put("name", matchedModel.name)
+                        put("path", file.absolutePath)
+                        put("size", matchedModel.size)
+                        put("description", matchedModel.description)
+                        put("downloadDate", System.currentTimeMillis())
+                    }
+
+                    editor.putString(matchedModel.name, json.toString())
+                    android.util.Log.d("OfflineModelManager", "✅ Registered manual model: ${matchedModel.name} -> ${file.absolutePath}")
+                } else {
+                    android.util.Log.w("OfflineModelManager", "⚠️ Skipping ${file.name} - size too small (${formatSize(fileSize)})")
+                }
+            } else {
+                android.util.Log.d("OfflineModelManager", "ℹ️ Unmapped GGUF found (ignored): ${file.name}")
+            }
         }
-        
+
         editor.apply()
     }
     

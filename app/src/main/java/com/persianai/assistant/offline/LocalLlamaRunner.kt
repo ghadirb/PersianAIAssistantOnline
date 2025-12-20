@@ -27,6 +27,7 @@ object LocalLlamaRunner {
             loadedPath = path
             return true
         }
+        Log.w("LocalLlamaRunner", "nativeLoad failed for path=$path")
         return false
     }
 
@@ -34,7 +35,9 @@ object LocalLlamaRunner {
     fun infer(path: String, prompt: String, maxTokens: Int = 96): String? {
         if (prompt.isBlank()) return null
         if (!ensureModel(path)) return null
-        return nativeInfer(handle, prompt, maxTokens)
+        val result = nativeInfer(handle, prompt, maxTokens)
+        Log.d("LocalLlamaRunner", "infer done. handle=$handle, path=$path, resultLen=${result?.length ?: 0}")
+        return result
     }
 
     @Synchronized

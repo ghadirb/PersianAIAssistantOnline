@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <cstring>
+#include <android/log.h>
 #include "llama.h"
 
 struct LlamaHandle {
@@ -36,13 +37,17 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeLoad(JNIEnv *env, jo
 
     llama_model_params mparams = llama_model_default_params();
     auto *model = llama_model_load_from_file(path.c_str(), mparams);
-    if (!model) return 0;
+    if (!model) {
+        __android_log_print(ANDROID_LOG_ERROR, "local_llama", "Failed to load model: %s", path.c_str());
+        return 0;
+    }
 
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = 2048;
 
     auto *ctx = llama_init_from_model(model, cparams);
     if (!ctx) {
+        __android_log_print(ANDROID_LOG_ERROR, "local_llama", "Failed to init context for model: %s", path.c_str());
         llama_model_free(model);
         return 0;
     }
@@ -51,6 +56,7 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeLoad(JNIEnv *env, jo
     handle->model = model;
     handle->ctx = ctx;
     handle->n_ctx = cparams.n_ctx;
+    __android_log_print(ANDROID_LOG_INFO, "local_llama", "Model loaded ok: %s", path.c_str());
     return reinterpret_cast<jlong>(handle);
 }
 
@@ -66,13 +72,19 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
     std::string prompt(cprompt ? cprompt : "");
     env->ReleaseStringUTFChars(jprompt, cprompt);
 
-    if (prompt.empty()) return nullptr;
+    if (prompt.empty()) {
+        __android_log_print(ANDROID_LOG_WARN, "local_llama", "Prompt empty");
+        return nullptr;
+    }
 
     // Tokenize prompt
     std::vector<llama_token> tokens(prompt.size() + 128);
     const llama_vocab * vocab = llama_model_get_vocab(model);
     int n_tokens = llama_tokenize(vocab, prompt.c_str(), (int)prompt.size(), tokens.data(), (int)tokens.size(), true, false);
-    if (n_tokens < 1) return nullptr;
+    if (n_tokens < 1) {
+        __android_log_print(ANDROID_LOG_ERROR, "local_llama", "Tokenize failed");
+        return nullptr;
+    }
     tokens.resize(n_tokens);
 
     // Prime the context using batch API
@@ -81,6 +93,7 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
         // ensure logits for last token
         batch.logits[(int)tokens.size() - 1] = 1;
         if (llama_decode(ctx, batch) != 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "local_llama", "llama_decode failed on prompt");
             return nullptr;
         }
     }
@@ -97,7 +110,10 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, j
         llama_batch batch = llama_batch_get_one(&current, 1);
         batch.pos[0] = n_past;
         batch.logits[0] = 1;
-        if (llama_decode(ctx, batch) != 0) break;
+        if (llama_decode(ctx, batch) != 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "local_llama", "llama_decode failed at step %d", i);
+            break;
+        }
         n_past += 1;
         const float *logits = llama_get_logits(ctx);
         int next = pick_greedy(logits, vocab_size);
