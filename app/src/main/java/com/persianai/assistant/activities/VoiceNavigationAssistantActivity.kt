@@ -480,10 +480,12 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         val action = intent.action
         val dataUri = intent.data
         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+        android.util.Log.i("VoiceNavShare", "handleIncomingIntent action=$action data=$dataUri sharedText=${sharedText?.take(200)} extras=${intent.extras?.keySet()}")
         val parsed = LocationShareParser.parseFromUri(dataUri)
             ?: LocationShareParser.parseFromIntentText(sharedText)
 
         if (parsed != null) {
+            android.util.Log.i("VoiceNavShare", "Parsed shared location: $parsed")
             val latLng = LatLng(parsed.latitude, parsed.longitude)
             val suggestedName = parsed.label?.takeIf { it.isNotBlank() } ?: "مکان ذخیره‌شده"
             promptSaveSharedLocation(latLng, suggestedName)

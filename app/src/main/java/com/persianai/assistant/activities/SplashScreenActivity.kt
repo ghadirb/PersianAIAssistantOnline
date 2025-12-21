@@ -97,6 +97,20 @@ class SplashScreenActivity : AppCompatActivity() {
     }
     
     private fun navigateToNextScreen() {
+        // اگر این Splash با یک intent از اشتراک‌گذاری یا VIEW باز شده، آن را به
+        // VoiceNavigationAssistantActivity منتقل کنیم تا دیالوگ ذخیره مکان نمایش داده شود.
+        val incoming = intent
+        if (incoming != null && (Intent.ACTION_SEND == incoming.action || Intent.ACTION_VIEW == incoming.action)) {
+            try {
+                val forward = Intent(incoming).setClass(this, VoiceNavigationAssistantActivity::class.java)
+                startActivity(forward)
+                finish()
+                return
+            } catch (e: Exception) {
+                android.util.Log.w("SplashScreen", "Failed to forward share intent", e)
+            }
+        }
+
         // همیشه ابتدا SplashActivity تا کلیدها همگام شود، سپس خودش به Main/W elcome هدایت می‌کند
         val intent = Intent(this, SplashActivity::class.java)
         startActivity(intent)

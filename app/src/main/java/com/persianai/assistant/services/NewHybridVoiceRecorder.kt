@@ -502,37 +502,64 @@ class NewHybridVoiceRecorder(private val context: Context) {
             val audioBytes = audioFile.readBytes()
             val requestBody = audioBytes.toRequestBody("audio/m4a".toMediaType())
             
-            val request = Request.Builder()
-                .url("https://api.aimlapi.com/v1/audio/transcribe")
-                .addHeader("Authorization", "Bearer $apiKey")
-                .post(requestBody)
-                .build()
-            
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("API Error: ${response.code} ${response.message}")
-                }
-                
-                val responseBody = response.body?.string()
-                    ?: throw Exception("Empty response from API")
-                
-                // Parse JSON response
+            val endpointsToTry = listOf(
+                "https://api.aimlapi.com/v1/audio/transcribe",
+                "https://api.aimlapi.com/v1/speech/transcribe"
+            )
+
+            var lastError: Exception? = null
+            for (url in endpointsToTry) {
                 try {
-                    val json = JSONObject(responseBody)
-                    val text = json.optString("result", 
-                        json.optString("text", 
-                            json.optString("transcription", responseBody)))
-                    
-                    if (text.isBlank()) {
-                        throw Exception("No text found in response")
+                    val request = Request.Builder()
+                        .url(url)
+                        .addHeader("Authorization", "Bearer $apiKey")
+                        .post(requestBody)
+                        .build()
+
+                    client.newCall(request).execute().use { response ->
+                        val bodyText = response.body?.string()
+                        if (!response.isSuccessful) {
+                            Log.w(TAG, "AIML API ($url) returned ${response.code}: ${response.message}; body=${bodyText?.take(1000)}")
+                            if (response.code == 404) {
+                                // try next endpoint variant
+                                lastError = Exception("AIML 404 from $url: ${response.message}")
+                                return@use
+                            }
+                            throw Exception("API Error: ${response.code} ${response.message} - ${bodyText}")
+                        }
+
+                        val responseBody = bodyText ?: throw Exception("Empty response from API")
+                        try {
+                            val json = JSONObject(responseBody)
+                            val text = json.optString("result",
+                                json.optString("text",
+                                    json.optString("transcription", responseBody)))
+                            if (text.isBlank()) throw Exception("No text found in response")
+                            return@withContext text
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to parse JSON from AIML response, using raw text", e)
+                            return@withContext responseBody
+                        }
                     }
-                    
-                    text
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse JSON, using raw response")
-                    responseBody
+                    lastError = e
+                    Log.w(TAG, "AIML endpoint $url failed", e)
                 }
             }
+
+            // If AIML endpoints all failed with 404 or other errors, fallback to HuggingFace if key available
+            val hfKey = try {
+                val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
+                prefs.getString("hf_api_key", null)
+            } catch (e: Exception) { null }
+
+            if (!hfKey.isNullOrBlank()) {
+                Log.i(TAG, "Falling back to HuggingFace transcription due to AIML failure")
+                val hf = transcribeWithHuggingFace(audioFile, hfKey)
+                if (!hf.isNullOrBlank()) return@withContext hf
+            }
+
+            throw lastError ?: Exception("AIML transcription failed and no fallback available")
             
         } catch (e: Exception) {
             Log.e(TAG, "Error uploading to AIML API", e)
@@ -548,6 +575,39 @@ class NewHybridVoiceRecorder(private val context: Context) {
             val prefs = com.persianai.assistant.utils.PreferencesManager(context)
             prefs.getAPIKeys().firstOrNull()?.key
         } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun transcribeWithHuggingFace(file: File, hfApiKey: String): String? {
+        return try {
+            val bytes = file.readBytes()
+            val body = bytes.toRequestBody("audio/m4a".toMediaType())
+            val request = Request.Builder()
+                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
+                .addHeader("Authorization", "Bearer $hfApiKey")
+                .post(body)
+                .build()
+
+            val client = OkHttpClient()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    Log.e(TAG, "HF transcribe failed: ${resp.code} ${resp.message}")
+                    return null
+                }
+                val responseText = resp.body?.string()?.trim() ?: return null
+                if (responseText.startsWith("{")) {
+                    try {
+                        val json = JSONObject(responseText)
+                        return json.optString("text").ifBlank { json.optString("generated_text") }
+                    } catch (_: Exception) {
+                        return responseText
+                    }
+                }
+                responseText
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "HuggingFace transcription failed", e)
             null
         }
     }
