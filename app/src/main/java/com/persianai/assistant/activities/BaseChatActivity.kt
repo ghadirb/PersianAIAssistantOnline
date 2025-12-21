@@ -21,6 +21,7 @@ import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.ChatMessage
+import com.persianai.assistant.models.Conversation
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.ui.VoiceRecorderView
 import com.persianai.assistant.utils.DefaultApiKeys
@@ -51,6 +52,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
     protected lateinit var voiceHelper: VoiceRecordingHelper
+    private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
+    private lateinit var currentConversation: Conversation
     private val httpClient = OkHttpClient()
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
@@ -81,6 +84,28 @@ abstract class BaseChatActivity : AppCompatActivity() {
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        // Initialize conversation storage and load current conversation (if any)
+        conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
+        currentConversation = Conversation()
+        lifecycleScope.launch {
+            try {
+                val id = conversationStorage.getCurrentConversationId()
+                val loaded = if (!id.isNullOrBlank()) conversationStorage.getConversation(id) else null
+                if (loaded != null) {
+                    currentConversation = loaded
+                    messages.clear()
+                    messages.addAll(loaded.messages)
+                    if (this@BaseChatActivity::chatAdapter.isInitialized) {
+                        chatAdapter.notifyDataSetChanged()
+                    }
+                } else {
+                    conversationStorage.setCurrentConversationId(currentConversation.id)
+                    conversationStorage.saveConversation(currentConversation)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "Failed loading conversation: ${e.message}")
+            }
+        }
         
         // Setup Voice Recording Helper
         voiceHelper = VoiceRecordingHelper(this)
@@ -279,19 +304,32 @@ abstract class BaseChatActivity : AppCompatActivity() {
         // تلاش برای استنتاج واقعی از مدل آفلاین (اگر موجود باشد)
         val modelPath = findOfflineModelPath()
         if (modelPath != null) {
+            try {
+                val f = File(modelPath)
+                android.util.Log.d("BaseChatActivity", "Found offline model path: $modelPath, exists=${f.exists()}, length=${if (f.exists()) f.length() else 0}")
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "Could not stat model file: ${e.message}", e)
+            }
             val prompt = buildString {
                 append("شما یک دستیار فارسی هستید. پاسخ کوتاه و مستقیم بده.\n")
                 append("کاربر: ").append(text).append("\nدستیار:")
             }
             try {
                 android.util.Log.d("BaseChatActivity", "offlineRespond using model: $modelPath, promptLen=${prompt.length}")
-                val generated = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
+                val generated = try {
+                    com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
+                } catch (t: Throwable) {
+                    android.util.Log.e("BaseChatActivity", "LocalLlamaRunner.infer threw", t)
+                    null
+                }
                 android.util.Log.d("BaseChatActivity", "offlineRespond generated len=${generated?.length ?: 0}")
                 if (!generated.isNullOrBlank()) {
                     return "🟢 پاسخ آفلاین (TinyLlama):\n$generated"
+                } else {
+                    android.util.Log.w("BaseChatActivity", "Local inference returned empty result")
                 }
             } catch (e: Exception) {
-                android.util.Log.w("BaseChatActivity", "Local inference failed: ${e.message}")
+                android.util.Log.w("BaseChatActivity", "Local inference failed: ${e.message}", e)
             }
         }
 
@@ -307,11 +345,17 @@ abstract class BaseChatActivity : AppCompatActivity() {
         return try {
             val manager = com.persianai.assistant.models.OfflineModelManager(this)
             val list = manager.getDownloadedModels()
+            android.util.Log.d("BaseChatActivity", "findOfflineModelPath: found ${list.size} downloaded models")
+            list.forEach { pair ->
+                try {
+                    android.util.Log.d("BaseChatActivity", "Model entry: ${pair.first.name} -> ${pair.second}")
+                } catch (_: Exception) { }
+            }
             // اول TinyLlama
             list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
                 ?: list.firstOrNull()?.second
         } catch (e: Exception) {
-            android.util.Log.w("BaseChatActivity", "findOfflineModelPath failed: ${e.message}")
+            android.util.Log.w("BaseChatActivity", "findOfflineModelPath failed: ${e.message}", e)
             null
         }
     }
@@ -329,6 +373,15 @@ abstract class BaseChatActivity : AppCompatActivity() {
         if (message.role == MessageRole.ASSISTANT && !message.isError) {
             ttsHelper.speak(message.content)
         }
+        // Persist message into current conversation
+        try {
+            currentConversation.messages.add(message)
+            lifecycleScope.launch {
+                try {
+                    conversationStorage.saveConversation(currentConversation)
+                } catch (_: Exception) { }
+            }
+        } catch (_: Exception) { }
     }
 
     private fun checkAudioPermissionAndStartRecording() {
