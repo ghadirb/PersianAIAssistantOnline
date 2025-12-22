@@ -14,9 +14,41 @@ object LocalLlamaRunner {
 
     private var handle: Long = 0
     private var loadedPath: String? = null
+    private var realBackendAvailable: Boolean? = null
+
+    @Synchronized
+    fun isBackendAvailable(): Boolean {
+        if (realBackendAvailable == null) {
+            try {
+                val flag = nativeIsRealBackend()
+                realBackendAvailable = flag != 0
+                Log.i("LocalLlamaRunner", "nativeIsRealBackend -> ${realBackendAvailable}")
+            } catch (t: Throwable) {
+                realBackendAvailable = false
+                Log.w("LocalLlamaRunner", "nativeIsRealBackend check failed", t)
+            }
+        }
+        return realBackendAvailable == true
+    }
 
     @Synchronized
     fun ensureModel(path: String): Boolean {
+        // If we haven't checked whether the native backend is real, do so now.
+        if (realBackendAvailable == null) {
+            try {
+                val flag = nativeIsRealBackend()
+                realBackendAvailable = flag != 0
+                Log.i("LocalLlamaRunner", "nativeIsRealBackend -> ${realBackendAvailable}")
+            } catch (t: Throwable) {
+                realBackendAvailable = false
+                Log.w("LocalLlamaRunner", "nativeIsRealBackend check failed", t)
+            }
+        }
+
+        if (realBackendAvailable == false) {
+            Log.w("LocalLlamaRunner", "Native llama backend not available (built as stub). Skipping nativeLoad.")
+            return false
+        }
         try {
             if (handle != 0L && loadedPath == path) return true
             if (handle != 0L) {
@@ -88,4 +120,5 @@ object LocalLlamaRunner {
     private external fun nativeLoad(path: String): Long
     private external fun nativeInfer(handle: Long, prompt: String, maxTokens: Int): String?
     private external fun nativeUnload(handle: Long)
+    private external fun nativeIsRealBackend(): Int
 }

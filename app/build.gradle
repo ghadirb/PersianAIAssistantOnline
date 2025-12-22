@@ -38,6 +38,20 @@ task copyHaaniye(type: Copy) {
 
 preBuild.dependsOn copyHaaniye
 
+// If PREBUILT_LIBS_URL is provided in CI environment, run fetch script to populate prebuilt_libs
+def prebuiltUrl = System.getenv('PREBUILT_LIBS_URL')
+if (prebuiltUrl != null && !prebuiltUrl.trim().isEmpty()) {
+    tasks.register('downloadPrebuiltLibs', Exec) {
+        workingDir rootDir
+        if (System.properties['os.name'].toLowerCase().contains('windows')) {
+            commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/fetch_prebuilt_libs.ps1'
+        } else {
+            commandLine 'bash', 'scripts/fetch_prebuilt_libs.sh'
+        }
+    }
+    preBuild.dependsOn tasks.named('downloadPrebuiltLibs')
+}
+
 android {
     namespace 'com.persianai.assistant'
     compileSdk 34
@@ -160,6 +174,12 @@ android {
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
+            // Allow optional prebuilt native libs to be provided at project root
+            def prebuilt = file(rootDir.absolutePath + '/prebuilt_libs')
+            if (prebuilt.exists()) {
+                jniLibs.srcDirs += prebuilt
+                logger.lifecycle("Including prebuilt native libs from ${prebuilt}")
+            }
         }
     }
 }

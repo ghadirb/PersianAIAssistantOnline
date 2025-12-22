@@ -303,6 +303,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun offlineRespond(text: String): String {
         // تلاش برای استنتاج واقعی از مدل آفلاین (اگر موجود باشد)
         val modelPath = findOfflineModelPath()
+        val backendAvailable = try { com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable() } catch (_: Exception) { false }
         if (modelPath != null) {
             try {
                 val f = File(modelPath)
@@ -331,6 +332,15 @@ abstract class BaseChatActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.w("BaseChatActivity", "Local inference failed: ${e.message}", e)
             }
+        }
+
+        // اگر بک‌اند بومی در این بیلد فعال نیست، پیام راهنما نمایش بدهیم
+        if (!backendAvailable) {
+            val hint = "آفلاین محلی در این بیلد فعال نیست. برای فعال‌سازی: در CI/محیط بیلد `llama.cpp` را اضافه کنید یا کتابخانه بومی (`liblocal_llama.so`) را در `app/src/main/jniLibs/<abi>/` قرار دهید."
+            android.util.Log.i("BaseChatActivity", "Offline backend unavailable: $hint")
+            Toast.makeText(this, "آفلاین محلی غیرفعال است — برای فعال‌سازی به تنظیمات توسعه‌دهنده مراجعه کنید.", Toast.LENGTH_LONG).show()
+            val summary = if (text.length > 140) text.take(140) + "…" else text
+            return "🟢 پاسخ آفلاین (placeholder):\n$summary\n\n$hint"
         }
 
         // در صورت نبود مدل یا خطا، خلاصه ساده

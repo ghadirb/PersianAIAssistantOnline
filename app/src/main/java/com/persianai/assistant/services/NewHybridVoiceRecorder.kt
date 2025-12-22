@@ -510,44 +510,95 @@ class NewHybridVoiceRecorder(private val context: Context) {
             var lastError: Exception? = null
             for (url in endpointsToTry) {
                 try {
-                    val request = Request.Builder()
-                        .url(url)
-                        .addHeader("Authorization", "Bearer $apiKey")
-                        .post(requestBody)
-                        .build()
-
-                    client.newCall(request).execute().use { response ->
-                        val bodyText = response.body?.string()
-                        if (!response.isSuccessful) {
-                            Log.w(TAG, "AIML API ($url) returned ${response.code}: ${response.message}; body=${bodyText?.take(1000)}")
-                            if (response.code == 404) {
-                                // try next endpoint variant
-                                lastError = Exception("AIML 404 from $url: ${response.message}")
-                                return@use
-                            }
-                            throw Exception("API Error: ${response.code} ${response.message} - ${bodyText}")
-                        }
-
-                        val responseBody = bodyText ?: throw Exception("Empty response from API")
+                    // Retry transient network errors a couple times with backoff
+                    var attempt = 0
+                    var lastAttemptException: Exception? = null
+                    while (attempt < 3) {
+                        attempt++
                         try {
-                            val json = JSONObject(responseBody)
-                            val text = json.optString("result",
-                                json.optString("text",
-                                    json.optString("transcription", responseBody)))
-                            if (text.isBlank()) throw Exception("No text found in response")
-                            return@withContext text
+                            val request = Request.Builder()
+                                .url(url)
+                                .addHeader("Authorization", "Bearer $apiKey")
+                                .post(requestBody)
+                                .build()
+
+                            client.newCall(request).execute().use { response ->
+                                val bodyText = response.body?.string()
+                                if (!response.isSuccessful) {
+                                    Log.w(TAG, "AIML API ($url) returned ${response.code}: ${response.message}; body=${bodyText?.take(1000)}")
+                                    if (response.code == 404) {
+                                        // try next endpoint variant
+                                        lastError = Exception("AIML 404 from $url: ${response.message}")
+                                        return@use
+                                    }
+                                    throw Exception("API Error: ${response.code} ${response.message} - ${bodyText}")
+                                }
+
+                                val responseBody = bodyText ?: throw Exception("Empty response from API")
+                                try {
+                                    val json = JSONObject(responseBody)
+                                    val text = json.optString("result",
+                                        json.optString("text",
+                                            json.optString("transcription", responseBody)))
+                                    if (text.isBlank()) throw Exception("No text found in response")
+                                    return@withContext text
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to parse JSON from AIML response, using raw text", e)
+                                    return@withContext responseBody
+                                }
+                            }
                         } catch (e: Exception) {
-                            Log.w(TAG, "Failed to parse JSON from AIML response, using raw text", e)
-                            return@withContext responseBody
+                            lastAttemptException = e
+                            Log.w(TAG, "Attempt $attempt for $url failed", e)
+                            if (attempt < 3) Thread.sleep(500L * attempt)
+                            else throw e
                         }
                     }
+                    // if we reach here, the attempts failed
+                    lastError = lastAttemptException ?: lastError
+                    
                 } catch (e: Exception) {
                     lastError = e
                     Log.w(TAG, "AIML endpoint $url failed", e)
                 }
             }
 
-            // If AIML endpoints all failed with 404 or other errors, fallback to HuggingFace if key available
+            // If AIML endpoints all failed with 404 or other errors, attempt multipart/form upload as a fallback
+            val primaryEndpoint = endpointsToTry.first()
+            try {
+                Log.i(TAG, "Attempting multipart/form fallback to $primaryEndpoint")
+                val multipart = MultipartBody.Builder().setType(MultipartBody.FORM)
+                    .addFormDataPart("file", audioFile.name, audioBytes.toRequestBody("audio/m4a".toMediaType()))
+                    .build()
+
+                val req = Request.Builder()
+                    .url(primaryEndpoint)
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .post(multipart)
+                    .build()
+
+                client.newCall(req).execute().use { resp ->
+                    val bodyText = resp.body?.string()
+                    if (!resp.isSuccessful) {
+                        Log.w(TAG, "Multipart AIML fallback failed: ${resp.code} ${resp.message} body=${bodyText?.take(1000)}")
+                    } else {
+                        Log.i(TAG, "Multipart AIML fallback succeeded")
+                        if (!bodyText.isNullOrBlank()) {
+                            try {
+                                val json = JSONObject(bodyText)
+                                val text = json.optString("result", json.optString("text", json.optString("transcription", bodyText)))
+                                if (text.isNotBlank()) return@withContext text
+                            } catch (e: Exception) {
+                                return@withContext bodyText
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Multipart AIML fallback threw", e)
+            }
+
+            // If multipart also failed, fallback to HuggingFace if key available
             val hfKey = try {
                 val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
                 prefs.getString("hf_api_key", null)
@@ -573,7 +624,10 @@ class NewHybridVoiceRecorder(private val context: Context) {
     private fun getAPIKey(): String? {
         return try {
             val prefs = com.persianai.assistant.utils.PreferencesManager(context)
-            prefs.getAPIKeys().firstOrNull()?.key
+            // Prefer AIML provider key specifically for transcription endpoint
+            prefs.getAPIKeys().firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML }?.key
+                // fallback to any available key
+                ?: prefs.getAPIKeys().firstOrNull()?.key
         } catch (e: Exception) {
             null
         }

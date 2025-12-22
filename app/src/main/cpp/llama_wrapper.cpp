@@ -60,6 +60,11 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeLoad(JNIEnv *env, jo
     return reinterpret_cast<jlong>(handle);
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeIsRealBackend(JNIEnv *, jobject) {
+    return 1; // real backend present
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, jobject /*thiz*/, jlong h, jstring jprompt, jint maxTokens) {
     if (h == 0) return nullptr;

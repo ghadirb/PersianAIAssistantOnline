@@ -5,6 +5,11 @@ Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeLoad(JNIEnv *, jobje
     return 0;
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeIsRealBackend(JNIEnv *, jobject) {
+    return 0; // stub indicates real llama.cpp is not available
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_persianai_assistant_offline_LocalLlamaRunner_nativeInfer(JNIEnv *env, jobject, jlong, jstring, jint) {
     return nullptr;

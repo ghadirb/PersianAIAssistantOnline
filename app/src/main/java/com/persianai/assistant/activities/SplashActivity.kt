@@ -367,6 +367,18 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToMain() {
+        val incoming = intent
+        if (incoming != null && (Intent.ACTION_SEND == incoming.action || Intent.ACTION_VIEW == incoming.action)) {
+            try {
+                val forward = Intent(incoming).setClass(this, VoiceNavigationAssistantActivity::class.java)
+                startActivity(forward)
+                finish()
+                return
+            } catch (e: Exception) {
+                android.util.Log.w("SplashActivity", "Failed to forward share intent", e)
+            }
+        }
+
         val intent = Intent(this, DashboardActivity::class.java)
         startActivity(intent)
         finish()
