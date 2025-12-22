@@ -392,11 +392,14 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 else -> "تحلیل انجام نشد"
             }
 
+            val offlineResult: Result<String> = try { offlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
+            val onlineResult: Result<String> = try { onlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
+
             val hybridResult = HybridAnalysisResult(
                 offlineText = offlineFinal,
                 onlineText = onlineFinal,
                 primaryText = primary,
-                confidence = calculateConfidence(Result.success(offlineFinal), Result.success(onlineFinal)),
+                confidence = calculateConfidence(offlineResult, onlineResult),
                 timestamp = System.currentTimeMillis()
             )
             
