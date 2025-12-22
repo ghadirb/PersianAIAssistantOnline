@@ -578,16 +578,20 @@ class NewHybridVoiceRecorder(private val context: Context) {
                     .build()
 
                 client.newCall(req).execute().use { resp ->
-                    val bodyText = resp.body?.string()
+                    val bodyText = resp.body?.string() ?: ""
                     if (!resp.isSuccessful) {
-                        Log.w(TAG, "Multipart AIML fallback failed: ${resp.code} ${resp.message} body=${bodyText?.take(1000)}")
+                        Log.w(TAG, "Multipart AIML fallback failed: ${resp.code} ${resp.message} body=${bodyText.take(1000)}")
                     } else {
                         Log.i(TAG, "Multipart AIML fallback succeeded")
-                        if (!bodyText.isNullOrBlank()) {
+                        if (bodyText.isNotBlank()) {
                             try {
                                 val json = JSONObject(bodyText)
                                 val text = json.optString("result", json.optString("text", json.optString("transcription", bodyText)))
-                                if (text.isNotBlank()) return@withContext text
+                                if (text.isNotBlank()) {
+                                    return@withContext text
+                                } else {
+                                    return@withContext bodyText
+                                }
                             } catch (e: Exception) {
                                 return@withContext bodyText
                             }
