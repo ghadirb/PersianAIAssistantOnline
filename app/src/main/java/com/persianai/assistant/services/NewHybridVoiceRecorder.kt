@@ -595,6 +595,8 @@ class NewHybridVoiceRecorder(private val context: Context) {
                             } catch (e: Exception) {
                                 return@withContext bodyText
                             }
+                        } else {
+                            Log.w(TAG, "Multipart AIML fallback returned empty body")
                         }
                     }
                 }
