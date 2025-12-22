@@ -374,16 +374,29 @@ class NewHybridVoiceRecorder(private val context: Context) {
             // Run offline and online analysis in parallel
             val offlineDeferred = async { analyzeOffline(audioFile) }
             val onlineDeferred = async { analyzeOnline(audioFile) }
-            
-            val offlineResult = offlineDeferred.await()
-            val onlineResult = onlineDeferred.await()
-            
-            // Combine results
+
+            // Prefer the fastest non-empty result. Don't block long on online analysis if offline is quick.
+            val offlineFast = try { withTimeoutOrNull(1500) { offlineDeferred.await().getOrNull() } } catch (_: Exception) { null }
+            val onlineFast = if (offlineFast.isNullOrBlank()) {
+                try { withTimeoutOrNull(6000) { onlineDeferred.await().getOrNull() } } catch (_: Exception) { null }
+            } else null
+
+            val offlineFinal = try { offlineDeferred.await().getOrNull() } catch (_: Exception) { null }
+            val onlineFinal = try { onlineDeferred.await().getOrNull() } catch (_: Exception) { null }
+
+            val primary = when {
+                !onlineFast.isNullOrBlank() -> onlineFast
+                !offlineFast.isNullOrBlank() -> offlineFast
+                !onlineFinal.isNullOrBlank() -> onlineFinal
+                !offlineFinal.isNullOrBlank() -> offlineFinal
+                else -> "تحلیل انجام نشد"
+            }
+
             val hybridResult = HybridAnalysisResult(
-                offlineText = offlineResult.getOrNull(),
-                onlineText = onlineResult.getOrNull(),
-                primaryText = onlineResult.getOrNull() ?: offlineResult.getOrNull() ?: "تحلیل انجام نشد",
-                confidence = calculateConfidence(offlineResult, onlineResult),
+                offlineText = offlineFinal,
+                onlineText = onlineFinal,
+                primaryText = primary,
+                confidence = calculateConfidence(Result.success(offlineFinal), Result.success(onlineFinal)),
                 timestamp = System.currentTimeMillis()
             )
             

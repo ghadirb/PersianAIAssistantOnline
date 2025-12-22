@@ -303,7 +303,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun offlineRespond(text: String): String {
         // تلاش برای استنتاج واقعی از مدل آفلاین (اگر موجود باشد)
         val modelPath = findOfflineModelPath()
-        val backendAvailable = try { com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable() } catch (_: Exception) { false }
+        val backendAvailable = try { com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable() } catch (t: Throwable) {
+            android.util.Log.w("BaseChatActivity", "isBackendAvailable check failed: ${t.message}", t)
+            false
+        }
+        android.util.Log.i("BaseChatActivity", "offlineRespond: modelPath=${modelPath ?: "<none>"}, backendAvailable=$backendAvailable")
         if (modelPath != null) {
             try {
                 val f = File(modelPath)
@@ -318,7 +322,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
             try {
                 android.util.Log.d("BaseChatActivity", "offlineRespond using model: $modelPath, promptLen=${prompt.length}")
                 val generated = try {
-                    com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
+                    val ok = com.persianai.assistant.offline.LocalLlamaRunner.ensureModel(modelPath)
+                    android.util.Log.d("BaseChatActivity", "ensureModel returned: $ok")
+                    if (ok) com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
+                    else null
                 } catch (t: Throwable) {
                     android.util.Log.e("BaseChatActivity", "LocalLlamaRunner.infer threw", t)
                     null

@@ -318,7 +318,8 @@ class OfflineModelManager(private val context: Context) {
                 val expectedSize = (matchedModel.size * 1024 * 1024 * 1024).toLong()
 
                 // چک حجم - باید حداقل 80% باشد
-                if (fileSize >= expectedSize * 0.8) {
+                // Accept a model file if it's reasonably large (>1MB) or matches expected size.
+                if (fileSize >= 1_000_000 || fileSize >= expectedSize * 0.8) {
                     // ذخیره در SharedPreferences
                     val json = JSONObject().apply {
                         put("name", matchedModel.name)
@@ -331,7 +332,7 @@ class OfflineModelManager(private val context: Context) {
                     editor.putString(matchedModel.name, json.toString())
                     android.util.Log.d("OfflineModelManager", "✅ Registered manual model: ${matchedModel.name} -> ${file.absolutePath}")
                 } else {
-                    android.util.Log.w("OfflineModelManager", "⚠️ Skipping ${file.name} - size too small (${formatSize(fileSize)})")
+                    android.util.Log.w("OfflineModelManager", "⚠️ Skipping ${file.name} - size too small (${formatSize(fileSize)}) (expected ${formatSize(expectedSize)})")
                 }
             } else {
                 android.util.Log.d("OfflineModelManager", "ℹ️ Unmapped GGUF found (ignored): ${file.name}")
