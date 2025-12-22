@@ -33,7 +33,18 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
-
+        // If app was launched via a share or VIEW intent, forward immediately
+        try {
+            val incoming = intent
+            if (incoming != null && (Intent.ACTION_SEND == incoming.action || Intent.ACTION_VIEW == incoming.action)) {
+                val forward = Intent(incoming).setClass(this, VoiceNavigationAssistantActivity::class.java)
+                startActivity(forward)
+                finish()
+                return
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SplashActivity", "Failed to forward incoming intent", e)
+        }
         requestNotificationPermissionIfNeeded()
 
         lifecycleScope.launch {
