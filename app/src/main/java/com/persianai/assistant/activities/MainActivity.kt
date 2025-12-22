@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 import android.view.MotionEvent
 import java.io.File
 import com.persianai.assistant.services.VoiceRecordingHelper
+import com.persianai.assistant.models.OfflineModelManager
 
 /**
  * صفحه اصلی چت
@@ -136,6 +137,23 @@ class MainActivity : AppCompatActivity() {
             
             updateModeIndicator()
             android.util.Log.d("MainActivity", "Mode indicator updated")
+
+            // Chip actions
+            binding.modelIndicator.setOnClickListener {
+                showModelSelector()
+            }
+
+            binding.modeIndicator.setOnClickListener {
+                // cycle: OFFLINE -> HYBRID -> ONLINE
+                val next = when (prefsManager.getWorkingMode()) {
+                    PreferencesManager.WorkingMode.OFFLINE -> PreferencesManager.WorkingMode.HYBRID
+                    PreferencesManager.WorkingMode.HYBRID -> PreferencesManager.WorkingMode.ONLINE
+                    PreferencesManager.WorkingMode.ONLINE -> PreferencesManager.WorkingMode.OFFLINE
+                }
+                prefsManager.setWorkingMode(next)
+                updateModeIndicator()
+                Toast.makeText(this, "حالت: ${binding.modeIndicator.text}", Toast.LENGTH_SHORT).show()
+            }
             
             // نمایش پیام خوش‌آمدگویی در اولین اجرا
             showFirstRunDialogIfNeeded()
@@ -655,11 +673,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun handleOfflineRequest(text: String): String = withContext(Dispatchers.IO) {
+        // 1) اگر مدل واقعی GGUF وجود دارد، از TinyLlama استفاده کن
+        val modelPath = findOfflineModelPath()
+        if (modelPath != null) {
+            val prompt = buildString {
+                append("شما یک دستیار فارسی هستید. پاسخ کوتاه و مستقیم بده.\n")
+                append("کاربر: ").append(text).append("\nدستیار:")
+            }
+            return@withContext try {
+                android.util.Log.d("MainActivity", "offline llm using model=$modelPath")
+                val out = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 128)
+                if (!out.isNullOrBlank()) {
+                    "🟢 پاسخ آفلاین (TinyLlama):\n$out"
+                } else {
+                    android.util.Log.w("MainActivity", "offline llm returned empty; fallback to parser")
+                    offlineParserFallback(text)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "offline llm failed: ${e.message}")
+                offlineParserFallback(text)
+            }
+        }
+
+        // 2) در غیر این صورت، fallback قبلی (پارسر آفلاین)
+        return@withContext offlineParserFallback(text)
+    }
+
+    private suspend fun offlineParserFallback(text: String): String {
         val parser = com.persianai.assistant.ai.OfflineIntentParser(this@MainActivity)
         val intentJson = parser.parse(text)
-        
-        // اجرای intent و برگرداندن نتیجه
-        return@withContext processAIResponse(intentJson)
+        return processAIResponse(intentJson)
+    }
+
+    private fun findOfflineModelPath(): String? {
+        return try {
+            val manager = OfflineModelManager(this)
+            val list = manager.getDownloadedModels()
+            list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
+                ?: list.firstOrNull()?.second
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "findOfflineModelPath failed: ${e.message}")
+            null
+        }
     }
     
     private suspend fun handleOnlineRequest(text: String): String = withContext(Dispatchers.IO) {
@@ -1305,6 +1360,17 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                val mode = prefsManager.getWorkingMode()
+                if (mode == PreferencesManager.WorkingMode.OFFLINE) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "🎙️ در حالت آفلاین، تبدیل صوت به متن آنلاین غیرفعال است.\nاز تشخیص صوت داخلی استفاده می...",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    checkAudioPermissionAndStartSpeechRecognition()
+                    return@launch
+                }
+
                 // تبدیل صوت به متن با Whisper
                 val transcribedText = aiClient?.transcribeAudio(filePath)
 
