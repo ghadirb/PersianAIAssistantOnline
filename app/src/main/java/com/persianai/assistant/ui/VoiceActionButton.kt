@@ -3,6 +3,11 @@ package com.persianai.assistant.ui
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.AttributeSet
 import android.util.Log
 import android.view.LayoutInflater
@@ -12,12 +17,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.persianai.assistant.R
-import com.persianai.assistant.services.UnifiedVoiceEngine
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 class VoiceActionButton @JvmOverloads constructor(
@@ -33,25 +32,84 @@ class VoiceActionButton @JvmOverloads constructor(
         fun onRecordingError(error: String)
     }
 
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
-    private val engine = UnifiedVoiceEngine(context)
-    private var isRecording = false
+    private var isListening = false
     private var btn: MaterialButton
     private var listener: Listener? = null
     private val TAG = "VoiceActionButton"
+    private var speechRecognizer: SpeechRecognizer? = null
 
     init {
         val view = LayoutInflater.from(context).inflate(R.layout.view_voice_action_button, this, true)
         btn = view.findViewById(R.id.voice_action_btn)
-        btn.setOnClickListener { toggleRecording() }
+        btn.setOnClickListener { toggleListening() }
+        ensureSpeechRecognizer()
     }
 
     fun setListener(l: Listener?) {
         listener = l
     }
 
-    private fun toggleRecording() {
-        if (!isRecording) startRecording() else stopRecording()
+    private fun toggleListening() {
+        if (!isListening) startListening() else stopListening()
+    }
+
+    private fun ensureSpeechRecognizer() {
+        if (speechRecognizer != null) return
+        try {
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                Log.w(TAG, "SpeechRecognizer not available")
+                return
+            }
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        Log.d(TAG, "onReadyForSpeech")
+                    }
+
+                    override fun onBeginningOfSpeech() {
+                        Log.d(TAG, "onBeginningOfSpeech")
+                    }
+
+                    override fun onRmsChanged(rmsdB: Float) {
+                    }
+
+                    override fun onBufferReceived(buffer: ByteArray?) {
+                    }
+
+                    override fun onEndOfSpeech() {
+                        Log.d(TAG, "onEndOfSpeech")
+                    }
+
+                    override fun onError(error: Int) {
+                        Log.w(TAG, "SpeechRecognizer error=$error")
+                        isListening = false
+                        btn.text = "🎤 صحبت کن"
+                        listener?.onRecordingError("خطا در تشخیص گفتار (کد: $error)")
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val best = texts?.firstOrNull()?.trim().orEmpty()
+                        Log.d(TAG, "SpeechRecognizer results: ${best.take(200)}")
+                        isListening = false
+                        btn.text = "🎤 صحبت کن"
+                        if (best.isNotBlank()) {
+                            listener?.onTranscript(best)
+                        } else {
+                            listener?.onRecordingError("متنی دریافت نشد")
+                        }
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle?) {
+                    }
+
+                    override fun onEvent(eventType: Int, params: Bundle?) {
+                    }
+                })
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init SpeechRecognizer", e)
+        }
     }
 
     private fun checkPermission(): Boolean {
@@ -64,81 +122,49 @@ class VoiceActionButton @JvmOverloads constructor(
         ActivityCompat.requestPermissions(act, arrayOf(android.Manifest.permission.RECORD_AUDIO), 4001)
     }
 
-    private fun startRecording() {
+    private fun startListening() {
         if (!checkPermission()) {
             requestPermission()
             Toast.makeText(context, "نیاز به مجوز میکروفون", Toast.LENGTH_SHORT).show()
             return
         }
 
-        scope.launch {
-            try {
-                Log.d(TAG, "🎤 Starting recording...")
-                val res = engine.startRecording()
-                if (res.isSuccess) {
-                    isRecording = true
-                    btn.text = "⏹️ توقف"
-                    listener?.onRecordingStarted()
-                    Log.d(TAG, "✅ Recording started")
-                } else {
-                    val error = res.exceptionOrNull()?.message ?: "خطا نامشخص"
-                    listener?.onRecordingError(error)
-                    Log.e(TAG, "❌ Failed to start: $error")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception in startRecording", e)
-                listener?.onRecordingError(e.message ?: "خطا نامشخص")
+        ensureSpeechRecognizer()
+        val sr = speechRecognizer
+        if (sr == null) {
+            listener?.onRecordingError("تشخیص گفتار روی این دستگاه فعال نیست")
+            return
+        }
+
+        try {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fa-IR")
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "صحبت کنید")
             }
+            isListening = true
+            btn.text = "⏹️ توقف"
+            listener?.onRecordingStarted()
+            sr.startListening(intent)
+            Log.d(TAG, "✅ SpeechRecognizer listening")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception starting SpeechRecognizer", e)
+            isListening = false
+            btn.text = "🎤 صحبت کن"
+            listener?.onRecordingError(e.message ?: "خطا نامشخص")
         }
     }
 
-    private fun stopRecording() {
-        scope.launch {
-            try {
-                Log.d(TAG, "🛑 Stopping recording...")
-                val stopRes = engine.stopRecording()
-                isRecording = false
-                btn.text = "🎤 صحبت کن"
-                
-                if (stopRes.isSuccess) {
-                    val rec = stopRes.getOrNull()
-                    if (rec != null) {
-                        Log.d(TAG, "✅ Recording stopped: ${rec.file.absolutePath}")
-                        listener?.onRecordingCompleted(rec.file, rec.duration)
-                        
-                        // تحلیل Hybrid و ارسال متن
-                        Log.d(TAG, "🔍 Performing hybrid analysis...")
-                        val analysis = engine.analyzeHybrid(rec.file)
-                        if (analysis.isSuccess) {
-                            val result = analysis.getOrNull()
-                            if (result != null) {
-                                val primary = result.primaryText
-                                Log.d(TAG, "✅ Hybrid analysis done: $primary")
-                                if (!primary.isNullOrBlank()) {
-                                    listener?.onTranscript(primary)
-                                } else {
-                                    listener?.onRecordingError("تحلیل خالی شد")
-                                }
-                            } else {
-                                listener?.onRecordingError("نتیجه تحلیل خالی است")
-                            }
-                        } else {
-                            val error = analysis.exceptionOrNull()?.message ?: "خطا در تحلیل"
-                            Log.e(TAG, "❌ Analysis failed: $error")
-                            listener?.onRecordingError(error)
-                        }
-                    } else {
-                        listener?.onRecordingError("نتیجه ضبط خالی است")
-                    }
-                } else {
-                    val error = stopRes.exceptionOrNull()?.message ?: "خطا نامشخص"
-                    listener?.onRecordingError(error)
-                    Log.e(TAG, "❌ Failed to stop: $error")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Exception in stopRecording", e)
-                listener?.onRecordingError(e.message ?: "خطا نامشخص")
-            }
+    private fun stopListening() {
+        try {
+            isListening = false
+            btn.text = "🎤 صحبت کن"
+            speechRecognizer?.stopListening()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception stopping SpeechRecognizer", e)
+            listener?.onRecordingError(e.message ?: "خطا نامشخص")
         }
     }
-}
+ }

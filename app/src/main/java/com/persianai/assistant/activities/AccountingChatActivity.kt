@@ -13,6 +13,7 @@ import com.persianai.assistant.utils.PersianDateConverter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.Locale
 
 class AccountingChatActivity : BaseChatActivity() {
 
@@ -62,6 +63,9 @@ class AccountingChatActivity : BaseChatActivity() {
     }
 
     override suspend fun handleRequest(text: String): String {
+        val offlineLocal = handleOfflineLocal(text)
+        if (!offlineLocal.isNullOrBlank()) return offlineLocal
+
         val responseJson = super.handleRequest(text)
         return try {
             // استخراج JSON از پاسخ
@@ -133,6 +137,66 @@ class AccountingChatActivity : BaseChatActivity() {
         } catch (e: Exception) {
             responseJson
         }
+    }
+
+    private fun handleOfflineLocal(text: String): String? {
+        val input = normalizeDigits(text).trim()
+        if (input.isBlank()) return null
+
+        val isIncome = input.contains("درآمد")
+        val isExpense = input.contains("هزینه") || input.contains("خرج")
+        if (!isIncome && !isExpense) return null
+
+        val amount = extractAmount(input) ?: return null
+        val description = extractDescription(input)
+
+        return try {
+            if (isIncome) {
+                financeManager.addTransaction(amount, "income", "درآمد", description)
+                "✅ درآمد «$description» به مبلغ ${String.format(Locale.US, "%,.0f", amount)} تومان ثبت شد."
+            } else {
+                financeManager.addTransaction(amount, "expense", "هزینه", description)
+                "✅ هزینه «$description» به مبلغ ${String.format(Locale.US, "%,.0f", amount)} تومان ثبت شد."
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractAmount(text: String): Double? {
+        val cleaned = text
+            .replace("تومان", " ")
+            .replace("ریال", " ")
+            .replace(",", " ")
+            .replace("٬", " ")
+            .replace("٫", ".")
+
+        val numberRegex = Regex("(\\d{1,3}(?:\\s?\\d{3})+|\\d+)(?:\\.\\d+)?")
+        val m = numberRegex.find(cleaned) ?: return null
+        val raw = m.value.replace(" ", "")
+        return raw.toDoubleOrNull()
+    }
+
+    private fun extractDescription(text: String): String {
+        var t = text
+        t = t.replace(Regex("\\d"), " ")
+        t = t.replace("تومان", " ").replace("ریال", " ")
+        t = t.replace("درآمد", " ").replace("هزینه", " ").replace("خرج", " ")
+        t = t.replace("امروز", " ").replace("دیروز", " ")
+        val desc = t.replace(Regex("\\s+"), " ").trim()
+        return desc.ifBlank { "بدون توضیح" }
+    }
+
+    private fun normalizeDigits(input: String): String {
+        val map = mapOf(
+            '۰' to '0', '۱' to '1', '۲' to '2', '۳' to '3', '۴' to '4',
+            '۵' to '5', '۶' to '6', '۷' to '7', '۸' to '8', '۹' to '9',
+            '٠' to '0', '١' to '1', '٢' to '2', '٣' to '3', '٤' to '4',
+            '٥' to '5', '٦' to '6', '٧' to '7', '٨' to '8', '٩' to '9'
+        )
+        val sb = StringBuilder(input.length)
+        for (ch in input) sb.append(map[ch] ?: ch)
+        return sb.toString()
     }
     
     private fun extractJsonFromResponse(response: String): String {

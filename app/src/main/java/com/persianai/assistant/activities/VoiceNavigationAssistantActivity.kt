@@ -6,7 +6,6 @@ import androidx.appcompat.app.AlertDialog
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
-import android.view.MotionEvent
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,14 +13,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import com.persianai.assistant.databinding.ActivityVoiceNavigationAssistantBinding
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.navigation.NessanMapsAPI
 import com.persianai.assistant.navigation.SavedLocationsManager
 import com.persianai.assistant.utils.LocationShareParser
@@ -35,11 +32,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.File
 
 class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
@@ -61,12 +55,21 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     private var pendingDest: LatLng? = null
     private var pendingDestName: String = ""
     private var pendingDestAddress: String = ""
-    private var voiceEngine: UnifiedVoiceEngine? = null
-    private var isRecording = false
-    private val hfApiKey: String by lazy {
-        getSharedPreferences("api_keys", MODE_PRIVATE)
-            .getString("hf_api_key", null)
-            ?: DefaultApiKeys.getHuggingFaceKey().orEmpty()
+
+    private suspend fun resolveRedirectUrl(url: String): String? = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val req = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+            httpClient.newCall(req).execute().use { resp ->
+                // OkHttp follows redirects by default; take the final URL.
+                resp.request.url.toString()
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("VoiceNavShare", "resolveRedirectUrl failed: ${e.message}")
+            null
+        }
     }
 
     private val speechRecognizerLauncher =
@@ -94,7 +97,6 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         savedLocationsManager = SavedLocationsManager(this)
-        voiceEngine = UnifiedVoiceEngine(this)
         neshanDirectionAPI = NeshanDirectionAPI()
         neshanSearchAPI = NeshanSearchAPI(this)
         nessanMapsAPI = NessanMapsAPI()
@@ -155,18 +157,13 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         }
 
         binding.micButton.setOnLongClickListener {
-            // حالت ضبط فایل صوتی کامل و ارسال به مدل HuggingFace
-            startVoiceRecording()
+            // همان تشخیص گفتار آفلاین (SpeechRecognizer)
+            checkAudioPermissionAndStart()
             true
         }
 
-        binding.micButton.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_UP && isRecording) {
-                stopRecordingAndTranscribe()
-                true
-            } else {
-                false
-            }
+        binding.micButton.setOnTouchListener { _, _ ->
+            false
         }
 
         binding.sendButton.setOnClickListener {
@@ -373,10 +370,10 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     }
 
     // Stub for future reroute when deviation detected
-    private fun handleReroute() {
-        binding.statusText.text = "خارج از مسیر. در حال محاسبه مسیر جدید..."
-        ttsHelper.speak("از مسیر خارج شدید. مسیر جدید محاسبه می‌شود.")
-    }
+     private fun handleReroute() {
+         binding.statusText.text = "خارج از مسیر. در حال محاسبه مسیر جدید..."
+         ttsHelper.speak("از مسیر خارج شدید. مسیر جدید محاسبه می‌شود.")
+     }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -401,101 +398,6 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         }
     }
 
-    private fun startVoiceRecording() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
-            return
-        }
-
-        lifecycleScope.launch {
-            binding.statusText.text = "در حال ضبط صوت..."
-            val res = voiceEngine?.startRecording()
-            if (res?.isSuccess == true) {
-                isRecording = true
-                binding.statusText.text = "در حال ضبط صوت... برای توقف رها کنید"
-            } else {
-                isRecording = false
-                binding.statusText.text = "خطا در شروع ضبط"
-                Toast.makeText(this@VoiceNavigationAssistantActivity, "خطا در ضبط صدا", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun stopRecordingAndTranscribe() {
-        lifecycleScope.launch {
-            binding.statusText.text = "در حال توقف ضبط و تحلیل..."
-            val stopResult = voiceEngine?.stopRecording()
-            isRecording = false
-
-            val recordingResult = stopResult?.getOrNull()
-            val file = recordingResult?.file
-            if (file == null || !file.exists()) {
-                binding.statusText.text = "فایل ضبط‌شده در دسترس نیست"
-                return@launch
-            }
-
-            binding.statusText.text = "در حال تحلیل هیبریدی..."
-            val hybrid = voiceEngine?.analyzeHybrid(file)
-            val primary = hybrid?.getOrNull()?.primaryText
-
-            if (!primary.isNullOrBlank()) {
-                binding.transcriptText.text = primary
-                binding.statusText.text = "متن استخراج شد. در حال پردازش فرمان..."
-                respondToCommand(primary)
-                return@launch
-            }
-
-            // Fallback to previous HF transcription if hybrid failed
-            binding.statusText.text = "تحلیل محلی ناموفق، ارسال به سرویس آنلاین..."
-            val text = transcribeWithHuggingFace(file)
-            if (text.isNullOrBlank()) {
-                binding.statusText.text = if (hfApiKey.isBlank()) {
-                    "کلید HuggingFace تنظیم نیست. لطفاً کلید را وارد کنید."
-                } else {
-                    "تحلیل صوت ناموفق بود. دوباره تلاش کنید."
-                }
-                return@launch
-            }
-            binding.transcriptText.text = text
-            binding.statusText.text = "متن استخراج شد. در حال پردازش فرمان..."
-            respondToCommand(text)
-        }
-    }
-
-    private suspend fun transcribeWithHuggingFace(file: File): String? = withContext(Dispatchers.IO) {
-        if (hfApiKey.isBlank()) return@withContext null
-        return@withContext try {
-            val bytes = file.readBytes()
-            val body = bytes.toRequestBody("audio/m4a".toMediaType())
-            val request = Request.Builder()
-                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
-                .addHeader("Authorization", "Bearer $hfApiKey")
-                .post(body)
-                .build()
-            httpClient.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    android.util.Log.e("HF-STT", "Failed: ${resp.code} ${resp.message}")
-                    return@use null
-                }
-                val responseText = resp.body?.string()?.trim() ?: return@use null
-                // HF گاهی خروجی متنی ساده می‌دهد، گاهی JSON. هر دو را پوشش می‌دهیم.
-                if (responseText.startsWith("{")) {
-                    try {
-                        val json = org.json.JSONObject(responseText)
-                        json.optString("text").ifBlank { json.optString("generated_text") }
-                    } catch (_: Exception) {
-                        responseText
-                    }
-                } else {
-                    responseText
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("HF-STT", "error: ${e.message}", e)
-            null
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         ttsHelper.shutdown()
@@ -509,6 +411,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleIncomingIntent(intent)
     }
 
@@ -518,7 +421,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         val dataUri = intent.data
         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
         android.util.Log.i("VoiceNavShare", "handleIncomingIntent action=$action data=$dataUri sharedText=${sharedText?.take(200)} extras=${intent.extras?.keySet()}")
-        
+
         val parsed = LocationShareParser.parseFromUri(dataUri)
             ?: LocationShareParser.parseFromIntentText(sharedText)
 
@@ -527,6 +430,21 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             val latLng = LatLng(parsed.latitude, parsed.longitude)
             val suggestedName = parsed.label?.takeIf { it.isNotBlank() } ?: "مکان ذخیره‌شده"
             promptSaveSharedLocation(latLng, suggestedName)
+            return
+        }
+
+        // Handle short google maps links (maps.app.goo.gl) which often don't contain lat/lng directly.
+        val rawCandidate = sharedText ?: dataUri?.toString()
+        if (!rawCandidate.isNullOrBlank() && rawCandidate.contains("goo.gl", ignoreCase = true)) {
+            lifecycleScope.launch {
+                val resolved = resolveRedirectUrl(rawCandidate)
+                val reparsed = LocationShareParser.parseFromString(resolved ?: rawCandidate)
+                if (reparsed != null) {
+                    val latLng = LatLng(reparsed.latitude, reparsed.longitude)
+                    val suggestedName = reparsed.label?.takeIf { it.isNotBlank() } ?: "مکان ذخیره‌شده"
+                    promptSaveSharedLocation(latLng, suggestedName)
+                }
+            }
             return
         }
 

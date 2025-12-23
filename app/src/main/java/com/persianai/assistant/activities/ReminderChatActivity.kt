@@ -57,6 +57,9 @@ class ReminderChatActivity : BaseChatActivity() {
     }
 
     override suspend fun handleRequest(text: String): String {
+        val offlineLocal = handleOfflineLocal(text)
+        if (!offlineLocal.isNullOrBlank()) return offlineLocal
+
         val responseJson = super.handleRequest(text)
         return withContext(Dispatchers.Main) {
             try {
@@ -123,6 +126,99 @@ class ReminderChatActivity : BaseChatActivity() {
                 responseJson // If parsing fails, return the original response
             }
         }
+    }
+
+    private fun handleOfflineLocal(text: String): String? {
+        val input = normalizeDigits(text).trim()
+        if (input.isBlank()) return null
+
+        val isReminder = input.contains("یادم بنداز") || input.contains("یادآوری") || input.contains("یادآور")
+        if (!isReminder) return null
+
+        val calendar = Calendar.getInstance()
+        val msg = extractReminderMessage(input) ?: return null
+
+        // Date keywords
+        when {
+            input.contains("فردا") -> calendar.add(Calendar.DAY_OF_MONTH, 1)
+            input.contains("پس فردا") -> calendar.add(Calendar.DAY_OF_MONTH, 2)
+        }
+
+        // Time extraction
+        val time = extractTime(input)
+        if (time != null) {
+            calendar.set(Calendar.HOUR_OF_DAY, time.first)
+            calendar.set(Calendar.MINUTE, time.second)
+            calendar.set(Calendar.SECOND, 0)
+        } else {
+            // اگر زمان نگفت، یک زمان پیش‌فرض نزدیک بگذاریم
+            calendar.add(Calendar.MINUTE, 5)
+            calendar.set(Calendar.SECOND, 0)
+        }
+
+        // If time is in past, push to future (tomorrow)
+        if (calendar.timeInMillis < System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        return try {
+            val mgr = SmartReminderManager(this)
+            mgr.createSimpleReminder(
+                title = msg,
+                description = "",
+                triggerTime = calendar.timeInMillis
+            )
+
+            val hh = calendar.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
+            val mm = calendar.get(Calendar.MINUTE).toString().padStart(2, '0')
+            "✅ یادآوری «$msg» برای ساعت $hh:$mm تنظیم شد."
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractTime(text: String): Pair<Int, Int>? {
+        // HH:MM
+        Regex("(\\d{1,2})[:٫](\\d{1,2})").find(text)?.let { m ->
+            val h = m.groupValues[1].toIntOrNull()
+            val min = m.groupValues[2].toIntOrNull()
+            if (h != null && min != null && h in 0..23 && min in 0..59) return h to min
+        }
+
+        // "ساعت 10" or "ساعت 10 و 30"
+        Regex("ساعت\\s*(\\d{1,2})(?:\\s*(?:و|:|٫)\\s*(\\d{1,2}))?").find(text)?.let { m ->
+            val h = m.groupValues[1].toIntOrNull()
+            val min = m.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }?.toIntOrNull() ?: 0
+            if (h != null && h in 0..23 && min in 0..59) return h to min
+        }
+
+        return null
+    }
+
+    private fun extractReminderMessage(text: String): String? {
+        var t = text
+        t = t.replace("یادم بنداز", " ")
+        t = t.replace("یادآوری", " ")
+        t = t.replace("یادآور", " ")
+        t = t.replace("که", " ")
+        t = t.replace("فردا", " ")
+        t = t.replace("پس فردا", " ")
+        t = t.replace(Regex("ساعت\\s*\\d{1,2}(?:\\s*(?:و|:|٫)\\s*\\d{1,2})?"), " ")
+        t = t.replace(Regex("\\d{1,2}[:٫]\\d{1,2}"), " ")
+        t = t.replace(Regex("\\s+"), " ").trim()
+        return t.takeIf { it.isNotBlank() }
+    }
+
+    private fun normalizeDigits(input: String): String {
+        val map = mapOf(
+            '۰' to '0', '۱' to '1', '۲' to '2', '۳' to '3', '۴' to '4',
+            '۵' to '5', '۶' to '6', '۷' to '7', '۸' to '8', '۹' to '9',
+            '٠' to '0', '١' to '1', '٢' to '2', '٣' to '3', '٤' to '4',
+            '٥' to '5', '٦' to '6', '٧' to '7', '٨' to '8', '٩' to '9'
+        )
+        val sb = StringBuilder(input.length)
+        for (ch in input) sb.append(map[ch] ?: ch)
+        return sb.toString()
     }
     
     private fun extractJsonFromResponse(response: String): String {
