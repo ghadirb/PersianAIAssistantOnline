@@ -281,23 +281,28 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val hasValidKeys = apiKeys.isNotEmpty() && apiKeys.any { it.isActive }
         val onlinePreferred = shouldUseOnlinePriority()
 
-        // اگر کلیدهای معتبر وجود دارند و آنلاین ترجیح داده شده است
-        if (hasValidKeys && (onlinePreferred || !onlinePreferred)) {
-            // سعی برای آنلاین ابتدا
-            try {
-                val model = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
-                currentModel = model
-                android.util.Log.d("BaseChatActivity", "📡 سعی برای تحلیل آنلاین با مدل: ${model.name}")
-                val response = aiClient!!.sendMessage(
-                    model,
-                    messages,
-                    getSystemPrompt() + "\n\nپیام کاربر: " + text
-                )
-                android.util.Log.d("BaseChatActivity", "✅ پاسخ آنلاین دریافت شد")
-                return@withContext response.content
-            } catch (e: Exception) {
-                android.util.Log.w("BaseChatActivity", "⚠️ آنلاین ناموفق: ${e.message}")
-                // بازگشت به آفلاین
+        // سیاست: به صورت پیش‌فرض همه چت‌ها آفلاین هستند؛ فقط بخش‌های مشاوره با override
+        // shouldUseOnlinePriority() اجازه آنلاین دارند.
+        if (onlinePreferred) {
+            if (hasValidKeys && aiClient != null) {
+                // سعی برای آنلاین ابتدا
+                try {
+                    val model = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
+                    currentModel = model
+                    android.util.Log.d("BaseChatActivity", "📡 (Counseling) سعی برای تحلیل آنلاین با مدل: ${model.name}")
+                    val response = aiClient!!.sendMessage(
+                        model,
+                        messages,
+                        getSystemPrompt() + "\n\nپیام کاربر: " + text
+                    )
+                    android.util.Log.d("BaseChatActivity", "✅ پاسخ آنلاین دریافت شد")
+                    return@withContext response.content
+                } catch (e: Exception) {
+                    android.util.Log.w("BaseChatActivity", "⚠️ آنلاین ناموفق: ${e.message}")
+                    // بازگشت به آفلاین
+                }
+            } else {
+                android.util.Log.w("BaseChatActivity", "⚠️ (Counseling) کلید/APIClient موجود نیست؛ بازگشت به آفلاین")
             }
         }
 

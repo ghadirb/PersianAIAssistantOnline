@@ -4,7 +4,7 @@
     <item
         android:id="@+id/action_ai_chat"
         android:title="💬 مکالمه با مدل"
-        android:icon="@drawable/ic_chat"
+        android:icon="@drawable/ic_send"
         android:showAsAction="ifRoom" />
 
     <item

@@ -246,6 +246,43 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         }
     }
 
+    private fun sendTextToModel(text: String) {
+        val message = text.trim()
+        if (message.isBlank()) return
+
+        val client = aiClient
+        if (client == null) {
+            val msg = "کلید API تنظیم نشده است"
+            binding.statusText.text = msg
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        binding.messageInput.setText("")
+        binding.statusText.text = "در حال ارسال پیام به مدل..."
+
+        lifecycleScope.launch {
+            try {
+                val resp = client.sendMessage(
+                    currentModel,
+                    listOf(
+                        com.persianai.assistant.models.ChatMessage(
+                            role = com.persianai.assistant.models.MessageRole.USER,
+                            content = message
+                        )
+                    )
+                )
+                val reply = resp.content
+                binding.statusText.text = "پاسخ مدل: $reply"
+                binding.transcriptText.text = reply
+                ttsHelper.speak(reply)
+            } catch (e: Exception) {
+                val err = "خطا در ارسال پیام: ${e.message}"
+                binding.statusText.text = err
+            }
+        }
+    }
+
     private fun routeToSaved(category: String, label: String) {
         val dest = when (category) {
             "home" -> savedLocationsManager.getHome()
@@ -670,21 +707,5 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             }
             .setNegativeButton("لغو", null)
             .show()
-    }
-        val client = aiClient ?: run {
-            Toast.makeText(this, "کلید API تنظیم نشده است", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val message = text.ifBlank { return }
-        lifecycleScope.launch {
-            try {
-                val resp = client.sendMessage(currentModel, listOf(com.persianai.assistant.models.ChatMessage(role = com.persianai.assistant.models.MessageRole.USER, content = message)))
-                binding.statusText.text = "پاسخ مدل: ${resp.content}"
-                binding.transcriptText.text = resp.content
-                ttsHelper.speak(resp.content)
-            } catch (e: Exception) {
-                binding.statusText.text = "خطا در ارسال پیام: ${e.message}"
-            }
-        }
     }
 }
