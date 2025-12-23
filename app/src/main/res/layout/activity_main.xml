@@ -154,12 +154,6 @@
                     app:iconPadding="0dp"
                     style="@style/Widget.Material3.Button.IconButton" />
 
-                <com.persianai.assistant.ui.VoiceActionButton
-                    android:id="@+id/voiceActionButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="4dp" />
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/sendButton"
                     android:layout_width="48dp"

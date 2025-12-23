@@ -30,7 +30,7 @@
             android:id="@+id/voiceHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🎙️ تک‌لمس: گفتار→متن | نگه‌داشتن: ضبط فایل + HuggingFace"
+            android:text="🎙️ برای تبدیل صوت به متن: دکمه میکروفون را بزنید"
             android:textSize="13sp"
             android:textColor="#555"
             android:paddingBottom="6dp" />
@@ -48,16 +48,11 @@
                 android:layout_weight="1"
                 android:hint="پیام خود را بنویسید..." />
 
-            <com.persianai.assistant.ui.VoiceRecorderView
-                android:id="@+id/voiceButton"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:layout_marginStart="4dp" />
-
+            <!-- ✅ صحیح: فقط VoiceActionButton را استفاده می‌کنیم -->
             <com.persianai.assistant.ui.VoiceActionButton
-                android:id="@+id/voiceActionButton"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:id="@+id/voiceButton"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:layout_marginStart="4dp" />
 
             <com.google.android.material.button.MaterialButton

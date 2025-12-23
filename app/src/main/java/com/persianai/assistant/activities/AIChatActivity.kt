@@ -27,6 +27,10 @@ class AIChatActivity : BaseChatActivity() {
         updateAdvancedBadge()
 
         setupChatUI()
+        
+        // ✅ بررسی API keys و نمایش پیام راهنما اگر موجود نیستند
+        checkAndShowApiKeyWarning()
+        
         addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور کمکتون کنم؟"))
 
         val preset = intent.getStringExtra("presetMessage")?.takeIf { it.isNotBlank() }
@@ -35,38 +39,19 @@ class AIChatActivity : BaseChatActivity() {
             sendMessage()
         }
         
-        // Setup voice button: focus the message input when tapped
-        chatBinding.voiceButton.setOnClickListener {
-            try {
-                getMessageInput().requestFocus()
-            } catch (_: Exception) { }
-        }
-
-        // Setup unified VoiceActionButton if present
-        try {
-            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(com.persianai.assistant.R.id.voiceActionButton)
-                vab?.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
-                    override fun onRecordingStarted() {
-                        chatBinding.voiceButton.alpha = 0.5f
-                    }
-
-                    override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                        chatBinding.voiceButton.alpha = 1.0f
-                        transcribeAudio(audioFile)
-                    }
-
-                    override fun onTranscript(text: String) {
-                        chatBinding.voiceButton.alpha = 1.0f
-                        chatBinding.messageInput.setText(text)
-                        sendMessage()
-                    }
-
-                    override fun onRecordingError(error: String) {
-                        chatBinding.voiceButton.alpha = 1.0f
-                    }
-                })
-        } catch (e: Exception) {
-            // ignore if view not present
+        // ✅ Setup voice button with unified listener
+        setupVoiceButton()
+    }
+    
+    private fun checkAndShowApiKeyWarning() {
+        val hasKeys = prefsManager.getAPIKeys().isNotEmpty()
+        if (!hasKeys) {
+            android.widget.Toast.makeText(
+                this,
+                "⚠️ هیچ کلید API تنظیم نشده است.\n\nبرای استفاده از پاسخ‌های هوشمند:\n" +
+                "1. به تنظیمات برو\n2. یک کلید API اضافه کن\n3. دوباره تلاش کن",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
     
@@ -74,6 +59,44 @@ class AIChatActivity : BaseChatActivity() {
         chatBinding.advancedBadge?.apply {
             visibility = if (forceOnlineAnalysis) View.VISIBLE else View.GONE
             text = "⚡ تحلیل پیشرفته فعال شد"
+        }
+    }
+
+    // ✅ Setup voice button with proper listener
+    private fun setupVoiceButton() {
+        try {
+            chatBinding.voiceButton.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
+                override fun onRecordingStarted() {
+                    android.util.Log.d("AIChatActivity", "🎙️ Recording started")
+                    chatBinding.voiceButton.alpha = 0.5f
+                }
+
+                override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                    android.util.Log.d("AIChatActivity", "🛑 Recording completed: ${audioFile.absolutePath}")
+                    chatBinding.voiceButton.alpha = 1.0f
+                    // تبدیل صوت به متن توسط VoiceActionButton انجام می‌شود
+                }
+
+                override fun onTranscript(text: String) {
+                    android.util.Log.d("AIChatActivity", "✅ Transcript received: $text")
+                    chatBinding.voiceButton.alpha = 1.0f
+                    chatBinding.messageInput.setText(text)
+                    sendMessage()
+                }
+
+                override fun onRecordingError(error: String) {
+                    android.util.Log.e("AIChatActivity", "❌ Recording error: $error")
+                    chatBinding.voiceButton.alpha = 1.0f
+                    Toast.makeText(
+                        this@AIChatActivity,
+                        "❌ خطا: $error",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            })
+            android.util.Log.d("AIChatActivity", "✅ Voice button listener configured")
+        } catch (e: Exception) {
+            android.util.Log.e("AIChatActivity", "❌ Error setting up voice button", e)
         }
     }
 
@@ -85,31 +108,4 @@ class AIChatActivity : BaseChatActivity() {
     override fun getSystemPrompt(): String = "دستیار هوشمند فارسی"
 
     override fun shouldUseOnlinePriority(): Boolean = forceOnlineAnalysis
-    
-    override fun onVoiceRecordingStarted() {
-        super.onVoiceRecordingStarted()
-        // Update UI to show recording
-        chatBinding.voiceButton.alpha = 0.5f
-    }
-    
-    override fun onVoiceRecordingCompleted(audioFile: File, durationMs: Long) {
-        super.onVoiceRecordingCompleted(audioFile, durationMs)
-        chatBinding.voiceButton.alpha = 1.0f
-        
-        // Process audio file
-        lifecycleScope.launch {
-            try {
-                val messageText = "🎙️ ضبط صوتی (${durationMs / 1000} ثانیه)"
-                getMessageInput().setText(messageText)
-                sendMessage()
-            } catch (e: Exception) {
-                Toast.makeText(this@AIChatActivity, "خطا در پردازش صوت", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
-    override fun onVoiceRecordingError(error: String) {
-        super.onVoiceRecordingError(error)
-        chatBinding.voiceButton.alpha = 1.0f
-    }
 }

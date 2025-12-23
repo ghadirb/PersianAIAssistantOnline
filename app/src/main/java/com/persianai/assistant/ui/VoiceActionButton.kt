@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.AttributeSet
+import android.util.Log
 import android.view.LayoutInflater
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -37,6 +38,7 @@ class VoiceActionButton @JvmOverloads constructor(
     private var isRecording = false
     private var btn: MaterialButton
     private var listener: Listener? = null
+    private val TAG = "VoiceActionButton"
 
     init {
         val view = LayoutInflater.from(context).inflate(R.layout.view_voice_action_button, this, true)
@@ -70,31 +72,72 @@ class VoiceActionButton @JvmOverloads constructor(
         }
 
         scope.launch {
-            val res = withContext(Dispatchers.Main) { engine.startRecording() }
-            if (res.isSuccess) {
-                isRecording = true
-                btn.text = "درحال ضبط..."
-                listener?.onRecordingStarted()
-            } else {
-                listener?.onRecordingError(res.exceptionOrNull()?.message ?: "خطا در شروع ضبط")
+            try {
+                Log.d(TAG, "🎤 Starting recording...")
+                val res = engine.startRecording()
+                if (res.isSuccess) {
+                    isRecording = true
+                    btn.text = "⏹️ توقف"
+                    listener?.onRecordingStarted()
+                    Log.d(TAG, "✅ Recording started")
+                } else {
+                    val error = res.exceptionOrNull()?.message ?: "خطا نامشخص"
+                    listener?.onRecordingError(error)
+                    Log.e(TAG, "❌ Failed to start: $error")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Exception in startRecording", e)
+                listener?.onRecordingError(e.message ?: "خطا نامشخص")
             }
         }
     }
 
     private fun stopRecording() {
         scope.launch {
-            val stopRes = withContext(Dispatchers.Main) { engine.stopRecording() }
-            isRecording = false
-            btn.text = context.getString(R.string.app_name)
-            val rec = stopRes.getOrNull()
-            if (rec != null) {
-                listener?.onRecordingCompleted(rec.file, rec.duration)
-                // Try hybrid analysis and deliver primary text
-                val analysis = engine.analyzeHybrid(rec.file)
-                val primary = analysis.getOrNull()?.primaryText
-                if (!primary.isNullOrBlank()) listener?.onTranscript(primary)
-            } else {
-                listener?.onRecordingError(stopRes.exceptionOrNull()?.message ?: "خطا در توقف ضبط")
+            try {
+                Log.d(TAG, "🛑 Stopping recording...")
+                val stopRes = engine.stopRecording()
+                isRecording = false
+                btn.text = "🎤 صحبت کن"
+                
+                if (stopRes.isSuccess) {
+                    val rec = stopRes.getOrNull()
+                    if (rec != null) {
+                        Log.d(TAG, "✅ Recording stopped: ${rec.file.absolutePath}")
+                        listener?.onRecordingCompleted(rec.file, rec.duration)
+                        
+                        // تحلیل Hybrid و ارسال متن
+                        Log.d(TAG, "🔍 Performing hybrid analysis...")
+                        val analysis = engine.analyzeHybrid(rec.file)
+                        if (analysis.isSuccess) {
+                            val result = analysis.getOrNull()
+                            if (result != null) {
+                                val primary = result.primaryText
+                                Log.d(TAG, "✅ Hybrid analysis done: $primary")
+                                if (!primary.isNullOrBlank()) {
+                                    listener?.onTranscript(primary)
+                                } else {
+                                    listener?.onRecordingError("تحلیل خالی شد")
+                                }
+                            } else {
+                                listener?.onRecordingError("نتیجه تحلیل خالی است")
+                            }
+                        } else {
+                            val error = analysis.exceptionOrNull()?.message ?: "خطا در تحلیل"
+                            Log.e(TAG, "❌ Analysis failed: $error")
+                            listener?.onRecordingError(error)
+                        }
+                    } else {
+                        listener?.onRecordingError("نتیجه ضبط خالی است")
+                    }
+                } else {
+                    val error = stopRes.exceptionOrNull()?.message ?: "خطا نامشخص"
+                    listener?.onRecordingError(error)
+                    Log.e(TAG, "❌ Failed to stop: $error")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Exception in stopRecording", e)
+                listener?.onRecordingError(e.message ?: "خطا نامشخص")
             }
         }
     }

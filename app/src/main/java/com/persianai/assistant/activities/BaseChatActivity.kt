@@ -175,8 +175,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
             val resolved = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)
+            // ✅ اگر کلید API موجود است، حالت را به ONLINE تغییر دهید
+            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.ONLINE)
+            Log.d("BaseChatActivity", "✅ حالت ONLINE فعال شد (کلید API یافت شد)")
         } else {
-            Toast.makeText(this, "کلید API آنلاین یافت نشد (حالت آفلاین فعال است).", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "⚠️ کلید API یافت نشد - حالت آفلاین فعال است", Toast.LENGTH_LONG).show()
+            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
         }
     }
 
@@ -273,86 +277,57 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     protected open suspend fun handleRequest(text: String): String = withContext(Dispatchers.IO) {
-        val workingMode = prefsManager.getWorkingMode()
+        val apiKeys = prefsManager.getAPIKeys()
+        val hasValidKeys = apiKeys.isNotEmpty() && apiKeys.any { it.isActive }
         val onlinePreferred = shouldUseOnlinePriority()
 
-        // حالت پیش‌فرض: آفلاین TinyLlama
-        if (!onlinePreferred || workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-            return@withContext offlineRespond(text)
+        // اگر کلیدهای معتبر وجود دارند و آنلاین ترجیح داده شده است
+        if (hasValidKeys && (onlinePreferred || !onlinePreferred)) {
+            // سعی برای آنلاین ابتدا
+            try {
+                val model = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
+                currentModel = model
+                android.util.Log.d("BaseChatActivity", "📡 سعی برای تحلیل آنلاین با مدل: ${model.name}")
+                val response = aiClient!!.sendMessage(
+                    model,
+                    messages,
+                    getSystemPrompt() + "\n\nپیام کاربر: " + text
+                )
+                android.util.Log.d("BaseChatActivity", "✅ پاسخ آنلاین دریافت شد")
+                return@withContext response.content
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "⚠️ آنلاین ناموفق: ${e.message}")
+                // بازگشت به آفلاین
+            }
         }
 
-        if (aiClient == null) {
-            return@withContext offlineRespond(text)
-        }
-
-        val model = chooseBestModel(prefsManager.getAPIKeys(), prefsManager.getProviderPreference())
-        return@withContext try {
-            currentModel = model
-            val response = aiClient!!.sendMessage(
-                model,
-                messages,
-                getSystemPrompt() + "\n\nپیام کاربر: " + text
-            )
-            response.content
-        } catch (e: Exception) {
-            android.util.Log.w("BaseChatActivity", "Online analysis failed: ${e.message}")
-            offlineRespond(text)
-        }
+        // استفاده از آفلاین (SimpleOfflineResponder یا TinyLlama)
+        android.util.Log.d("BaseChatActivity", "📵 حالت آفلاین فعال")
+        return@withContext offlineRespond(text)
     }
 
     private fun offlineRespond(text: String): String {
-        // تلاش برای استنتاج واقعی از مدل آفلاین (اگر موجود باشد)
-        val modelPath = findOfflineModelPath()
-        val backendAvailable = try { com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable() } catch (t: Throwable) {
-            android.util.Log.w("BaseChatActivity", "isBackendAvailable check failed: ${t.message}", t)
-            false
+        // ✅ ابتدا SimpleOfflineResponder را امتحان کن - بدون نیاز به Native Library
+        val simpleResponse = com.persianai.assistant.ai.SimpleOfflineResponder.respond(this, text)
+        if (!simpleResponse.isNullOrBlank()) {
+            Log.d("BaseChatActivity", "✅ SimpleOfflineResponder returned response")
+            return simpleResponse
         }
-        android.util.Log.i("BaseChatActivity", "offlineRespond: modelPath=${modelPath ?: "<none>"}, backendAvailable=$backendAvailable")
-        if (modelPath != null) {
-            try {
-                val f = File(modelPath)
-                android.util.Log.d("BaseChatActivity", "Found offline model path: $modelPath, exists=${f.exists()}, length=${if (f.exists()) f.length() else 0}")
-            } catch (e: Exception) {
-                android.util.Log.w("BaseChatActivity", "Could not stat model file: ${e.message}", e)
-            }
-            val prompt = buildString {
-                append("شما یک دستیار فارسی هستید. پاسخ کوتاه و مستقیم بده.\n")
-                append("کاربر: ").append(text).append("\nدستیار:")
-            }
-            try {
-                android.util.Log.d("BaseChatActivity", "offlineRespond using model: $modelPath, promptLen=${prompt.length}")
-                val generated = try {
-                    val ok = com.persianai.assistant.offline.LocalLlamaRunner.ensureModel(modelPath)
-                    android.util.Log.d("BaseChatActivity", "ensureModel returned: $ok")
-                    if (ok) com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 96)
-                    else null
-                } catch (t: Throwable) {
-                    android.util.Log.e("BaseChatActivity", "LocalLlamaRunner.infer threw", t)
-                    null
-                }
-                android.util.Log.d("BaseChatActivity", "offlineRespond generated len=${generated?.length ?: 0}")
-                if (!generated.isNullOrBlank()) {
-                    return "🟢 پاسخ آفلاین (TinyLlama):\n$generated"
-                } else {
-                    android.util.Log.w("BaseChatActivity", "Local inference returned empty result")
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("BaseChatActivity", "Local inference failed: ${e.message}", e)
-            }
+        
+        // اگر SimpleOfflineResponder نتوانست، پاسخ ساده‌تری را برگردان
+        Log.d("BaseChatActivity", "⚠️ SimpleOfflineResponder did not respond, showing default offline message")
+        
+        return buildString {
+            append("📵 **حالت آفلاین فعال**\n\n")
+            append("⚠️ برای دریافت پاسخ‌های هوشمند:\n\n")
+            append("1️⃣ یک کلید API تهیه کنید:\n")
+            append("   • OpenAI: https://platform.openai.com/api-keys\n")
+            append("   • OpenRouter: https://openrouter.ai\n")
+            append("   • AIML API: https://aimlapi.com\n\n")
+            append("2️⃣ به تنظیمات برو (⚙️) و کلید را وارد کن\n")
+            append("3️⃣ سپس دوباره سوال خود را بپرسید\n\n")
+            append("💡 **سوال شما:** $text")
         }
-
-        // اگر بک‌اند بومی در این بیلد فعال نیست، پیام راهنما نمایش بدهیم
-        if (!backendAvailable) {
-            val hint = "آفلاین محلی در این بیلد فعال نیست. برای فعال‌سازی: در CI/محیط بیلد `llama.cpp` را اضافه کنید یا کتابخانه بومی (`liblocal_llama.so`) را در `app/src/main/jniLibs/<abi>/` قرار دهید."
-            android.util.Log.i("BaseChatActivity", "Offline backend unavailable: $hint")
-            Toast.makeText(this, "آفلاین محلی غیرفعال است — برای فعال‌سازی به تنظیمات توسعه‌دهنده مراجعه کنید.", Toast.LENGTH_LONG).show()
-            val summary = if (text.length > 140) text.take(140) + "…" else text
-            return "🟢 پاسخ آفلاین (placeholder):\n$summary\n\n$hint"
-        }
-
-        // در صورت نبود مدل یا خطا، خلاصه ساده
-        val summary = if (text.length > 140) text.take(140) + "…" else text
-        return "🟢 پاسخ آفلاین (placeholder):\n$summary"
     }
 
     /**
@@ -416,27 +391,49 @@ abstract class BaseChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val workingMode = prefsManager.getWorkingMode()
-                if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-                    Toast.makeText(this@BaseChatActivity, "🎙️ ضبط آفلاین انجام شد (تبدیل گفتار به متن در حالت آفلاین غیرفعال است)", Toast.LENGTH_SHORT).show()
-                    return@launch
+                
+                // ✅ سعی برای تبدیل آنلاین یا HuggingFace
+                val transcribedText = try {
+                    aiClient?.transcribeAudio(audioFile.absolutePath)
+                        ?.takeIf { !it.isNullOrBlank() }
+                } catch (e: Exception) {
+                    Log.e("BaseChatActivity", "AIClient transcription failed: ${e.message}")
+                    null
+                } ?: try {
+                    transcribeWithHuggingFace(audioFile)
+                } catch (e: Exception) {
+                    Log.e("BaseChatActivity", "HuggingFace transcription failed: ${e.message}")
+                    null
                 }
-
-                // در حالت جدید: بدون پنجره گوگل، فقط تلاش آنلاین (در صورت فعال بودن) وگرنه پیام آفلاین
-                val transcribedText = aiClient?.transcribeAudio(audioFile.absolutePath)
-                    ?.takeIf { !it.isNullOrBlank() }
-                    ?: transcribeWithHuggingFace(audioFile)
                 
                 if (!transcribedText.isNullOrEmpty()) {
                     getMessageInput().setText(transcribedText)
-                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$transcribedText\"", Toast.LENGTH_SHORT).show()
                     sendMessage()
                     return@launch
                 }
                 
-                Toast.makeText(this@BaseChatActivity, "🎙️ فایل ضبط‌شده ذخیره شد (آفلاین). متن در دسترس نیست.", Toast.LENGTH_SHORT).show()
+                // ❌ اگر تبدیل ناموفق بود
+                if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                    Toast.makeText(
+                        this@BaseChatActivity, 
+                        "⚠️ تبدیل صوت نیاز به اتصال اینترنت دارد.\n\nبرای استفاده از تبدیل صوت:\n1. کلید API تنظیم کن\n2. دوباره تلاش کن",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@BaseChatActivity,
+                        "❌ خطا در تبدیل صوت. لطفاً دوباره تلاش کنید.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } catch (e: Exception) {
-                android.util.Log.e("BaseChatActivity", "Transcription failed: ${e.message}", e)
-                Toast.makeText(this@BaseChatActivity, "🎙️ ضبط آفلاین انجام شد (تبدیل ناموفق)", Toast.LENGTH_SHORT).show()
+                Log.e("BaseChatActivity", "Transcription failed: ${e.message}", e)
+                Toast.makeText(
+                    this@BaseChatActivity,
+                    "❌ خطا: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }

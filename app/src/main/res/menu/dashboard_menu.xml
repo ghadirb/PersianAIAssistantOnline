@@ -2,6 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
+        android:id="@+id/action_ai_chat"
+        android:title="💬 مکالمه با مدل"
+        android:icon="@drawable/ic_chat"
+        android:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/action_refresh_keys"
         android:title="به‌روزرسانی کلیدها"
         android:icon="@drawable/ic_refresh"

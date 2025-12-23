@@ -481,6 +481,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         val dataUri = intent.data
         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
         android.util.Log.i("VoiceNavShare", "handleIncomingIntent action=$action data=$dataUri sharedText=${sharedText?.take(200)} extras=${intent.extras?.keySet()}")
+        
         val parsed = LocationShareParser.parseFromUri(dataUri)
             ?: LocationShareParser.parseFromIntentText(sharedText)
 
@@ -494,31 +495,14 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
         if (action == Intent.ACTION_VIEW && dataUri != null) {
             val location = dataUri.getQueryParameter("location") ?: ""
-            binding.messageInput.setText(location)
-            sendTextToModel(location)
+            if (location.isNotEmpty()) {
+                binding.messageInput.setText(location)
+                sendTextToModel(location)
+            }
         }
     }
 
-    private fun promptSaveSharedLocation(latLng: LatLng, defaultName: String) {
-        val input = EditText(this).apply { setText(defaultName) }
-        AlertDialog.Builder(this)
-            .setTitle("ذخیره مکان دریافت‌شده")
-            .setMessage("نام دلخواه را وارد کنید تا در مسیریاب صوتی ذخیره شود.")
-            .setView(input)
-            .setPositiveButton("ذخیره") { _, _ ->
-                val name = input.text.toString().ifBlank { defaultName }
-                val saved = savedLocationsManager.saveLocation(name, "", latLng, "favorite")
-                if (saved) {
-                    binding.statusText.text = "✅ مکان ذخیره شد: $name"
-                    ttsHelper.speak("مکان $name ذخیره شد")
-                } else {
-                    binding.statusText.text = "❌ ذخیره مکان ناموفق بود"
-                    ttsHelper.speak("ذخیره مکان انجام نشد")
-                }
-            }
-            .setNegativeButton("انصراف", null)
-            .show()
-    }
+
 
     private fun handleSaveCommand(text: String) {
         val dest = lastDestination
@@ -641,30 +625,32 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         return@withContext TEHRAN
     }
 
-    private fun promptSaveSharedLocation(parsed: LocationShareParser.ParsedLocation) {
+    private fun promptSaveSharedLocation(latLng: LatLng, defaultName: String) {
         val input = EditText(this).apply {
             hint = "نام مکان"
-            setText(parsed.label?.takeIf { it.isNotBlank() } ?: "")
+            setText(defaultName)
+            isSingleLine = true
         }
-        val latLng = LatLng(parsed.latitude, parsed.longitude)
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("ذخیره مکان اشتراک‌گذاری‌شده")
-            .setMessage("مکان دریافت شد. یک نام انتخاب کنید.")
+            .setMessage("یک نام برای این مکان انتخاب کنید تا در مسیریاب صوتی ذخیره شود.")
             .setView(input)
             .setPositiveButton("ذخیره") { _, _ ->
-                val label = input.text.toString().ifBlank { "مکان ذخیره شده" }
+                val label = input.text.toString().ifBlank { defaultName }
                 val saved = savedLocationsManager.saveLocation(label, "", latLng, "favorite")
                 lastDestination = latLng
                 lastDestinationName = label
                 lastDestinationAddress = ""
                 val msg = if (saved) "مکان «$label» ذخیره شد و آماده مسیریابی است." else "ذخیره‌سازی انجام نشد."
                 binding.statusText.text = msg
-                binding.routeSummaryText.text = "مختصات: ${parsed.latitude}, ${parsed.longitude}"
+                binding.routeSummaryText.text = "مختصات: ${latLng.latitude}, ${latLng.longitude}"
                 ttsHelper.speak(msg)
             }
             .setNegativeButton("صرف‌نظر", null)
             .show()
     }
+
+
 
     private fun promptRenameLocation(id: String, currentName: String) {
         val input = EditText(this).apply {
@@ -685,8 +671,6 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
             .setNegativeButton("لغو", null)
             .show()
     }
-
-    private fun sendTextToModel(text: String) {
         val client = aiClient ?: run {
             Toast.makeText(this, "کلید API تنظیم نشده است", Toast.LENGTH_SHORT).show()
             return

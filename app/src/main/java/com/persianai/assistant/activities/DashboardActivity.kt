@@ -94,6 +94,11 @@ class DashboardActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_ai_chat -> {
+                startActivity(Intent(this, AIChatActivity::class.java))
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                true
+            }
             R.id.action_refresh_keys -> {
                 refreshKeysFromDrive()
                 true

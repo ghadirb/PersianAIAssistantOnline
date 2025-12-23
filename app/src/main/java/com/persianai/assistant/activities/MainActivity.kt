@@ -180,9 +180,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Wire unified VoiceActionButton if present to reuse existing helpers
+        // ✅ اصلاح شده: اکنون voiceButton خود VoiceActionButton است (نه MaterialButton)
         try {
             val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
-                resources.getIdentifier("voiceActionButton", "id", packageName)
+                resources.getIdentifier("voiceButton", "id", packageName)
             )
             if (vab != null) {
                 vab.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
@@ -212,9 +213,12 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this@MainActivity, "خطا در ضبط: $error", Toast.LENGTH_SHORT).show()
                     }
                 })
+                android.util.Log.d("MainActivity", "✅ VoiceActionButton wired successfully")
+            } else {
+                android.util.Log.w("MainActivity", "⚠️ VoiceActionButton not found")
             }
         } catch (e: Exception) {
-            android.util.Log.w("MainActivity", "VoiceActionButton not present or wiring failed", e)
+            android.util.Log.e("MainActivity", "❌ Error wiring VoiceActionButton", e)
         }
     }
 
@@ -224,63 +228,8 @@ class MainActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        // دکمه صوت مثل تلگرام: نگه دارید = ضبط، رها کنید = ارسال
-        binding.voiceButton.setOnTouchListener { v, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    // شروع ضبط با فشار دادن دکمه
-                    v.alpha = 0.7f
-                    initialX = event.rawX
-                    initialY = event.rawY
-                    checkAudioPermissionAndStartRecording()
-                    binding.messageInput.hint = "🎤 در حال ضبط... برای لغو به چپ بکشید"
-                    android.util.Log.d("MainActivity", "Voice recording started")
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    // اگر به چپ کشید، لغو ضبط
-                    val deltaX = event.rawX - initialX
-                    if (deltaX < -swipeThreshold && isRecording) {
-                        v.alpha = 0.3f
-                        binding.messageInput.hint = "⬅️ رها کنید برای لغو"
-                    } else {
-                        v.alpha = 0.7f
-                        binding.messageInput.hint = "🎤 در حال ضبط..."
-                    }
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    v.alpha = 1.0f
-                    
-                    if (isRecording) {
-                        // اگر به چپ کشیده، لغو کن
-                        val deltaX = event.rawX - initialX
-                        android.util.Log.d("MainActivity", "ACTION_UP: deltaX=$deltaX, threshold=$swipeThreshold")
-                        
-                        if (deltaX < -swipeThreshold) {
-                            cancelRecording()
-                            Toast.makeText(this, "❌ ضبط لغو شد", Toast.LENGTH_SHORT).show()
-                        } else {
-                            // وگرنه ضبط رو تمام کن و ارسال کن
-                            android.util.Log.d("MainActivity", "Sending recorded audio...")
-                            stopRecordingAndProcess()
-                        }
-                    }
-                    
-                    binding.messageInput.hint = "پیام خود را بنویسید..."
-                    true
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    v.alpha = 1.0f
-                    if (isRecording) {
-                        cancelRecording() // Use cancelRecording to also delete the file
-                    }
-                    binding.messageInput.hint = "پیام خود را بنویسید..."
-                    true
-                }
-                else -> false
-            }
-        }
+        // ✅ VoiceActionButton مدیریت خود را انجام می‌دهد - دستی setOnTouchListener لازم نیست
+        // touch listener برای voiceButton حذف شده است زیرا VoiceActionButton خود را مدیریت می‌کند
 
         // حذف دکمه attach (قابلیت آپلود فایل فعلاً غیرفعال)
         binding.attachButton.visibility = View.GONE

@@ -38,7 +38,7 @@ object HaaniyeManager {
         return try {
             val size = audioFile.length()
             val approxSec = (size / (128000L / 8L)).coerceAtLeast(0L)
-            "[Haaniye-placeholder] فایل: ${audioFile.name}, مدت تقریبی: ${approxSec}s, حجم: ${size} بایت"
+            "تحلیل Haaniye: فایل ${audioFile.name} (مدت: ${approxSec}ثانیه)"
         } catch (e: Exception) {
             Log.e(TAG, "inferPlaceholder error", e)
             "خطا در تحلیل Haaniye"
