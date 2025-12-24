@@ -60,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
         val serviceEnabled = prefsManager.isServiceEnabled()
         binding.backgroundServiceSwitch.isChecked = serviceEnabled
         android.util.Log.d("SettingsActivity", "Service enabled: $serviceEnabled")
+
+        binding.persistentNotificationSwitch.isChecked = prefsManager.isPersistentStatusNotificationEnabled()
+        binding.persistentNotificationActionsSwitch.isChecked = prefsManager.isPersistentNotificationActionsEnabled()
         
         // وضعیت TTS
         binding.ttsSwitch.isChecked = prefsManager.isTTSEnabled()
@@ -171,11 +174,34 @@ class SettingsActivity : AppCompatActivity() {
 
         // Switch سرویس پس‌زمینه
         binding.backgroundServiceSwitch.setOnCheckedChangeListener { _, isChecked ->
-            prefsManager.setServiceEnabled(isChecked)
             if (isChecked) {
+                if (!prefsManager.isPersistentStatusNotificationEnabled()) {
+                    prefsManager.setServiceEnabled(false)
+                    binding.backgroundServiceSwitch.isChecked = false
+                    Toast.makeText(this, "برای سرویس پس‌زمینه، نوتیفیکیشن وضعیت باید فعال باشد", Toast.LENGTH_LONG).show()
+                    return@setOnCheckedChangeListener
+                }
+                prefsManager.setServiceEnabled(true)
                 startBackgroundService()
             } else {
+                prefsManager.setServiceEnabled(false)
                 stopBackgroundService()
+            }
+        }
+
+        binding.persistentNotificationSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefsManager.setPersistentStatusNotificationEnabled(isChecked)
+            if (!isChecked && prefsManager.isServiceEnabled()) {
+                prefsManager.setServiceEnabled(false)
+                binding.backgroundServiceSwitch.isChecked = false
+                stopBackgroundService()
+            }
+        }
+
+        binding.persistentNotificationActionsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefsManager.setPersistentNotificationActionsEnabled(isChecked)
+            if (prefsManager.isServiceEnabled()) {
+                startBackgroundService()
             }
         }
         binding.backupButton.setOnClickListener {

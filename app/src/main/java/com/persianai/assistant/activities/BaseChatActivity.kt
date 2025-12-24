@@ -87,9 +87,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
         // Initialize conversation storage and load current conversation (if any)
         conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
         currentConversation = Conversation()
+        val conversationScope = this@BaseChatActivity::class.java.simpleName
         lifecycleScope.launch {
             try {
-                val id = conversationStorage.getCurrentConversationId()
+                val id = conversationStorage.getCurrentConversationId(conversationScope)
                 val loaded = if (!id.isNullOrBlank()) conversationStorage.getConversation(id) else null
                 if (loaded != null) {
                     currentConversation = loaded
@@ -99,7 +100,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
                         chatAdapter.notifyDataSetChanged()
                     }
                 } else {
-                    conversationStorage.setCurrentConversationId(currentConversation.id)
+                    conversationStorage.setCurrentConversationId(conversationScope, currentConversation.id)
                     conversationStorage.saveConversation(currentConversation)
                 }
             } catch (e: Exception) {
@@ -221,11 +222,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         // If a unified VoiceActionButton exists in the layout, wire it up so
         // chat activities automatically benefit from the unified recorder.
         try {
-            val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
-                resources.getIdentifier("voiceActionButton", "id", packageName)
-            )
-            if (vab != null) {
-                vab.setListener(object : com.persianai.assistant.ui.VoiceActionButton.Listener {
+            val listenerImpl = object : com.persianai.assistant.ui.VoiceActionButton.Listener {
                     override fun onRecordingStarted() {
                         onVoiceRecordingStarted()
                     }
@@ -244,7 +241,25 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     override fun onRecordingError(error: String) {
                         onVoiceRecordingError(error)
                     }
-                })
+                }
+
+            // 1) Try explicit ids used across layouts
+            val vab1 = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
+                resources.getIdentifier("voiceActionButton", "id", packageName)
+            )
+            val vab2 = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
+                resources.getIdentifier("voiceButton", "id", packageName)
+            )
+
+            // 2) Try the activity-provided voice view
+            val vab3 = try { getVoiceButton() as? com.persianai.assistant.ui.VoiceActionButton } catch (_: Exception) { null }
+
+            listOf(vab1, vab2, vab3)
+                .distinct()
+                .filterNotNull()
+                .forEach { it.setListener(listenerImpl) }
+
+            if (vab1 != null || vab2 != null || vab3 != null) {
                 android.util.Log.d("BaseChatActivity", "VoiceActionButton wired")
             }
         } catch (e: Exception) {
@@ -281,15 +296,28 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val hasValidKeys = apiKeys.isNotEmpty() && apiKeys.any { it.isActive }
         val onlinePreferred = shouldUseOnlinePriority()
 
+        val needsInternet = run {
+            val t = text.lowercase()
+            t.contains("آب و هوا") || t.contains("آب‌وهوا") || t.contains("هواشناسی") ||
+                t.contains("weather") || t.contains("forecast")
+        }
+
         // سیاست: به صورت پیش‌فرض همه چت‌ها آفلاین هستند؛ فقط بخش‌های مشاوره با override
         // shouldUseOnlinePriority() اجازه آنلاین دارند.
-        if (onlinePreferred) {
+        if (onlinePreferred || (needsInternet && hasValidKeys && aiClient != null)) {
             if (hasValidKeys && aiClient != null) {
                 // سعی برای آنلاین ابتدا
                 try {
                     val model = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
                     currentModel = model
-                    android.util.Log.d("BaseChatActivity", "📡 (Counseling) سعی برای تحلیل آنلاین با مدل: ${model.name}")
+                    android.util.Log.d(
+                        "BaseChatActivity",
+                        if (onlinePreferred) {
+                            "📡 (Counseling) سعی برای تحلیل آنلاین با مدل: ${model.name}"
+                        } else {
+                            "📡 (SmartOnline) سعی برای پاسخ آنلاین برای نیاز اینترنت با مدل: ${model.name}"
+                        }
+                    )
                     val response = aiClient!!.sendMessage(
                         model,
                         messages,

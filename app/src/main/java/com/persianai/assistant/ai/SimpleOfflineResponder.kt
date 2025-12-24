@@ -61,6 +61,11 @@ object SimpleOfflineResponder {
         if (anyMatch(normalizedText, listOf("سلام", "درود", "خسته نباشی", "صبح بخیر", "شب بخیر", "ببخشید"))) {
             return Pair("GREETING", keywords)
         }
+
+        // بررسی یادآورها (اولویت بالاتر از زمان/تاریخ تا "هر روز" به اشتباه TIME_DATE نشود)
+        if (anyMatch(normalizedText, listOf("یادآور", "یادم", "یادم بنداز", "یادآوری", "بیدارباش", "آلارم", "هشدار", "هر روز", "روزانه", "فراموش"))) {
+            return Pair("REMINDER", keywords)
+        }
         
         // بررسی سوالات زمان و تاریخ
         if (anyMatch(normalizedText, listOf("ساعت", "وقت", "تاریخ", "امروز", "فردا", "دیروز", "سال", "ماه", "روز"))) {
@@ -85,11 +90,6 @@ object SimpleOfflineResponder {
         // بررسی سوالات مسیریابی
         if (anyMatch(normalizedText, listOf("راه", "مسیر", "رفتن", "جهت", "نقشه", "جا", "پیدا"))) {
             return Pair("NAVIGATION", keywords)
-        }
-        
-        // بررسی یادآورها
-        if (anyMatch(normalizedText, listOf("یادآور", "یاد دادن", "فراموش", "کار", "تکلیف"))) {
-            return Pair("REMINDER", keywords)
         }
         
         // بررسی کمک

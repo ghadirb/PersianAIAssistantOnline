@@ -32,6 +32,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_OFFLINE_MODEL_DOWNLOADED = "offline_model_downloaded"
         private const val KEY_PARENTAL_ENABLED = "parental_enabled"
         private const val KEY_PARENTAL_KEYWORDS = "parental_keywords"
+
+        private const val KEY_PERSISTENT_STATUS_NOTIFICATION = "persistent_status_notification"
+        private const val KEY_PERSISTENT_NOTIFICATION_ACTIONS = "persistent_notification_actions"
         
         const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
@@ -137,6 +140,24 @@ JSON ONLY."""
 
     fun isServiceEnabled(): Boolean {
         return prefs.getBoolean(KEY_SERVICE_ENABLED, false)
+    }
+
+    fun setPersistentStatusNotificationEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PERSISTENT_STATUS_NOTIFICATION, enabled).apply()
+    }
+
+    fun isPersistentStatusNotificationEnabled(): Boolean {
+        // When user enables the service, showing a silent ongoing notification is the safe default.
+        return prefs.getBoolean(KEY_PERSISTENT_STATUS_NOTIFICATION, true)
+    }
+
+    fun setPersistentNotificationActionsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PERSISTENT_NOTIFICATION_ACTIONS, enabled).apply()
+    }
+
+    fun isPersistentNotificationActionsEnabled(): Boolean {
+        // Actions are optional; keep them off by default to avoid surprising behavior.
+        return prefs.getBoolean(KEY_PERSISTENT_NOTIFICATION_ACTIONS, false)
     }
 
     // Working Mode

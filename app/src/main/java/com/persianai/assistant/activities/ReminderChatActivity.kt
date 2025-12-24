@@ -132,8 +132,11 @@ class ReminderChatActivity : BaseChatActivity() {
         val input = normalizeDigits(text).trim()
         if (input.isBlank()) return null
 
-        val isReminder = input.contains("یادم بنداز") || input.contains("یادآوری") || input.contains("یادآور")
+        val isReminder = input.contains("یادم بنداز") || input.contains("یادآوری") || input.contains("یادآور") ||
+            input.contains("بیدارباش") || input.contains("آلارم") || input.contains("هشدار")
         if (!isReminder) return null
+
+        val isDaily = input.contains("هر روز") || input.contains("روزانه")
 
         val calendar = Calendar.getInstance()
         val msg = extractReminderMessage(input) ?: return null
@@ -163,15 +166,29 @@ class ReminderChatActivity : BaseChatActivity() {
 
         return try {
             val mgr = SmartReminderManager(this)
-            mgr.createSimpleReminder(
-                title = msg,
-                description = "",
-                triggerTime = calendar.timeInMillis
-            )
+
+            if (isDaily) {
+                mgr.createRecurringReminder(
+                    title = msg,
+                    description = "",
+                    firstTriggerTime = calendar.timeInMillis,
+                    repeatPattern = SmartReminderManager.RepeatPattern.DAILY
+                )
+            } else {
+                mgr.createSimpleReminder(
+                    title = msg,
+                    description = "",
+                    triggerTime = calendar.timeInMillis
+                )
+            }
 
             val hh = calendar.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
             val mm = calendar.get(Calendar.MINUTE).toString().padStart(2, '0')
-            "✅ یادآوری «$msg» برای ساعت $hh:$mm تنظیم شد."
+            if (isDaily) {
+                "✅ یادآوری روزانه «$msg» از ساعت $hh:$mm تنظیم شد."
+            } else {
+                "✅ یادآوری «$msg» برای ساعت $hh:$mm تنظیم شد."
+            }
         } catch (_: Exception) {
             null
         }
@@ -200,6 +217,11 @@ class ReminderChatActivity : BaseChatActivity() {
         t = t.replace("یادم بنداز", " ")
         t = t.replace("یادآوری", " ")
         t = t.replace("یادآور", " ")
+        t = t.replace("بیدارباش", " ")
+        t = t.replace("آلارم", " ")
+        t = t.replace("هشدار", " ")
+        t = t.replace("هر روز", " ")
+        t = t.replace("روزانه", " ")
         t = t.replace("که", " ")
         t = t.replace("فردا", " ")
         t = t.replace("پس فردا", " ")

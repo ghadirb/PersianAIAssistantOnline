@@ -153,13 +153,31 @@ class MainActivity : AppCompatActivity() {
                 prefsManager.setWorkingMode(next)
                 updateModeIndicator()
                 Toast.makeText(this, "حالت: ${binding.modeIndicator.text}", Toast.LENGTH_SHORT).show()
+
+                if (prefsManager.isServiceEnabled() && prefsManager.isPersistentStatusNotificationEnabled()) {
+                    val statusText = when (next) {
+                        PreferencesManager.WorkingMode.OFFLINE -> "آفلاین"
+                        PreferencesManager.WorkingMode.HYBRID -> "ترکیبی"
+                        PreferencesManager.WorkingMode.ONLINE -> "آنلاین"
+                    }
+                    val si = Intent(this, AIAssistantService::class.java).apply {
+                        putExtra(AIAssistantService.EXTRA_STATUS_TEXT, statusText)
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        startForegroundService(si)
+                    } else {
+                        startService(si)
+                    }
+                }
             }
             
             // نمایش پیام خوش‌آمدگویی در اولین اجرا
             showFirstRunDialogIfNeeded()
             
             // شروع سرویس پس‌زمینه
-            startBackgroundService()
+            if (prefsManager.isServiceEnabled() && prefsManager.isPersistentStatusNotificationEnabled()) {
+                startBackgroundService()
+            }
             
             // درخواست permission نوتیفیکیشن برای Android 13+
             requestNotificationPermission()
@@ -214,6 +232,18 @@ class MainActivity : AppCompatActivity() {
                     }
                 })
                 android.util.Log.d("MainActivity", "✅ VoiceActionButton wired successfully")
+
+                val shouldStartVoice = intent?.getBooleanExtra(AIAssistantService.EXTRA_START_VOICE, false) == true
+                if (shouldStartVoice) {
+                    intent?.removeExtra(AIAssistantService.EXTRA_START_VOICE)
+                    vab.post {
+                        try {
+                            vab.performClick()
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Failed to auto-start voice", e)
+                        }
+                    }
+                }
             } else {
                 android.util.Log.w("MainActivity", "⚠️ VoiceActionButton not found")
             }
@@ -236,6 +266,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun startBackgroundService() {
+        if (!prefsManager.isServiceEnabled() || !prefsManager.isPersistentStatusNotificationEnabled()) return
         val serviceIntent = Intent(this, AIAssistantService::class.java)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)

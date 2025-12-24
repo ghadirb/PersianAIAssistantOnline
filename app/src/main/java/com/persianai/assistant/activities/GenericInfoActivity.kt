@@ -22,6 +22,9 @@ class GenericInfoActivity : AppCompatActivity() {
 
         binding.startChatButton.setOnClickListener {
             val intentChat = Intent(this, AIChatActivity::class.java)
+            if (title.contains("پیشنهاد فرهنگی")) {
+                intentChat.putExtra("forceOnlineAnalysis", true)
+            }
             if (!preset.isNullOrBlank()) {
                 intentChat.putExtra("presetMessage", preset)
             }

@@ -18,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import com.persianai.assistant.services.AIAssistantService
 
 /**
  * صفحه مدیریت یادآوری‌ها
@@ -43,6 +44,17 @@ class RemindersActivity : AppCompatActivity() {
         setupRecyclerView()
         loadReminders()
         setupAIChatButton()
+
+        val quick = intent?.getBooleanExtra(AIAssistantService.EXTRA_QUICK_REMINDER, false) == true
+        if (quick) {
+            intent?.removeExtra(AIAssistantService.EXTRA_QUICK_REMINDER)
+            binding.root.post {
+                try {
+                    showAddReminderDialog()
+                } catch (_: Exception) {
+                }
+            }
+        }
     }
     
     private fun setupRecyclerView() {

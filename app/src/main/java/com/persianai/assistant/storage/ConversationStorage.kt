@@ -98,6 +98,10 @@ class ConversationStorage(private val context: Context) {
     fun getCurrentConversationId(): String? {
         return prefs.getString("current_conversation_id", null)
     }
+
+    fun getCurrentConversationId(scope: String): String? {
+        return prefs.getString("current_conversation_id_$scope", null)
+    }
     
     /**
      * تنظیم ID چت فعلی
@@ -105,11 +109,19 @@ class ConversationStorage(private val context: Context) {
     fun setCurrentConversationId(id: String) {
         prefs.edit().putString("current_conversation_id", id).apply()
     }
+
+    fun setCurrentConversationId(scope: String, id: String) {
+        prefs.edit().putString("current_conversation_id_$scope", id).apply()
+    }
     
     /**
      * حذف ID چت فعلی (برای شروع چت جدید)
      */
     fun clearCurrentConversationId() {
         prefs.edit().remove("current_conversation_id").apply()
+    }
+
+    fun clearCurrentConversationId(scope: String) {
+        prefs.edit().remove("current_conversation_id_$scope").apply()
     }
 }
