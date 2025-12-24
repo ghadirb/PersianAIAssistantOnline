@@ -105,11 +105,10 @@ class AIAssistantService : Service() {
             .setCategory(Notification.CATEGORY_SERVICE)
 
         if (prefs.isPersistentNotificationActionsEnabled()) {
-            val voiceIntent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_START_VOICE, true)
+            val voiceIntent = Intent(this, VoiceCommandService::class.java).apply {
+                action = VoiceCommandService.ACTION_RECORD_COMMAND
             }
-            val voicePendingIntent = PendingIntent.getActivity(
+            val voicePendingIntent = PendingIntent.getService(
                 this,
                 1,
                 voiceIntent,

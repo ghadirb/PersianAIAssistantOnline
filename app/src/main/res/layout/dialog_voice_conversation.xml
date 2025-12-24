@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/titleText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎧 مکالمه صوتی"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="در حال آماده‌سازی..."
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/lastText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text=""
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/stopButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏹ توقف" />
+
+    </LinearLayout>
+
+</LinearLayout>

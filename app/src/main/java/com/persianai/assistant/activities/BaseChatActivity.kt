@@ -9,12 +9,16 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.View
 import android.widget.Toast
+import android.widget.TextView
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.viewbinding.ViewBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.adapters.ChatAdapter
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.models.AIModel
@@ -29,8 +33,10 @@ import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.services.VoiceRecordingHelper
+import com.persianai.assistant.services.UnifiedVoiceEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import android.util.Log
 import okhttp3.MediaType.Companion.toMediaType
@@ -54,6 +60,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected lateinit var voiceHelper: VoiceRecordingHelper
     private lateinit var conversationStorage: com.persianai.assistant.storage.ConversationStorage
     private lateinit var currentConversation: Conversation
+    private var conversationLoaded: Boolean = false
+    private var voiceConversationDialog: AlertDialog? = null
+    private var voiceConversationJob: Job? = null
     private val httpClient = OkHttpClient()
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
@@ -103,8 +112,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     conversationStorage.setCurrentConversationId(conversationScope, currentConversation.id)
                     conversationStorage.saveConversation(currentConversation)
                 }
+                conversationLoaded = true
+                maybeShowIntroMessage()
             } catch (e: Exception) {
                 android.util.Log.w("BaseChatActivity", "Failed loading conversation: ${e.message}")
+                conversationLoaded = true
+                maybeShowIntroMessage()
             }
         }
         
@@ -122,6 +135,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         setupRecyclerView()
         setupListeners()
         setupAIClient()
+        maybeShowIntroMessage()
     }
 
     private fun setupRecyclerView() {
@@ -132,6 +146,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
             }
             adapter = chatAdapter
         }
+        maybeShowIntroMessage()
     }
 
     private suspend fun transcribeWithHuggingFace(audioFile: File): String? = withContext(Dispatchers.IO) {
@@ -176,9 +191,13 @@ abstract class BaseChatActivity : AppCompatActivity() {
             val resolved = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)
-            // ✅ اگر کلید API موجود است، حالت را به ONLINE تغییر دهید
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.ONLINE)
-            Log.d("BaseChatActivity", "✅ حالت ONLINE فعال شد (کلید API یافت شد)")
+            // ✅ اگر کاربر صراحتاً حالت OFFLINE را انتخاب کرده، تغییر نده.
+            // در غیر این صورت بهترین حالت پیش‌فرض: HYBRID (تشخیص خودکار آنلاین/آفلاین).
+            val current = prefsManager.getWorkingMode()
+            if (current != PreferencesManager.WorkingMode.OFFLINE) {
+                prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+            }
+            Log.d("BaseChatActivity", "✅ API Key یافت شد؛ حالت فعلی: ${prefsManager.getWorkingMode().name}")
         } else {
             Toast.makeText(this, "⚠️ کلید API یافت نشد - حالت آفلاین فعال است", Toast.LENGTH_LONG).show()
             prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
@@ -190,19 +209,36 @@ abstract class BaseChatActivity : AppCompatActivity() {
             sendMessage()
         }
 
-        // Default click behavior for simple voice buttons (e.g. MaterialButton in activity_chat.xml).
-        // If the voice view is a custom recorder view, its own listener will handle recording.
+        // Long-press on VoiceActionButton triggers full voice conversation mode
         try {
-            getVoiceButton().setOnClickListener {
-                try {
-                    if (voiceHelper.isRecording()) {
-                        stopVoiceRecording()
-                    } else {
-                        startVoiceRecording()
+            val voiceView = getVoiceButton()
+            if (voiceView is com.persianai.assistant.ui.VoiceActionButton) {
+                voiceView.setOnLongClickListener {
+                    startVoiceConversationDialog()
+                    true
+                }
+            }
+        } catch (_: Exception) {
+        }
+
+        // Default click behavior for simple voice buttons (e.g. MaterialButton).
+        // If the voice view is a custom recorder view or VoiceActionButton, its own listener will handle recording/STT.
+        try {
+            val voiceView = getVoiceButton()
+            val isVoiceActionButton = voiceView is com.persianai.assistant.ui.VoiceActionButton
+            val isVoiceRecorder = voiceView is VoiceRecorderView
+            if (!isVoiceActionButton && !isVoiceRecorder) {
+                voiceView.setOnClickListener {
+                    try {
+                        if (voiceHelper.isRecording()) {
+                            stopVoiceRecording()
+                        } else {
+                            startVoiceRecording()
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("BaseChatActivity", "Voice button action failed", e)
+                        Toast.makeText(this@BaseChatActivity, "خطا در ضبط صوت", Toast.LENGTH_SHORT).show()
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("BaseChatActivity", "Voice button action failed", e)
-                    Toast.makeText(this@BaseChatActivity, "خطا در ضبط صوت", Toast.LENGTH_SHORT).show()
                 }
             }
         } catch (_: Exception) {
@@ -286,6 +322,130 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
     }
 
+    private fun startVoiceConversationDialog() {
+        try {
+            if (voiceConversationDialog?.isShowing == true) return
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO)
+                Toast.makeText(this, "⚠️ برای مکالمه صوتی مجوز میکروفن لازم است", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val dialogView = layoutInflater.inflate(com.persianai.assistant.R.layout.dialog_voice_conversation, null, false)
+            val statusText = dialogView.findViewById<TextView>(com.persianai.assistant.R.id.statusText)
+            val lastText = dialogView.findViewById<TextView>(com.persianai.assistant.R.id.lastText)
+            val stopButton = dialogView.findViewById<Button>(com.persianai.assistant.R.id.stopButton)
+
+            voiceConversationDialog = MaterialAlertDialogBuilder(this)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create()
+
+            stopButton.setOnClickListener {
+                stopVoiceConversationDialog()
+            }
+
+            voiceConversationDialog?.show()
+
+            // Initial assistant prompt
+            val intro = (getIntroMessage()?.takeIf { it.isNotBlank() } ?: "سلام! چطور می‌تونم کمکت کنم؟")
+            lastText.text = intro
+            ttsHelper.speak(intro)
+
+            voiceConversationJob?.cancel()
+            voiceConversationJob = lifecycleScope.launch {
+                val engine = UnifiedVoiceEngine(this@BaseChatActivity)
+                while (voiceConversationDialog?.isShowing == true) {
+                    try {
+                        statusText.text = "🎤 گوش می‌دم..."
+                        val recording = recordWithVad(engine)
+                        if (recording == null) {
+                            statusText.text = "⚠️ چیزی شنیده نشد"
+                            kotlinx.coroutines.delay(600)
+                            continue
+                        }
+
+                        statusText.text = "📝 تبدیل گفتار به متن..."
+                        val analysis = engine.analyzeHybrid(recording.file)
+                        val userText = analysis.getOrNull()?.primaryText?.trim().orEmpty()
+                        if (userText.isBlank()) {
+                            statusText.text = "⚠️ متن تشخیص داده نشد"
+                            kotlinx.coroutines.delay(600)
+                            continue
+                        }
+
+                        lastText.text = "شما: $userText"
+                        addMessage(ChatMessage(role = MessageRole.USER, content = userText))
+
+                        statusText.text = "🤖 در حال پاسخ..."
+                        val response = handleRequest(userText)
+                        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = response))
+                        lastText.text = "دستیار: ${response.take(300)}"
+
+                        statusText.text = "🎤 دوباره گوش می‌دم..."
+                        kotlinx.coroutines.delay(500)
+                    } catch (e: Exception) {
+                        android.util.Log.e("BaseChatActivity", "Voice conversation loop error", e)
+                        statusText.text = "❌ خطا: ${e.message}"
+                        kotlinx.coroutines.delay(800)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("BaseChatActivity", "Failed to start voice conversation dialog", e)
+            Toast.makeText(this, "❌ خطا در مکالمه صوتی", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun stopVoiceConversationDialog() {
+        try {
+            voiceConversationJob?.cancel()
+            voiceConversationJob = null
+            voiceConversationDialog?.dismiss()
+            voiceConversationDialog = null
+        } catch (_: Exception) {
+        }
+    }
+
+    private suspend fun recordWithVad(engine: UnifiedVoiceEngine): com.persianai.assistant.services.RecordingResult? {
+        return try {
+            if (!engine.hasRequiredPermissions()) return null
+
+            val start = engine.startRecording()
+            if (start.isFailure) return null
+
+            val startTime = System.currentTimeMillis()
+            var hasSpeech = false
+            var lastSpeechTime = 0L
+            val maxTotalMs = 10_000L
+            val maxWaitForSpeechMs = 4_000L
+            val silenceStopMs = 1_200L
+            val threshold = 900
+
+            while (engine.isRecordingInProgress()) {
+                val now = System.currentTimeMillis()
+                val amp = engine.getCurrentAmplitude()
+                if (amp > threshold) {
+                    hasSpeech = true
+                    lastSpeechTime = now
+                }
+
+                val total = now - startTime
+                if (!hasSpeech && total > maxWaitForSpeechMs) break
+                if (hasSpeech && (now - lastSpeechTime) > silenceStopMs) break
+                if (total > maxTotalMs) break
+
+                kotlinx.coroutines.delay(120)
+            }
+
+            val stop = engine.stopRecording()
+            stop.getOrNull()
+        } catch (e: Exception) {
+            try { engine.cancelRecording() } catch (_: Exception) {}
+            null
+        }
+    }
+
     protected fun sendMessage() {
         val text = getMessageInput().text.toString().trim()
         if (text.isEmpty()) return
@@ -311,51 +471,84 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     protected open suspend fun handleRequest(text: String): String = withContext(Dispatchers.IO) {
+        val workingMode = prefsManager.getWorkingMode()
         val apiKeys = prefsManager.getAPIKeys()
         val hasValidKeys = apiKeys.isNotEmpty() && apiKeys.any { it.isActive }
-        val onlinePreferred = shouldUseOnlinePriority()
+        val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE || workingMode == PreferencesManager.WorkingMode.HYBRID) && hasValidKeys && aiClient != null
 
-        val needsInternet = run {
-            val t = text.lowercase()
-            t.contains("آب و هوا") || t.contains("آب‌وهوا") || t.contains("هواشناسی") ||
-                t.contains("weather") || t.contains("forecast")
+        fun isLikelyComplex(t: String): Boolean {
+            val s = t.trim()
+            val lower = s.lowercase()
+            if (s.length >= 120) return true
+            return lower.contains("تحلیل") ||
+                lower.contains("مقاله") ||
+                lower.contains("خلاصه") ||
+                lower.contains("برنامه") ||
+                lower.contains("استراتژی") ||
+                lower.contains("روان") ||
+                lower.contains("افسرد") ||
+                lower.contains("اضطراب") ||
+                lower.contains("مسیر شغلی") ||
+                lower.contains("رزومه") ||
+                lower.contains("پیشنهاد کتاب") ||
+                lower.contains("پیشنهاد فیلم") ||
+                lower.contains("research") ||
+                lower.contains("plan")
         }
 
-        // سیاست: به صورت پیش‌فرض همه چت‌ها آفلاین هستند؛ فقط بخش‌های مشاوره با override
-        // shouldUseOnlinePriority() اجازه آنلاین دارند.
-        if (onlinePreferred || (needsInternet && hasValidKeys && aiClient != null)) {
-            if (hasValidKeys && aiClient != null) {
-                // سعی برای آنلاین ابتدا
-                try {
-                    val model = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
-                    currentModel = model
-                    android.util.Log.d(
-                        "BaseChatActivity",
-                        if (onlinePreferred) {
-                            "📡 (Counseling) سعی برای تحلیل آنلاین با مدل: ${model.name}"
-                        } else {
-                            "📡 (SmartOnline) سعی برای پاسخ آنلاین برای نیاز اینترنت با مدل: ${model.name}"
-                        }
-                    )
-                    val response = aiClient!!.sendMessage(
-                        model,
-                        messages,
-                        getSystemPrompt() + "\n\nپیام کاربر: " + text
-                    )
-                    android.util.Log.d("BaseChatActivity", "✅ پاسخ آنلاین دریافت شد")
-                    return@withContext response.content
-                } catch (e: Exception) {
-                    android.util.Log.w("BaseChatActivity", "⚠️ آنلاین ناموفق: ${e.message}")
-                    // بازگشت به آفلاین
-                }
-            } else {
-                android.util.Log.w("BaseChatActivity", "⚠️ (Counseling) کلید/APIClient موجود نیست؛ بازگشت به آفلاین")
+        fun shouldUseOnlineFirst(): Boolean {
+            if (workingMode == PreferencesManager.WorkingMode.OFFLINE) return false
+            if (!canUseOnline) return false
+            if (workingMode == PreferencesManager.WorkingMode.ONLINE) return true
+            // HYBRID: آنلاین فقط وقتی احتمالاً نیاز به تحلیل دارد
+            return shouldUseOnlinePriority() || isLikelyComplex(text)
+        }
+
+        suspend fun tryOnline(): String? {
+            if (!canUseOnline) return null
+            return try {
+                val model = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
+                currentModel = model
+                android.util.Log.d("BaseChatActivity", "📡 tryOnline model=${model.name}")
+                val response = aiClient!!.sendMessage(
+                    model,
+                    messages,
+                    getSystemPrompt() + "\n\nپیام کاربر: " + text
+                )
+                response.content
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "⚠️ tryOnline failed: ${e.message}")
+                null
             }
         }
 
-        // استفاده از آفلاین (SimpleOfflineResponder یا TinyLlama)
-        android.util.Log.d("BaseChatActivity", "📵 حالت آفلاین فعال")
-        return@withContext offlineRespond(text)
+        fun tryOffline(): String? {
+            return try {
+                offlineRespond(text)
+            } catch (e: Exception) {
+                android.util.Log.w("BaseChatActivity", "⚠️ tryOffline failed: ${e.message}")
+                null
+            }
+        }
+
+        val onlineFirst = shouldUseOnlineFirst()
+        if (onlineFirst) {
+            val online = tryOnline()
+            if (!online.isNullOrBlank()) return@withContext online
+            val offline = tryOffline()
+            if (!offline.isNullOrBlank()) return@withContext offline
+            return@withContext "❌ خطا در پردازش درخواست"
+        }
+
+        // OFFLINE یا HYBRID: ابتدا آفلاین
+        val offline = tryOffline()
+        if (!offline.isNullOrBlank()) return@withContext offline
+
+        // اگر آفلاین واقعاً چیزی نداشت و امکان آنلاین هست، آنلاین
+        val online = tryOnline()
+        if (!online.isNullOrBlank()) return@withContext online
+
+        return@withContext "❌ خطا در پردازش درخواست"
     }
 
     private fun offlineRespond(text: String): String {
@@ -365,21 +558,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
             Log.d("BaseChatActivity", "✅ SimpleOfflineResponder returned response")
             return simpleResponse
         }
-        
-        // اگر SimpleOfflineResponder نتوانست، پاسخ ساده‌تری را برگردان
-        Log.d("BaseChatActivity", "⚠️ SimpleOfflineResponder did not respond, showing default offline message")
-        
-        return buildString {
-            append("📵 **حالت آفلاین فعال**\n\n")
-            append("⚠️ برای دریافت پاسخ‌های هوشمند:\n\n")
-            append("1️⃣ یک کلید API تهیه کنید:\n")
-            append("   • OpenAI: https://platform.openai.com/api-keys\n")
-            append("   • OpenRouter: https://openrouter.ai\n")
-            append("   • AIML API: https://aimlapi.com\n\n")
-            append("2️⃣ به تنظیمات برو (⚙️) و کلید را وارد کن\n")
-            append("3️⃣ سپس دوباره سوال خود را بپرسید\n\n")
-            append("💡 **سوال شما:** $text")
-        }
+
+        // در صورت ناتوانی آفلاین، یک پاسخ عمومی بده (نه پیام الزام آنلاین)
+        Log.d("BaseChatActivity", "⚠️ SimpleOfflineResponder did not respond")
+        return "می‌تونی دقیق‌تر بگی چی می‌خوای انجام بدی؟ (مثلاً: «یادآوری فردا ساعت ۸»، «ثبت هزینه ۵۰ هزار تومان»، «محاسبه ۱۲+۵» )"
     }
 
     /**
@@ -405,6 +587,17 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     protected open fun shouldUseOnlinePriority(): Boolean = false
+
+    protected open fun getIntroMessage(): String? = null
+
+    private fun maybeShowIntroMessage() {
+        if (!conversationLoaded) return
+        if (!this::chatAdapter.isInitialized) return
+        if (messages.isNotEmpty()) return
+        val intro = getIntroMessage()?.trim().orEmpty()
+        if (intro.isBlank()) return
+        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = intro))
+    }
 
     protected open fun getSystemPrompt(): String {
         return "شما یک دستیار هوشمند فارسی هستید."

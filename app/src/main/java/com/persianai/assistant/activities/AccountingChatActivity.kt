@@ -35,8 +35,6 @@ class AccountingChatActivity : BaseChatActivity() {
         installmentManager = InstallmentManager(this)
 
         setupChatUI()
-
-        addMessage(com.persianai.assistant.models.ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! می‌تونم درآمد، هزینه، چک یا قسط جدید برات ثبت کنم. فقط کافیه بگی."))
     }
 
     override fun onResume() {
@@ -49,6 +47,10 @@ class AccountingChatActivity : BaseChatActivity() {
     override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = (binding as ActivityChatBinding).messageInput
     override fun getSendButton(): View = (binding as ActivityChatBinding).sendButton
     override fun getVoiceButton(): View = (binding as ActivityChatBinding).voiceButton
+
+    override fun getIntroMessage(): String {
+        return "سلام! می‌تونم درآمد، هزینه، چک یا قسط جدید برات ثبت کنم. فقط کافیه بگی."
+    }
 
     override fun getSystemPrompt(): String {
         return """

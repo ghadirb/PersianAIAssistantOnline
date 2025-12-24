@@ -29,19 +29,16 @@ class ReminderChatActivity : BaseChatActivity() {
         supportActionBar?.title = "چت با دستیار یادآوری"
 
         setupChatUI()
-
-        addMessage(
-            com.persianai.assistant.models.ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"
-            )
-        )
     }
 
     override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = chatBinding.messagesRecyclerView
     override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = chatBinding.messageInput
     override fun getSendButton(): View = chatBinding.sendButton
     override fun getVoiceButton(): View = chatBinding.voiceButton
+
+    override fun getIntroMessage(): String {
+        return "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"
+    }
 
     override fun getSystemPrompt(): String {
         return """

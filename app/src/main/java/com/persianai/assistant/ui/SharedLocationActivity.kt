@@ -59,8 +59,28 @@ class SharedLocationActivity : AppCompatActivity() {
         }
 
         // 2) Parse from URI/text (Google Maps / Neshan / geo:)
-        val parsed = LocationShareParser.parseFromUri(intent.data)
-            ?: LocationShareParser.parseFromIntentText(intent.getStringExtra(Intent.EXTRA_TEXT))
+        val candidates = mutableListOf<String>()
+        intent.data?.toString()?.let { candidates.add(it) }
+        intent.dataString?.let { candidates.add(it) }
+        intent.getStringExtra(Intent.EXTRA_TEXT)?.let { candidates.add(it) }
+
+        // ClipData is common for shares from maps apps
+        try {
+            val clip = intent.clipData
+            if (clip != null) {
+                for (i in 0 until clip.itemCount) {
+                    val item = clip.getItemAt(i)
+                    item.text?.toString()?.let { candidates.add(it) }
+                    item.uri?.toString()?.let { candidates.add(it) }
+                }
+            }
+        } catch (_: Exception) {
+        }
+
+        val parsed = candidates
+            .asSequence()
+            .mapNotNull { LocationShareParser.parseFromString(it) }
+            .firstOrNull()
         if (parsed != null) {
             val suggested = parsed.label?.takeIf { it.isNotBlank() } ?: "مکان ذخیره‌شده"
             showLocationSaveDialog(parsed.latitude, parsed.longitude, suggested)

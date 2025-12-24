@@ -147,6 +147,11 @@
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
+        <service
+            android:name=".services.VoiceCommandService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <activity
             android:name=".activities.ConnectedAppsActivity"
             android:exported="false"
