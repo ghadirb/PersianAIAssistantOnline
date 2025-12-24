@@ -336,64 +336,60 @@ class NewHybridVoiceRecorder(private val context: Context) {
             Result.failure(e)
         }
     }
-    
+
     /**
      * Analyze audio using online API
      */
     suspend fun analyzeOnline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🌐 Starting online analysis...")
-            
-            // Validate audio file
+
             if (!audioFile.exists() || audioFile.length() == 0L) {
                 return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
             }
-            
-            // Get API key from preferences (implement this)
-            val apiKey = getAPIKey() ?: return@withContext Result.failure(IllegalStateException("API key not configured"))
-            
-            // Upload and analyze using aimlapi
+
+            val apiKey = getAPIKey()
+                ?: return@withContext Result.failure(IllegalStateException("API key not configured"))
+
             val result = uploadToAIMLAPI(audioFile, apiKey)
-            
             Log.d(TAG, "✅ Online analysis completed: $result")
             Result.success(result)
-            
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in online analysis", e)
             Result.failure(e)
         }
     }
-    
+
     /**
      * Hybrid analysis - combine offline and online results
      */
     suspend fun analyzeHybrid(audioFile: File): Result<HybridAnalysisResult> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "⚡ Starting hybrid analysis...")
-            
-            // Run offline and online analysis in parallel
+
             val offlineDeferred = async { analyzeOffline(audioFile) }
             val onlineDeferred = async { analyzeOnline(audioFile) }
 
-            // Prefer the fastest non-empty result. Don't block long on online analysis if offline is quick.
             val offlineFast = try { withTimeoutOrNull(1500) { offlineDeferred.await().getOrNull() } } catch (_: Exception) { null }
             val onlineFast = if (offlineFast.isNullOrBlank()) {
                 try { withTimeoutOrNull(6000) { onlineDeferred.await().getOrNull() } } catch (_: Exception) { null }
-            } else null
+            } else {
+                null
+            }
 
             val offlineFinal = try { offlineDeferred.await().getOrNull() } catch (_: Exception) { null }
             val onlineFinal = try { onlineDeferred.await().getOrNull() } catch (_: Exception) { null }
+
+            val offlineResult: Result<String> = try { offlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
+            val onlineResult: Result<String> = try { onlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
 
             val primary = when {
                 !onlineFast.isNullOrBlank() -> onlineFast
                 !offlineFast.isNullOrBlank() -> offlineFast
                 !onlineFinal.isNullOrBlank() -> onlineFinal
                 !offlineFinal.isNullOrBlank() -> offlineFinal
-                else -> "تحلیل انجام نشد"
+                else -> ""
             }
-
-            val offlineResult: Result<String> = try { offlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
-            val onlineResult: Result<String> = try { onlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
 
             val hybridResult = HybridAnalysisResult(
                 offlineText = offlineFinal,
@@ -402,111 +398,53 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 confidence = calculateConfidence(offlineResult, onlineResult),
                 timestamp = System.currentTimeMillis()
             )
-            
+
             Log.d(TAG, "✅ Hybrid analysis completed")
             Result.success(hybridResult)
-            
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in hybrid analysis", e)
             Result.failure(e)
         }
     }
-    
-    /**
-     * Get current amplitude level
-     */
+
     fun getCurrentAmplitude(): Int {
         return try {
-            if (isRecording.get()) {
-                mediaRecorder?.maxAmplitude ?: 0
-            } else {
-                0
-            }
+            if (isRecording.get()) mediaRecorder?.maxAmplitude ?: 0 else 0
         } catch (e: Exception) {
             Log.w(TAG, "Error getting amplitude", e)
             0
         }
     }
-    
-    /**
-     * Check if recording is in progress
-     */
-    fun isRecordingInProgress(): Boolean {
-        return isRecording.get()
-    }
-    
-    /**
-     * Get current recording duration
-     */
+
+    fun isRecordingInProgress(): Boolean = isRecording.get()
+
     fun getCurrentRecordingDuration(): Long {
-        return if (isRecording.get()) {
-            System.currentTimeMillis() - recordingStartTime.get()
-        } else {
-            0L
-        }
+        return if (isRecording.get()) System.currentTimeMillis() - recordingStartTime.get() else 0L
     }
 
-    /**
-     * Get the current recording file (if any)
-     */
-    fun getRecordingFile(): File? {
-        return currentFile
-    }
-    
-    /**
-     * Initialize Haaniye model
-     */
+    fun getRecordingFile(): File? = currentFile
+
     private fun initializeHaaniyeModel() {
         try {
             Log.d(TAG, "🔧 Initializing Haaniye model...")
-            
-            // Load ONNX model from assets
-            val modelPath = "$haaniyeAssets/fa-haaniye_low.onnx"
-            val modelInfoPath = "$haaniyeAssets/fa-haaniye_low.onnx.json"
-            
-            // For now, check presence via HaaniyeManager and keep a placeholder
             val available = com.persianai.assistant.services.HaaniyeManager.ensureModelPresent(context)
             haaniyeModel = if (available) "haaniye_model_placeholder" else null
-            
             Log.d(TAG, "✅ Haaniye model initialized")
-            
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to initialize Haaniye model", e)
             throw e
         }
     }
-    
-    /**
-     * Perform Haaniye analysis
-     */
+
     private suspend fun performHaaniyeAnalysis(audioFile: File): String = withContext(Dispatchers.IO) {
         try {
-            // Basic file analysis
-            val fileSize = audioFile.length()
-            val duration = estimateDuration(fileSize) // Rough estimation
-            
-            // Simulate Haaniye processing
-            val simulatedResult = "تحلیل Haaniye: صدای ضبط شده شناسایی شد (مدت: ${duration}ثانیه، اندازه: ${fileSize}بایت)"
-            
-            // In production, this would:
-            // 1. Load audio data
-            // 2. Run through ONNX model
-            // 3. Apply Persian phoneme processing
-            // 4. Return Persian text
-            
-            delay(1000) // Simulate processing time
-            
-            simulatedResult
-            
+            ""
         } catch (e: Exception) {
             Log.e(TAG, "Error in Haaniye analysis", e)
-            "خطا در تحلیل Haaniye: ${e.message}"
+            ""
         }
     }
-    
-    /**
-     * Upload to AIML API
-     */
+
     private suspend fun uploadToAIMLAPI(audioFile: File, apiKey: String): String = withContext(Dispatchers.IO) {
         try {
             val client = OkHttpClient.Builder()

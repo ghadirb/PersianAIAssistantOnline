@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.View
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import android.widget.TextView
 import android.widget.Button
@@ -64,6 +66,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private var voiceConversationDialog: AlertDialog? = null
     private var voiceConversationJob: Job? = null
     private val httpClient = OkHttpClient()
+    private val sttEngine by lazy { UnifiedVoiceEngine(this) }
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
             .getString("hf_api_key", null)
@@ -75,6 +78,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
         const val EXTRA_START_VOICE_CONVERSATION = "extra_start_voice_conversation"
+
+        private const val MENU_ID_VOICE_CONVERSATION = 99001
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
@@ -125,6 +130,27 @@ abstract class BaseChatActivity : AppCompatActivity() {
         // Setup Voice Recording Helper
         voiceHelper = VoiceRecordingHelper(this)
         setupVoiceRecording()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        try {
+            if (menu.findItem(MENU_ID_VOICE_CONVERSATION) == null) {
+                menu.add(Menu.NONE, MENU_ID_VOICE_CONVERSATION, Menu.NONE, "🎙️ مکالمه صوتی با مدل")
+                    .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            }
+        } catch (_: Exception) {
+        }
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            MENU_ID_VOICE_CONVERSATION -> {
+                startVoiceConversationDialog()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     protected abstract fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView
@@ -666,6 +692,21 @@ abstract class BaseChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val workingMode = prefsManager.getWorkingMode()
+
+                val hybridText = try {
+                    val analysis = withContext(Dispatchers.IO) { sttEngine.analyzeHybrid(audioFile) }
+                    analysis.getOrNull()?.primaryText?.trim().orEmpty()
+                } catch (e: Exception) {
+                    Log.e("BaseChatActivity", "Hybrid STT failed: ${e.message}")
+                    ""
+                }
+
+                if (hybridText.isNotBlank()) {
+                    getMessageInput().setText(hybridText)
+                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$hybridText\"", Toast.LENGTH_SHORT).show()
+                    sendMessage()
+                    return@launch
+                }
                 
                 // ✅ سعی برای تبدیل آنلاین یا HuggingFace
                 val transcribedText = try {
@@ -757,20 +798,24 @@ abstract class BaseChatActivity : AppCompatActivity() {
     
     protected open fun onVoiceRecordingStarted() {
         Log.d("BaseChatActivity", "Voice recording started")
+        try { getVoiceButton().alpha = 0.5f } catch (_: Exception) {}
     }
     
     protected open fun onVoiceRecordingCompleted(audioFile: File, durationMs: Long) {
         Log.d("BaseChatActivity", "Voice recording completed")
+        try { getVoiceButton().alpha = 1.0f } catch (_: Exception) {}
         // پس از اتمام ضبط: تبدیل گفتار به متن و ارسال به چت
         transcribeAudio(audioFile)
     }
     
     protected open fun onVoiceRecordingCancelled() {
         Log.d("BaseChatActivity", "Voice recording cancelled")
+        try { getVoiceButton().alpha = 1.0f } catch (_: Exception) {}
     }
     
     protected open fun onVoiceRecordingError(error: String) {
         Log.e("BaseChatActivity", "Voice recording error: $error")
+        try { getVoiceButton().alpha = 1.0f } catch (_: Exception) {}
         Toast.makeText(this, "خطا: $error", Toast.LENGTH_SHORT).show()
     }
     
