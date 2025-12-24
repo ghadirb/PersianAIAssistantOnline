@@ -189,6 +189,25 @@ abstract class BaseChatActivity : AppCompatActivity() {
         getSendButton().setOnClickListener {
             sendMessage()
         }
+
+        // Default click behavior for simple voice buttons (e.g. MaterialButton in activity_chat.xml).
+        // If the voice view is a custom recorder view, its own listener will handle recording.
+        try {
+            getVoiceButton().setOnClickListener {
+                try {
+                    if (voiceHelper.isRecording()) {
+                        stopVoiceRecording()
+                    } else {
+                        startVoiceRecording()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BaseChatActivity", "Voice button action failed", e)
+                    Toast.makeText(this@BaseChatActivity, "خطا در ضبط صوت", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } catch (_: Exception) {
+            // Some activities may not expose a voice button
+        }
         
         // تنظیم VoiceRecorderView یا VoiceActionButton
         try {

@@ -247,13 +247,7 @@ class DashboardActivity : AppCompatActivity() {
                     "مشاور آرامش",
                     "این بخش تنها نقش همراه و شنونده دارد و جایگزین درمانگر یا روان‌شناس نیست. در شرایط اضطرار با متخصص تماس بگیرید."
                 ) {
-                    val intent = Intent(this, AIChatActivity::class.java).apply {
-                        putExtra(
-                            "presetMessage",
-                            "به عنوان مشاور آرامش و خودشناسی، یک گفت‌وگوی کوتاه برای مدیریت استرس و تنظیم احساسات با من شروع کن."
-                        )
-                        putExtra("forceOnlineAnalysis", true)
-                    }
+                    val intent = Intent(this, PsychologyChatActivity::class.java)
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                 }
@@ -267,13 +261,7 @@ class DashboardActivity : AppCompatActivity() {
                     "مشاور مسیر",
                     "این راهنما پیشنهادهای کلی می‌دهد و مسئولیت تصمیم‌های شغلی یا تحصیلی با خود شماست. برای تصمیم نهایی با یک مشاور انسانی مشورت کنید."
                 ) {
-                    val intent = Intent(this, AIChatActivity::class.java).apply {
-                        putExtra(
-                            "presetMessage",
-                            "می‌خواهم یک مسیر شغلی/تحصیلی مناسب پیدا کنم. با سوال‌های کوتاه کمکم کن تا مهارت‌ها و علایقم را مشخص کنم."
-                        )
-                        putExtra("forceOnlineAnalysis", true)
-                    }
+                    val intent = Intent(this, CareerChatActivity::class.java)
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                 }
@@ -283,11 +271,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.crmCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, GenericInfoActivity::class.java).apply {
-                    putExtra(GenericInfoActivity.EXTRA_TITLE, "دفتر مشتریان")
-                    putExtra(GenericInfoActivity.EXTRA_DESC, "مشتریان، یادداشت‌ها و پیگیری‌ها را در یک جا ثبت کنید. برای افزودن قالب پیام یا پیگیری، گفت‌وگو با دستیار را شروع کنید.")
-                    putExtra(GenericInfoActivity.EXTRA_PRESET, "یک جدول ساده CRM برای پیگیری مشتریان با ستون‌های نام، شماره، آخرین تماس، اقدام بعدی بساز.")
-                }
+                val intent = Intent(this, CRMChatActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
@@ -296,11 +280,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.docsCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, GenericInfoActivity::class.java).apply {
-                    putExtra(GenericInfoActivity.EXTRA_TITLE, "بانک اسناد")
-                    putExtra(GenericInfoActivity.EXTRA_DESC, "مدیریت و جستجوی قرارداد، فاکتور و فایل‌های مهم. برای ساخت چک‌لیست برچسب‌گذاری یا خلاصه‌سازی، گفت‌وگو را شروع کنید.")
-                    putExtra(GenericInfoActivity.EXTRA_PRESET, "یک چک‌لیست برچسب‌گذاری و نام‌گذاری برای بایگانی قراردادها و فاکتورها پیشنهاد بده.")
-                }
+                val intent = Intent(this, DocumentChatActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)
@@ -309,11 +289,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.cultureCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, GenericInfoActivity::class.java).apply {
-                    putExtra(GenericInfoActivity.EXTRA_TITLE, "پیشنهاد فرهنگی")
-                    putExtra(GenericInfoActivity.EXTRA_DESC, "کتاب، فیلم و دوره آموزشی متناسب با علایق شما. با دستیار گفتگو کنید تا لیست شخصی دریافت کنید.")
-                    putExtra(GenericInfoActivity.EXTRA_PRESET, "بر اساس علایق من در توسعه فردی و تکنولوژی، ۳ کتاب و ۳ فیلم الهام‌بخش پیشنهاد بده.")
-                }
+                val intent = Intent(this, CulturalChatActivity::class.java)
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
             }, 120)

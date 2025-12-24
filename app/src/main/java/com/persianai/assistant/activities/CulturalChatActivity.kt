@@ -1,0 +1,85 @@
+package com.persianai.assistant.activities
+
+import android.os.Bundle
+import android.view.View
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.textfield.TextInputEditText
+import com.persianai.assistant.databinding.ActivityChatBinding
+import com.persianai.assistant.models.ChatMessage
+import com.persianai.assistant.models.MessageRole
+import kotlinx.coroutines.launch
+
+/**
+ * پیشنهاد فرهنگی (Cultural Recommendations)
+ * یک چت جداگانه برای دریافت پیشنهادات کتاب، فیلم و دوره آموزشی
+ */
+class CulturalChatActivity : BaseChatActivity() {
+
+    private lateinit var binding: ActivityChatBinding
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        binding = ActivityChatBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
+        
+        supportActionBar?.apply {
+            title = "پیشنهاد فرهنگی"
+            setDisplayHomeAsUpEnabled(true)
+        }
+        
+        super.onCreate(savedInstanceState)
+        
+        // دیالوگ شروع مختص پیشنهاد فرهنگی
+        val initialMessage = "سلام! من دستیار فرهنگی و یادگیری شما هستم.\n\n" +
+                "من اینجا هستم تا:\n" +
+                "📚 کتاب‌های الهام‌بخش برای شما پیشنهاد دهم\n" +
+                "🎬 فیلم‌های ارزشمندی را معرفی کنم\n" +
+                "🎓 دوره‌های آموزشی متناسب با علایقتان پیدا کنم\n" +
+                "💡 نویسندگان و فیلمسازان جدید را کشف کنید\n" +
+                "\n" +
+                "بهتر است علایقتان را بگویید تا بتوانم بهترین پیشنهادها را ارائه دهم."
+        
+        addInitialMessage(initialMessage)
+        setupChatUI()
+    }
+    
+    private fun addInitialMessage(message: String) {
+        lifecycleScope.launch {
+            messages.add(
+                ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = message,
+                    isOffline = false
+                )
+            )
+            if (this@CulturalChatActivity::chatAdapter.isInitialized) {
+                chatAdapter.notifyItemInserted(messages.size - 1)
+                getRecyclerView().scrollToPosition(messages.size - 1)
+            }
+        }
+    }
+    
+    override fun shouldUseOnlinePriority(): Boolean = true
+    
+    override fun getRecyclerView(): RecyclerView {
+        return binding.messagesRecyclerView
+    }
+    
+    override fun getMessageInput(): TextInputEditText {
+        return binding.messageInput
+    }
+    
+    override fun getSendButton(): View {
+        return binding.sendButton
+    }
+    
+    override fun getVoiceButton(): View {
+        return binding.voiceButton
+    }
+    
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
+}

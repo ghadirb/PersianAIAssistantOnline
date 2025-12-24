@@ -27,7 +27,6 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -185,8 +184,18 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
+                <data android:scheme="https" android:host="maps.google.com" />
+                <data android:scheme="https" android:host="www.google.com" />
+                <data android:scheme="https" android:host="google.com" />
+                <data android:scheme="https" android:host="maps.app.goo.gl" />
+                <data android:scheme="https" android:host="neshan.org" />
+                <data android:scheme="https" android:host="neshan.ir" />
+                <data android:scheme="http" android:host="maps.google.com" />
+                <data android:scheme="http" android:host="www.google.com" />
+                <data android:scheme="http" android:host="google.com" />
+                <data android:scheme="http" android:host="maps.app.goo.gl" />
+                <data android:scheme="http" android:host="neshan.org" />
+                <data android:scheme="http" android:host="neshan.ir" />
             </intent-filter>
         </activity>
         
@@ -274,6 +283,88 @@
             android:name=".activities.GenericInfoActivity"
             android:exported="false"
             android:theme="@style/Theme.PersianAIAssistant" />
+
+        <!-- مشاور روان و خودشناسی -->
+        <activity
+            android:name=".activities.PsychologyChatActivity"
+            android:exported="false"
+            android:label="مشاور آرامش"
+            android:parentActivityName=".activities.DashboardActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- مشاور مسیر شغلی -->
+        <activity
+            android:name=".activities.CareerChatActivity"
+            android:exported="false"
+            android:label="مشاور مسیر"
+            android:parentActivityName=".activities.DashboardActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- دفتر مشتریان -->
+        <activity
+            android:name=".activities.CRMChatActivity"
+            android:exported="false"
+            android:label="دفتر مشتریان"
+            android:parentActivityName=".activities.DashboardActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- بانک اسناد -->
+        <activity
+            android:name=".activities.DocumentChatActivity"
+            android:exported="false"
+            android:label="بانک اسناد"
+            android:parentActivityName=".activities.DashboardActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- پیشنهاد فرهنگی -->
+        <activity
+            android:name=".activities.CulturalChatActivity"
+            android:exported="false"
+            android:label="پیشنهاد فرهنگی"
+            android:parentActivityName=".activities.DashboardActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- ذخیره مکان مشترک -->
+        <activity
+            android:name=".ui.SharedLocationActivity"
+            android:exported="true"
+            android:label="ذخیره مکان"
+            android:parentActivityName=".ui.NamedLocationsActivity">
+
+            <!-- دریافت اشتراک‌گذاری مقصد از Google Maps / Neshan (متن ساده) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- پشتیبانی از geo: -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="geo" />
+            </intent-filter>
+
+            <!-- لینک‌های http/https نقشه (Google / Neshan) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="maps.google.com" />
+                <data android:scheme="https" android:host="www.google.com" />
+                <data android:scheme="https" android:host="google.com" />
+                <data android:scheme="https" android:host="maps.app.goo.gl" />
+                <data android:scheme="https" android:host="neshan.org" />
+                <data android:scheme="https" android:host="neshan.ir" />
+                <data android:scheme="http" android:host="maps.google.com" />
+                <data android:scheme="http" android:host="www.google.com" />
+                <data android:scheme="http" android:host="google.com" />
+                <data android:scheme="http" android:host="maps.app.goo.gl" />
+                <data android:scheme="http" android:host="neshan.org" />
+                <data android:scheme="http" android:host="neshan.ir" />
+            </intent-filter>
+        </activity>
 
         <!-- Named locations management -->
         <activity
