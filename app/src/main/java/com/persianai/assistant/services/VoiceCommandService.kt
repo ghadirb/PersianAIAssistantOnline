@@ -124,7 +124,16 @@ class VoiceCommandService : Service() {
             // Offline execution (no history saving)
             val assistant = AdvancedPersianAssistant(this)
             val resp = try {
-                assistant.processRequest(text).text
+                val result = assistant.processRequest(text)
+                // Some actions should be applied immediately (e.g., reminders) even from service
+                when (result.actionType) {
+                    AdvancedPersianAssistant.ActionType.ADD_REMINDER,
+                    AdvancedPersianAssistant.ActionType.OPEN_REMINDERS -> {
+                        // AdvancedPersianAssistant already creates reminders internally; show final text
+                        result.text
+                    }
+                    else -> result.text
+                }
             } catch (e: Exception) {
                 "❌ خطا در اجرای فرمان: ${e.message}"
             }

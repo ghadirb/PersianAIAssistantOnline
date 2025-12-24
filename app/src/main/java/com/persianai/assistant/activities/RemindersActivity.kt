@@ -2,6 +2,8 @@ package com.persianai.assistant.activities
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -43,7 +45,6 @@ class RemindersActivity : AppCompatActivity() {
         
         setupRecyclerView()
         loadReminders()
-        setupAIChatButton()
 
         val quick = intent?.getBooleanExtra(AIAssistantService.EXTRA_QUICK_REMINDER, false) == true
         if (quick) {
@@ -54,6 +55,21 @@ class RemindersActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                 }
             }
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.dashboard_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_ai_chat -> {
+                startActivity(android.content.Intent(this, AIChatActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
     
@@ -145,12 +161,6 @@ class RemindersActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
-    }
-    
-    private fun setupAIChatButton() {
-        binding.aiChatButton.setOnClickListener {
-            showAIChat()
-        }
     }
     
     private fun showAIChat() {

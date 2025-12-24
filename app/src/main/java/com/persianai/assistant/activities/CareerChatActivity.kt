@@ -40,6 +40,33 @@ class CareerChatActivity : BaseChatActivity() {
 
         setupChatUI()
     }
+
+    override fun offlineDomainRespond(text: String): String? {
+        val t = text.trim()
+        if (t.isBlank()) return null
+        val lower = t.lowercase()
+
+        if (lower.contains("رزوم") || lower.contains("cv") || lower.contains("مصاحبه")) {
+            return "برای رزومه/مصاحبه، سریع بگو:\n" +
+                "1) عنوان شغلی هدف\n" +
+                "2) سابقه/مهارت‌های اصلی (۳ مورد)\n" +
+                "3) شهر/نوع همکاری\n\n" +
+                "بعدش من یک ساختار رزومه و چند جمله آماده برای معرفی در مصاحبه می‌دم."
+        }
+
+        if (lower.contains("برنامه") || lower.contains("مسیر") || lower.contains("یادگیری") || lower.contains("مهارت")) {
+            return "برای طراحی مسیر شغلی آفلاین، این ۳ سوال رو جواب بده:\n\n" +
+                "- به چه حوزه‌ای علاقه داری؟ (مثلاً برنامه‌نویسی، فروش، طراحی، حسابداری...)\n" +
+                "- روزی چند ساعت می‌تونی وقت بذاری؟\n" +
+                "- هدف: استخدام / فریلنس / ارتقای شغلی؟\n\n" +
+                "با جواب‌هات یک پلن ۲ تا ۴ هفته‌ای می‌دم."
+        }
+
+        return "برای اینکه دقیق راهنمایی کنم، لطفاً یکی از این‌ها رو مشخص کن:\n" +
+            "- علاقه/حوزه\n" +
+            "- سطح فعلی (مبتدی/متوسط/حرفه‌ای)\n" +
+            "- هدف (استخدام/فریلنس/ارتقا)"
+    }
     
     override fun shouldUseOnlinePriority(): Boolean = true
 

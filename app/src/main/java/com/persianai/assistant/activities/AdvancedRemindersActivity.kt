@@ -73,6 +73,12 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "🔔 یادآوری‌های هوشمند"
+
+        try {
+            binding.toolbar.navigationIcon = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_backup)
+            binding.toolbar.setNavigationOnClickListener { finish() }
+        } catch (_: Exception) {
+        }
     }
     
     private fun initializeManager() {

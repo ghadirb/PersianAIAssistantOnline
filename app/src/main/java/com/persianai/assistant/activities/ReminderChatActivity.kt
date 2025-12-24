@@ -186,8 +186,8 @@ class ReminderChatActivity : BaseChatActivity() {
             } else {
                 "✅ یادآوری «$msg» برای ساعت $hh:$mm تنظیم شد."
             }
-        } catch (_: Exception) {
-            null
+        } catch (e: Exception) {
+            "❌ خطا در ساخت یادآوری: ${e.message ?: "خطای نامشخص"}"
         }
     }
 

@@ -42,6 +42,7 @@ class AdvancedPersianAssistant(private val context: Context) {
             IntentType.INSTALLMENT_ADD -> handleInstallmentAdd(intent)
             IntentType.INSTALLMENT_PAY -> handleInstallmentPay(intent)
             IntentType.FINANCE_REPORT -> handleFinanceReport(intent)
+            IntentType.FINANCE_ADD -> handleFinanceAdd(intent)
             IntentType.REMINDER_ADD -> handleReminderAdd(intent)
             IntentType.REMINDER_LIST -> handleReminderList(intent)
             IntentType.TRAVEL_PLAN -> handleTravelPlan(intent)
@@ -110,7 +111,18 @@ class AdvancedPersianAssistant(private val context: Context) {
     
     private fun normalizeText(text: String): String {
         // نرمال‌سازی متن فارسی
-        return text.trim()
+        val map = mapOf(
+            '۰' to '0', '۱' to '1', '۲' to '2', '۳' to '3', '۴' to '4',
+            '۵' to '5', '۶' to '6', '۷' to '7', '۸' to '8', '۹' to '9',
+            '٠' to '0', '١' to '1', '٢' to '2', '٣' to '3', '٤' to '4',
+            '٥' to '5', '٦' to '6', '٧' to '7', '٨' to '8', '٩' to '9'
+        )
+
+        val sb = StringBuilder(text.length)
+        for (ch in text) sb.append(map[ch] ?: ch)
+
+        return sb.toString()
+            .trim()
             .replace("ی", "ی")
             .replace("ک", "ک")
             .replace("  +".toRegex(), " ")
@@ -144,6 +156,15 @@ class AdvancedPersianAssistant(private val context: Context) {
         // گزارش مالی
         if ((text.contains("گزارش") || text.contains("وضعیت")) && text.contains("مال")) {
             return Intent(IntentType.FINANCE_REPORT)
+        }
+
+        // ثبت هزینه/درآمد
+        if ((text.contains("هزینه") || text.contains("خرج")) && Regex("\\d+").containsMatchIn(text)) {
+            return Intent(IntentType.FINANCE_ADD, extractFinanceData(text, "expense"))
+        }
+
+        if ((text.contains("درآمد") || text.contains("واریز")) && Regex("\\d+").containsMatchIn(text)) {
+            return Intent(IntentType.FINANCE_ADD, extractFinanceData(text, "income"))
         }
         
         // یادآوری
@@ -215,6 +236,33 @@ class AdvancedPersianAssistant(private val context: Context) {
             data["date"] = it.value
         }
         
+        return data
+    }
+
+    private fun extractFinanceData(text: String, type: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        data["type"] = type
+
+        val match = Regex("([0-9]+(?:,[0-9]{3})*)\\s*(میلیون|هزار|ریال)?").find(text)
+        val base = match?.groupValues?.getOrNull(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+        val unit = match?.groupValues?.getOrNull(2).orEmpty()
+        val amount = when {
+            unit.contains("میلیون") -> base * 1_000_000
+            unit.contains("هزار") -> base * 1_000
+            unit.contains("ریال") -> base / 10
+            else -> base
+        }
+        data["amount"] = amount
+
+        val desc = when {
+            type == "expense" && text.contains("هزینه") -> text.substringAfter("هزینه", "").trim()
+            type == "expense" && text.contains("خرج") -> text.substringAfter("خرج", "").trim()
+            type == "income" && text.contains("درآمد") -> text.substringAfter("درآمد", "").trim()
+            type == "income" && text.contains("واریز") -> text.substringAfter("واریز", "").trim()
+            else -> ""
+        }.ifBlank { null }
+
+        if (desc != null) data["description"] = desc
         return data
     }
 
@@ -568,6 +616,24 @@ class AdvancedPersianAssistant(private val context: Context) {
         
         return AssistantResponse(text = response)
     }
+
+    private fun handleFinanceAdd(intent: Intent): AssistantResponse {
+        val type = intent.data["type"] as? String
+        val amount = intent.data["amount"] as? Double
+        if (type.isNullOrBlank() || amount == null || amount <= 0.0) {
+            return AssistantResponse("⚠️ برای ثبت هزینه/درآمد، مبلغ را هم بگویید. مثلا: «هزینه 50 هزار تاکسی»")
+        }
+
+        val desc = intent.data["description"] as? String ?: ""
+        val category = if (type == "income") "درآمد" else "هزینه"
+        val id = financeManager.addTransaction(amount = amount, type = type, category = category, desc = desc)
+        val label = if (type == "income") "درآمد" else "هزینه"
+
+        return AssistantResponse(
+            text = "✅ $label ثبت شد: ${formatMoney(amount)} تومان" + (if (desc.isNotBlank()) "\n📝 $desc" else ""),
+            data = mapOf("transactionId" to id)
+        )
+    }
     
     private fun handleReminderAdd(intent: Intent): AssistantResponse {
         val data = intent.data
@@ -763,6 +829,7 @@ class AdvancedPersianAssistant(private val context: Context) {
         INSTALLMENT_ADD,
         INSTALLMENT_PAY,
         FINANCE_REPORT,
+        FINANCE_ADD,
         REMINDER_ADD,
         REMINDER_LIST,
         TRAVEL_PLAN,

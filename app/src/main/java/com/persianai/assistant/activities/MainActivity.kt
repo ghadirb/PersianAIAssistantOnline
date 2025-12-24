@@ -382,7 +382,12 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun isActionCommand(text: String): Boolean {
-        val keywords = listOf("یادآوری", "چک", "قسط", "مسیریابی", "درآمد", "هزینه")
+        val keywords = listOf(
+            "یادآوری", "یادم بنداز", "یاد بده", "یادآور", "آلارم", "هشدار", "بیدارباش",
+            "چک", "قسط", "اقساط",
+            "مسیریابی", "مسیر", "نقشه",
+            "درآمد", "هزینه", "خرج", "پرداخت", "واریز"
+        )
         return keywords.any { text.contains(it) }
     }
 
@@ -395,8 +400,9 @@ class MainActivity : AppCompatActivity() {
         
         val mode = prefsManager.getWorkingMode()
         
-        // در حالت آفلاین (یا بدون کلاینت آنلاین)، دستورات مالی/یادآوری را مستقیماً با دستیار پیشرفته پردازش کن
-        if (isActionCommand(text) && (mode == PreferencesManager.WorkingMode.OFFLINE || aiClient == null)) {
+        // ✅ دستورات عملیاتی (یادآوری/حسابداری/...) باید همیشه محلی و قابل اجرا باشند.
+        // حتی اگر حالت HYBRID/ONLINE باشد، اجرای اصلی را محلی انجام می‌دهیم تا کاربر نتیجه واقعی بگیرد.
+        if (isActionCommand(text)) {
             val response = advancedAssistant.processRequest(text)
             
             addMessage(

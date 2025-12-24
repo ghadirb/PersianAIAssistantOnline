@@ -31,7 +31,7 @@ object SimpleOfflineResponder {
                 "TIME_DATE" -> handleTimeDate(context, intent.second)
                 "WEATHER" -> handleWeather(intent.second)
                 "MATH" -> handleMath(intent.second)
-                "GENERAL_QA" -> handleGeneralQA(intent.second)
+                "GENERAL_QA" -> null
                 "HELP" -> handleHelp()
                 "CALCULATION" -> handleCalculation(intent.second)
                 "DEFINITION" -> handleDefinition(intent.second)

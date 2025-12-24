@@ -565,6 +565,16 @@ class DashboardActivity : AppCompatActivity() {
                 (card.parent as? android.view.ViewGroup)?.removeView(card)
             }
         }
+
+        // Requested: hide CRM and Document modules from dashboard for now
+        binding.crmCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
+        binding.docsCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
     }
 
     private fun showDisabledMessage(featureName: String) {

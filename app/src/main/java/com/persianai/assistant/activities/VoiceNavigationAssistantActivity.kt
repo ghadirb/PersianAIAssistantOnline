@@ -106,33 +106,14 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
         setupToolbar()
         setupMicButton()
-        setupVoiceFab()
         handleIncomingIntent(intent)
     }
 
-    private fun setupVoiceFab() {
-        try {
-            binding.voiceFab.setOnClickListener {
-                // If there's a unified VoiceActionButton included in layout, delegate to it
-                try {
-                    val vab = findViewById<com.persianai.assistant.ui.VoiceActionButton>(com.persianai.assistant.R.id.voiceActionButton)
-                    if (vab != null) {
-                        // Simulate a click to toggle
-                        vab.performClick()
-                        return@setOnClickListener
-                    }
-                } catch (_: Exception) {}
-
-                // Fallback: start the existing speech recognition flow
-                checkAudioPermissionAndStart()
-            }
-        } catch (e: Exception) {
-            // binding may not include the FAB in some layouts
-            android.util.Log.w("VoiceNav", "voiceFab not available", e)
-        }
-    }
-
     private fun setupToolbar() {
+        try {
+            binding.toolbar.navigationIcon = androidx.core.content.ContextCompat.getDrawable(this, com.persianai.assistant.R.drawable.ic_backup)
+        } catch (_: Exception) {
+        }
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
@@ -143,8 +124,20 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
         return when (item.itemId) {
+            com.persianai.assistant.R.id.action_ai_chat -> {
+                startActivity(Intent(this, com.persianai.assistant.activities.AIChatActivity::class.java))
+                true
+            }
             com.persianai.assistant.R.id.action_saved_locations -> {
                 startActivity(Intent(this, com.persianai.assistant.ui.NamedLocationsActivity::class.java))
+                true
+            }
+            com.persianai.assistant.R.id.action_chat_history -> {
+                startActivity(Intent(this, com.persianai.assistant.activities.ConversationsActivity::class.java))
+                true
+            }
+            com.persianai.assistant.R.id.action_settings -> {
+                startActivity(Intent(this, com.persianai.assistant.activities.SettingsActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)

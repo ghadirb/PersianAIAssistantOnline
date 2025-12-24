@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
 import com.persianai.assistant.activities.MainActivity
 import com.persianai.assistant.activities.RemindersActivity
+import com.persianai.assistant.activities.VoiceCallActivity
 import com.persianai.assistant.utils.PreferencesManager
 
 /**
@@ -115,6 +116,17 @@ class AIAssistantService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(android.R.drawable.ic_btn_speak_now, "ضبط فرمان", voicePendingIntent)
+
+            val callIntent = Intent(this, VoiceCallActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val callPendingIntent = PendingIntent.getActivity(
+                this,
+                3,
+                callIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(android.R.drawable.sym_action_call, "تماس", callPendingIntent)
 
             val reminderIntent = Intent(this, RemindersActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

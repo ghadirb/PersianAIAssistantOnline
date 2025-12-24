@@ -779,11 +779,4 @@
 
         </LinearLayout>
     </ScrollView>
-    <com.persianai.assistant.ui.VoiceActionButton
-        android:id="@+id/voiceActionButton"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_margin="16dp"
-        app:layout_anchorGravity="bottom|end"
-        app:layout_anchor="@id/toolbarDashboard" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

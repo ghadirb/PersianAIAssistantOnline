@@ -74,6 +74,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
+        const val EXTRA_START_VOICE_CONVERSATION = "extra_start_voice_conversation"
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
@@ -136,6 +137,27 @@ abstract class BaseChatActivity : AppCompatActivity() {
         setupListeners()
         setupAIClient()
         maybeShowIntroMessage()
+        maybeAutoStartVoiceConversation()
+    }
+
+    private fun maybeAutoStartVoiceConversation() {
+        try {
+            val shouldStart = intent?.getBooleanExtra(EXTRA_START_VOICE_CONVERSATION, false) == true
+            if (!shouldStart) return
+            intent?.removeExtra(EXTRA_START_VOICE_CONVERSATION)
+
+            // Ensure UI is laid out
+            try {
+                getVoiceButton().post {
+                    try {
+                        startVoiceConversationDialog()
+                    } catch (_: Exception) {
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        } catch (_: Exception) {
+        }
     }
 
     private fun setupRecyclerView() {
@@ -552,6 +574,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun offlineRespond(text: String): String {
+        // Section-specific offline fallback (e.g., counseling)
+        val domain = offlineDomainRespond(text)
+        if (!domain.isNullOrBlank()) {
+            return domain
+        }
+
         // ✅ ابتدا SimpleOfflineResponder را امتحان کن - بدون نیاز به Native Library
         val simpleResponse = com.persianai.assistant.ai.SimpleOfflineResponder.respond(this, text)
         if (!simpleResponse.isNullOrBlank()) {
@@ -563,6 +591,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
         Log.d("BaseChatActivity", "⚠️ SimpleOfflineResponder did not respond")
         return "می‌تونی دقیق‌تر بگی چی می‌خوای انجام بدی؟ (مثلاً: «یادآوری فردا ساعت ۸»، «ثبت هزینه ۵۰ هزار تومان»، «محاسبه ۱۲+۵» )"
     }
+
+    protected open fun offlineDomainRespond(text: String): String? = null
 
     /**
      * یافتن مسیر مدل tinyllama دانلود‌شده (دستی یا از طریق OfflineModelManager)
