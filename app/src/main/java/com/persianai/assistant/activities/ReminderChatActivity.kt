@@ -38,7 +38,7 @@ class ReminderChatActivity : BaseChatActivity() {
         )
     }
 
-    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = chatBinding.recyclerView
+    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = chatBinding.messagesRecyclerView
     override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = chatBinding.messageInput
     override fun getSendButton(): View = chatBinding.sendButton
     override fun getVoiceButton(): View = chatBinding.voiceButton

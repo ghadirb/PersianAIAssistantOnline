@@ -45,7 +45,7 @@ class AccountingChatActivity : BaseChatActivity() {
         chatAdapter.notifyDataSetChanged()
     }
 
-    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = (binding as ActivityChatBinding).recyclerView
+    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView = (binding as ActivityChatBinding).messagesRecyclerView
     override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = (binding as ActivityChatBinding).messageInput
     override fun getSendButton(): View = (binding as ActivityChatBinding).sendButton
     override fun getVoiceButton(): View = (binding as ActivityChatBinding).voiceButton

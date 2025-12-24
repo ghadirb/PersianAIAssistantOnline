@@ -16,20 +16,23 @@ import kotlinx.coroutines.launch
  */
 class CulturalChatActivity : BaseChatActivity() {
 
-    private lateinit var binding: ActivityChatBinding
+    private lateinit var chatBinding: ActivityChatBinding
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        binding = ActivityChatBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
+        super.onCreate(savedInstanceState)
+
+        chatBinding = ActivityChatBinding.inflate(layoutInflater)
+        binding = chatBinding
+        setContentView(chatBinding.root)
+        setSupportActionBar(chatBinding.toolbar)
         
         supportActionBar?.apply {
             title = "پیشنهاد فرهنگی"
             setDisplayHomeAsUpEnabled(true)
         }
-        
-        super.onCreate(savedInstanceState)
-        
+
+        setupChatUI()
+
         // دیالوگ شروع مختص پیشنهاد فرهنگی
         val initialMessage = "سلام! من دستیار فرهنگی و یادگیری شما هستم.\n\n" +
                 "من اینجا هستم تا:\n" +
@@ -39,43 +42,31 @@ class CulturalChatActivity : BaseChatActivity() {
                 "💡 نویسندگان و فیلمسازان جدید را کشف کنید\n" +
                 "\n" +
                 "بهتر است علایقتان را بگویید تا بتوانم بهترین پیشنهادها را ارائه دهم."
-        
-        addInitialMessage(initialMessage)
-        setupChatUI()
-    }
-    
-    private fun addInitialMessage(message: String) {
-        lifecycleScope.launch {
-            messages.add(
-                ChatMessage(
-                    role = MessageRole.ASSISTANT,
-                    content = message,
-                    isOffline = false
-                )
+
+        addMessage(
+            ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = initialMessage
             )
-            if (this@CulturalChatActivity::chatAdapter.isInitialized) {
-                chatAdapter.notifyItemInserted(messages.size - 1)
-                getRecyclerView().scrollToPosition(messages.size - 1)
-            }
-        }
+        )
     }
     
     override fun shouldUseOnlinePriority(): Boolean = true
     
     override fun getRecyclerView(): RecyclerView {
-        return binding.messagesRecyclerView
+        return chatBinding.messagesRecyclerView
     }
     
     override fun getMessageInput(): TextInputEditText {
-        return binding.messageInput
+        return chatBinding.messageInput
     }
     
     override fun getSendButton(): View {
-        return binding.sendButton
+        return chatBinding.sendButton
     }
     
     override fun getVoiceButton(): View {
-        return binding.voiceButton
+        return chatBinding.voiceButton
     }
     
     override fun onSupportNavigateUp(): Boolean {

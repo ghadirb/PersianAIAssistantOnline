@@ -23,20 +23,23 @@ import kotlinx.coroutines.launch
  */
 class CareerChatActivity : BaseChatActivity() {
 
-    private lateinit var binding: ActivityChatBinding
+    private lateinit var chatBinding: ActivityChatBinding
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        binding = ActivityChatBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
+        super.onCreate(savedInstanceState)
+
+        chatBinding = ActivityChatBinding.inflate(layoutInflater)
+        binding = chatBinding
+        setContentView(chatBinding.root)
+        setSupportActionBar(chatBinding.toolbar)
         
         supportActionBar?.apply {
             title = "مشاور مسیر شغلی"
             setDisplayHomeAsUpEnabled(true)
         }
-        
-        super.onCreate(savedInstanceState)
-        
+
+        setupChatUI()
+
         // دیالوگ شروع مختص
         val initialMessage = "سلام! من مشاور مسیر شغلی شما هستم.\n\n" +
                 "من اینجا هستم تا:\n" +
@@ -45,43 +48,31 @@ class CareerChatActivity : BaseChatActivity() {
                 "🚀 برنامه‌ای برای توسعه مهارت‌های شما بسازم\n\n" +
                 "⚠️ توجه: نتایج این مشاوره تنها نقش راهنمایی دارد. تصمیم نهایی با شماست و بهتر است با یک مشاور حرفه‌ای نیز مشورت کنید.\n\n" +
                 "اولاً، مسیری رو انتخاب کن که علاقه‌مند هستی: آموزش، شغل، یا تغییر مسیر موجود؟"
-        
-        addInitialMessage(initialMessage)
-        setupChatUI()
+
+        addMessage(
+            ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = initialMessage
+            )
+        )
     }
     
     override fun shouldUseOnlinePriority(): Boolean = true
     
-    private fun addInitialMessage(message: String) {
-        lifecycleScope.launch {
-            messages.add(
-                ChatMessage(
-                    role = MessageRole.ASSISTANT,
-                    content = message,
-                    isOffline = false
-                )
-            )
-            if (this@CareerChatActivity::chatAdapter.isInitialized) {
-                chatAdapter.notifyItemInserted(messages.size - 1)
-                getRecyclerView().scrollToPosition(messages.size - 1)
-            }
-        }
-    }
-    
     override fun getRecyclerView(): RecyclerView {
-        return binding.messagesRecyclerView
+        return chatBinding.messagesRecyclerView
     }
     
     override fun getMessageInput(): TextInputEditText {
-        return binding.messageInput
+        return chatBinding.messageInput
     }
     
     override fun getSendButton(): View {
-        return binding.sendButton
+        return chatBinding.sendButton
     }
     
     override fun getVoiceButton(): View {
-        return binding.voiceButton
+        return chatBinding.voiceButton
     }
     
     override fun onSupportNavigateUp(): Boolean {
