@@ -308,7 +308,7 @@ class VoiceCallActivity : AppCompatActivity() {
             .replace("ي", "ی")
             .replace("ك", "ک")
             .replace("[\u200C\u200F]".toRegex(), "")
-            .replace("[^\p{L}\p{N}\s]".toRegex(), " ")
+            .replace("""[^\p{L}\p{N}\s]""".toRegex(), " ")
             .replace("\\s+".toRegex(), " ")
             .trim()
     }
