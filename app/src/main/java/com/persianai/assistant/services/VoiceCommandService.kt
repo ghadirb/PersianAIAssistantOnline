@@ -27,7 +27,7 @@ class VoiceCommandService : Service() {
         private const val CHANNEL_ID = "voice_command_service"
         private const val NOTIFICATION_ID = 1210
 
-        private const val EXTRA_HINT = "extra_hint"
+        const val EXTRA_HINT = "extra_hint"
         const val EXTRA_MODE = "extra_mode"
         const val MODE_GENERAL = "general"
         const val MODE_REMINDER = "reminder"
