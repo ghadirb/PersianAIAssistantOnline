@@ -43,6 +43,22 @@ class PsychologyChatActivity : BaseChatActivity() {
     
     override fun shouldUseOnlinePriority(): Boolean = true
 
+    override fun getModuleIdForPrompt(): String = "psychology"
+
+    override fun getSystemPrompt(): String {
+        return """
+        شما یک دستیار گفتگو محور در نقش «مشاور روان و آرامش» هستید.
+        هدف: کمک عملی برای مدیریت استرس/اضطراب/افکار منفی، خودآگاهی، و گفتگوی حمایتی.
+
+        قواعد:
+        - همیشه فارسی.
+        - پاسخ‌ها باید متناسب با متن کاربر باشد و از پاسخ ثابت تکراری پرهیز شود.
+        - اگر اطلاعات کافی نیست، 1 تا 3 سوال روشن (نه کلی) بپرس.
+        - راهکارها را مرحله‌ای و قابل اجرا ارائه بده (تنفس، نوشتن، بازسازی شناختی، برنامه روزانه).
+        - اگر نشانه خطر جدی (خودآزاری/خودکشی/خشونت/حمله پانیک شدید) دیدی: تاکید بر کمک فوری و تماس با اورژانس/متخصص.
+        """.trimIndent()
+    }
+
     override fun getIntroMessage(): String {
         return "سلام! من مشاور آرامش شما هستم.\n\n" +
             "من اینجا هستم تا:\n" +

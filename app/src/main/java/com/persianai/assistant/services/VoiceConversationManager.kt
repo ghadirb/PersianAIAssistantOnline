@@ -12,6 +12,10 @@ import kotlin.math.max
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
+import com.persianai.assistant.core.AIIntentController
+import com.persianai.assistant.ai.AdvancedPersianAssistant
+import com.persianai.assistant.ai.OfflineIntentParser
+import com.persianai.assistant.utils.PreferencesManager
 
 /**
  * Voice Conversation Manager - Complete voice-to-voice AI assistant
@@ -172,6 +176,13 @@ class VoiceConversationManager(
                 if (userText.isBlank()) {
                     continue
                 }
+
+                try {
+                    val controller = AIIntentController(context)
+                    val intent = controller.detectIntentFromText(userText)
+                    Log.d(TAG, "AIIntent: ${intent.name}")
+                } catch (_: Exception) {
+                }
                 
                 // Add to conversation history
                 addToConversation("user", userText)
@@ -284,53 +295,83 @@ class VoiceConversationManager(
     }
     
     /**
-     * Get AI response based on conversation context
+     * Get AI response based on conversation context.
+     *
+     * Policy:
+     * - OFFLINE: only offline processing
+     * - HYBRID: simple intents offline; complex intents online when available
+     * - ONLINE: online when available; otherwise fallback offline
      */
     private suspend fun getAIResponse(userInput: String): String = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🤖 Getting AI response for: $userInput")
-            
-            // Build conversation context
+
+            val prefs = PreferencesManager(context)
+            val workingMode = prefs.getWorkingMode()
+
+            val offlineAssistant = AdvancedPersianAssistant(context)
+            val offlineText = try {
+                offlineAssistant.processRequest(userInput).text
+            } catch (_: Exception) {
+                "متوجه شدم. می‌توانید بیشتر توضیح دهید؟"
+            }
+
+            // OFFLINE: never use online
+            if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                return@withContext offlineText
+            }
+
+            val canTryOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
+                workingMode == PreferencesManager.WorkingMode.HYBRID) && aiClient != null
+
+            val isSimple = try {
+                OfflineIntentParser(context).canHandle(userInput)
+            } catch (_: Exception) {
+                false
+            }
+
+            // HYBRID: simple -> offline
+            if (workingMode == PreferencesManager.WorkingMode.HYBRID && isSimple) {
+                return@withContext offlineText
+            }
+
+            if (!canTryOnline) {
+                return@withContext offlineText
+            }
+
             val conversationContext = buildConversationContext()
-            
-            // Enhanced prompt for voice conversation
+
             val voicePrompt = """
                 شما یک دستیار صوتی هوشمند فارسی هستید. لطفاً به صورت کوتاه و مفید پاسخ دهید.
-                
+
                 قوانین مکالمه صوتی:
                 - پاسخ‌های کوتاه و واضح (کمتر از 50 کلمه)
                 - استفاده از زبان طبیعی و دوستانه
                 - در صورت نیاز، پرسش‌های پیگیری مطرح کنید
                 - از جملات کوتاه استفاده کنید
-                
+
                 تاریخچه مکالمه:
-                ${conversationContext}
-                
+                $conversationContext
+
                 پیام جدید کاربر: $userInput
-                
+
                 پاسخ شما:
             """.trimIndent()
-            
-            // Get AI response (simplified - integrate with existing AIClient)
-            if (aiClient != null) {
-                val response = aiClient.sendMessage(
-                    model = com.persianai.assistant.models.AIModel.LLAMA_3_3_70B,
-                    messages = conversationHistory.map {
-                        com.persianai.assistant.models.ChatMessage(
-                            role = if (it.role == "user") com.persianai.assistant.models.MessageRole.USER 
-                                   else com.persianai.assistant.models.MessageRole.ASSISTANT,
-                            content = it.content,
-                            timestamp = it.timestamp
-                        )
-                    },
-                    systemPrompt = voicePrompt
-                )
-                response.content
-            } else {
-                // Fallback response
-                "متوجه شدم. می‌توانید بیشتر توضیح دهید؟"
-            }
-            
+
+            val response = aiClient.sendMessage(
+                model = com.persianai.assistant.models.AIModel.LLAMA_3_3_70B,
+                messages = conversationHistory.map {
+                    com.persianai.assistant.models.ChatMessage(
+                        role = if (it.role == "user") com.persianai.assistant.models.MessageRole.USER
+                        else com.persianai.assistant.models.MessageRole.ASSISTANT,
+                        content = it.content,
+                        timestamp = it.timestamp
+                    )
+                },
+                systemPrompt = voicePrompt
+            )
+
+            response.content.ifBlank { offlineText }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error getting AI response", e)
             "متاسفانه مشکلی پیش آمده. می‌توانید دوباره تلاش کنید؟"

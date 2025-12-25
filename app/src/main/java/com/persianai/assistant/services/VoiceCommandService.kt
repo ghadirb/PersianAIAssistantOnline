@@ -10,7 +10,11 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
+import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.ai.AdvancedPersianAssistant
+import com.persianai.assistant.ai.AIClient
+import com.persianai.assistant.core.AIIntentController
+import com.persianai.assistant.core.AIIntentRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -99,6 +103,7 @@ class VoiceCommandService : Service() {
 
     private suspend fun runOneShotCommand(hint: String?, mode: String) {
         val engine = UnifiedVoiceEngine(this)
+        val controller = AIIntentController(this)
 
         try {
             if (!engine.hasRequiredPermissions()) {
@@ -116,7 +121,24 @@ class VoiceCommandService : Service() {
 
             notifyUpdate("📝 تبدیل گفتار به متن...", "")
             val analysis = engine.analyzeHybrid(recording.file)
-            val text = analysis.getOrNull()?.primaryText?.trim().orEmpty()
+            var text = analysis.getOrNull()?.primaryText?.trim().orEmpty()
+
+            if (text.isBlank()) {
+                // Fallback online STT when keys exist
+                try {
+                    val prefs = PreferencesManager(this)
+                    val keys = prefs.getAPIKeys()
+                    val modePref = prefs.getWorkingMode()
+                    val hasKeys = keys.isNotEmpty() && keys.any { it.isActive }
+                    if (modePref != PreferencesManager.WorkingMode.OFFLINE && hasKeys) {
+                        notifyUpdate("🌐 تلاش برای تبدیل آنلاین...", "")
+                        val client = AIClient(keys)
+                        text = client.transcribeAudio(recording.file.absolutePath).trim()
+                    }
+                } catch (e: Exception) {
+                    Log.w(tag, "Online STT fallback failed: ${e.message}")
+                }
+            }
 
             // Clean up audio file immediately
             try { recording.file.delete() } catch (_: Exception) { }
@@ -143,21 +165,24 @@ class VoiceCommandService : Service() {
 
             notifyUpdate("✅ فرمان دریافت شد", normalizedText)
 
-            // Offline execution (no history saving)
-            val assistant = AdvancedPersianAssistant(this)
             val resp = try {
-                val result = assistant.processRequest(normalizedText)
-                // Some actions should be applied immediately (e.g., reminders) even from service
-                when (result.actionType) {
-                    AdvancedPersianAssistant.ActionType.ADD_REMINDER,
-                    AdvancedPersianAssistant.ActionType.OPEN_REMINDERS -> {
-                        // AdvancedPersianAssistant already creates reminders internally; show final text
-                        result.text
-                    }
-                    else -> result.text
-                }
+                val intent = controller.detectIntentFromText(normalizedText, mode)
+                val result = controller.handle(
+                    AIIntentRequest(
+                        intent = intent,
+                        source = AIIntentRequest.Source.NOTIFICATION,
+                        workingModeName = PreferencesManager(this).getWorkingMode().name
+                    )
+                )
+                result.text
             } catch (e: Exception) {
-                "❌ خطا در اجرای فرمان: ${e.message}"
+                // Safety fallback to old behavior
+                val assistant = AdvancedPersianAssistant(this)
+                try {
+                    assistant.processRequest(normalizedText).text
+                } catch (_: Exception) {
+                    "❌ خطا در اجرای فرمان: ${e.message}"
+                }
             }
 
             notifyUpdate("🤖 نتیجه", resp)

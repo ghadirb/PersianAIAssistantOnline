@@ -2,15 +2,13 @@ name: Android CI Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ New ]
   pull_request:
-    branches: [ main ]
+    branches: [ New ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      PREBUILT_LIBS_URL: ${{ secrets.PREBUILT_LIBS_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,37 +19,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK & NDK (for native build)
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 34
-          ndk: '25.2.9519653'
-          components: 'platform-tools;build-tools;cmake;ndk;ndk-bundle'
-
-      - name: Fetch prebuilt native libs (if provided)
-        id: fetch_prebuilt
-        run: |
-          if [ -n "$PREBUILT_LIBS_URL" ]; then
-            echo "prebuilt=true" >> $GITHUB_OUTPUT
-            bash scripts/fetch_prebuilt_libs.sh
-          else
-            echo "prebuilt=false" >> $GITHUB_OUTPUT
-            echo "No PREBUILT_LIBS_URL provided, will attempt to build llama.cpp from source"
-          fi
-
-      - name: Clone llama.cpp when no prebuilt libs
-        if: steps.fetch_prebuilt.outputs.prebuilt == 'false'
-        run: |
-          echo "Cloning llama.cpp into Compressed/llama.cpp-master (may take a while)"
-          mkdir -p Compressed
-          git clone --depth 1 https://github.com/ggerganov/llama.cpp.git Compressed/llama.cpp-master
-          ls -la Compressed/llama.cpp-master
-
       - name: Grant execute to gradlew
         run: chmod +x ./gradlew
 
       - name: Build APK (debug)
-        run: ./gradlew :app:assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
+        run: ./gradlew :app:assembleDebug -PskipNativeBuild=true --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

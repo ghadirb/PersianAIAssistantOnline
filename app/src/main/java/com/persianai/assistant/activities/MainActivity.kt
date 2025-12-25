@@ -33,6 +33,7 @@ import com.persianai.assistant.utils.*
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.services.AIAssistantService
+import com.persianai.assistant.core.AIIntentController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -396,6 +397,13 @@ class MainActivity : AppCompatActivity() {
         if (text.isEmpty()) {
             Toast.makeText(this, "لطفاً پیامی وارد کنید", Toast.LENGTH_SHORT).show()
             return
+        }
+
+        try {
+            val controller = AIIntentController(this)
+            val intent = controller.detectIntentFromText(text)
+            android.util.Log.d("MainActivity", "AIIntent: ${intent.name}")
+        } catch (_: Exception) {
         }
         
         val mode = prefsManager.getWorkingMode()

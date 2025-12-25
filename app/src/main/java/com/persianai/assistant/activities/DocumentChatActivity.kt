@@ -36,6 +36,21 @@ class DocumentChatActivity : BaseChatActivity() {
     
     override fun shouldUseOnlinePriority(): Boolean = true
 
+    override fun getModuleIdForPrompt(): String = "documents"
+
+    override fun getSystemPrompt(): String {
+        return """
+        شما دستیار «بانک اسناد» هستید.
+        کار شما کمک به مدیریت اسناد/قراردادهاست: خلاصه‌سازی، چک‌لیست نکات، استخراج بندهای مهم، برچسب‌گذاری و پیشنهاد نام‌گذاری فایل.
+
+        قواعد:
+        - همیشه فارسی.
+        - اگر متن سند موجود نیست، اول درخواست کن کاربر متن/عکس/بخش مهم را ارسال کند.
+        - خروجی‌ها را ساختارمند بده: تیترها، bulletها، چک‌لیست.
+        - از جواب ثابت تکراری پرهیز کن و بر اساس سند/درخواست دقیق پاسخ بده.
+        """.trimIndent()
+    }
+
     override fun getIntroMessage(): String {
         return "سلام! من دستیار بانک اسناد شما هستم.\n\n" +
             "من اینجا هستم تا:\n" +

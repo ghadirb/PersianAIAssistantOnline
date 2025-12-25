@@ -10,12 +10,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import com.persianai.assistant.services.HybridAnalysisResult
@@ -273,7 +268,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
         amplitudeHandler = Handler(Looper.getMainLooper())
         amplitudeHandler?.post(amplitudeRunnable)
     }
-    
+
     /**
      * Stop amplitude monitoring
      */
@@ -281,119 +276,18 @@ class NewHybridVoiceRecorder(private val context: Context) {
         amplitudeHandler?.removeCallbacks(amplitudeRunnable)
         amplitudeHandler = null
     }
-    
+
     /**
      * Set amplitude callback
      */
     fun setAmplitudeCallback(callback: (Int) -> Unit) {
         amplitudeCallback = callback
     }
-    
-    /**
-     * Analyze audio using Haaniye model (offline)
-     */
-    suspend fun analyzeOffline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🔍 Starting offline analysis with Haaniye...")
-            
-            // Validate audio file
-            if (!audioFile.exists() || audioFile.length() == 0L) {
-                return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
-            }
-            
-            // Initialize Haaniye model if not loaded
-            if (haaniyeModel == null) {
-                initializeHaaniyeModel()
-            }
-            
-            // For now, implement basic analysis
-            // In production, this would use the ONNX model
-            val analysis = performHaaniyeAnalysis(audioFile)
-            
-            Log.d(TAG, "✅ Offline analysis completed: $analysis")
-            Result.success(analysis)
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error in offline analysis", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Analyze audio using online API
-     */
-    suspend fun analyzeOnline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🌐 Starting online analysis...")
-
-            if (!audioFile.exists() || audioFile.length() == 0L) {
-                return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
-            }
-
-            val apiKey = getAPIKey()
-                ?: return@withContext Result.failure(IllegalStateException("API key not configured"))
-
-            val result = uploadToAIMLAPI(audioFile, apiKey)
-            Log.d(TAG, "✅ Online analysis completed: $result")
-            Result.success(result)
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error in online analysis", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Hybrid analysis - combine offline and online results
-     */
-    suspend fun analyzeHybrid(audioFile: File): Result<HybridAnalysisResult> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "⚡ Starting hybrid analysis...")
-
-            val offlineDeferred = async { analyzeOffline(audioFile) }
-            val onlineDeferred = async { analyzeOnline(audioFile) }
-
-            val offlineFast = try { withTimeoutOrNull(1500) { offlineDeferred.await().getOrNull() } } catch (_: Exception) { null }
-            val onlineFast = if (offlineFast.isNullOrBlank()) {
-                try { withTimeoutOrNull(6000) { onlineDeferred.await().getOrNull() } } catch (_: Exception) { null }
-            } else {
-                null
-            }
-
-            val offlineFinal = try { offlineDeferred.await().getOrNull() } catch (_: Exception) { null }
-            val onlineFinal = try { onlineDeferred.await().getOrNull() } catch (_: Exception) { null }
-
-            val offlineResult: Result<String> = try { offlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
-            val onlineResult: Result<String> = try { onlineDeferred.await() } catch (e: Exception) { Result.failure(e) }
-
-            val primary = when {
-                !onlineFast.isNullOrBlank() -> onlineFast
-                !offlineFast.isNullOrBlank() -> offlineFast
-                !onlineFinal.isNullOrBlank() -> onlineFinal
-                !offlineFinal.isNullOrBlank() -> offlineFinal
-                else -> ""
-            }
-
-            val hybridResult = HybridAnalysisResult(
-                offlineText = offlineFinal,
-                onlineText = onlineFinal,
-                primaryText = primary,
-                confidence = calculateConfidence(offlineResult, onlineResult),
-                timestamp = System.currentTimeMillis()
-            )
-
-            Log.d(TAG, "✅ Hybrid analysis completed")
-            Result.success(hybridResult)
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error in hybrid analysis", e)
-            Result.failure(e)
-        }
-    }
 
     fun getCurrentAmplitude(): Int {
         return try {
             if (isRecording.get()) mediaRecorder?.maxAmplitude ?: 0 else 0
-        } catch (e: Exception) {
-            Log.w(TAG, "Error getting amplitude", e)
+        } catch (_: Exception) {
             0
         }
     }
@@ -406,269 +300,74 @@ class NewHybridVoiceRecorder(private val context: Context) {
 
     fun getRecordingFile(): File? = currentFile
 
-    private fun initializeHaaniyeModel() {
+    suspend fun analyzeOffline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "🔧 Initializing Haaniye model...")
-            val available = com.persianai.assistant.services.HaaniyeManager.ensureModelPresent(context)
-            haaniyeModel = if (available) "haaniye_model_placeholder" else null
-            Log.d(TAG, "✅ Haaniye model initialized")
+            if (!audioFile.exists() || audioFile.length() == 0L) {
+                return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
+            }
+
+            if (haaniyeModel == null) {
+                val available = HaaniyeManager.ensureModelPresent(context)
+                haaniyeModel = if (available) "haaniye_model_placeholder" else null
+            }
+
+            if (haaniyeModel == null) {
+                return@withContext Result.failure(IllegalStateException("Haaniye model not available"))
+            }
+
+            val text = HaaniyeManager.inferOffline(context, audioFile)
+            if (text.isBlank()) {
+                Log.w(TAG, "⚠️ Offline STT returned blank (Haaniye not implemented or failed).")
+                Result.failure(IllegalStateException("Offline STT not available"))
+            } else {
+                Result.success(text)
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to initialize Haaniye model", e)
-            throw e
+            Result.failure(e)
         }
     }
 
-    private suspend fun performHaaniyeAnalysis(audioFile: File): String = withContext(Dispatchers.IO) {
-        try {
-            ""
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in Haaniye analysis", e)
-            ""
-        }
+    suspend fun analyzeOnline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
+        Result.failure(IllegalStateException("Online STT not configured"))
     }
 
-    private suspend fun uploadToAIMLAPI(audioFile: File, apiKey: String): String = withContext(Dispatchers.IO) {
-        try {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-            
-            val audioBytes = audioFile.readBytes()
-            val requestBody = audioBytes.toRequestBody("audio/m4a".toMediaType())
-            
-            val endpointsToTry = listOf(
-                "https://api.aimlapi.com/v1/audio/transcribe",
-                "https://api.aimlapi.com/v1/speech/transcribe"
+    suspend fun analyzeHybrid(audioFile: File): Result<HybridAnalysisResult> = withContext(Dispatchers.IO) {
+        val offline = analyzeOffline(audioFile)
+        val offlineText = offline.getOrNull()
+        val primary = offlineText.orEmpty()
+        Result.success(
+            HybridAnalysisResult(
+                offlineText = offlineText,
+                onlineText = null,
+                primaryText = primary,
+                confidence = if (offline.isSuccess && primary.isNotBlank()) 0.7 else 0.0,
+                timestamp = System.currentTimeMillis()
             )
-
-            var lastError: Exception? = null
-            for (url in endpointsToTry) {
-                try {
-                    // Retry transient network errors a couple times with backoff
-                    var attempt = 0
-                    var lastAttemptException: Exception? = null
-                    while (attempt < 3) {
-                        attempt++
-                        try {
-                            val request = Request.Builder()
-                                .url(url)
-                                .addHeader("Authorization", "Bearer $apiKey")
-                                .post(requestBody)
-                                .build()
-
-                            client.newCall(request).execute().use { response ->
-                                val bodyText = response.body?.string()
-                                if (!response.isSuccessful) {
-                                    Log.w(TAG, "AIML API ($url) returned ${response.code}: ${response.message}; body=${bodyText?.take(1000)}")
-                                    if (response.code == 404) {
-                                        // try next endpoint variant
-                                        lastError = Exception("AIML 404 from $url: ${response.message}")
-                                        return@use
-                                    }
-                                    throw Exception("API Error: ${response.code} ${response.message} - ${bodyText}")
-                                }
-
-                                val responseBody = bodyText ?: throw Exception("Empty response from API")
-                                try {
-                                    val json = JSONObject(responseBody)
-                                    val text = json.optString("result",
-                                        json.optString("text",
-                                            json.optString("transcription", responseBody)))
-                                    if (text.isBlank()) throw Exception("No text found in response")
-                                    return@withContext text
-                                } catch (e: Exception) {
-                                    Log.w(TAG, "Failed to parse JSON from AIML response, using raw text", e)
-                                    return@withContext responseBody
-                                }
-                            }
-                        } catch (e: Exception) {
-                            lastAttemptException = e
-                            Log.w(TAG, "Attempt $attempt for $url failed", e)
-                            if (attempt < 3) Thread.sleep(500L * attempt)
-                            else throw e
-                        }
-                    }
-                    // if we reach here, the attempts failed
-                    lastError = lastAttemptException ?: lastError
-                    
-                } catch (e: Exception) {
-                    lastError = e
-                    Log.w(TAG, "AIML endpoint $url failed", e)
-                }
-            }
-
-            // If AIML endpoints all failed with 404 or other errors, attempt multipart/form upload as a fallback
-            val primaryEndpoint = endpointsToTry.first()
-            try {
-                Log.i(TAG, "Attempting multipart/form fallback to $primaryEndpoint")
-                val multipart = MultipartBody.Builder().setType(MultipartBody.FORM)
-                    .addFormDataPart("file", audioFile.name, audioBytes.toRequestBody("audio/m4a".toMediaType()))
-                    .build()
-
-                val req = Request.Builder()
-                    .url(primaryEndpoint)
-                    .addHeader("Authorization", "Bearer $apiKey")
-                    .post(multipart)
-                    .build()
-
-                client.newCall(req).execute().use { resp ->
-                    val bodyText = resp.body?.string() ?: ""
-                    if (!resp.isSuccessful) {
-                        Log.w(TAG, "Multipart AIML fallback failed: ${resp.code} ${resp.message} body=${bodyText.take(1000)}")
-                    } else {
-                        Log.i(TAG, "Multipart AIML fallback succeeded")
-                        if (bodyText.isNotBlank()) {
-                            try {
-                                val json = JSONObject(bodyText)
-                                val text = json.optString("result", json.optString("text", json.optString("transcription", bodyText)))
-                                if (text.isNotBlank()) {
-                                    return@withContext text
-                                } else {
-                                    return@withContext bodyText
-                                }
-                            } catch (e: Exception) {
-                                return@withContext bodyText
-                            }
-                        } else {
-                            Log.w(TAG, "Multipart AIML fallback returned empty body")
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Multipart AIML fallback threw", e)
-            }
-
-            // If multipart also failed, fallback to HuggingFace if key available
-            val hfKey = try {
-                val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
-                prefs.getString("hf_api_key", null)
-            } catch (e: Exception) { null }
-
-            if (!hfKey.isNullOrBlank()) {
-                Log.i(TAG, "Falling back to HuggingFace transcription due to AIML failure")
-                val hf = transcribeWithHuggingFace(audioFile, hfKey)
-                if (!hf.isNullOrBlank()) return@withContext hf
-            }
-
-            throw lastError ?: Exception("AIML transcription failed and no fallback available")
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error uploading to AIML API", e)
-            throw e
-        }
-    }
-    
-    /**
-     * Get API key from preferences
-     */
-    private fun getAPIKey(): String? {
-        return try {
-            val prefs = com.persianai.assistant.utils.PreferencesManager(context)
-            // Prefer AIML provider key specifically for transcription endpoint
-            prefs.getAPIKeys().firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML }?.key
-                // fallback to any available key
-                ?: prefs.getAPIKeys().firstOrNull()?.key
-        } catch (e: Exception) {
-            null
-        }
+        )
     }
 
-    private fun transcribeWithHuggingFace(file: File, hfApiKey: String): String? {
-        return try {
-            val bytes = file.readBytes()
-            val body = bytes.toRequestBody("audio/m4a".toMediaType())
-            val request = Request.Builder()
-                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
-                .addHeader("Authorization", "Bearer $hfApiKey")
-                .post(body)
-                .build()
-
-            val client = OkHttpClient()
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    Log.e(TAG, "HF transcribe failed: ${resp.code} ${resp.message}")
-                    return null
-                }
-                val responseText = resp.body?.string()?.trim() ?: return null
-                if (responseText.startsWith("{")) {
-                    try {
-                        val json = JSONObject(responseText)
-                        return json.optString("text").ifBlank { json.optString("generated_text") }
-                    } catch (_: Exception) {
-                        return responseText
-                    }
-                }
-                responseText
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "HuggingFace transcription failed", e)
-            null
-        }
-    }
-    
-    /**
-     * Estimate audio duration from file size
-     */
-    private fun estimateDuration(fileSizeBytes: Long): Int {
-        // Rough estimation: 128kbps AAC at 44.1kHz
-        val bitrate = 128000 // bits per second
-        val bytesPerSecond = bitrate / 8
-        return (fileSizeBytes / bytesPerSecond).toInt()
-    }
-    
-    /**
-     * Calculate confidence score from results
-     */
-    private fun calculateConfidence(
-        offlineResult: Result<String>,
-        onlineResult: Result<String>
-    ): Double {
-        // Simple confidence calculation based on result success
-        var confidence = 0.5 // Base confidence
-        
-        if (onlineResult.isSuccess) {
-            confidence += 0.3 // Online result is more reliable
-        }
-        
-        if (offlineResult.isSuccess) {
-            confidence += 0.2 // Offline result adds confidence
-        }
-        
-        // If both succeed, increase confidence
-        if (offlineResult.isSuccess && onlineResult.isSuccess) {
-            confidence = 0.95
-        }
-        
-        return confidence.coerceIn(0.0, 1.0)
-    }
-    
     /**
      * Cleanup media recorder resources
      */
     private fun cleanupMediaRecorder() {
         try {
-            if (mediaRecorder != null) {
-                mediaRecorder?.stop()
-                mediaRecorder?.release()
-                mediaRecorder = null
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error stopping media recorder", e)
+            mediaRecorder?.release()
+        } catch (_: Exception) {
+        } finally {
+            mediaRecorder = null
         }
     }
-    
+
     /**
      * Complete cleanup of resources
      */
     private fun cleanup() {
         try {
+            stopAmplitudeMonitoring()
             cleanupMediaRecorder()
             isRecording.set(false)
             recordingStartTime.set(0L)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during cleanup", e)
+        } catch (_: Exception) {
         }
     }
 }

@@ -43,6 +43,22 @@ class CareerChatActivity : BaseChatActivity() {
 
     override fun shouldUseOnlinePriority(): Boolean = true
 
+    override fun getModuleIdForPrompt(): String = "career"
+
+    override fun getSystemPrompt(): String {
+        return """
+        شما دستیار «مشاور مسیر شغلی/تحصیلی» هستید.
+        هدف: کمک برای انتخاب مسیر، برنامه یادگیری، رزومه/CV، آمادگی مصاحبه و تصمیم‌گیری شغلی.
+
+        قواعد پاسخ:
+        - همیشه فارسی.
+        - پاسخ‌ها باید متناسب با شرایط کاربر باشد و از متن ثابت تکراری پرهیز شود.
+        - اگر اطلاعات کافی نیست، سوالات دقیق بپرس: سن/سابقه/مهارت‌ها/هدف/زمان آزاد/محدودیت‌ها.
+        - خروجی‌ها را ساختارمند بده: جدول/لیست مرحله‌ای/برنامه هفتگی.
+        - اگر کاربر رزومه می‌خواهد: اول اطلاعات لازم را جمع کن و سپس قالب بخش‌ها + مثال bullet ارائه بده.
+        """.trimIndent()
+    }
+
     override fun offlineDomainRespond(text: String): String? {
         val t = text.trim()
         if (t.isBlank()) return null

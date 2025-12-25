@@ -36,6 +36,7 @@ import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.services.VoiceRecordingHelper
 import com.persianai.assistant.services.UnifiedVoiceEngine
+import com.persianai.assistant.core.AIIntentController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -415,7 +416,22 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
                         statusText.text = "📝 تبدیل گفتار به متن..."
                         val analysis = engine.analyzeHybrid(recording.file)
-                        val userText = analysis.getOrNull()?.primaryText?.trim().orEmpty()
+                        var userText = analysis.getOrNull()?.primaryText?.trim().orEmpty()
+                        if (userText.isBlank()) {
+                            // Fallback to online STT if configured
+                            try {
+                                val mode = prefsManager.getWorkingMode()
+                                if (mode != com.persianai.assistant.utils.PreferencesManager.WorkingMode.OFFLINE) {
+                                    statusText.text = "🌐 تلاش برای تبدیل آنلاین..."
+                                    val onlineText = aiClient?.transcribeAudio(recording.file.absolutePath)?.trim().orEmpty()
+                                    if (onlineText.isNotBlank()) {
+                                        userText = onlineText
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("BaseChatActivity", "Online STT fallback failed: ${e.message}")
+                            }
+                        }
                         if (userText.isBlank()) {
                             statusText.text = "⚠️ متن تشخیص داده نشد"
                             kotlinx.coroutines.delay(600)
@@ -498,6 +514,13 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val text = getMessageInput().text.toString().trim()
         if (text.isEmpty()) return
 
+        try {
+            val controller = AIIntentController(this)
+            val intent = controller.detectIntentFromText(text)
+            android.util.Log.d("BaseChatActivity", "AIIntent: ${intent.name}")
+        } catch (_: Exception) {
+        }
+
         val userMessage = ChatMessage(role = MessageRole.USER, content = text, timestamp = System.currentTimeMillis())
         addMessage(userMessage)
         getMessageInput().text?.clear()
@@ -548,8 +571,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
             if (workingMode == PreferencesManager.WorkingMode.OFFLINE) return false
             if (!canUseOnline) return false
             if (workingMode == PreferencesManager.WorkingMode.ONLINE) return true
-            // HYBRID: آنلاین فقط وقتی احتمالاً نیاز به تحلیل دارد
-            return shouldUseOnlinePriority() || isLikelyComplex(text)
+            return true
         }
 
         suspend fun tryOnline(): String? {
@@ -561,7 +583,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 val response = aiClient!!.sendMessage(
                     model,
                     messages,
-                    getSystemPrompt() + "\n\nپیام کاربر: " + text
+                    buildSystemPromptForOnlineRequest()
                 )
                 response.content
             } catch (e: Exception) {
@@ -596,6 +618,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val online = tryOnline()
         if (!online.isNullOrBlank()) return@withContext online
 
+        if (workingMode != PreferencesManager.WorkingMode.OFFLINE && !canUseOnline) {
+            return@withContext "⚠️ پاسخ آنلاین فعال نیست. لطفاً در تنظیمات کلید API معتبر وارد کنید یا یک کلید فعال را انتخاب کنید."
+        }
+
         return@withContext "❌ خطا در پردازش درخواست"
     }
 
@@ -611,6 +637,29 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val domain = offlineDomainRespond(text)
         if (!domain.isNullOrBlank()) {
             return domain
+        }
+
+        try {
+            val modelPath = findOfflineModelPath()
+            if (!modelPath.isNullOrBlank() && com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable()) {
+                val prompt = buildString {
+                    appendLine(getSystemPrompt())
+                    appendLine("قوانین: فقط فارسی، کوتاه و مفید. اگر اطلاعات کافی نداری سوال بپرس.")
+                    appendLine("گفتگو:")
+                    messages.takeLast(12).forEach { m ->
+                        val role = if (m.role == MessageRole.USER) "کاربر" else "دستیار"
+                        appendLine("$role: ${m.content}")
+                    }
+                    appendLine("کاربر: $text")
+                    appendLine("دستیار:")
+                }
+                val llm = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, 220)
+                if (!llm.isNullOrBlank()) {
+                    return llm.trim()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("BaseChatActivity", "⚠️ LocalLlamaRunner offline fallback failed: ${e.message}")
         }
 
         // در صورت ناتوانی آفلاین، یک پاسخ عمومی بده (نه پیام الزام آنلاین)
@@ -659,6 +708,43 @@ abstract class BaseChatActivity : AppCompatActivity() {
         return "شما یک دستیار هوشمند فارسی هستید."
     }
 
+    protected open fun getModuleIdForPrompt(): String {
+        return this::class.java.simpleName
+    }
+
+    private fun buildSystemPromptForOnlineRequest(): String {
+        val moduleId = try {
+            getModuleIdForPrompt()
+        } catch (_: Exception) {
+            this::class.java.simpleName
+        }
+
+        val base = getSystemPrompt().trim()
+
+        val namespace = try {
+            intent?.getStringExtra("namespace")
+        } catch (_: Exception) {
+            null
+        }
+
+        val hiddenContext = buildString {
+            appendLine("[APP_CONTEXT]")
+            appendLine("app=PersianAIAssistant")
+            appendLine("module=$moduleId")
+            if (!namespace.isNullOrBlank()) appendLine("namespace=$namespace")
+            appendLine("rules=فارسی؛ کوتاه و مفید؛ اگر اطلاعات کافی نیست سوال بپرس؛ در پاسخ از متن‌های ثابت تکراری پرهیز کن.")
+            appendLine("[/APP_CONTEXT]")
+        }.trim()
+
+        return buildString {
+            if (base.isNotBlank()) {
+                appendLine(base)
+                appendLine()
+            }
+            append(hiddenContext)
+        }
+    }
+
     protected fun addMessage(message: ChatMessage) {
         messages.add(message)
         chatAdapter.notifyItemInserted(messages.size - 1)
@@ -692,6 +778,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val workingMode = prefsManager.getWorkingMode()
+                val apiKeys = prefsManager.getAPIKeys()
+                val hasValidKeys = apiKeys.isNotEmpty() && apiKeys.any { it.isActive }
+                val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE || workingMode == PreferencesManager.WorkingMode.HYBRID) && hasValidKeys && aiClient != null
 
                 val hybridText = try {
                     val analysis = withContext(Dispatchers.IO) { sttEngine.analyzeHybrid(audioFile) }
@@ -708,17 +797,32 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                // ✅ سعی برای تبدیل آنلاین یا HuggingFace
-                val transcribedText = try {
-                    aiClient?.transcribeAudio(audioFile.absolutePath)
-                        ?.takeIf { !it.isNullOrBlank() }
-                } catch (e: Exception) {
-                    Log.e("BaseChatActivity", "AIClient transcription failed: ${e.message}")
-                    null
-                } ?: try {
-                    transcribeWithHuggingFace(audioFile)
-                } catch (e: Exception) {
-                    Log.e("BaseChatActivity", "HuggingFace transcription failed: ${e.message}")
+                // ✅ در حالت OFFLINE فقط STT آفلاین مجاز است
+                if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                    Toast.makeText(
+                        this@BaseChatActivity,
+                        "⚠️ تبدیل آفلاین موفق نبود.\n\n" +
+                            "برای استفاده از تبدیل صوت آفلاین مطمئن شوید مدل Haaniye درست نصب شده است.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@launch
+                }
+
+                // ✅ سعی برای تبدیل آنلاین یا HuggingFace (فقط وقتی اجازه داریم)
+                val transcribedText = if (canUseOnline) {
+                    try {
+                        aiClient?.transcribeAudio(audioFile.absolutePath)
+                            ?.takeIf { !it.isNullOrBlank() }
+                    } catch (e: Exception) {
+                        Log.e("BaseChatActivity", "AIClient transcription failed: ${e.message}")
+                        null
+                    } ?: try {
+                        transcribeWithHuggingFace(audioFile)
+                    } catch (e: Exception) {
+                        Log.e("BaseChatActivity", "HuggingFace transcription failed: ${e.message}")
+                        null
+                    }
+                } else {
                     null
                 }
                 
@@ -730,10 +834,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 }
                 
                 // ❌ اگر تبدیل ناموفق بود
-                if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                if (!canUseOnline) {
                     Toast.makeText(
-                        this@BaseChatActivity, 
-                        "⚠️ تبدیل صوت نیاز به اتصال اینترنت دارد.\n\nبرای استفاده از تبدیل صوت:\n1. کلید API تنظیم کن\n2. دوباره تلاش کن",
+                        this@BaseChatActivity,
+                        "⚠️ تبدیل آنلاین فعال نیست.\n\n" +
+                            "برای فعال‌سازی: حالت HYBRID/ONLINE را انتخاب کنید و کلید API معتبر وارد کنید.",
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
