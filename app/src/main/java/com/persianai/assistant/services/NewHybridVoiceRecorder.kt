@@ -66,33 +66,15 @@ class NewHybridVoiceRecorder(private val context: Context) {
      * Check all required permissions
      */
     fun hasRequiredPermissions(): Boolean {
-        val requiredPermissions = mutableListOf(
-            Manifest.permission.RECORD_AUDIO
-        )
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requiredPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        
-        return requiredPermissions.all { permission ->
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-        }
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
     
     /**
      * Request required permissions
      */
     suspend fun requestPermissions(): Boolean = withContext(Dispatchers.Main) {
-        val requiredPermissions = mutableListOf(
-            Manifest.permission.RECORD_AUDIO
-        )
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requiredPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        
-        // This should be called from an Activity with proper permission handling
-        // For now, return true if permissions exist
+        // This should be called from an Activity with proper permission handling.
+        // For now, return true if RECORD_AUDIO exists.
         hasRequiredPermissions()
     }
     

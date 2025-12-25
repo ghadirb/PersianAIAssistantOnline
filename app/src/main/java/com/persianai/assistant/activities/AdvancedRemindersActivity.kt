@@ -24,6 +24,7 @@ import com.persianai.assistant.R
 import com.persianai.assistant.adapters.RemindersAdapter
 import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.databinding.ActivityAdvancedRemindersBinding
+import com.persianai.assistant.services.AIAssistantService
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.SmartReminderManager
@@ -67,6 +68,17 @@ class AdvancedRemindersActivity : AppCompatActivity() {
         setupListeners()
         checkPermissions()
         loadReminders()
+
+        val quick = intent?.getBooleanExtra(AIAssistantService.EXTRA_QUICK_REMINDER, false) == true
+        if (quick) {
+            intent?.removeExtra(AIAssistantService.EXTRA_QUICK_REMINDER)
+            binding.root.post {
+                try {
+                    showAddReminderDialog()
+                } catch (_: Exception) {
+                }
+            }
+        }
     }
     
     private fun setupToolbar() {

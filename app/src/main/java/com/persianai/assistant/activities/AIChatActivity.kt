@@ -107,5 +107,5 @@ class AIChatActivity : BaseChatActivity() {
     
     override fun getSystemPrompt(): String = "دستیار هوشمند فارسی"
 
-    override fun shouldUseOnlinePriority(): Boolean = forceOnlineAnalysis
+    override fun shouldUseOnlinePriority(): Boolean = true
 }

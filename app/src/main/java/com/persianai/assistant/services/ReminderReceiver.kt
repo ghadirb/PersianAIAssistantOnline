@@ -209,7 +209,10 @@ class ReminderReceiver : BroadcastReceiver() {
                     PendingIntent.FLAG_IMMUTABLE
                 } else 0
 
-            val tapIntent = Intent(context, AdvancedRemindersActivity::class.java).let {
+            val tapIntent = Intent(context, AdvancedRemindersActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("smart_reminder_id", reminderId)
+            }.let {
                 PendingIntent.getActivity(
                     context,
                     reminderId?.hashCode() ?: 2001,

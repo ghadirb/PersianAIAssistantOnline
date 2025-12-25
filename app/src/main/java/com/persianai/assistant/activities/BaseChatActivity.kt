@@ -600,17 +600,17 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun offlineRespond(text: String): String {
-        // Section-specific offline fallback (e.g., counseling)
-        val domain = offlineDomainRespond(text)
-        if (!domain.isNullOrBlank()) {
-            return domain
-        }
-
         // ✅ ابتدا SimpleOfflineResponder را امتحان کن - بدون نیاز به Native Library
         val simpleResponse = com.persianai.assistant.ai.SimpleOfflineResponder.respond(this, text)
         if (!simpleResponse.isNullOrBlank()) {
             Log.d("BaseChatActivity", "✅ SimpleOfflineResponder returned response")
             return simpleResponse
+        }
+
+        // Section-specific offline fallback (e.g., counseling)
+        val domain = offlineDomainRespond(text)
+        if (!domain.isNullOrBlank()) {
+            return domain
         }
 
         // در صورت ناتوانی آفلاین، یک پاسخ عمومی بده (نه پیام الزام آنلاین)

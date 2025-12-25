@@ -22,11 +22,15 @@ class VoiceCommandService : Service() {
 
     companion object {
         const val ACTION_RECORD_COMMAND = "com.persianai.assistant.action.RECORD_COMMAND"
+        const val ACTION_RECORD_REMINDER = "com.persianai.assistant.action.RECORD_REMINDER"
 
         private const val CHANNEL_ID = "voice_command_service"
         private const val NOTIFICATION_ID = 1210
 
         private const val EXTRA_HINT = "extra_hint"
+        const val EXTRA_MODE = "extra_mode"
+        const val MODE_GENERAL = "general"
+        const val MODE_REMINDER = "reminder"
     }
 
     private val tag = "VoiceCommandService"
@@ -36,14 +40,16 @@ class VoiceCommandService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_RECORD_COMMAND) {
+        if (intent?.action == ACTION_RECORD_COMMAND || intent?.action == ACTION_RECORD_REMINDER) {
             if (!started) {
                 started = true
                 ensureChannel()
                 startForeground(NOTIFICATION_ID, buildNotification("🎤 آماده ضبط...", ""))
             }
             scope.launch {
-                runOneShotCommand(intent.getStringExtra(EXTRA_HINT))
+                val mode = intent.getStringExtra(EXTRA_MODE)?.takeIf { it.isNotBlank() }
+                    ?: if (intent.action == ACTION_RECORD_REMINDER) MODE_REMINDER else MODE_GENERAL
+                runOneShotCommand(intent.getStringExtra(EXTRA_HINT), mode)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -91,7 +97,7 @@ class VoiceCommandService : Service() {
             .build()
     }
 
-    private suspend fun runOneShotCommand(hint: String?) {
+    private suspend fun runOneShotCommand(hint: String?, mode: String) {
         val engine = UnifiedVoiceEngine(this)
 
         try {
@@ -100,7 +106,8 @@ class VoiceCommandService : Service() {
                 return
             }
 
-            notifyUpdate("🎤 ضبط فرمان...", hint.orEmpty())
+            val title = if (mode == MODE_REMINDER) "🎤 ضبط یادآوری..." else "🎤 ضبط فرمان..."
+            notifyUpdate(title, hint.orEmpty())
             val recording = recordWithVad(engine)
             if (recording == null) {
                 notifyUpdate("⚠️ چیزی شنیده نشد", "دوباره تلاش کنید.")
@@ -119,12 +126,27 @@ class VoiceCommandService : Service() {
                 return
             }
 
-            notifyUpdate("✅ فرمان دریافت شد", text)
+            val normalizedText = if (mode == MODE_REMINDER) {
+                val t = text.trim()
+                val lower = t.lowercase()
+                val looksLikeReminder =
+                    lower.contains("یادم بنداز") ||
+                    lower.contains("یادآوری") ||
+                    lower.contains("یادآور") ||
+                    lower.contains("آلارم") ||
+                    lower.contains("هشدار")
+
+                if (looksLikeReminder) t else "یادم بنداز $t"
+            } else {
+                text.trim()
+            }
+
+            notifyUpdate("✅ فرمان دریافت شد", normalizedText)
 
             // Offline execution (no history saving)
             val assistant = AdvancedPersianAssistant(this)
             val resp = try {
-                val result = assistant.processRequest(text)
+                val result = assistant.processRequest(normalizedText)
                 // Some actions should be applied immediately (e.g., reminders) even from service
                 when (result.actionType) {
                     AdvancedPersianAssistant.ActionType.ADD_REMINDER,

@@ -37,8 +37,10 @@ class ReminderChatActivity : BaseChatActivity() {
     override fun getVoiceButton(): View = chatBinding.voiceButton
 
     override fun getIntroMessage(): String {
-        return "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم»"
+        return "سلام! برای تنظیم یادآوری، فقط کافیه بگی. مثلا: «فردا ساعت ۱۰ صبح یادم بنداز جلسه دارم» یا می‌تونی هر چیزی که نیاز داری بپرسی."
     }
+
+    override fun shouldUseOnlinePriority(): Boolean = true
 
     override fun getSystemPrompt(): String {
         return """

@@ -34,6 +34,8 @@ class CulturalChatActivity : BaseChatActivity() {
         setupChatUI()
     }
 
+    override fun shouldUseOnlinePriority(): Boolean = true
+
     override fun offlineDomainRespond(text: String): String? {
         val t = text.trim()
         if (t.isBlank()) return null
@@ -43,27 +45,15 @@ class CulturalChatActivity : BaseChatActivity() {
         val wantsFilm = lower.contains("فیلم") || lower.contains("سریال")
 
         if (wantsBook) {
-            return "برای پیشنهاد کتاب، ۳ چیز رو بگو تا دقیق‌تر پیشنهاد بدم:\n" +
-                "1) ژانر (مثلاً انگیزشی/روانشناسی/داستانی/تاریخی)\n" +
-                "2) سطح (سبک/متوسط/سنگین)\n" +
-                "3) هدف (لذت/یادگیری/تمرکز/آرامش)\n\n" +
-                "اگر نمی‌دونی، همین الان بگو: «کتاب سبک برای آرامش» یا «کتاب انگیزشی کوتاه»."
+            return "برای پیشنهاد کتاب، لطفاً ژانر و سطح را مشخص کنید (مثلاً: «کتاب رمان داستانی کوتاه» یا «کتاب روانشناسی برای یادگیری»)."
         }
 
         if (wantsFilm) {
-            return "برای پیشنهاد فیلم/سریال، بگو:\n" +
-                "- ژانر (درام/کمدی/هیجان/معمایی)\n" +
-                "- حوصله (کوتاه/سریال طولانی)\n" +
-                "- محدودیت سنی؟\n\n" +
-                "مثلاً بنویس: «فیلم معمایی کوتاه» یا «سریال کمدی خانوادگی»."
+            return "برای پیشنهاد فیلم/سریال، لطفاً ژانر و حال‌وهوا را مشخص کنید (مثلاً: «فیلم درام طولانی» یا «سریال کمدی خانوادگی»)."
         }
 
-        return "آفلاین هم می‌تونم پیشنهاد فرهنگی بدم.\n\n" +
-            "اگر بگی «کتاب» می‌خوای یا «فیلم»، و ژانر/حال‌وهوا رو مشخص کنی، دقیق‌تر پیشنهاد می‌دم.\n\n" +
-            "مثال: «کتاب داستانی کوتاه»، «فیلم انگیزشی»، «سریال معمایی»."
+        return null
     }
-    
-    override fun shouldUseOnlinePriority(): Boolean = true
 
     override fun getIntroMessage(): String {
         return "سلام! من دستیار فرهنگی و یادگیری شما هستم.\n\n" +

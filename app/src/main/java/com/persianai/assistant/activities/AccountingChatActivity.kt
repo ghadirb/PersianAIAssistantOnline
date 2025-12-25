@@ -64,6 +64,8 @@ class AccountingChatActivity : BaseChatActivity() {
         """
     }
 
+    override fun shouldUseOnlinePriority(): Boolean = true
+
     override suspend fun handleRequest(text: String): String {
         val offlineLocal = handleOfflineLocal(text)
         if (!offlineLocal.isNullOrBlank()) return offlineLocal

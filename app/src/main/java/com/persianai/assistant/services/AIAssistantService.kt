@@ -10,9 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.MainActivity
-import com.persianai.assistant.activities.RemindersActivity
-import com.persianai.assistant.activities.VoiceCallActivity
+import com.persianai.assistant.activities.DashboardActivity
 import com.persianai.assistant.utils.PreferencesManager
 
 /**
@@ -82,7 +80,7 @@ class AIAssistantService : Service() {
         val prefs = PreferencesManager(this)
         val status = statusTextOverride?.takeIf { it.isNotBlank() } ?: defaultStatusText(prefs)
 
-        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+        val openAppIntent = Intent(this, DashboardActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val openAppPendingIntent = PendingIntent.getActivity(
@@ -106,39 +104,48 @@ class AIAssistantService : Service() {
             .setCategory(Notification.CATEGORY_SERVICE)
 
         if (prefs.isPersistentNotificationActionsEnabled()) {
-            val voiceIntent = Intent(this, VoiceCommandService::class.java).apply {
+            val commandIntent = Intent(this, VoiceCommandService::class.java).apply {
                 action = VoiceCommandService.ACTION_RECORD_COMMAND
+                putExtra(VoiceCommandService.EXTRA_MODE, VoiceCommandService.MODE_GENERAL)
             }
-            val voicePendingIntent = PendingIntent.getService(
-                this,
-                1,
-                voiceIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(android.R.drawable.ic_btn_speak_now, "ضبط فرمان", voicePendingIntent)
+            val commandPendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PendingIntent.getForegroundService(
+                    this,
+                    1,
+                    commandIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            } else {
+                PendingIntent.getService(
+                    this,
+                    1,
+                    commandIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            }
+            builder.addAction(android.R.drawable.ic_btn_speak_now, "فرمان صوتی", commandPendingIntent)
 
-            val callIntent = Intent(this, VoiceCallActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            val reminderVoiceIntent = Intent(this, VoiceCommandService::class.java).apply {
+                action = VoiceCommandService.ACTION_RECORD_REMINDER
+                putExtra(VoiceCommandService.EXTRA_MODE, VoiceCommandService.MODE_REMINDER)
+                putExtra(VoiceCommandService.EXTRA_HINT, "مثلاً بگو: فردا ساعت ۸ یادم بنداز...")
             }
-            val callPendingIntent = PendingIntent.getActivity(
-                this,
-                3,
-                callIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(android.R.drawable.sym_action_call, "تماس", callPendingIntent)
-
-            val reminderIntent = Intent(this, RemindersActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_QUICK_REMINDER, true)
+            val reminderVoicePendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PendingIntent.getForegroundService(
+                    this,
+                    2,
+                    reminderVoiceIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            } else {
+                PendingIntent.getService(
+                    this,
+                    2,
+                    reminderVoiceIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
             }
-            val reminderPendingIntent = PendingIntent.getActivity(
-                this,
-                2,
-                reminderIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(android.R.drawable.ic_menu_my_calendar, "یادآوری سریع", reminderPendingIntent)
+            builder.addAction(android.R.drawable.ic_menu_my_calendar, "یادآوری صوتی", reminderVoicePendingIntent)
         }
 
         return builder.build()
