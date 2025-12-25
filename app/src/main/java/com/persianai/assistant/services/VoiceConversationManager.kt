@@ -339,6 +339,8 @@ class VoiceConversationManager(
                 return@withContext offlineText
             }
 
+            val client = aiClient ?: return@withContext offlineText
+
             val conversationContext = buildConversationContext()
 
             val voicePrompt = """
@@ -358,7 +360,7 @@ class VoiceConversationManager(
                 پاسخ شما:
             """.trimIndent()
 
-            val response = aiClient.sendMessage(
+            val response = client.sendMessage(
                 model = com.persianai.assistant.models.AIModel.LLAMA_3_3_70B,
                 messages = conversationHistory.map {
                     com.persianai.assistant.models.ChatMessage(
