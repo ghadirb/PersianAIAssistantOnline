@@ -96,7 +96,7 @@ class ReminderModule(context: Context) : BaseModule(context) {
         
         return try {
             if (intent.reminderId != null) {
-                reminderManager.deleteReminder(intent.reminderId)
+                reminderManager.deleteReminder(intent.reminderId.toString())
                 createResult(
                     text = "✅ یادآوری حذف شد",
                     intentName = intent.name,
