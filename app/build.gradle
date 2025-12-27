@@ -36,7 +36,22 @@ task copyHaaniye(type: Copy) {
     }
 }
 
+// Copy offline Coqui TTS model into app assets if developer provided it under project root or via env var
+def coquiHost = System.getenv('COQUI_TTS_HOST_PATH') ?: file(rootDir.toString() + '/coqui_tts').toString()
+task copyCoqui(type: Copy) {
+    def src = file(coquiHost)
+    if (src.exists()) {
+        from src
+        into "$projectDir/src/main/assets/tts/coqui"
+    } else {
+        doFirst {
+            println "Coqui host path not found: ${coquiHost} — skipping copyCoqui"
+        }
+    }
+}
+
 preBuild.dependsOn copyHaaniye
+preBuild.dependsOn copyCoqui
 
 // If PREBUILT_LIBS_URL is provided in CI environment, run fetch script to populate prebuilt_libs
 def prebuiltUrl = System.getenv('PREBUILT_LIBS_URL')

@@ -161,15 +161,25 @@ object HaaniyeManager {
     suspend fun inferOffline(context: Context, audioFile: File): String {
         // Real attempt. If anything doesn't match the model requirements, return blank safely.
         return try {
-            if (!ensureOrtSession(context)) return ""
+            if (!ensureOrtSession(context)) {
+                Log.d(TAG, "inferOffline: session not available")
+                return ""
+            }
             val s = session ?: return ""
 
             val waveform = decodeToFloatWaveform16kMono(audioFile) ?: return ""
-            if (waveform.isEmpty()) return ""
+            if (waveform.isEmpty()) {
+                Log.w(TAG, "inferOffline: decoded waveform is empty")
+                return ""
+            }
+
+            Log.d(TAG, "inferOffline: waveform decoded, length=${waveform.size}")
 
             // Heuristic: assume model accepts float waveform [1, N]
             val inputName = s.inputNames.firstOrNull() ?: return ""
             val shape = longArrayOf(1, waveform.size.toLong())
+
+            Log.d(TAG, "inferOffline: inputName=$inputName, shape=${shape.contentToString()}")
 
             val fb: FloatBuffer = ByteBuffer
                 .allocateDirect(waveform.size * 4)
@@ -182,9 +192,14 @@ object HaaniyeManager {
 
             val results = s.run(mapOf(inputName to inputTensor))
             results.use {
-                val first = it.firstOrNull()?.value ?: return ""
+                val first = it.firstOrNull()?.value
+                if (first == null) {
+                    Log.w(TAG, "inferOffline: no output from model")
+                    return ""
+                }
                 // Expected: logits [1, T, V] or [T, V]
                 val decoded = greedyCtcDecode(first, loadTokens(context))
+                Log.d(TAG, "inferOffline: decoded text = '$decoded'")
                 decoded.trim()
             }
         } catch (e: Exception) {

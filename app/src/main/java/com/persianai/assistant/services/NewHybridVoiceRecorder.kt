@@ -14,6 +14,8 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import com.persianai.assistant.services.HybridAnalysisResult
+import com.persianai.assistant.ai.AIClient
+import com.persianai.assistant.utils.PreferencesManager
 
 /**
  * New Hybrid Voice Recorder - Completely rewritten for stability
@@ -328,19 +330,63 @@ class NewHybridVoiceRecorder(private val context: Context) {
     }
 
     suspend fun analyzeOnline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
-        Result.failure(IllegalStateException("Online STT not configured"))
+        try {
+            if (!audioFile.exists() || audioFile.length() == 0L) {
+                return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
+            }
+
+            val prefs = PreferencesManager(context)
+            val mode = prefs.getWorkingMode()
+            if (mode == PreferencesManager.WorkingMode.OFFLINE) {
+                return@withContext Result.failure(IllegalStateException("WorkingMode is OFFLINE"))
+            }
+
+            val keys = prefs.getAPIKeys()
+            val hasKeys = keys.isNotEmpty() && keys.any { it.isActive }
+            if (!hasKeys) {
+                return@withContext Result.failure(IllegalStateException("No active API key"))
+            }
+
+            val client = AIClient(keys)
+            val text = client.transcribeAudio(audioFile.absolutePath).trim()
+            if (text.isBlank()) {
+                Result.failure(IllegalStateException("Online STT returned blank"))
+            } else {
+                Result.success(text)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun analyzeHybrid(audioFile: File): Result<HybridAnalysisResult> = withContext(Dispatchers.IO) {
         val offline = analyzeOffline(audioFile)
-        val offlineText = offline.getOrNull()
-        val primary = offlineText.orEmpty()
+        val offlineText = offline.getOrNull()?.trim()
+
+        // If offline succeeded with non-blank text, keep it as primary.
+        if (!offlineText.isNullOrBlank()) {
+            return@withContext Result.success(
+                HybridAnalysisResult(
+                    offlineText = offlineText,
+                    onlineText = null,
+                    primaryText = offlineText,
+                    confidence = 0.7,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+
+        // If offline failed/blank, attempt online only when allowed by WorkingMode.
+        val online = analyzeOnline(audioFile)
+        val onlineText = online.getOrNull()?.trim()
+
+        val primary = onlineText.orEmpty()
         Result.success(
             HybridAnalysisResult(
                 offlineText = offlineText,
-                onlineText = null,
+                onlineText = onlineText,
                 primaryText = primary,
-                confidence = if (offline.isSuccess && primary.isNotBlank()) 0.7 else 0.0,
+                confidence = if (!onlineText.isNullOrBlank()) 0.75 else 0.0,
                 timestamp = System.currentTimeMillis()
             )
         )

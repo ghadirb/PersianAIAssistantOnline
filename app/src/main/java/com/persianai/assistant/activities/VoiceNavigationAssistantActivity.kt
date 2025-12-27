@@ -240,12 +240,29 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         val message = text.trim()
         if (message.isBlank()) return
 
-        val client = aiClient
-        if (client == null) {
-            val msg = "کلید API تنظیم نشده است"
-            binding.statusText.text = msg
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-            return
+        val prefs = PreferencesManager(this)
+        val workingMode = prefs.getWorkingMode()
+        val canTryOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE || workingMode == PreferencesManager.WorkingMode.HYBRID) && aiClient != null
+
+        fun tryOfflineTinyLlama(): String? {
+            return try {
+                val manager = com.persianai.assistant.models.OfflineModelManager(this)
+                val list = manager.getDownloadedModels()
+                val modelPath = list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
+                    ?: list.firstOrNull()?.second
+                if (modelPath.isNullOrBlank()) return null
+                if (!com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable()) return null
+
+                val prompt = """
+                    شما یک دستیار هوشمند فارسی هستید. پاسخ را کوتاه، واضح و کاملاً فارسی بده.
+                    کاربر: $message
+                    دستیار:
+                """.trimIndent()
+
+                com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, 180)?.trim()
+            } catch (_: Exception) {
+                null
+            }
         }
 
         binding.messageInput.setText("")
@@ -253,16 +270,35 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val resp = client.sendMessage(
-                    currentModel,
-                    listOf(
-                        com.persianai.assistant.models.ChatMessage(
-                            role = com.persianai.assistant.models.MessageRole.USER,
-                            content = message
-                        )
-                    )
-                )
-                val reply = resp.content
+                val reply = if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                    tryOfflineTinyLlama() ?: "⚠️ مدل آفلاین موجود نیست. لطفاً مدل را دانلود کنید."
+                } else {
+                    val onlineReply = if (canTryOnline) {
+                        try {
+                            val resp = aiClient!!.sendMessage(
+                                currentModel,
+                                listOf(
+                                    com.persianai.assistant.models.ChatMessage(
+                                        role = com.persianai.assistant.models.MessageRole.USER,
+                                        content = message
+                                    )
+                                )
+                            )
+                            resp.content.trim()
+                        } catch (_: Exception) {
+                            ""
+                        }
+                    } else {
+                        ""
+                    }
+
+                    if (onlineReply.isNotBlank()) {
+                        onlineReply
+                    } else {
+                        tryOfflineTinyLlama() ?: "⚠️ پاسخ آنلاین در دسترس نبود و مدل آفلاین هم موجود نیست."
+                    }
+                }
+
                 binding.statusText.text = "پاسخ مدل: $reply"
                 binding.transcriptText.text = reply
                 ttsHelper.speak(reply)

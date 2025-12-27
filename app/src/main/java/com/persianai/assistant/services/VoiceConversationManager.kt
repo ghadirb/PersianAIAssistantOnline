@@ -14,8 +14,13 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.ai.AdvancedPersianAssistant
+import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.ai.OfflineIntentParser
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.models.OfflineModelManager
+import com.persianai.assistant.offline.LocalLlamaRunner
+import com.persianai.assistant.tts.BeepFallback
+import com.persianai.assistant.tts.CoquiTtsManager
 
 /**
  * Voice Conversation Manager - Complete voice-to-voice AI assistant
@@ -39,6 +44,7 @@ class VoiceConversationManager(
     // TTS Engine
     private var textToSpeech: TextToSpeech? = null
     private var haaniyeTTS: MediaPlayer? = null
+    private val coquiTts by lazy { CoquiTtsManager(context) }
     
     // Conversation state
     private var isConversationActive = false
@@ -98,6 +104,29 @@ class VoiceConversationManager(
             Log.e(TAG, "❌ Error initializing conversation system", e)
             conversationListener?.onError("خطا در راه‌اندازی سیستم مکالمه: ${e.message}")
             false
+        }
+    }
+
+    private suspend fun speakWithCoquiOrFallback(text: String) = withContext(Dispatchers.Main) {
+        if (text.isBlank()) return@withContext
+        try {
+            // Load model lazily; synthesis path will be implemented once model IO is verified.
+            // For now, we still prefer Android TTS but keep Coqui as the first init point.
+            coquiTts.ensureLoaded()
+        } catch (_: Exception) {
+        }
+
+        // Coqui synthesis is intentionally not executed until we have a verified frontend.
+        // Always fallback to Android TTS for actual speech, then beep as last resort.
+        try {
+            speakWithAndroidTTS(text)
+            return@withContext
+        } catch (_: Exception) {
+        }
+
+        try {
+            BeepFallback.beep()
+        } catch (_: Exception) {
         }
     }
     
@@ -174,6 +203,16 @@ class VoiceConversationManager(
                 // Process the user's speech
                 val userText = processUserSpeech(recordingResult.file)
                 if (userText.isBlank()) {
+                    try {
+                        conversationListener?.onError("متوجه نشدم. لطفاً دوباره بگویید.")
+                    } catch (_: Exception) {
+                    }
+
+                    // In offline voice conversation we must not get stuck in silence.
+                    try {
+                        speakWithCoquiOrFallback("متوجه نشدم، دوباره بگو")
+                    } catch (_: Exception) {
+                    }
                     continue
                 }
 
@@ -275,12 +314,23 @@ class VoiceConversationManager(
     private suspend fun processUserSpeech(audioFile: File): String = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🔍 Processing user speech...")
-            
+
+            if (voiceMode == VoiceMode.OFFLINE_ONLY) {
+                val offline = voiceEngine.analyzeOffline(audioFile)
+                val text = offline.getOrNull().orEmpty().trim()
+                if (text.isNotBlank()) {
+                    Log.d(TAG, "✅ Speech processed (offline): $text")
+                    return@withContext text
+                }
+                Log.e(TAG, "Failed to process speech (offline)")
+                return@withContext ""
+            }
+
             val analysisResult = voiceEngine.analyzeHybrid(audioFile)
             if (analysisResult.isSuccess) {
                 val result = analysisResult.getOrThrow()
                 val processedText = result.primaryText
-                
+
                 Log.d(TAG, "✅ Speech processed: $processedText")
                 processedText
             } else {
@@ -316,30 +366,67 @@ class VoiceConversationManager(
                 "متوجه شدم. می‌توانید بیشتر توضیح دهید؟"
             }
 
+            fun buildTinyLlamaPrompt(): String {
+                return buildString {
+                    appendLine("شما یک دستیار هوشمند فارسی هستید. پاسخ را کوتاه، واضح و کاملاً فارسی بده.")
+                    appendLine("تاریخچه مکالمه:")
+                    conversationHistory.takeLast(12).forEach { msg ->
+                        val role = if (msg.role == "user") "کاربر" else "دستیار"
+                        appendLine("$role: ${msg.content}")
+                    }
+                    appendLine("کاربر: $userInput")
+                    appendLine("دستیار:")
+                }
+            }
+
+            fun tryOfflineTinyLlama(): String? {
+                val modelPath = tryFindOfflineModelPath()
+                if (modelPath.isNullOrBlank()) return null
+                if (!LocalLlamaRunner.isBackendAvailable()) return null
+                return try {
+                    LocalLlamaRunner.infer(modelPath, buildTinyLlamaPrompt(), 180)?.trim()
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
             // OFFLINE: never use online
             if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                val modelPath = tryFindOfflineModelPath()
+                if (!modelPath.isNullOrBlank() && LocalLlamaRunner.isBackendAvailable()) {
+                    val prompt = buildString {
+                        appendLine("شما یک دستیار هوشمند فارسی هستید. پاسخ را کوتاه، واضح و کاملاً فارسی بده.")
+                        appendLine("تاریخچه مکالمه:")
+                        conversationHistory.takeLast(12).forEach { msg ->
+                            val role = if (msg.role == "user") "کاربر" else "دستیار"
+                            appendLine("$role: ${msg.content}")
+                        }
+                        appendLine("کاربر: $userInput")
+                        appendLine("دستیار:")
+                    }
+                    val llm = try {
+                        LocalLlamaRunner.infer(modelPath, prompt, 180)?.trim()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (!llm.isNullOrBlank()) {
+                        return@withContext llm
+                    }
+                }
                 return@withContext offlineText
             }
 
             val canTryOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
                 workingMode == PreferencesManager.WorkingMode.HYBRID) && aiClient != null
 
-            val isSimple = try {
-                OfflineIntentParser(context).canHandle(userInput)
-            } catch (_: Exception) {
-                false
-            }
-
-            // HYBRID: simple -> offline
-            if (workingMode == PreferencesManager.WorkingMode.HYBRID && isSimple) {
-                return@withContext offlineText
-            }
-
+            // LLM policy for voice: online-first when allowed, then offline TinyLlama, then lightweight offline.
             if (!canTryOnline) {
+                val llm = tryOfflineTinyLlama()
+                if (!llm.isNullOrBlank()) return@withContext llm
                 return@withContext offlineText
             }
 
-            val client = aiClient ?: return@withContext offlineText
+            val client = aiClient
 
             val conversationContext = buildConversationContext()
 
@@ -360,23 +447,45 @@ class VoiceConversationManager(
                 پاسخ شما:
             """.trimIndent()
 
-            val response = client.sendMessage(
-                model = com.persianai.assistant.models.AIModel.LLAMA_3_3_70B,
-                messages = conversationHistory.map {
-                    com.persianai.assistant.models.ChatMessage(
-                        role = if (it.role == "user") com.persianai.assistant.models.MessageRole.USER
-                        else com.persianai.assistant.models.MessageRole.ASSISTANT,
-                        content = it.content,
-                        timestamp = it.timestamp
-                    )
-                },
-                systemPrompt = voicePrompt
-            )
+            val onlineText = try {
+                val response = client?.sendMessage(
+                    model = com.persianai.assistant.models.AIModel.LLAMA_3_3_70B,
+                    messages = conversationHistory.map {
+                        com.persianai.assistant.models.ChatMessage(
+                            role = if (it.role == "user") com.persianai.assistant.models.MessageRole.USER
+                            else com.persianai.assistant.models.MessageRole.ASSISTANT,
+                            content = it.content,
+                            timestamp = it.timestamp
+                        )
+                    },
+                    systemPrompt = voicePrompt
+                )
+                response?.content?.trim().orEmpty()
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Online LLM failed: ${e.message}")
+                ""
+            }
 
-            response.content.ifBlank { offlineText }
+            if (onlineText.isNotBlank()) return@withContext onlineText
+
+            val llm = tryOfflineTinyLlama()
+            if (!llm.isNullOrBlank()) return@withContext llm
+
+            return@withContext offlineText
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error getting AI response", e)
             "متاسفانه مشکلی پیش آمده. می‌توانید دوباره تلاش کنید؟"
+        }
+    }
+
+    private fun tryFindOfflineModelPath(): String? {
+        return try {
+            val manager = OfflineModelManager(context)
+            val list = manager.getDownloadedModels()
+            list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
+                ?: list.firstOrNull()?.second
+        } catch (_: Exception) {
+            null
         }
     }
     
@@ -386,20 +495,9 @@ class VoiceConversationManager(
     private suspend fun speakResponse(response: String) = withContext(Dispatchers.Main) {
         try {
             Log.d(TAG, "🔊 Speaking response: $response")
-            
-            when (voiceMode) {
-                VoiceMode.OFFLINE_ONLY -> speakWithHaaniye(response)
-                VoiceMode.ONLINE_ONLY -> speakWithAndroidTTS(response)
-                VoiceMode.HYBRID, VoiceMode.VOICE_ONLY -> {
-                    // Try Haaniye first, fallback to Android TTS
-                    try {
-                        speakWithHaaniye(response)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Haaniye TTS failed, using Android TTS", e)
-                        speakWithAndroidTTS(response)
-                    }
-                }
-            }
+
+            // Audio output must be guaranteed offline (Coqui/Android/beep), regardless of online/offline LLM.
+            speakWithCoquiOrFallback(response)
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error speaking response", e)
@@ -485,6 +583,14 @@ class VoiceConversationManager(
                 } else {
                     Log.e(TAG, "❌ Android TTS initialization failed")
                 }
+            }
+
+            // Best-effort: try load Coqui so we can log model IO early.
+            try {
+                withContext(Dispatchers.IO) {
+                    coquiTts.ensureLoaded()
+                }
+            } catch (_: Exception) {
             }
             
             // Initialize Haaniye TTS (placeholder)

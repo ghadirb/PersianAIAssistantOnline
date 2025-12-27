@@ -9,6 +9,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivitySettingsBinding
 import com.persianai.assistant.services.AIAssistantService
+import com.persianai.assistant.tts.CoquiTtsManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
@@ -72,6 +73,35 @@ class SettingsActivity : AppCompatActivity() {
         
         // وضعیت مدل آفلاین
         updateOfflineModelStatus()
+
+        // وضعیت Coqui TTS
+        updateCoquiTtsStatus()
+    }
+
+    private fun updateCoquiTtsStatus() {
+        try {
+            val coqui = CoquiTtsManager(this)
+            val manualPath = coqui.getManualModelPath()
+            val internalPath = coqui.getInternalModelPath()
+
+            binding.coquiTtsPathInfo.text =
+                "📁 مسیر کپی دستی:\n$manualPath\n\n📁 مسیر داخلی برنامه:\n$internalPath\n\nنام فایل باید دقیقاً: model.onnx"
+
+            val present = coqui.isModelFilePresent()
+            binding.coquiTtsStatus.text = "وضعیت: " + (if (present) "✅ مدل موجود است" else "❌ مدل موجود نیست")
+            binding.coquiTtsStatus.setTextColor(
+                getColor(if (present) android.R.color.holo_green_dark else android.R.color.holo_red_dark)
+            )
+
+            binding.coquiTtsPathInfo.setOnClickListener {
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Coqui Model Path", manualPath)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "✅ مسیر کپی شد", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsActivity", "updateCoquiTtsStatus failed", e)
+        }
     }
     
     private fun updateCurrentModeText() {
@@ -216,6 +246,44 @@ class SettingsActivity : AppCompatActivity() {
         // درباره برنامه
         binding.aboutButton.setOnClickListener {
             showAboutDialog()
+        }
+
+        binding.downloadCoquiTtsButton.setOnClickListener {
+            lifecycleScope.launch {
+                try {
+                    Toast.makeText(this@SettingsActivity, "در حال دانلود مدل Coqui...", Toast.LENGTH_SHORT).show()
+                    val ok = withContext(Dispatchers.IO) {
+                        CoquiTtsManager(this@SettingsActivity).downloadModelNow(force = false)
+                    }
+                    updateCoquiTtsStatus()
+                    Toast.makeText(
+                        this@SettingsActivity,
+                        if (ok) "✅ دانلود مدل انجام شد" else "❌ دانلود انجام نشد (ممکن است لینک مسدود باشد)"
+                        ,
+                        Toast.LENGTH_LONG
+                    ).show()
+                } catch (e: Exception) {
+                    android.util.Log.e("SettingsActivity", "downloadCoquiTtsButton failed", e)
+                    Toast.makeText(this@SettingsActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        binding.openCoquiDriveButton.setOnClickListener {
+            try {
+                val coqui = CoquiTtsManager(this)
+                val url = coqui.getDriveViewUrl()
+                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                startActivity(intent)
+
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Coqui Drive URL", url)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "🌐 لینک باز شد و در کلیپ‌بورد کپی شد", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsActivity", "openCoquiDriveButton failed", e)
+                Toast.makeText(this, "❌ خطا در باز کردن لینک", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

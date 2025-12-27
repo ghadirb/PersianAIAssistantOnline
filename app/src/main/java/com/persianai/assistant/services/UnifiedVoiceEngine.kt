@@ -143,4 +143,16 @@ class UnifiedVoiceEngine(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    /**
+     * Analyze audio file using offline STT only (Haaniye).
+     */
+    suspend fun analyzeOffline(file: File): Result<String> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            recorder.analyzeOffline(file)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error analyzing audio file (offline)", e)
+            Result.failure(e)
+        }
+    }
 }

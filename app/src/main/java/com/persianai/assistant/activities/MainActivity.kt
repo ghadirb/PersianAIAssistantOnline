@@ -465,22 +465,39 @@ class MainActivity : AppCompatActivity() {
                         if (aiClient == null) {
                             "❌ کلید API تنظیم نشده است.\n\nلطفاً از تنظیمات، کلیدهای API را وارد کنید."
                         } else {
-                            handleOnlineRequest(text)
+                            try {
+                                handleOnlineRequest(text)
+                            } catch (_: Exception) {
+                                // Fallback to offline when online fails
+                                if (isModelDownloaded) {
+                                    handleOfflineRequest(text)
+                                } else {
+                                    "❌ پاسخ آنلاین ناموفق بود و مدل آفلاین دانلود نشده است."
+                                }
+                            }
                         }
                     }
                     
                     PreferencesManager.WorkingMode.HYBRID -> {
-                        // حالت ترکیبی - اول آفلاین، بعد آنلاین
-                        val offlineParser = com.persianai.assistant.ai.OfflineIntentParser(this@MainActivity)
-                        
-                        if (isModelDownloaded && offlineParser.canHandle(text)) {
-                            // دستور ساده - از آفلاین استفاده کن
-                            handleOfflineRequest(text)
-                        } else if (aiClient != null) {
-                            // دستور پیچیده - از آنلاین استفاده کن
-                            handleOnlineRequest(text)
+                        // حالت ترکیبی - اول آنلاین (اگر ممکن بود)، بعد آفلاین
+                        val online = if (aiClient != null) {
+                            try {
+                                handleOnlineRequest(text)
+                            } catch (_: Exception) {
+                                ""
+                            }
                         } else {
-                            "⚠️ برای این درخواست نیاز به اتصال آنلاین است ولی کلید API تنظیم نشده.\n\nلطفاً کلیدها را از تنظیمات وارد کنید."
+                            ""
+                        }
+
+                        if (online.isNotBlank()) {
+                            online
+                        } else if (isModelDownloaded) {
+                            handleOfflineRequest(text)
+                        } else if (aiClient == null) {
+                            "⚠️ پاسخ آنلاین فعال نیست و مدل آفلاین دانلود نشده است.\n\nلطفاً یک کلید API معتبر وارد کنید یا مدل آفلاین را دانلود کنید."
+                        } else {
+                            "❌ پاسخ آنلاین ناموفق بود و مدل آفلاین دانلود نشده است."
                         }
                     }
                 }

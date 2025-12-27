@@ -241,6 +241,64 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Coqui TTS Offline Model Section -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/coquiTtsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🗣️ صدای آفلاین (Coqui TTS)"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/coquiTtsStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="وضعیت: نامشخص"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/coquiTtsPathInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="📁 مسیر کپی دستی:"
+                        android:alpha="0.85" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/downloadCoquiTtsButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="دانلود داخل برنامه"
+                        style="@style/Widget.Material3.Button" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/openCoquiDriveButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="دانلود دستی (باز کردن لینک)"
+                        style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- API Keys Section -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

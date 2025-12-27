@@ -120,25 +120,8 @@ class VoiceCommandService : Service() {
             }
 
             notifyUpdate("📝 تبدیل گفتار به متن...", "")
-            val analysis = engine.analyzeHybrid(recording.file)
-            var text = analysis.getOrNull()?.primaryText?.trim().orEmpty()
-
-            if (text.isBlank()) {
-                // Fallback online STT when keys exist
-                try {
-                    val prefs = PreferencesManager(this)
-                    val keys = prefs.getAPIKeys()
-                    val modePref = prefs.getWorkingMode()
-                    val hasKeys = keys.isNotEmpty() && keys.any { it.isActive }
-                    if (modePref != PreferencesManager.WorkingMode.OFFLINE && hasKeys) {
-                        notifyUpdate("🌐 تلاش برای تبدیل آنلاین...", "")
-                        val client = AIClient(keys)
-                        text = client.transcribeAudio(recording.file.absolutePath).trim()
-                    }
-                } catch (e: Exception) {
-                    Log.w(tag, "Online STT fallback failed: ${e.message}")
-                }
-            }
+            val analysis = engine.analyzeOffline(recording.file)
+            val text = analysis.getOrNull()?.trim().orEmpty()
 
             // Clean up audio file immediately
             try { recording.file.delete() } catch (_: Exception) { }

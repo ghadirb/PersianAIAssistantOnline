@@ -415,23 +415,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
                         }
 
                         statusText.text = "📝 تبدیل گفتار به متن..."
-                        val analysis = engine.analyzeHybrid(recording.file)
-                        var userText = analysis.getOrNull()?.primaryText?.trim().orEmpty()
-                        if (userText.isBlank()) {
-                            // Fallback to online STT if configured
-                            try {
-                                val mode = prefsManager.getWorkingMode()
-                                if (mode != com.persianai.assistant.utils.PreferencesManager.WorkingMode.OFFLINE) {
-                                    statusText.text = "🌐 تلاش برای تبدیل آنلاین..."
-                                    val onlineText = aiClient?.transcribeAudio(recording.file.absolutePath)?.trim().orEmpty()
-                                    if (onlineText.isNotBlank()) {
-                                        userText = onlineText
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.w("BaseChatActivity", "Online STT fallback failed: ${e.message}")
-                            }
-                        }
+                        val analysis = engine.analyzeOffline(recording.file)
+                        val userText = analysis.getOrNull()?.trim().orEmpty()
                         if (userText.isBlank()) {
                             statusText.text = "⚠️ متن تشخیص داده نشد"
                             kotlinx.coroutines.delay(600)
@@ -568,9 +553,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
 
         fun shouldUseOnlineFirst(): Boolean {
+            // Policy:
+            // - OFFLINE: never online
+            // - HYBRID / ONLINE: try online first when possible; fallback to offline
             if (workingMode == PreferencesManager.WorkingMode.OFFLINE) return false
             if (!canUseOnline) return false
-            if (workingMode == PreferencesManager.WorkingMode.ONLINE) return true
+            // HYBRID/ONLINE: try online first, fallback to offline if online fails
             return true
         }
 
@@ -605,16 +593,18 @@ abstract class BaseChatActivity : AppCompatActivity() {
         if (onlineFirst) {
             val online = tryOnline()
             if (!online.isNullOrBlank()) return@withContext online
+
             val offline = tryOffline()
             if (!offline.isNullOrBlank()) return@withContext offline
+
             return@withContext "❌ خطا در پردازش درخواست"
         }
 
-        // OFFLINE یا HYBRID: ابتدا آفلاین
+        // OFFLINE: strictly offline
         val offline = tryOffline()
         if (!offline.isNullOrBlank()) return@withContext offline
 
-        // اگر آفلاین واقعاً چیزی نداشت و امکان آنلاین هست، آنلاین
+        // If not OFFLINE and online is available, try it as secondary.
         val online = tryOnline()
         if (!online.isNullOrBlank()) return@withContext online
 
@@ -777,75 +767,24 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
-                val workingMode = prefsManager.getWorkingMode()
-                val apiKeys = prefsManager.getAPIKeys()
-                val hasValidKeys = apiKeys.isNotEmpty() && apiKeys.any { it.isActive }
-                val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE || workingMode == PreferencesManager.WorkingMode.HYBRID) && hasValidKeys && aiClient != null
-
-                val hybridText = try {
-                    val analysis = withContext(Dispatchers.IO) { sttEngine.analyzeHybrid(audioFile) }
-                    analysis.getOrNull()?.primaryText?.trim().orEmpty()
+                val offlineText = try {
+                    val res = withContext(Dispatchers.IO) { sttEngine.analyzeOffline(audioFile) }
+                    res.getOrNull()?.trim().orEmpty()
                 } catch (e: Exception) {
-                    Log.e("BaseChatActivity", "Hybrid STT failed: ${e.message}")
+                    Log.e("BaseChatActivity", "Offline STT failed: ${e.message}")
                     ""
                 }
 
-                if (hybridText.isNotBlank()) {
-                    getMessageInput().setText(hybridText)
-                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$hybridText\"", Toast.LENGTH_SHORT).show()
+                if (offlineText.isNotBlank()) {
+                    getMessageInput().setText(offlineText)
+                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$offlineText\"", Toast.LENGTH_SHORT).show()
                     sendMessage()
-                    return@launch
-                }
-                
-                // ✅ در حالت OFFLINE فقط STT آفلاین مجاز است
-                if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-                    Toast.makeText(
-                        this@BaseChatActivity,
-                        "⚠️ تبدیل آفلاین موفق نبود.\n\n" +
-                            "برای استفاده از تبدیل صوت آفلاین مطمئن شوید مدل Haaniye درست نصب شده است.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@launch
-                }
-
-                // ✅ سعی برای تبدیل آنلاین یا HuggingFace (فقط وقتی اجازه داریم)
-                val transcribedText = if (canUseOnline) {
-                    try {
-                        aiClient?.transcribeAudio(audioFile.absolutePath)
-                            ?.takeIf { !it.isNullOrBlank() }
-                    } catch (e: Exception) {
-                        Log.e("BaseChatActivity", "AIClient transcription failed: ${e.message}")
-                        null
-                    } ?: try {
-                        transcribeWithHuggingFace(audioFile)
-                    } catch (e: Exception) {
-                        Log.e("BaseChatActivity", "HuggingFace transcription failed: ${e.message}")
-                        null
-                    }
-                } else {
-                    null
-                }
-                
-                if (!transcribedText.isNullOrEmpty()) {
-                    getMessageInput().setText(transcribedText)
-                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$transcribedText\"", Toast.LENGTH_SHORT).show()
-                    sendMessage()
-                    return@launch
-                }
-                
-                // ❌ اگر تبدیل ناموفق بود
-                if (!canUseOnline) {
-                    Toast.makeText(
-                        this@BaseChatActivity,
-                        "⚠️ تبدیل آنلاین فعال نیست.\n\n" +
-                            "برای فعال‌سازی: حالت HYBRID/ONLINE را انتخاب کنید و کلید API معتبر وارد کنید.",
-                        Toast.LENGTH_LONG
-                    ).show()
                 } else {
                     Toast.makeText(
                         this@BaseChatActivity,
-                        "❌ خطا در تبدیل صوت. لطفاً دوباره تلاش کنید.",
-                        Toast.LENGTH_SHORT
+                        "⚠️ تبدیل صوت آفلاین موفق نبود.\n\n" +
+                            "لطفاً مدل Haaniye را بررسی کنید یا واضح‌تر صحبت کنید.",
+                        Toast.LENGTH_LONG
                     ).show()
                 }
             } catch (e: Exception) {
