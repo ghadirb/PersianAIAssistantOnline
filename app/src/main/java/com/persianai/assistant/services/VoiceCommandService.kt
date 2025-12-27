@@ -12,7 +12,6 @@ import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.ai.AdvancedPersianAssistant
-import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.core.AIIntentRequest
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +21,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * VoiceCommandService - Fixed
+ * 
+ * ✓ Uses SimplifiedSTTEngine for better fallback
+ * ✓ Better error messages
+ * ✓ Proper voice recording with VAD
+ * ✓ Integrates with AIIntentController
+ */
 class VoiceCommandService : Service() {
 
     companion object {
@@ -106,33 +113,55 @@ class VoiceCommandService : Service() {
         val controller = AIIntentController(this)
 
         try {
+            // Step 1: Check permissions
             if (!engine.hasRequiredPermissions()) {
-                notifyUpdate("❌ مجوز لازم است", "برای اجرای فرمان صوتی، مجوز میکروفن را به برنامه بدهید.")
+                notifyUpdate(
+                    "❌ مجوز لازم است",
+                    "برای اجرای فرمان صوتی، مجوز میکروفن را به برنامه بدهید."
+                )
+                Log.e(tag, "Missing RECORD_AUDIO permission")
                 return
             }
 
+            // Step 2: Record audio with VAD
             val title = if (mode == MODE_REMINDER) "🎤 ضبط یادآوری..." else "🎤 ضبط فرمان..."
             notifyUpdate(title, hint.orEmpty())
+            
             val recording = recordWithVad(engine)
             if (recording == null) {
-                notifyUpdate("⚠️ چیزی شنیده نشد", "دوباره تلاش کنید.")
+                notifyUpdate(
+                    "⚠️ صدای تشخیص داده نشد",
+                    "لطفاً دوباره سعی کنید و واضح‌تر صحبت کنید."
+                )
+                Log.w(tag, "No speech detected (VAD threshold not exceeded)")
                 return
             }
 
-            notifyUpdate("📝 تبدیل گفتار به متن...", "")
-            val analysis = engine.analyzeOffline(recording.file)
-            val text = analysis.getOrNull()?.trim().orEmpty()
+            Log.d(tag, "✅ Recording completed: ${recording.file.absolutePath}")
 
-            // Clean up audio file immediately
-            try { recording.file.delete() } catch (_: Exception) { }
+            // Step 3: Transcribe audio
+            notifyUpdate("📝 تبدیل گفتار به متن...", "لطفاً صبر کنید...")
+            
+            val sttResult = SimplifiedSTTEngine.transcribe(this, recording.file)
+            val transcribedText = sttResult.getOrNull()?.trim().orEmpty()
 
-            if (text.isBlank()) {
-                notifyUpdate("⚠️ متن تشخیص داده نشد", "دوباره تلاش کنید.")
+            // Cleanup audio file
+            try { recording.file.delete() } catch (_: Exception) {}
+
+            if (transcribedText.isBlank()) {
+                notifyUpdate(
+                    "⚠️ متن تشخیص داده نشد",
+                    "سرویس STT دستیابی ندارد یا صدا واضح نبود."
+                )
+                Log.w(tag, "STT result was empty/blank")
                 return
             }
 
+            Log.d(tag, "✅ STT Result: $transcribedText")
+
+            // Step 4: Normalize text based on mode
             val normalizedText = if (mode == MODE_REMINDER) {
-                val t = text.trim()
+                val t = transcribedText.trim()
                 val lower = t.lowercase()
                 val looksLikeReminder =
                     lower.contains("یادم بنداز") ||
@@ -143,11 +172,12 @@ class VoiceCommandService : Service() {
 
                 if (looksLikeReminder) t else "یادم بنداز $t"
             } else {
-                text.trim()
+                transcribedText.trim()
             }
 
             notifyUpdate("✅ فرمان دریافت شد", normalizedText)
 
+            // Step 5: Process as Intent
             val resp = try {
                 val intent = controller.detectIntentFromText(normalizedText, mode)
                 val result = controller.handle(
@@ -157,57 +187,94 @@ class VoiceCommandService : Service() {
                         workingModeName = PreferencesManager(this).getWorkingMode().name
                     )
                 )
+                Log.d(tag, "✅ Intent processed: ${intent.name} -> ${result.text.take(50)}")
                 result.text
             } catch (e: Exception) {
-                // Safety fallback to old behavior
+                Log.e(tag, "Error processing intent", e)
+                // Fallback to old behavior
                 val assistant = AdvancedPersianAssistant(this)
                 try {
                     assistant.processRequest(normalizedText).text
-                } catch (_: Exception) {
-                    "❌ خطا در اجرای فرمان: ${e.message}"
+                } catch (ex: Exception) {
+                    "❌ خطا در اجرای فرمان: ${ex.message}"
                 }
             }
 
             notifyUpdate("🤖 نتیجه", resp)
             delay(2500)
+            
         } catch (e: Exception) {
             Log.e(tag, "runOneShotCommand failed", e)
             notifyUpdate("❌ خطا", e.message ?: "خطای نامشخص")
         }
     }
 
-    private suspend fun recordWithVad(engine: UnifiedVoiceEngine): com.persianai.assistant.services.RecordingResult? {
+    /**
+     * Record audio with Voice Activity Detection
+     */
+    private suspend fun recordWithVad(
+        engine: UnifiedVoiceEngine
+    ): com.persianai.assistant.services.RecordingResult? {
         return try {
             val start = engine.startRecording()
-            if (start.isFailure) return null
+            if (start.isFailure) {
+                Log.e(tag, "Failed to start recording: ${start.exceptionOrNull()?.message}")
+                return null
+            }
 
             val startTime = System.currentTimeMillis()
             var hasSpeech = false
             var lastSpeechTime = 0L
-            val maxTotalMs = 8_000L
-            val maxWaitForSpeechMs = 3_500L
-            val silenceStopMs = 1_000L
-            val threshold = 900
+            val maxTotalMs = 10_000L      // 10 sec max
+            val maxWaitForSpeechMs = 3_500L  // 3.5 sec to start talking
+            val silenceStopMs = 1_200L    // 1.2 sec silence = stop
+            val threshold = 800            // amplitude threshold
+
+            Log.d(tag, "Recording with VAD: timeout=$maxTotalMs, silence=$silenceStopMs")
 
             while (engine.isRecordingInProgress()) {
                 val now = System.currentTimeMillis()
                 val amp = engine.getCurrentAmplitude()
+                
                 if (amp > threshold) {
                     hasSpeech = true
                     lastSpeechTime = now
                 }
 
                 val total = now - startTime
-                if (!hasSpeech && total > maxWaitForSpeechMs) break
-                if (hasSpeech && (now - lastSpeechTime) > silenceStopMs) break
-                if (total > maxTotalMs) break
+                
+                // Stop if no speech detected in time
+                if (!hasSpeech && total > maxWaitForSpeechMs) {
+                    Log.d(tag, "VAD: Timeout waiting for speech")
+                    break
+                }
+                
+                // Stop if silence detected
+                if (hasSpeech && (now - lastSpeechTime) > silenceStopMs) {
+                    Log.d(tag, "VAD: Silence detected, stopping")
+                    break
+                }
+                
+                // Stop if max duration exceeded
+                if (total > maxTotalMs) {
+                    Log.d(tag, "VAD: Max duration exceeded")
+                    break
+                }
 
-                delay(120)
+                delay(100) // Check every 100ms
             }
 
             val stop = engine.stopRecording()
-            stop.getOrNull()
+            val result = stop.getOrNull()
+            
+            if (result != null) {
+                Log.d(tag, "Recording stopped successfully: ${result.duration}ms")
+            }
+            
+            result
+            
         } catch (e: Exception) {
+            Log.e(tag, "Error during VAD recording", e)
             try { engine.cancelRecording() } catch (_: Exception) {}
             null
         }
