@@ -9,7 +9,7 @@ import com.persianai.assistant.core.AIIntentResult
 import com.persianai.assistant.core.intent.AIIntent
 import com.persianai.assistant.core.intent.MusicPlayIntent
 
-class MusicModule(private val context: Context) : BaseModule(context) {
+class MusicModule(context: Context) : BaseModule(context) {
     override val moduleName: String = "Music"
 
     override suspend fun canHandle(intent: AIIntent): Boolean {

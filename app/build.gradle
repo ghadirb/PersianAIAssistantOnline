@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'kotlin-parcelize'
 }
 
 // می‌توان با -PskipNativeBuild=true ساخت بومی را در CI غیرفعال کرد (در این حالت استنتاج آفلاین واقعی غیرفعال می‌شود)

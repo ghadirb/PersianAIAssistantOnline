@@ -9,7 +9,7 @@ import com.persianai.assistant.core.AIIntentResult
 import com.persianai.assistant.core.intent.AIIntent
 import com.persianai.assistant.core.intent.WeatherCheckIntent
 
-class WeatherModule(private val context: Context) : BaseModule(context) {
+class WeatherModule(context: Context) : BaseModule(context) {
     override val moduleName: String = "Weather"
 
     override suspend fun canHandle(intent: AIIntent): Boolean {

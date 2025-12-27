@@ -12,7 +12,7 @@ import com.persianai.assistant.core.intent.FinanceReportIntent
 import com.persianai.assistant.core.intent.FinanceTrackIntent
 import com.persianai.assistant.finance.FinanceManager
 
-class FinanceModule(private val context: Context) : BaseModule(context) {
+class FinanceModule(context: Context) : BaseModule(context) {
     override val moduleName: String = "Finance"
     
     private val financeManager = FinanceManager(context)

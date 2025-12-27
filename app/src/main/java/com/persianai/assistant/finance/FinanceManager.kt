@@ -136,6 +136,73 @@ class FinanceManager(private val context: Context) {
         
         return Pair(income, expense)
     }
+
+    fun getSummary(): Map<String, String> {
+        val transactions = getAllTransactions()
+        var income = 0.0
+        var expense = 0.0
+        transactions.forEach {
+            if (it.type == "income") income += it.amount else if (it.type == "expense") expense += it.amount
+        }
+        val balance = income - expense
+        return mapOf(
+            "income" to income.toLong().toString(),
+            "expense" to expense.toLong().toString(),
+            "total" to balance.toLong().toString()
+        )
+    }
+
+    fun generateReport(timeRange: String): String {
+        val tr = getAllTransactions()
+        if (tr.isEmpty()) return "اطلاعاتی ثبت نشده است"
+
+        val now = System.currentTimeMillis()
+        val from = when (timeRange.lowercase()) {
+            "day", "today", "روز" -> now - 24L * 60L * 60L * 1000L
+            "week", "هفته" -> now - 7L * 24L * 60L * 60L * 1000L
+            "year", "سال" -> now - 365L * 24L * 60L * 60L * 1000L
+            else -> now - 30L * 24L * 60L * 60L * 1000L // month
+        }
+
+        val scoped = tr.filter { it.date in from..now }
+        if (scoped.isEmpty()) return "در بازه انتخابی تراکنشی یافت نشد"
+
+        var income = 0.0
+        var expense = 0.0
+        val topExpenseCategories = mutableMapOf<String, Double>()
+        scoped.forEach {
+            if (it.type == "income") {
+                income += it.amount
+            } else if (it.type == "expense") {
+                expense += it.amount
+                topExpenseCategories[it.category] = (topExpenseCategories[it.category] ?: 0.0) + it.amount
+            }
+        }
+
+        val top = topExpenseCategories.entries
+            .sortedByDescending { it.value }
+            .take(5)
+            .joinToString("\n") { "• ${it.key}: ${it.value.toLong()}" }
+
+        val balance = income - expense
+        return buildString {
+            append("بازه: ")
+            append(timeRange)
+            append("\n")
+            append("درآمد: ")
+            append(income.toLong())
+            append("\n")
+            append("هزینه: ")
+            append(expense.toLong())
+            append("\n")
+            append("خالص: ")
+            append(balance.toLong())
+            if (top.isNotBlank()) {
+                append("\n\nبیشترین هزینه‌ها:\n")
+                append(top)
+            }
+        }
+    }
     
     fun deleteTransaction(id: String) {
         val transactions = getAllTransactions().filter { it.id != id }

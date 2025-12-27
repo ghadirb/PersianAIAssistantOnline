@@ -9,7 +9,7 @@ import com.persianai.assistant.core.intent.AIIntent
 import com.persianai.assistant.core.intent.EducationAskIntent
 import com.persianai.assistant.core.intent.EducationGenerateQuestionIntent
 
-class EducationModule(private val context: Context) : BaseModule(context) {
+class EducationModule(context: Context) : BaseModule(context) {
     override val moduleName: String = "Education"
     
     private val assistant = AdvancedPersianAssistant(context)

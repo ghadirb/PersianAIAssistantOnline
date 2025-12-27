@@ -36,11 +36,17 @@ class ConversationStateManager(private val context: Context) {
                 val new = Conversation(
                     id = UUID.randomUUID().toString(),
                     title = "نام‌نشخص",
-                    timestamp = System.currentTimeMillis(),
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
                     messages = mutableListOf()
                 )
                 Log.d(TAG, "Created new conversation: ${new.id}")
                 currentConversation = new
+                try {
+                    storage.setCurrentConversationId(new.id)
+                    storage.saveConversation(new)
+                } catch (_: Exception) {
+                }
                 new
             }
         } catch (e: Exception) {

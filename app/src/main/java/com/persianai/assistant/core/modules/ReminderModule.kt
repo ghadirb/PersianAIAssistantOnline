@@ -11,7 +11,7 @@ import com.persianai.assistant.core.intent.ReminderListIntent
 import com.persianai.assistant.core.intent.ReminderUpdateIntent
 import com.persianai.assistant.utils.SmartReminderManager
 
-class ReminderModule(private val context: Context) : BaseModule(context) {
+class ReminderModule(context: Context) : BaseModule(context) {
     override val moduleName: String = "Reminder"
     
     private val assistant = AdvancedPersianAssistant(context)

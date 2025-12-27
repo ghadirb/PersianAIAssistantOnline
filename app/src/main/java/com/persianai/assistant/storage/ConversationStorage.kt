@@ -56,6 +56,18 @@ class ConversationStorage(private val context: Context) {
     suspend fun getConversation(id: String): Conversation? = withContext(Dispatchers.IO) {
         getAllConversations().firstOrNull { it.id == id }
     }
+
+    /**
+     * دریافت چت فعال (بر اساس current_conversation_id)
+     */
+    suspend fun getActiveConversation(): Conversation? = withContext(Dispatchers.IO) {
+        try {
+            val id = getCurrentConversationId() ?: return@withContext null
+            getConversation(id)
+        } catch (_: Exception) {
+            null
+        }
+    }
     
     /**
      * حذف یک چت
