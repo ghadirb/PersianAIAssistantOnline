@@ -108,7 +108,18 @@ object AutoProvisioningManager {
             try {
                 val (provider, key) = parseKeyLine(trimmed)
                 if (provider != null && key.isNotBlank()) {
-                    keys.add(APIKey(provider, key, true))
+                    if (provider == AIProvider.LIARA) {
+                        keys.add(
+                            APIKey(
+                                provider = AIProvider.LIARA,
+                                key = key,
+                                baseUrl = "https://api.liara.ir",
+                                isActive = true
+                            )
+                        )
+                    } else {
+                        keys.add(APIKey(provider, key, isActive = true))
+                    }
                     Log.d(TAG, "کلید پارس شد: ${provider.name} (${key.take(10)}...)")
                 }
             } catch (e: Exception) {
@@ -136,6 +147,7 @@ object AutoProvisioningManager {
                     "openai", "gpt" -> AIProvider.OPENAI
                     "huggingface", "hf" -> AIProvider.OPENROUTER // ذخیره در OpenRouter برای سازگاری
                     "anthropic", "claude" -> AIProvider.ANTHROPIC
+                    "liara" -> AIProvider.LIARA
                     else -> null
                 }
                 

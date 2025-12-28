@@ -273,7 +273,7 @@ class AIModelManager(private val context: Context) {
             val updatedKeys = prefsManager.getAPIKeys()
                 .filter { it.provider != apiProvider }
                 .toMutableList()
-            updatedKeys.add(APIKey(apiProvider, apiKey, true))
+            updatedKeys.add(APIKey(apiProvider, apiKey, isActive = true))
             prefsManager.saveAPIKeys(updatedKeys)
         }
     }

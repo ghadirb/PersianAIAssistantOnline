@@ -687,19 +687,27 @@ class DashboardActivity : AppCompatActivity() {
             val parts = trimmed.split(":", limit = 2)
             if (parts.size == 2) {
                 when (parts[0].lowercase()) {
-                    "openai" -> keys.add(APIKey(AIProvider.OPENAI, parts[1].trim(), true))
-                    "anthropic", "claude" -> keys.add(APIKey(AIProvider.ANTHROPIC, parts[1].trim(), true))
-                    "openrouter" -> keys.add(APIKey(AIProvider.OPENROUTER, parts[1].trim(), true))
-                    "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(AIProvider.AIML, parts[1].trim(), true))
+                    "openai" -> keys.add(APIKey(AIProvider.OPENAI, parts[1].trim(), isActive = true))
+                    "anthropic", "claude" -> keys.add(APIKey(AIProvider.ANTHROPIC, parts[1].trim(), isActive = true))
+                    "openrouter" -> keys.add(APIKey(AIProvider.OPENROUTER, parts[1].trim(), isActive = true))
+                    "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(AIProvider.AIML, parts[1].trim(), isActive = true))
+                    "liara" -> keys.add(
+                        APIKey(
+                            provider = AIProvider.LIARA,
+                            key = parts[1].trim(),
+                            baseUrl = "https://api.liara.ir",
+                            isActive = true
+                        )
+                    )
                     "huggingface", "hf" -> huggingFaceKey = parts[1].trim()
                 }
             } else if (parts.size == 1) {
                 val token = trimmed
                 when {
-                    token.startsWith("sk-or-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENROUTER, token, true))
-                    token.startsWith("sk-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENAI, token, true))
+                    token.startsWith("sk-or-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENROUTER, token, isActive = true))
+                    token.startsWith("sk-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENAI, token, isActive = true))
                     token.startsWith("hf_", ignoreCase = true) -> huggingFaceKey = token
-                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> keys.add(APIKey(AIProvider.AIML, token, true))
+                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> keys.add(APIKey(AIProvider.AIML, token, isActive = true))
                 }
             }
         }

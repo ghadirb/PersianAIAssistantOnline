@@ -335,7 +335,13 @@ class ApiSettingsActivity : AppCompatActivity() {
                 // Provision: فعلاً به عنوان کلید OpenRouter ذخیره می‌کنیم
                 modelManager.saveApiKey("openrouter", key)
                 // هم‌راستا با PreferencesManager برای نمایش تعداد کلیدها
-                val apiKeys = listOf(com.persianai.assistant.models.APIKey(com.persianai.assistant.models.AIProvider.OPENROUTER, key, true))
+                val apiKeys = listOf(
+                    com.persianai.assistant.models.APIKey(
+                        com.persianai.assistant.models.AIProvider.OPENROUTER,
+                        key,
+                        isActive = true
+                    )
+                )
                 prefsManager.saveAPIKeys(apiKeys)
                 updateAvailableModels()
                 android.widget.Toast.makeText(this, "Provisioning فعال شد و کلید ذخیره شد", android.widget.Toast.LENGTH_SHORT).show()

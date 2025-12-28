@@ -359,11 +359,24 @@ class SettingsActivity : AppCompatActivity() {
                     "openai" -> com.persianai.assistant.models.AIProvider.OPENAI
                     "anthropic", "claude" -> com.persianai.assistant.models.AIProvider.ANTHROPIC
                     "openrouter" -> com.persianai.assistant.models.AIProvider.OPENROUTER
+                    "liara" -> com.persianai.assistant.models.AIProvider.LIARA
                     else -> null
                 }
                 
                 if (provider != null) {
-                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), true))
+                    val token = parts[1].trim()
+                    if (provider == com.persianai.assistant.models.AIProvider.LIARA) {
+                        keys.add(
+                            com.persianai.assistant.models.APIKey(
+                                provider = com.persianai.assistant.models.AIProvider.LIARA,
+                                key = token,
+                                baseUrl = "https://api.liara.ir",
+                                isActive = true
+                            )
+                        )
+                    } else {
+                        keys.add(com.persianai.assistant.models.APIKey(provider, token, isActive = true))
+                    }
                 }
             } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
                 val provider = when {
@@ -372,7 +385,7 @@ class SettingsActivity : AppCompatActivity() {
                     trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
                     else -> com.persianai.assistant.models.AIProvider.OPENAI
                 }
-                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, true))
+                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, isActive = true))
             }
         }
         

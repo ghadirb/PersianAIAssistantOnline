@@ -53,7 +53,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
             try {
                 return@withContext when (model.provider) {
                     AIProvider.AIML -> sendToOpenAI(model, messages, systemPrompt, apiKey) // AIML API سازگار با OpenAI
-                    AIProvider.OPENAI, AIProvider.OPENROUTER -> sendToOpenAI(model, messages, systemPrompt, apiKey)
+                    AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
                 }
@@ -82,10 +82,16 @@ class AIClient(private val apiKeys: List<APIKey>) {
         apiKey: APIKey
     ): ChatMessage = withContext(Dispatchers.IO) {
         
+        val baseUrl = apiKey.baseUrl?.trim()?.trimEnd('/')
         val apiUrl = when (apiKey.provider) {
-            AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1/chat/completions"
-            AIProvider.AIML -> "https://api.aimlapi.com/v1/chat/completions"
-            else -> "https://api.openai.com/v1/chat/completions"
+            AIProvider.OPENROUTER -> baseUrl?.let { "$it/api/v1/chat/completions" }
+                ?: "https://openrouter.ai/api/v1/chat/completions"
+            AIProvider.AIML -> baseUrl?.let { "$it/v1/chat/completions" }
+                ?: "https://api.aimlapi.com/v1/chat/completions"
+            AIProvider.OPENAI, AIProvider.LIARA -> baseUrl?.let { "$it/v1/chat/completions" }
+                ?: "https://api.openai.com/v1/chat/completions"
+            else -> baseUrl?.let { "$it/v1/chat/completions" }
+                ?: "https://api.openai.com/v1/chat/completions"
         }
 
         val messageList = mutableListOf<Map<String, String>>()
@@ -206,7 +212,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        val openAIKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
+        val openAiLikeKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
+            ?: apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_") }
             ?: apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.key.startsWith("hf_") }
         val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
@@ -232,10 +239,11 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 .addFormDataPart("language", "fa")
                 .build()
 
-            // اولویت: OpenAI Whisper -> HF Whisper
-            val responseText = openAIKey?.let { key ->
+            // اولویت: OpenAI-compatible (Liara/OpenAI) -> HF Whisper
+            val responseText = openAiLikeKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com"
                 val request = Request.Builder()
-                    .url("https://api.openai.com/v1/audio/transcriptions")
+                    .url("$baseUrl/v1/audio/transcriptions")
                     .addHeader("Authorization", "Bearer ${key.key}")
                     .post(requestBody)
                     .build()

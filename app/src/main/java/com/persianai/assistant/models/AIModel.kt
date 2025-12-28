@@ -91,7 +91,7 @@ enum class AIModel(
     GPT_4O_MINI(
         "gpt-4o-mini",
         "GPT-4o Mini",
-        AIProvider.OPENAI,
+        AIProvider.LIARA,
         "نسخه سریع و کارآمد GPT-4o",
         128000
     ),
@@ -115,7 +115,7 @@ enum class AIModel(
             return values().find { it.modelId == modelId }
         }
 
-        fun getDefaultModel(): AIModel = TINY_LLAMA_OFFLINE
+        fun getDefaultModel(): AIModel = GPT_4O_MINI
     }
 }
 
@@ -127,6 +127,7 @@ enum class AIProvider {
     OPENAI,
     ANTHROPIC,
     OPENROUTER,
+    LIARA,
     LOCAL
 }
 
@@ -136,6 +137,7 @@ enum class AIProvider {
 data class APIKey(
     val provider: AIProvider,
     val key: String,
+    val baseUrl: String? = null,
     val isActive: Boolean = true
 )
 

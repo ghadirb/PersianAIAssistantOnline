@@ -1,26 +1,18 @@
 package com.persianai.assistant.services
 
 import android.content.Context
-import android.media.AudioManager
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import kotlinx.coroutines.*
 import java.io.File
 import java.util.*
-import kotlin.math.max
-import com.persianai.assistant.models.AIModel
-import com.persianai.assistant.models.ChatMessage
-import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.core.AIIntentController
-import com.persianai.assistant.ai.AdvancedPersianAssistant
-import com.persianai.assistant.ai.AIClient
-import com.persianai.assistant.ai.OfflineIntentParser
+import com.persianai.assistant.core.AIIntentRequest
 import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.models.OfflineModelManager
-import com.persianai.assistant.offline.LocalLlamaRunner
 import com.persianai.assistant.tts.BeepFallback
 import com.persianai.assistant.tts.CoquiTtsManager
+import com.persianai.assistant.core.voice.SpeechToTextPipeline
 
 /**
  * Voice Conversation Manager - Complete voice-to-voice AI assistant
@@ -55,6 +47,8 @@ class VoiceConversationManager(
     // Voice activity detection
     private var amplitudeThreshold = 1000
     private var lastVoiceTime = 0L
+
+    private val sttPipeline by lazy { SpeechToTextPipeline(context) }
     
     // Callbacks
     private var conversationListener: ConversationListener? = null
@@ -218,7 +212,7 @@ class VoiceConversationManager(
 
                 try {
                     val controller = AIIntentController(context)
-                    val intent = controller.detectIntentFromText(userText)
+                    val intent = controller.detectIntentFromTextAsync(userText)
                     Log.d(TAG, "AIIntent: ${intent.name}")
                 } catch (_: Exception) {
                 }
@@ -228,14 +222,15 @@ class VoiceConversationManager(
                 
                 // Get AI response
                 conversationListener?.onAIThinking()
-                val aiResponse = getAIResponse(userText)
-                
+                val aiResult = getAIResponse(userText)
+
                 // Speak the response
-                conversationListener?.onAIResponding(aiResponse)
-                speakResponse(aiResponse)
-                
+                conversationListener?.onAIResponding(aiResult.text)
+                val toSpeak = aiResult.spokenOutput?.takeIf { it.isNotBlank() } ?: aiResult.text
+                speakResponse(toSpeak)
+
                 // Add AI response to history
-                addToConversation("assistant", aiResponse)
+                addToConversation("assistant", aiResult.text)
                 
                 conversationListener?.onAIResponseSpoken()
                 
@@ -263,10 +258,12 @@ class VoiceConversationManager(
                 return@withContext null
             }
             
-            // Listen for voice activity (simple version)
+            // Listen for voice activity
             var hasSpeech = false
-            var recordingDuration = 0L
             val maxRecordingTime = 30000L // 30 seconds max
+            val silenceStopMs = 1200L
+            val startTime = System.currentTimeMillis()
+            lastVoiceTime = 0L
             
             val amplitudeJob = launch {
                 while (isRecording()) {
@@ -275,16 +272,21 @@ class VoiceConversationManager(
                         hasSpeech = true
                         lastVoiceTime = System.currentTimeMillis()
                     }
-                    
-                    recordingDuration = System.currentTimeMillis()
-                    if (recordingDuration > maxRecordingTime) break
-                    
+
+                    val elapsed = System.currentTimeMillis() - startTime
+                    if (elapsed > maxRecordingTime) break
+
+                    if (hasSpeech && lastVoiceTime > 0L) {
+                        val silentFor = System.currentTimeMillis() - lastVoiceTime
+                        if (silentFor > silenceStopMs) break
+                    }
+
                     delay(100)
                 }
             }
             
             // Wait for speech or timeout
-            while (isRecording() && !hasSpeech && recordingDuration < maxRecordingTime) {
+            while (isRecording() && !hasSpeech && (System.currentTimeMillis() - startTime) < maxRecordingTime) {
                 delay(100)
             }
             
@@ -315,28 +317,16 @@ class VoiceConversationManager(
         try {
             Log.d(TAG, "🔍 Processing user speech...")
 
-            if (voiceMode == VoiceMode.OFFLINE_ONLY) {
-                val offline = voiceEngine.analyzeOffline(audioFile)
-                val text = offline.getOrNull().orEmpty().trim()
-                if (text.isNotBlank()) {
-                    Log.d(TAG, "✅ Speech processed (offline): $text")
-                    return@withContext text
-                }
-                Log.e(TAG, "Failed to process speech (offline)")
-                return@withContext ""
+            // Offline-first with online fallback
+            val stt = sttPipeline.transcribe(audioFile)
+            val text = stt.getOrNull().orEmpty().trim()
+            if (text.isNotBlank()) {
+                Log.d(TAG, "✅ Speech processed: $text")
+                return@withContext text
             }
 
-            val analysisResult = voiceEngine.analyzeHybrid(audioFile)
-            if (analysisResult.isSuccess) {
-                val result = analysisResult.getOrThrow()
-                val processedText = result.primaryText
-
-                Log.d(TAG, "✅ Speech processed: $processedText")
-                processedText
-            } else {
-                Log.e(TAG, "Failed to process speech")
-                ""
-            }
+            Log.e(TAG, "Failed to process speech")
+            ""
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error processing speech", e)
@@ -352,129 +342,27 @@ class VoiceConversationManager(
      * - HYBRID: simple intents offline; complex intents online when available
      * - ONLINE: online when available; otherwise fallback offline
      */
-    private suspend fun getAIResponse(userInput: String): String = withContext(Dispatchers.IO) {
+    private suspend fun getAIResponse(userInput: String): com.persianai.assistant.core.AIIntentResult = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🤖 Getting AI response for: $userInput")
 
-            val prefs = PreferencesManager(context)
-            val workingMode = prefs.getWorkingMode()
-
-            val offlineAssistant = AdvancedPersianAssistant(context)
-            val offlineText = try {
-                offlineAssistant.processRequest(userInput).text
-            } catch (_: Exception) {
-                "متوجه شدم. می‌توانید بیشتر توضیح دهید؟"
-            }
-
-            fun buildTinyLlamaPrompt(): String {
-                return buildString {
-                    appendLine("شما یک دستیار هوشمند فارسی هستید. پاسخ را کوتاه، واضح و کاملاً فارسی بده.")
-                    appendLine("تاریخچه مکالمه:")
-                    conversationHistory.takeLast(12).forEach { msg ->
-                        val role = if (msg.role == "user") "کاربر" else "دستیار"
-                        appendLine("$role: ${msg.content}")
-                    }
-                    appendLine("کاربر: $userInput")
-                    appendLine("دستیار:")
-                }
-            }
-
-            fun tryOfflineTinyLlama(): String? {
-                val modelPath = tryFindOfflineModelPath()
-                if (modelPath.isNullOrBlank()) return null
-                if (!LocalLlamaRunner.isBackendAvailable()) return null
-                return try {
-                    LocalLlamaRunner.infer(modelPath, buildTinyLlamaPrompt(), 180)?.trim()
-                } catch (_: Exception) {
-                    null
-                }
-            }
-
-            // OFFLINE: never use online
-            if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-                val modelPath = tryFindOfflineModelPath()
-                if (!modelPath.isNullOrBlank() && LocalLlamaRunner.isBackendAvailable()) {
-                    val prompt = buildString {
-                        appendLine("شما یک دستیار هوشمند فارسی هستید. پاسخ را کوتاه، واضح و کاملاً فارسی بده.")
-                        appendLine("تاریخچه مکالمه:")
-                        conversationHistory.takeLast(12).forEach { msg ->
-                            val role = if (msg.role == "user") "کاربر" else "دستیار"
-                            appendLine("$role: ${msg.content}")
-                        }
-                        appendLine("کاربر: $userInput")
-                        appendLine("دستیار:")
-                    }
-                    val llm = try {
-                        LocalLlamaRunner.infer(modelPath, prompt, 180)?.trim()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    if (!llm.isNullOrBlank()) {
-                        return@withContext llm
-                    }
-                }
-                return@withContext offlineText
-            }
-
-            val canTryOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
-                workingMode == PreferencesManager.WorkingMode.HYBRID) && aiClient != null
-
-            // LLM policy for voice: online-first when allowed, then offline TinyLlama, then lightweight offline.
-            if (!canTryOnline) {
-                val llm = tryOfflineTinyLlama()
-                if (!llm.isNullOrBlank()) return@withContext llm
-                return@withContext offlineText
-            }
-
-            val client = aiClient
-
-            val conversationContext = buildConversationContext()
-
-            val voicePrompt = """
-                شما یک دستیار صوتی هوشمند فارسی هستید. لطفاً به صورت کوتاه و مفید پاسخ دهید.
-
-                قوانین مکالمه صوتی:
-                - پاسخ‌های کوتاه و واضح (کمتر از 50 کلمه)
-                - استفاده از زبان طبیعی و دوستانه
-                - در صورت نیاز، پرسش‌های پیگیری مطرح کنید
-                - از جملات کوتاه استفاده کنید
-
-                تاریخچه مکالمه:
-                $conversationContext
-
-                پیام جدید کاربر: $userInput
-
-                پاسخ شما:
-            """.trimIndent()
-
-            val onlineText = try {
-                val response = client?.sendMessage(
-                    model = com.persianai.assistant.models.AIModel.LLAMA_3_3_70B,
-                    messages = conversationHistory.map {
-                        com.persianai.assistant.models.ChatMessage(
-                            role = if (it.role == "user") com.persianai.assistant.models.MessageRole.USER
-                            else com.persianai.assistant.models.MessageRole.ASSISTANT,
-                            content = it.content,
-                            timestamp = it.timestamp
-                        )
-                    },
-                    systemPrompt = voicePrompt
+            val controller = AIIntentController(context)
+            val intent = controller.detectIntentFromTextAsync(userInput)
+            controller.handle(
+                AIIntentRequest(
+                    intent = intent,
+                    source = AIIntentRequest.Source.VOICE,
+                    workingModeName = PreferencesManager(context).getWorkingMode().name
                 )
-                response?.content?.trim().orEmpty()
-            } catch (e: Exception) {
-                Log.w(TAG, "⚠️ Online LLM failed: ${e.message}")
-                ""
-            }
-
-            if (onlineText.isNotBlank()) return@withContext onlineText
-
-            val llm = tryOfflineTinyLlama()
-            if (!llm.isNullOrBlank()) return@withContext llm
-
-            return@withContext offlineText
+            )
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error getting AI response", e)
-            "متاسفانه مشکلی پیش آمده. می‌توانید دوباره تلاش کنید؟"
+            com.persianai.assistant.core.AIIntentResult(
+                text = "متاسفانه مشکلی پیش آمده. می‌توانید دوباره تلاش کنید؟",
+                intentName = "error",
+                success = false,
+                spokenOutput = null
+            )
         }
     }
 

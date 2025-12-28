@@ -14,6 +14,7 @@ import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.core.AIIntentRequest
+import com.persianai.assistant.core.voice.SpeechToTextPipeline
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
 /**
  * VoiceCommandService - Fixed
  * 
- * ✓ Uses SimplifiedSTTEngine for better fallback
+ * ✓ Uses Core SpeechToTextPipeline for better fallback
  * ✓ Better error messages
  * ✓ Proper voice recording with VAD
  * ✓ Integrates with AIIntentController
@@ -111,6 +112,7 @@ class VoiceCommandService : Service() {
     private suspend fun runOneShotCommand(hint: String?, mode: String) {
         val engine = UnifiedVoiceEngine(this)
         val controller = AIIntentController(this)
+        val stt = SpeechToTextPipeline(this)
 
         try {
             // Step 1: Check permissions
@@ -141,8 +143,8 @@ class VoiceCommandService : Service() {
 
             // Step 3: Transcribe audio
             notifyUpdate("📝 تبدیل گفتار به متن...", "لطفاً صبر کنید...")
-            
-            val sttResult = SimplifiedSTTEngine.transcribe(this, recording.file)
+
+            val sttResult = stt.transcribe(recording.file)
             val transcribedText = sttResult.getOrNull()?.trim().orEmpty()
 
             // Cleanup audio file
@@ -179,7 +181,7 @@ class VoiceCommandService : Service() {
 
             // Step 5: Process as Intent
             val resp = try {
-                val intent = controller.detectIntentFromText(normalizedText, mode)
+                val intent = controller.detectIntentFromTextAsync(normalizedText, mode)
                 val result = controller.handle(
                     AIIntentRequest(
                         intent = intent,

@@ -15,6 +15,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.persianai.assistant.R
+import com.persianai.assistant.core.voice.SpeechToTextPipeline
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,7 @@ class VoiceActionButton @JvmOverloads constructor(
     private val TAG = "VoiceActionButton"
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private val engine = UnifiedVoiceEngine(context)
+    private val sttPipeline = SpeechToTextPipeline(context)
 
     init {
         val view = LayoutInflater.from(context).inflate(R.layout.view_voice_action_button, this, true)
@@ -116,8 +118,8 @@ class VoiceActionButton @JvmOverloads constructor(
 
                 listener?.onRecordingCompleted(result.file, result.duration)
 
-                val analysis = withContext(Dispatchers.IO) { engine.analyzeHybrid(result.file) }
-                val text = analysis.getOrNull()?.primaryText?.trim().orEmpty()
+                val transcription = withContext(Dispatchers.IO) { sttPipeline.transcribe(result.file) }
+                val text = transcription.getOrNull()?.trim().orEmpty()
                 if (text.isNotBlank()) {
                     listener?.onTranscript(text)
                 } else {

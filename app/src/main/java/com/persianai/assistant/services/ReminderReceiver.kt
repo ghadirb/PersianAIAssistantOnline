@@ -14,9 +14,9 @@ import android.os.PowerManager
 
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.persianai.assistant.activities.AdvancedRemindersActivity
 import com.persianai.assistant.activities.FullScreenAlarmActivity
 import com.persianai.assistant.R
+import com.persianai.assistant.activities.HomeActivity
 import com.persianai.assistant.utils.SmartReminderManager
 
 /**
@@ -209,9 +209,12 @@ class ReminderReceiver : BroadcastReceiver() {
                     PendingIntent.FLAG_IMMUTABLE
                 } else 0
 
-            val tapIntent = Intent(context, AdvancedRemindersActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            val tapIntent = Intent(context, HomeActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("smart_reminder_id", reminderId)
+                putExtra("reminder_title", title)
+                putExtra("reminder_description", description)
+                putExtra("open_screen", "reminder")
             }.let {
                 PendingIntent.getActivity(
                     context,

@@ -10,7 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.DashboardActivity
+import com.persianai.assistant.activities.HomeActivity
 import com.persianai.assistant.utils.PreferencesManager
 
 /**
@@ -80,7 +80,7 @@ class AIAssistantService : Service() {
         val prefs = PreferencesManager(this)
         val status = statusTextOverride?.takeIf { it.isNotBlank() } ?: defaultStatusText(prefs)
 
-        val openAppIntent = Intent(this, DashboardActivity::class.java).apply {
+        val openAppIntent = Intent(this, HomeActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val openAppPendingIntent = PendingIntent.getActivity(

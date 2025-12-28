@@ -1,15 +1,20 @@
 package com.persianai.assistant.core
+ 
+ import android.content.Context
+ import android.util.Log
+ import com.persianai.assistant.ai.AIClient
+ import com.persianai.assistant.models.AIModel
+ import com.persianai.assistant.models.APIKey
+ import com.persianai.assistant.models.ChatMessage
+ import com.persianai.assistant.models.MessageRole
+ import com.persianai.assistant.core.intent.*
+ import com.persianai.assistant.core.modules.*
+ import com.persianai.assistant.utils.PreferencesManager
+ import org.json.JSONObject
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.withContext
 
-import android.content.Context
-import android.util.Log
-import com.persianai.assistant.ai.OfflineIntentParser
-import com.persianai.assistant.core.intent.*
-import com.persianai.assistant.core.modules.*
-import org.json.JSONObject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-class AIIntentController(private val context: Context) {
+ class AIIntentController(private val context: Context) {
 
     // ماژول‌ها
     private val assistantModule = AssistantModule(context)
@@ -23,6 +28,8 @@ class AIIntentController(private val context: Context) {
     
     // تشخیص‌دهنده Intent پیشرفته
     private val detector = EnhancedIntentDetector(context)
+
+    private val prefs by lazy { PreferencesManager(context) }
 
     suspend fun handle(request: AIIntentRequest): AIIntentResult = withContext(Dispatchers.Default) {
         logIntent(request)
@@ -76,6 +83,123 @@ class AIIntentController(private val context: Context) {
         } catch (e: Exception) {
             Log.e("AIIntentController", "Error detecting intent", e)
             AssistantChatIntent(rawText = t)
+        }
+    }
+
+    suspend fun detectIntentFromTextAsync(text: String, context: String? = null): AIIntent = withContext(Dispatchers.Default) {
+        val t = text.trim()
+        if (t.isBlank()) return@withContext UnknownIntent
+
+        val workingMode = try {
+            prefs.getWorkingMode()
+        } catch (_: Exception) {
+            PreferencesManager.WorkingMode.OFFLINE
+        }
+
+        if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+            return@withContext detectIntentFromText(text, context)
+        }
+
+        val keys = try { prefs.getAPIKeys() } catch (_: Exception) { emptyList() }
+        if (keys.none { it.isActive }) {
+            return@withContext detectIntentFromText(text, context)
+        }
+
+        val online = tryDetectOnlineIntent(text = t, context = context, keys = keys)
+        online ?: detectIntentFromText(text, context)
+    }
+
+    private suspend fun tryDetectOnlineIntent(
+        text: String,
+        context: String?,
+        keys: List<APIKey>
+    ): AIIntent? = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val client = AIClient(keys)
+            val systemPrompt = buildOnlineIntentSystemPrompt()
+            val userPrompt = buildString {
+                appendLine("متن کاربر: \"$text\"")
+                if (!context.isNullOrBlank()) {
+                    appendLine("زمینه/کانتکست: \"$context\"")
+                }
+            }.trim()
+
+            val resp = client.sendMessage(
+                model = AIModel.GPT_4O_MINI,
+                messages = listOf(
+                    ChatMessage(role = MessageRole.USER, content = userPrompt)
+                ),
+                systemPrompt = systemPrompt
+            )
+
+            val content = resp.content.trim()
+            if (content.isBlank()) return@withContext null
+
+            val jsonStr = extractJsonObject(content) ?: return@withContext null
+            val json = JSONObject(jsonStr)
+            parseOnlineIntentJson(json, rawText = text)
+        } catch (e: Exception) {
+            Log.w("AIIntentController", "Online intent detection failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun buildOnlineIntentSystemPrompt(): String {
+        return """
+            شما موتور تشخیص Intent یک اپ فارسی هستید.
+            فقط و فقط یک JSON شیء برگردان و هیچ متن اضافه‌ای ننویس.
+
+            خروجی JSON باید این فیلدها را داشته باشد:
+            - intent: یکی از این مقدارها:
+              assistant.chat | reminder.create | reminder.list | reminder.delete | reminder.update |
+              navigation.search | navigation.start | finance.track | finance.report |
+              education.ask | education.generate_question | call.smart | weather.check | music.play | unknown
+            - slots: یک شیء JSON از پارامترها (اختیاری)
+
+            قوانین:
+            - اگر مطمئن نیستی intent=assistant.chat بگذار.
+            - متن کاربر فارسی است؛ intent را کوتاه و دقیق انتخاب کن.
+        """.trimIndent()
+    }
+
+    private fun extractJsonObject(text: String): String? {
+        val start = text.indexOf('{')
+        val end = text.lastIndexOf('}')
+        if (start < 0 || end <= start) return null
+        return text.substring(start, end + 1)
+    }
+
+    private fun parseOnlineIntentJson(json: JSONObject, rawText: String): AIIntent? {
+        val name = json.optString("intent").trim()
+        val slots = json.optJSONObject("slots")
+
+        fun slot(key: String): String? = slots?.optString(key)?.trim()?.takeIf { !it.isNullOrBlank() }
+
+        return when (name) {
+            "assistant.chat" -> AssistantChatIntent(rawText = rawText)
+            "reminder.create" -> ReminderCreateIntent(
+                rawText = rawText,
+                hint = slot("hint"),
+                type = slot("type")
+            )
+            "reminder.list" -> ReminderListIntent(rawText = rawText, category = slot("category"))
+            "reminder.delete" -> ReminderDeleteIntent(rawText = rawText, reminderId = slot("reminderId")?.toLongOrNull())
+            "reminder.update" -> ReminderUpdateIntent(rawText = rawText, reminderId = slot("reminderId")?.toLongOrNull())
+            "navigation.search" -> NavigationSearchIntent(rawText = rawText, destination = slot("destination"))
+            "navigation.start" -> NavigationStartIntent(rawText = rawText, destination = slot("destination"))
+            "finance.track" -> FinanceTrackIntent(rawText = rawText, type = slot("type"))
+            "finance.report" -> FinanceReportIntent(rawText = rawText, timeRange = slot("timeRange"))
+            "education.ask" -> EducationAskIntent(rawText = rawText, topic = slot("topic"))
+            "education.generate_question" -> EducationGenerateQuestionIntent(
+                rawText = rawText,
+                topic = slot("topic"),
+                level = slot("level")
+            )
+            "call.smart" -> CallSmartIntent(rawText = rawText, contactName = slot("contactName"))
+            "weather.check" -> WeatherCheckIntent(rawText = rawText, location = slot("location"))
+            "music.play" -> MusicPlayIntent(rawText = rawText, query = slot("query"))
+            "unknown" -> UnknownIntent
+            else -> null
         }
     }
 

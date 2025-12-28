@@ -37,6 +37,8 @@ import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.services.VoiceRecordingHelper
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.persianai.assistant.core.AIIntentController
+import com.persianai.assistant.core.AIIntentRequest
+import com.persianai.assistant.core.voice.SpeechToTextPipeline
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -68,6 +70,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private var voiceConversationJob: Job? = null
     private val httpClient = OkHttpClient()
     private val sttEngine by lazy { UnifiedVoiceEngine(this) }
+    private val sttPipeline by lazy { SpeechToTextPipeline(this) }
     private val hfApiKey: String by lazy {
         getSharedPreferences("api_keys", MODE_PRIVATE)
             .getString("hf_api_key", null)
@@ -89,7 +92,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         return when {
             activeProviders.contains(com.persianai.assistant.models.AIProvider.AIML) -> AIModel.AIML_GPT_35
             activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER) -> AIModel.QWEN_2_5_1B5
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENAI) -> AIModel.GPT_4O_MINI
+            activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> AIModel.GPT_4O_MINI
             else -> AIModel.TINY_LLAMA_OFFLINE
         }
     }
@@ -415,7 +418,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
                         }
 
                         statusText.text = "📝 تبدیل گفتار به متن..."
-                        val analysis = engine.analyzeOffline(recording.file)
+                        val analysis = sttPipeline.transcribe(recording.file)
                         val userText = analysis.getOrNull()?.trim().orEmpty()
                         if (userText.isBlank()) {
                             statusText.text = "⚠️ متن تشخیص داده نشد"
@@ -427,9 +430,17 @@ abstract class BaseChatActivity : AppCompatActivity() {
                         addMessage(ChatMessage(role = MessageRole.USER, content = userText))
 
                         statusText.text = "🤖 در حال پاسخ..."
-                        val response = handleRequest(userText)
-                        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = response))
-                        lastText.text = "دستیار: ${response.take(300)}"
+                        val controller = AIIntentController(this@BaseChatActivity)
+                        val intent = controller.detectIntentFromTextAsync(userText)
+                        val result = controller.handle(
+                            AIIntentRequest(
+                                intent = intent,
+                                source = AIIntentRequest.Source.VOICE,
+                                workingModeName = prefsManager.getWorkingMode().name
+                            )
+                        )
+                        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = result.text))
+                        lastText.text = "دستیار: ${result.text.take(300)}"
 
                         statusText.text = "🎤 دوباره گوش می‌دم..."
                         kotlinx.coroutines.delay(500)
@@ -499,11 +510,13 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val text = getMessageInput().text.toString().trim()
         if (text.isEmpty()) return
 
-        try {
-            val controller = AIIntentController(this)
-            val intent = controller.detectIntentFromText(text)
-            android.util.Log.d("BaseChatActivity", "AIIntent: ${intent.name}")
-        } catch (_: Exception) {
+        lifecycleScope.launch {
+            try {
+                val controller = AIIntentController(this@BaseChatActivity)
+                val intent = controller.detectIntentFromTextAsync(text)
+                android.util.Log.d("BaseChatActivity", "AIIntent: ${intent.name}")
+            } catch (_: Exception) {
+            }
         }
 
         val userMessage = ChatMessage(role = MessageRole.USER, content = text, timestamp = System.currentTimeMillis())
@@ -514,8 +527,21 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val response = handleRequest(text)
-                val aiMessage = ChatMessage(role = MessageRole.ASSISTANT, content = response, timestamp = System.currentTimeMillis())
+                val controller = AIIntentController(this@BaseChatActivity)
+                val aiIntent = controller.detectIntentFromTextAsync(text)
+                val result = controller.handle(
+                    AIIntentRequest(
+                        intent = aiIntent,
+                        source = AIIntentRequest.Source.UI,
+                        workingModeName = prefsManager.getWorkingMode().name
+                    )
+                )
+
+                val aiMessage = ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = result.text,
+                    timestamp = System.currentTimeMillis()
+                )
                 addMessage(aiMessage)
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(role = MessageRole.ASSISTANT, content = "❌ خطا: ${e.message}", timestamp = System.currentTimeMillis(), isError = true)
@@ -767,23 +793,23 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected fun transcribeAudio(audioFile: File) {
         lifecycleScope.launch {
             try {
-                val offlineText = try {
-                    val res = withContext(Dispatchers.IO) { sttEngine.analyzeOffline(audioFile) }
+                val text = try {
+                    val res = withContext(Dispatchers.IO) { sttPipeline.transcribe(audioFile) }
                     res.getOrNull()?.trim().orEmpty()
                 } catch (e: Exception) {
-                    Log.e("BaseChatActivity", "Offline STT failed: ${e.message}")
+                    Log.e("BaseChatActivity", "STT failed: ${e.message}")
                     ""
                 }
 
-                if (offlineText.isNotBlank()) {
-                    getMessageInput().setText(offlineText)
-                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$offlineText\"", Toast.LENGTH_SHORT).show()
+                if (text.isNotBlank()) {
+                    getMessageInput().setText(text)
+                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$text\"", Toast.LENGTH_SHORT).show()
                     sendMessage()
                 } else {
                     Toast.makeText(
                         this@BaseChatActivity,
-                        "⚠️ تبدیل صوت آفلاین موفق نبود.\n\n" +
-                            "لطفاً مدل Haaniye را بررسی کنید یا واضح‌تر صحبت کنید.",
+                        "⚠️ تبدیل گفتار به متن موفق نبود.\n\n" +
+                            "اگر آنلاین فعال باشد اول لیارا امتحان می‌شود؛ در غیر اینصورت Haaniye آفلاین. واضح‌تر صحبت کنید.",
                         Toast.LENGTH_LONG
                     ).show()
                 }

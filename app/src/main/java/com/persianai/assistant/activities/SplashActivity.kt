@@ -226,7 +226,7 @@ class SplashActivity : AppCompatActivity() {
         
         // ذخیره در PreferencesManager (لیست APIKey) بدون حذف سایر کلیدها
         val currentKeys = prefsManager.getAPIKeys().filter { it.provider != AIProvider.OPENROUTER }.toMutableList()
-        currentKeys.add(APIKey(AIProvider.OPENROUTER, provisioningKey, true))
+        currentKeys.add(APIKey(provider = AIProvider.OPENROUTER, key = provisioningKey, isActive = true))
         prefsManager.saveAPIKeys(currentKeys)
         syncApiPrefs(prefsManager)
         
@@ -240,49 +240,12 @@ class SplashActivity : AppCompatActivity() {
         var huggingFaceKey: String? = null
         
         data.lines().forEach { line ->
-            val trimmed = line.trim()
-            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
-
-            // فرمت: provider:key یا فقط key
-            val parts = trimmed.split(":", limit = 2)
-
-            if (parts.size == 2) {
-                val provider = when (parts[0].lowercase()) {
-                    "openai" -> AIProvider.OPENAI
-                    "anthropic", "claude" -> AIProvider.ANTHROPIC
-                    "openrouter" -> AIProvider.OPENROUTER
-                    "aiml", "aimlapi", "aimlapi.com" -> AIProvider.AIML
-                    "huggingface", "hf" -> {
-                        huggingFaceKey = parts[1].trim()
-                        null
-                    }
-                    else -> null
                 }
-
-                if (provider != null) {
-                    keys.add(APIKey(provider, parts[1].trim(), true))
-                }
-            } else if (parts.size == 1) {
-                // تشخیص خودکار بر اساس الگو
-                val token = trimmed
-                when {
-                    token.startsWith("sk-or-", ignoreCase = true) -> {
-                        keys.add(APIKey(AIProvider.OPENROUTER, token, true))
-                    }
-                    token.startsWith("sk-", ignoreCase = true) -> {
-                        keys.add(APIKey(AIProvider.OPENAI, token, true))
-                    }
-                    token.startsWith("hf_", ignoreCase = true) -> {
-                        huggingFaceKey = token
-                    }
-                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> {
-                        keys.add(APIKey(AIProvider.AIML, token, true))
-                    }
+                token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> {
+                    keys.add(APIKey(AIProvider.AIML, token, isActive = true))
                 }
             }
         }
-
-        // ذخیره کلید HuggingFace برای STT
         huggingFaceKey?.let {
             getSharedPreferences("api_keys", MODE_PRIVATE)
                 .edit()
@@ -390,7 +353,7 @@ class SplashActivity : AppCompatActivity() {
             }
         }
 
-        val intent = Intent(this, DashboardActivity::class.java)
+        val intent = Intent(this, HomeActivity::class.java)
         startActivity(intent)
         finish()
     }

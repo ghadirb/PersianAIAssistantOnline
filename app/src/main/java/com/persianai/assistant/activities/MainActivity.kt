@@ -34,6 +34,7 @@ import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.services.AIAssistantService
 import com.persianai.assistant.core.AIIntentController
+import com.persianai.assistant.core.AIIntentRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -399,40 +400,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        try {
-            val controller = AIIntentController(this)
-            val intent = controller.detectIntentFromText(text)
-            android.util.Log.d("MainActivity", "AIIntent: ${intent.name}")
-        } catch (_: Exception) {
+        lifecycleScope.launch {
+            try {
+                val controller = AIIntentController(this@MainActivity)
+                val intent = controller.detectIntentFromTextAsync(text)
+                android.util.Log.d("MainActivity", "AIIntent: ${intent.name}")
+            } catch (_: Exception) {
+            }
         }
         
-        val mode = prefsManager.getWorkingMode()
-        
-        // ✅ دستورات عملیاتی (یادآوری/حسابداری/...) باید همیشه محلی و قابل اجرا باشند.
-        // حتی اگر حالت HYBRID/ONLINE باشد، اجرای اصلی را محلی انجام می‌دهیم تا کاربر نتیجه واقعی بگیرد.
-        if (isActionCommand(text)) {
-            val response = advancedAssistant.processRequest(text)
-            
-            addMessage(
-                ChatMessage(
-                    role = MessageRole.USER,
-                    content = text,
-                    timestamp = System.currentTimeMillis()
-                )
-            )
-            
-            val aiMessage = ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = response.text,
-                timestamp = System.currentTimeMillis()
-            )
-            addMessage(aiMessage)
-            handleAssistantAction(response.actionType)
-            
-            binding.messageInput.text?.clear()
-            return
-        }
-
         val userMessage = ChatMessage(
             role = MessageRole.USER,
             content = text,
@@ -447,60 +423,16 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val mode = prefsManager.getWorkingMode()
-                val isModelDownloaded = prefsManager.isOfflineModelDownloaded()
-                
-                val response = when (mode) {
-                    PreferencesManager.WorkingMode.OFFLINE -> {
-                        // حالت آفلاین
-                        if (isModelDownloaded) {
-                            handleOfflineRequest(text)
-                        } else {
-                            "⚠️ مدل آفلاین دانلود نشده است.\n\nلطفاً از تنظیمات، مدل را دانلود کنید یا به حالت آنلاین بروید."
-                        }
-                    }
-                    
-                    PreferencesManager.WorkingMode.ONLINE -> {
-                        // حالت آنلاین
-                        if (aiClient == null) {
-                            "❌ کلید API تنظیم نشده است.\n\nلطفاً از تنظیمات، کلیدهای API را وارد کنید."
-                        } else {
-                            try {
-                                handleOnlineRequest(text)
-                            } catch (_: Exception) {
-                                // Fallback to offline when online fails
-                                if (isModelDownloaded) {
-                                    handleOfflineRequest(text)
-                                } else {
-                                    "❌ پاسخ آنلاین ناموفق بود و مدل آفلاین دانلود نشده است."
-                                }
-                            }
-                        }
-                    }
-                    
-                    PreferencesManager.WorkingMode.HYBRID -> {
-                        // حالت ترکیبی - اول آنلاین (اگر ممکن بود)، بعد آفلاین
-                        val online = if (aiClient != null) {
-                            try {
-                                handleOnlineRequest(text)
-                            } catch (_: Exception) {
-                                ""
-                            }
-                        } else {
-                            ""
-                        }
-
-                        if (online.isNotBlank()) {
-                            online
-                        } else if (isModelDownloaded) {
-                            handleOfflineRequest(text)
-                        } else if (aiClient == null) {
-                            "⚠️ پاسخ آنلاین فعال نیست و مدل آفلاین دانلود نشده است.\n\nلطفاً یک کلید API معتبر وارد کنید یا مدل آفلاین را دانلود کنید."
-                        } else {
-                            "❌ پاسخ آنلاین ناموفق بود و مدل آفلاین دانلود نشده است."
-                        }
-                    }
-                }
+                val controller = AIIntentController(this@MainActivity)
+                val aiIntent = controller.detectIntentFromTextAsync(text)
+                val result = controller.handle(
+                    AIIntentRequest(
+                        intent = aiIntent,
+                        source = AIIntentRequest.Source.UI,
+                        workingModeName = prefsManager.getWorkingMode().name
+                    )
+                )
+                val response = result.text
                 
                 val finalMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,
@@ -666,7 +598,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 if (provider != null) {
-                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), true))
+                    keys.add(com.persianai.assistant.models.APIKey(provider, parts[1].trim(), isActive = true))
                 }
             } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
                 // تشخیص نوع کلید از روی prefix
@@ -676,7 +608,7 @@ class MainActivity : AppCompatActivity() {
                     trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
                     else -> com.persianai.assistant.models.AIProvider.OPENAI
                 }
-                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, true))
+                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, isActive = true))
             }
         }
         
