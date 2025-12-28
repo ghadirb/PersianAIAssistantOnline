@@ -9,6 +9,7 @@ import java.io.File
 import java.util.*
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.core.AIIntentRequest
+import com.persianai.assistant.models.OfflineModelManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.tts.BeepFallback
 import com.persianai.assistant.tts.CoquiTtsManager

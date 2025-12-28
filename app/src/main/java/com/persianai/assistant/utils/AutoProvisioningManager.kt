@@ -265,6 +265,13 @@ object AutoProvisioningManager {
                         .addHeader("Authorization", "Bearer ${apiKey.key}")
                         .build()
                 }
+                AIProvider.LIARA -> {
+                    val base = apiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.liara.ir"
+                    okhttp3.Request.Builder()
+                        .url("$base/v1/models")
+                        .addHeader("Authorization", "Bearer ${apiKey.key}")
+                        .build()
+                }
                 AIProvider.ANTHROPIC -> {
                     okhttp3.Request.Builder()
                         .url("https://api.anthropic.com/v1/messages")

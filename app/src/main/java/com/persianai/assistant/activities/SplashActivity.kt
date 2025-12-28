@@ -238,11 +238,34 @@ class SplashActivity : AppCompatActivity() {
     private fun parseAPIKeys(data: String): List<APIKey> {
         val keys = mutableListOf<APIKey>()
         var huggingFaceKey: String? = null
-        
+
         data.lines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
+
+            val parts = trimmed.split(":", limit = 2)
+            if (parts.size == 2) {
+                when (parts[0].lowercase()) {
+                    "openai" -> keys.add(APIKey(AIProvider.OPENAI, parts[1].trim(), isActive = true))
+                    "anthropic", "claude" -> keys.add(APIKey(AIProvider.ANTHROPIC, parts[1].trim(), isActive = true))
+                    "openrouter" -> keys.add(APIKey(AIProvider.OPENROUTER, parts[1].trim(), isActive = true))
+                    "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(AIProvider.AIML, parts[1].trim(), isActive = true))
+                    "liara" -> keys.add(
+                        APIKey(
+                            provider = AIProvider.LIARA,
+                            key = parts[1].trim(),
+                            baseUrl = "https://api.liara.ir",
+                            isActive = true
+                        )
+                    )
+                    "huggingface", "hf" -> huggingFaceKey = parts[1].trim()
                 }
-                token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> {
-                    keys.add(APIKey(AIProvider.AIML, token, isActive = true))
+            } else if (parts.size == 1) {
+                val token = trimmed
+                when {
+                    token.startsWith("sk-or-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENROUTER, token, isActive = true))
+                    token.startsWith("sk-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENAI, token, isActive = true))
+                    token.startsWith("hf_", ignoreCase = true) -> huggingFaceKey = token
                 }
             }
         }
@@ -269,6 +292,7 @@ class SplashActivity : AppCompatActivity() {
 
         // پاک‌سازی کلیدهای قبلی برای جلوگیری از تضاد
         editor.remove("openai_api_key")
+        editor.remove("liara_api_key")
         editor.remove("openrouter_api_key")
         editor.remove("claude_api_key")
         editor.remove("aiml_api_key")
@@ -276,6 +300,7 @@ class SplashActivity : AppCompatActivity() {
         prefsManager.getAPIKeys().forEach { key ->
             when (key.provider) {
                 AIProvider.OPENAI -> editor.putString("openai_api_key", key.key)
+                AIProvider.LIARA -> editor.putString("liara_api_key", key.key)
                 AIProvider.ANTHROPIC -> editor.putString("claude_api_key", key.key)
                 AIProvider.OPENROUTER -> editor.putString("openrouter_api_key", key.key)
                 AIProvider.AIML -> editor.putString("aiml_api_key", key.key)
@@ -296,6 +321,7 @@ class SplashActivity : AppCompatActivity() {
         // لاگ برای اطمینان از همگام‌سازی کلیدها
         val applied = buildString {
             append("openai=" + apiPrefs.getString("openai_api_key", "")?.take(6))
+            append(", liara=" + apiPrefs.getString("liara_api_key", "")?.take(6))
             append(", openrouter=" + apiPrefs.getString("openrouter_api_key", "")?.take(6))
             append(", claude=" + apiPrefs.getString("claude_api_key", "")?.take(6))
             append(", aiml=" + apiPrefs.getString("aiml_api_key", "")?.take(6))
