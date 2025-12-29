@@ -89,7 +89,7 @@ enum class AIModel(
         128000
     ),
     GPT_4O_MINI(
-        "gpt-4o-mini",
+        "openai/gpt-4o-mini",
         "GPT-4o Mini",
         AIProvider.LIARA,
         "نسخه سریع و کارآمد GPT-4o",

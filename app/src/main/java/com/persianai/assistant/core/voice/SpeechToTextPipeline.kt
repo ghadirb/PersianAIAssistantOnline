@@ -28,6 +28,9 @@ class SpeechToTextPipeline(private val context: Context) {
                     val onlineText = online.getOrNull()?.trim()
                     if (!onlineText.isNullOrBlank()) {
                         return@withContext Result.success(onlineText)
+                    } else {
+                        val cause = online.exceptionOrNull()?.message ?: "متن آنلاین خالی بود"
+                        // ادامه می‌دهیم به آفلاین، ولی دلیل خطای آنلاین را نگه می‌داریم
                     }
                 }
             }
@@ -38,7 +41,8 @@ class SpeechToTextPipeline(private val context: Context) {
                 return@withContext Result.success(offlineText)
             }
 
-            Result.failure(IllegalStateException("STT returned blank"))
+            val offlineErr = offline.exceptionOrNull()?.message
+            Result.failure(IllegalStateException(offlineErr ?: "متنی دریافت نشد (آنلاین و آفلاین)"))
         } catch (e: Exception) {
             Result.failure(e)
         }

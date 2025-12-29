@@ -88,8 +88,11 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 ?: "https://openrouter.ai/api/v1/chat/completions"
             AIProvider.AIML -> baseUrl?.let { "$it/v1/chat/completions" }
                 ?: "https://api.aimlapi.com/v1/chat/completions"
-            AIProvider.OPENAI, AIProvider.LIARA -> baseUrl?.let { "$it/v1/chat/completions" }
+            AIProvider.OPENAI -> baseUrl?.let { "$it/v1/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
+            AIProvider.LIARA -> baseUrl?.let {
+                if (it.endsWith("/v1", ignoreCase = true)) "$it/chat/completions" else "$it/v1/chat/completions"
+            } ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1/chat/completions"
             else -> baseUrl?.let { "$it/v1/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
         }
@@ -249,17 +252,17 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
             // اولویت: OpenAI-compatible (Liara/OpenAI) -> HF Whisper
             val responseText = openAiLikeKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com"
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/')
+                    ?: if (key.provider == AIProvider.LIARA) "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1" else "https://api.openai.com"
                 val request = Request.Builder()
-                    .url("$baseUrl/v1/audio/transcriptions")
+                    .url(if (baseUrl.endsWith("/v1", ignoreCase = true)) "$baseUrl/audio/transcriptions" else "$baseUrl/v1/audio/transcriptions")
                     .addHeader("Authorization", "Bearer ${key.key}")
                     .post(requestBody)
                     .build()
                 client.newCall(request).execute().use { response ->
                     val bodyStr = response.body?.string()
                     if (!response.isSuccessful) {
-                        android.util.Log.e("AIClient", "Whisper API error: ${response.code} - $bodyStr")
-                        null
+                        throw Exception("Whisper API error: ${response.code} - ${bodyStr ?: response.message}")
                     } else {
                         val jsonResponse = gson.fromJson(bodyStr, JsonObject::class.java)
                         jsonResponse.get("text")?.asString

@@ -113,7 +113,7 @@ object AutoProvisioningManager {
                             APIKey(
                                 provider = AIProvider.LIARA,
                                 key = key,
-                                baseUrl = "https://api.liara.ir",
+                                baseUrl = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1",
                                 isActive = true
                             )
                         )

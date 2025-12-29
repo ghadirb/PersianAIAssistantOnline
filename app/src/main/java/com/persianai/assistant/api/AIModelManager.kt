@@ -6,6 +6,7 @@ import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.utils.PreferencesManager
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -30,6 +31,9 @@ class AIModelManager(private val context: Context) {
         const val OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
         const val AIML_API_URL = "https://api.aimlapi.com/v1/chat/completions"
         const val CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+        private const val LIARA_BASE_URL = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+        const val LIARA_API_URL = "$LIARA_BASE_URL/chat/completions"
+        const val LIARA_WHISPER_URL = "$LIARA_BASE_URL/audio/transcriptions"
         
         // Model Names
         const val MODEL_GPT_35_TURBO = "gpt-3.5-turbo"
@@ -66,6 +70,22 @@ class AIModelManager(private val context: Context) {
      */
     fun getAvailableModels(): List<ModelConfig> {
         val models = mutableListOf<ModelConfig>()
+
+        // Liara Models (اولویت اول)
+        val liaraKey = prefs.getString("liara_api_key", null)
+        if (!liaraKey.isNullOrEmpty()) {
+            models.add(
+                ModelConfig(
+                    name = "openai/gpt-4o-mini",
+                    displayName = "GPT-4o Mini (Liara)",
+                    provider = "LIARA",
+                    apiKey = liaraKey,
+                    endpoint = LIARA_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۱", "Liara", "GPT-4o Mini")
+                )
+            )
+        }
         
         // AIML API (اولویت اول برای سبک/رایگان)
         val aimlKey = prefs.getString("aiml_api_key", null)
@@ -227,8 +247,9 @@ class AIModelManager(private val context: Context) {
             )
         }
         
-        // اولویت‌بندی: AIML → OpenAI → OpenRouter سبک → OpenRouter قوی → Claude
+        // اولویت‌بندی: Liara → AIML → OpenAI → OpenRouter سبک → OpenRouter قوی → Claude
         val priority = mapOf(
+            "openai/gpt-4o-mini" to 0,
             "aiml-gpt-3.5" to 1,
             MODEL_GPT_35_TURBO to 5,
             MODEL_GPT_4 to 6,
@@ -275,7 +296,7 @@ class AIModelManager(private val context: Context) {
             val updatedKeys = prefsManager.getAPIKeys()
                 .filter { it.provider != apiProvider }
                 .toMutableList()
-            val baseUrl = if (apiProvider == AIProvider.LIARA) "https://api.liara.ir" else null
+            val baseUrl = if (apiProvider == AIProvider.LIARA) LIARA_BASE_URL else null
             updatedKeys.add(APIKey(apiProvider, apiKey, baseUrl = baseUrl, isActive = true))
             prefsManager.saveAPIKeys(updatedKeys)
         }
@@ -449,7 +470,7 @@ class AIModelManager(private val context: Context) {
                 .build()
             
             val request = Request.Builder()
-                .url(if (!liaraKey.isNullOrBlank()) "https://api.liara.ir/v1/audio/transcriptions" else OPENAI_WHISPER_URL)
+                .url(if (!liaraKey.isNullOrBlank()) LIARA_WHISPER_URL else OPENAI_WHISPER_URL)
                 .addHeader("Authorization", "Bearer ${liaraKey?.takeIf { it.isNotBlank() } ?: openAIKey}")
                 .post(requestBody)
                 .build()
@@ -507,25 +528,33 @@ class AIModelManager(private val context: Context) {
         if (models.isEmpty()) {
             return@withContext "خطا: کلید API تنظیم نشده است"
         }
-        
-        val model = models.first()
-        var result = ""
-        
-        try {
-            sendMessage(
-                model = model,
-                message = prompt,
-                onResponse = { result = it },
-                onError = { result = "خطا: $it" }
-            )
-            
-            // Wait a bit for async completion (not ideal but simple)
-            kotlinx.coroutines.delay(2000)
-        } catch (e: Exception) {
-            result = "خطا: ${e.message}"
+
+        var lastError: String? = null
+        for (model in models) {
+            try {
+                val res = sendMessageBlocking(model, prompt)
+                if (res.isSuccess) {
+                    return@withContext res.getOrThrow()
+                } else {
+                    lastError = res.exceptionOrNull()?.message
+                }
+            } catch (e: Exception) {
+                lastError = e.message
+                continue
+            }
         }
-        
-        return@withContext result
+        return@withContext ("خطا: " + (lastError ?: "همه مدل‌ها ناموفق بودند"))
+    }
+
+    private suspend fun sendMessageBlocking(model: ModelConfig, message: String): Result<String> {
+        val deferred = CompletableDeferred<Result<String>>()
+        sendMessage(
+            model = model,
+            message = message,
+            onResponse = { deferred.complete(Result.success(it)) },
+            onError = { deferred.complete(Result.failure(Exception(it))) }
+        )
+        return deferred.await()
     }
     
     /**
