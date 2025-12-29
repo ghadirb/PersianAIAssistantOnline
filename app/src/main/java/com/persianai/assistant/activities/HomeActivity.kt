@@ -45,6 +45,9 @@ class HomeActivity : AppCompatActivity() {
                 e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)
                 e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
                 e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
+                // نگه داشتن HF اگر وجود دارد
+                val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
+                hf?.let { e.putString("hf_api_key", it) }
                 e.apply()
             }
         } catch (_: Exception) {
@@ -136,6 +139,8 @@ class HomeActivity : AppCompatActivity() {
             val req = AIIntentRequest(aiIntent, AIIntentRequest.Source.UI)
             val res = controller.handle(req)
             binding.outputText.text = res.text
+            // پاک‌کردن ورودی بعد از ارسال
+            binding.inputEdit.setText("")
             maybeHandleUiAction(res.actionType, res.actionData)
         }
     }

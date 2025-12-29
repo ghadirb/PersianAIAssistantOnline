@@ -312,6 +312,12 @@ class AIModelManager(private val context: Context) {
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
+            if (model.apiKey.isNullOrBlank()) {
+                withContext(Dispatchers.Main) {
+                    onError("❌ کلید API تنظیم نشده است")
+                }
+                return@withContext
+            }
             val requestBody = when {
                 model.provider == "Anthropic" -> {
                     // Claude API format
@@ -543,7 +549,13 @@ class AIModelManager(private val context: Context) {
                 continue
             }
         }
-        return@withContext ("خطا: " + (lastError ?: "همه مدل‌ها ناموفق بودند"))
+        val friendly = when {
+            lastError?.contains("unable to resolve host", ignoreCase = true) == true -> "خطا: اتصال اینترنت برقرار نیست"
+            lastError?.contains("Failed to connect", ignoreCase = true) == true -> "خطا: اتصال شبکه برقرار نیست"
+            lastError?.contains("API key", ignoreCase = true) == true -> "خطا: کلید API نامعتبر یا تنظیم نشده است"
+            else -> lastError ?: "همه مدل‌ها ناموفق بودند"
+        }
+        return@withContext ("خطا: $friendly")
     }
 
     private suspend fun sendMessageBlocking(model: ModelConfig, message: String): Result<String> {
