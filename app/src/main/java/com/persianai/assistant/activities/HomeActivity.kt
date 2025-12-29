@@ -17,6 +17,7 @@ import com.persianai.assistant.core.intent.ReminderListIntent
 import com.persianai.assistant.databinding.ActivityHomeBinding
 import com.persianai.assistant.ui.VoiceActionButton
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.DefaultApiKeys
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
