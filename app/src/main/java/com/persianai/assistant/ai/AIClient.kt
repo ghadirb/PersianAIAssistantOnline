@@ -225,13 +225,21 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
 
         try {
+            val mediaTypeStr = when (file.extension.lowercase()) {
+                "m4a", "mp4" -> "audio/mp4"
+                "wav" -> "audio/wav"
+                "ogg" -> "audio/ogg"
+                "webm" -> "audio/webm"
+                "mp3" -> "audio/mpeg"
+                else -> "application/octet-stream"
+            }
             val requestBody = okhttp3.MultipartBody.Builder()
                 .setType(okhttp3.MultipartBody.FORM)
                 .addFormDataPart(
                     "file",
                     file.name,
                     okhttp3.RequestBody.Companion.create(
-                        "audio/mpeg".toMediaType(),
+                        mediaTypeStr.toMediaType(),
                         file
                     )
                 )
@@ -264,7 +272,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
             val hfToken = hfKey?.key ?: fallbackHf
             if (hfToken.isNullOrBlank()) return@withContext ""
 
-            val hfReqBody = file.readBytes().toRequestBody("audio/mpeg".toMediaType())
+            val hfReqBody = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
             val hfRequest = Request.Builder()
                 .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
                 .addHeader("Authorization", "Bearer $hfToken")

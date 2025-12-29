@@ -79,14 +79,31 @@ class AdvancedPersianAssistant(private val context: Context) {
         }
 
         return try {
-            val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let {
-                "زمینه گفتگو: $it.\n"
-            } ?: ""
+            if (baseResponse.actionType == ActionType.NEEDS_AI) {
+                val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let { "زمینه/بخش: $it.\n" } ?: ""
+                val prompt = """
+                    تو یک دستیار هوشمند فارسی هستی.
+                    $contextLine
+                    به سوال/درخواست کاربر پاسخ کامل، دقیق و کوتاه بده.
+                    اگر کاربر درخواست پیشنهاد فیلم دارد، چند پیشنهاد مناسب با توضیح یک‌خطی بده.
+                    اگر اطلاعات کافی نیست، فقط یک سوال کوتاه برای روشن شدن بپرس.
 
+                    درخواست کاربر:
+                    "$userInput"
+                """.trimIndent()
+
+                val aiText = aiManager.generateText(prompt).trim()
+                if (aiText.isNotBlank()) {
+                    return AssistantResponse(text = aiText)
+                }
+                return baseResponse
+            }
+
+            val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let { "زمینه گفتگو: $it.\n" } ?: ""
             val baseSummary = baseResponse.text.take(400)
 
             val prompt = """
-                تو یک دستیار هوش مصنوعی فارسی هستی.
+                تو یک دستیار هوشمند فارسی هستی.
                 $contextLine
                 کاربر می‌گوید:
                 "$userInput"

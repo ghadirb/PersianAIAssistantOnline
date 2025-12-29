@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -15,6 +16,7 @@ import com.persianai.assistant.core.AIIntentRequest
 import com.persianai.assistant.core.intent.ReminderListIntent
 import com.persianai.assistant.databinding.ActivityHomeBinding
 import com.persianai.assistant.ui.VoiceActionButton
+import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
@@ -28,6 +30,29 @@ class HomeActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         controller = AIIntentController(this)
+
+        try {
+            val prefsManager = PreferencesManager(this)
+            val keys = prefsManager.getAPIKeys()
+            if (keys.isNotEmpty() && keys.any { it.isActive }) {
+                val sp = getSharedPreferences("api_keys", MODE_PRIVATE)
+                val e = sp.edit()
+                e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)
+                e.putString("openai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }?.key)
+                e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)
+                e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
+                e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
+                e.apply()
+            }
+        } catch (_: Exception) {
+        }
+
+        try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 4001)
+            }
+        } catch (_: Exception) {
+        }
 
         handleIncomingIntent(intent)
 
@@ -66,6 +91,15 @@ class HomeActivity : AppCompatActivity() {
 
         binding.shortcutDashboard.setOnClickListener {
             startActivity(Intent(this, DashboardActivity::class.java))
+        }
+
+        binding.startVoiceConversation.setOnClickListener {
+            try {
+                val i = Intent(this, AIChatActivity::class.java)
+                i.putExtra(com.persianai.assistant.activities.BaseChatActivity.EXTRA_START_VOICE_CONVERSATION, true)
+                startActivity(i)
+            } catch (_: Exception) {
+            }
         }
     }
 

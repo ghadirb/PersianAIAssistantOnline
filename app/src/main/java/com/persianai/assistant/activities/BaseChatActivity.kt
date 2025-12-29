@@ -91,8 +91,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
         return when {
             activeProviders.contains(com.persianai.assistant.models.AIProvider.AIML) -> AIModel.AIML_GPT_35
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER) -> AIModel.QWEN_2_5_1B5
             activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> AIModel.GPT_4O_MINI
+            activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER) -> AIModel.QWEN_2_5_1B5
             else -> AIModel.TINY_LLAMA_OFFLINE
         }
     }

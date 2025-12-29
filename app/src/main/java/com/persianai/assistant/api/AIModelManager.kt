@@ -255,6 +255,7 @@ class AIModelManager(private val context: Context) {
             "claude", "anthropic" -> "claude_api_key"
             "openrouter" -> "openrouter_api_key"
             "aiml" -> "aiml_api_key"
+            "liara" -> "liara_api_key"
             else -> return
         }
         
@@ -267,13 +268,15 @@ class AIModelManager(private val context: Context) {
             "openai" -> AIProvider.OPENAI
             "claude", "anthropic" -> AIProvider.ANTHROPIC
             "openrouter" -> AIProvider.OPENROUTER
+            "liara" -> AIProvider.LIARA
             else -> null
         }
         if (apiProvider != null) {
             val updatedKeys = prefsManager.getAPIKeys()
                 .filter { it.provider != apiProvider }
                 .toMutableList()
-            updatedKeys.add(APIKey(apiProvider, apiKey, isActive = true))
+            val baseUrl = if (apiProvider == AIProvider.LIARA) "https://api.liara.ir" else null
+            updatedKeys.add(APIKey(apiProvider, apiKey, baseUrl = baseUrl, isActive = true))
             prefsManager.saveAPIKeys(updatedKeys)
         }
     }
@@ -415,30 +418,39 @@ class AIModelManager(private val context: Context) {
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
+        val liaraKey = prefs.getString("liara_api_key", null)
         val openAIKey = prefs.getString("openai_api_key", null)
         
-        if (openAIKey.isNullOrEmpty()) {
+        if (liaraKey.isNullOrEmpty() && openAIKey.isNullOrEmpty()) {
             withContext(Dispatchers.Main) {
-                onError("❌ برای استفاده از تبدیل صدا به متن، کلید OpenAI API مورد نیاز است")
+                onError("❌ برای استفاده از تبدیل صدا به متن، کلید API مورد نیاز است")
             }
             return@withContext
         }
         
         try {
+            val mediaTypeStr = when (audioFile.extension.lowercase()) {
+                "m4a", "mp4" -> "audio/mp4"
+                "wav" -> "audio/wav"
+                "ogg" -> "audio/ogg"
+                "webm" -> "audio/webm"
+                "mp3" -> "audio/mpeg"
+                else -> "application/octet-stream"
+            }
             val requestBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart(
                     "file",
                     audioFile.name,
-                    RequestBody.create("audio/mp3".toMediaType(), audioFile)
+                    RequestBody.create(mediaTypeStr.toMediaType(), audioFile)
                 )
                 .addFormDataPart("model", "whisper-1")
                 .addFormDataPart("language", "fa")
                 .build()
             
             val request = Request.Builder()
-                .url(OPENAI_WHISPER_URL)
-                .addHeader("Authorization", "Bearer $openAIKey")
+                .url(if (!liaraKey.isNullOrBlank()) "https://api.liara.ir/v1/audio/transcriptions" else OPENAI_WHISPER_URL)
+                .addHeader("Authorization", "Bearer ${liaraKey?.takeIf { it.isNotBlank() } ?: openAIKey}")
                 .post(requestBody)
                 .build()
             
@@ -477,12 +489,13 @@ class AIModelManager(private val context: Context) {
      * بررسی وجود کلید API
      */
     fun hasApiKey(): Boolean {
+        val liaraKey = prefs.getString("liara_api_key", null)
         val openAIKey = prefs.getString("openai_api_key", null)
         val claudeKey = prefs.getString("claude_api_key", null)
         val openRouterKey = prefs.getString("openrouter_api_key", null)
         val aimlKey = prefs.getString("aiml_api_key", null)
         
-        return !openAIKey.isNullOrEmpty() || !claudeKey.isNullOrEmpty() || 
+        return !liaraKey.isNullOrEmpty() || !openAIKey.isNullOrEmpty() || !claudeKey.isNullOrEmpty() || 
                !openRouterKey.isNullOrEmpty() || !aimlKey.isNullOrEmpty()
     }
     
