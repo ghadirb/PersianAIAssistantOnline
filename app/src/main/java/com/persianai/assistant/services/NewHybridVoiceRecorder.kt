@@ -314,7 +314,8 @@ class NewHybridVoiceRecorder(private val context: Context) {
             }
 
             if (haaniyeModel == null) {
-                return@withContext Result.failure(IllegalStateException("Haaniye model not available"))
+                val modelDir = HaaniyeManager.getModelDir(context).absolutePath
+                return@withContext Result.failure(IllegalStateException("Haaniye model not available. Expected in: $modelDir"))
             }
 
             val text = HaaniyeManager.inferOffline(context, audioFile)

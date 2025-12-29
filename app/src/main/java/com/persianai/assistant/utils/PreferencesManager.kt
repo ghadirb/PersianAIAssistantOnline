@@ -173,11 +173,11 @@ JSON ONLY."""
 
     fun getWorkingMode(): WorkingMode {
         // پیش‌فرض را کاملاً آفلاین می‌گیریم تا همه ضبط‌ها و مکالمات بدون اینترنت کار کنند
-        val modeName = prefs.getString(KEY_WORKING_MODE, WorkingMode.OFFLINE.name)
+        val modeName = prefs.getString(KEY_WORKING_MODE, WorkingMode.HYBRID.name)
         return try {
             WorkingMode.valueOf(modeName!!)
         } catch (e: Exception) {
-            WorkingMode.OFFLINE
+            WorkingMode.HYBRID
         }
     }
 

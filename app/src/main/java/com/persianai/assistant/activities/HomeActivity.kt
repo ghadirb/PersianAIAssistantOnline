@@ -35,6 +35,9 @@ class HomeActivity : AppCompatActivity() {
             val prefsManager = PreferencesManager(this)
             val keys = prefsManager.getAPIKeys()
             if (keys.isNotEmpty() && keys.any { it.isActive }) {
+                if (keys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.LIARA }) {
+                    prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+                }
                 val sp = getSharedPreferences("api_keys", MODE_PRIVATE)
                 val e = sp.edit()
                 e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)

@@ -123,7 +123,7 @@ class VoiceActionButton @JvmOverloads constructor(
                 if (text.isNotBlank()) {
                     listener?.onTranscript(text)
                 } else {
-                    listener?.onRecordingError("متنی دریافت نشد")
+                    listener?.onRecordingError(transcription.exceptionOrNull()?.message ?: "متنی دریافت نشد")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Exception stopping recording", e)
