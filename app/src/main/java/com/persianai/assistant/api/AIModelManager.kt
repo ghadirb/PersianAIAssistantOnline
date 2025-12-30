@@ -71,32 +71,69 @@ class AIModelManager(private val context: Context) {
     fun getAvailableModels(): List<ModelConfig> {
         val models = mutableListOf<ModelConfig>()
 
-        // Liara Models (اولویت اول) - GPT-4o-mini برای چت و Gemini برای ضبط صدا
+        // Liara Models (اولویت اول) - بهترین مدل‌ها برای تحلیل و ضبط صدا
         val liaraKey = prefs.getString("liara_api_key", null)
         if (!liaraKey.isNullOrEmpty()) {
-            // GPT-4o-mini برای چت عمومی
-            models.add(
-                ModelConfig(
-                    name = "openai/gpt-4o-mini",
-                    displayName = "GPT-4o Mini (Liara)",
-                    provider = "LIARA",
-                    apiKey = liaraKey,
-                    endpoint = LIARA_API_URL,
-                    isAvailable = true,
-                    features = listOf("اولویت ۱", "Liara", "GPT-4o Mini", "چت عمومی")
-                )
-            )
-            
-            // Gemini-2.0-flash برای ضبط صدا و تحلیل
+            // Gemini-2.0-flash برای ضبط صدا (اولویت ۱)
             models.add(
                 ModelConfig(
                     name = "google/gemini-2.0-flash-001",
-                    displayName = "Gemini 2.0 Flash (Liara)",
+                    displayName = "Gemini 2.0 Flash (Liara) - ضبط صدا",
                     provider = "LIARA",
                     apiKey = liaraKey,
                     endpoint = LIARA_API_URL,
                     isAvailable = true,
-                    features = listOf("اولویت ۱", "Liara", "Gemini 2.0", "ضبط صدا، تحلیل")
+                    features = listOf("اولویت ۱", "Liara", "Gemini 2.0", "ضبط صدا")
+                )
+            )
+            
+            // مدل‌های تحلیل (از بهترین به ضعیف‌تر)
+            // Priority: gpt-5-mini > gpt-5-nano > gpt-4o-mini > claude-3.7-sonnet
+            models.add(
+                ModelConfig(
+                    name = "openai/gpt-5-mini",
+                    displayName = "GPT-5 Mini (Liara) - تحلیل",
+                    provider = "LIARA",
+                    apiKey = liaraKey,
+                    endpoint = LIARA_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۱", "Liara", "GPT-5 Mini", "تحلیل پیشرفته")
+                )
+            )
+            
+            models.add(
+                ModelConfig(
+                    name = "openai/gpt-5-nano",
+                    displayName = "GPT-5 Nano (Liara) - تحلیل",
+                    provider = "LIARA",
+                    apiKey = liaraKey,
+                    endpoint = LIARA_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۲", "Liara", "GPT-5 Nano", "تحلیل سریع")
+                )
+            )
+            
+            models.add(
+                ModelConfig(
+                    name = "openai/gpt-4o-mini",
+                    displayName = "GPT-4o Mini (Liara) - تحلیل",
+                    provider = "LIARA",
+                    apiKey = liaraKey,
+                    endpoint = LIARA_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۳", "Liara", "GPT-4o Mini", "تحلیل عمومی")
+                )
+            )
+            
+            models.add(
+                ModelConfig(
+                    name = "anthropic/claude-3.7-sonnet",
+                    displayName = "Claude 3.7 Sonnet (Liara) - تحلیل",
+                    provider = "LIARA",
+                    apiKey = liaraKey,
+                    endpoint = LIARA_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۴", "Liara", "Claude 3.7", "تحلیل نوشتاری")
                 )
             )
         }

@@ -28,34 +28,45 @@ class SpeechToTextPipeline(private val context: Context) {
 
             // آنلاین اول (اگر حالت آفلاین نباشد)
             if (mode != PreferencesManager.WorkingMode.OFFLINE) {
-                Log.d(TAG, "🌐 Attempting online transcription...")
+                Log.d(TAG, "🌐 Attempting online transcription (Priority: Liara Gemini 2.0 Flash)...")
                 val keys = prefs.getAPIKeys()
-                val activeKey = keys.firstOrNull { it.isActive }
+                val liarageminiKey = keys.firstOrNull { it.isActive && it.provider.name == "LIARA" }
                 
-                if (activeKey != null) {
-                    Log.d(TAG, "Found active key: ${activeKey.provider.name}")
+                if (liarageminiKey != null) {
+                    Log.d(TAG, "✔ Found active Liara key for Gemini 2.0 Flash")
                     val online = recorder.analyzeOnline(audioFile)
                     val onlineText = online.getOrNull()?.trim()
                     
                     if (!onlineText.isNullOrBlank()) {
-                        Log.d(TAG, "✅ Online transcription: $onlineText")
+                        Log.d(TAG, "✅ Online transcription (Gemini 2.0 Flash): $onlineText")
                         return@withContext Result.success(onlineText)
                     } else {
                         val err = online.exceptionOrNull()?.message ?: "Empty response"
                         Log.w(TAG, "⚠️ Online failed: $err")
                     }
                 } else {
-                    Log.w(TAG, "No active API key found")
+                    Log.w(TAG, "⚠️ No active Liara key found - trying other keys")
+                    val activeKey = keys.firstOrNull { it.isActive }
+                    if (activeKey != null) {
+                        Log.d(TAG, "Using fallback key: ${activeKey.provider.name}")
+                        val online = recorder.analyzeOnline(audioFile)
+                        val onlineText = online.getOrNull()?.trim()
+                        
+                        if (!onlineText.isNullOrBlank()) {
+                            Log.d(TAG, "✅ Online transcription (fallback): $onlineText")
+                            return@withContext Result.success(onlineText)
+                        }
+                    }
                 }
             }
 
-            // آفلاین fallback
-            Log.d(TAG, "📱 Attempting offline transcription...")
+            // آفلاین fallback (Haaniye)
+            Log.d(TAG, "📱 Attempting offline transcription (Haaniye model)...")
             val offline = recorder.analyzeOffline(audioFile)
             val offlineText = offline.getOrNull()?.trim()
             
             if (!offlineText.isNullOrBlank()) {
-                Log.d(TAG, "✅ Offline transcription: $offlineText")
+                Log.d(TAG, "✅ Offline transcription (Haaniye): $offlineText")
                 return@withContext Result.success(offlineText)
             } else {
                 val err = offline.exceptionOrNull()?.message ?: "Empty response"

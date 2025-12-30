@@ -353,25 +353,30 @@ class NewHybridVoiceRecorder(private val context: Context) {
             
             val activeKeys = keys.filter { it.isActive }
             if (activeKeys.isEmpty()) {
-                Log.e(TAG, "❌ No active API keys found")
+                Log.e(TAG, "❌ No active API keys found - Fallback to offline")
                 return@withContext Result.failure(IllegalStateException("No active API key"))
             }
 
             Log.d(TAG, "🌐 Creating AIClient with ${activeKeys.size} active key(s)")
+            // اولویت: Gemini 2.0 Flash برای ضبط صدا
             val client = AIClient(activeKeys)
             
             Log.d(TAG, "📤 Calling transcribeAudio: ${audioFile.absolutePath}")
+            Log.d(TAG, "🎤 Using: Liara (Gemini 2.0 Flash) for voice transcription")
             val text = client.transcribeAudio(audioFile.absolutePath).trim()
             
             Log.d(TAG, "📥 Transcription result: ${if (text.isBlank()) "EMPTY" else "OK (${text.length} chars)"}")
             
             if (text.isBlank()) {
+                Log.w(TAG, "⚠️ Online STT returned blank - Trying offline...")
                 Result.failure(IllegalStateException("Online STT returned blank"))
             } else {
+                Log.d(TAG, "✅ Online transcription successful with Gemini 2.0 Flash")
                 Result.success(text)
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Online analysis exception: ${e.message}", e)
+            Log.w(TAG, "⚠️ Online failed - will fallback to offline Haaniye")
             Result.failure(e)
         }
     }

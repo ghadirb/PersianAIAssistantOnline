@@ -87,14 +87,21 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
-        // اولویت آنلاین: Liara (اولویت اول) → AIML → OpenRouter (Qwen سبک) → OpenAI → در نهایت آفلاین
+        // اولویت آنلاین: Liara (بهترین) → AIML → OpenRouter → OpenAI → آفلاین (fallback)
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
         return when {
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> AIModel.GPT_4O_MINI
+            activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> {
+                android.util.Log.d("BaseChatActivity", "✅ استفاده از Liara - بهترین مدل‌ها")
+                AIModel.GPT_4O_MINI  // Liara: بهترین مدل‌های OpenAI/Gemini
+            }
             activeProviders.contains(com.persianai.assistant.models.AIProvider.AIML) -> AIModel.AIML_GPT_35
             activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER) -> AIModel.QWEN_2_5_1B5
             activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENAI) -> AIModel.GPT_35_TURBO
-            else -> AIModel.TINY_LLAMA_OFFLINE
+            else -> {
+                // Fallback به آفلاین
+                android.util.Log.w("BaseChatActivity", "❌ تمام کلیدهای آنلاین شکست خوردند، استفاده از مدل آفلاین...")
+                AIModel.TINY_LLAMA_OFFLINE
+            }
         }
     }
 
