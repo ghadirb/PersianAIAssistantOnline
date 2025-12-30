@@ -72,11 +72,12 @@ object AutoProvisioningManager {
                 return@withContext Result.failure(Exception("هیچ کلید معتبری در فایل یافت نشد"))
             }
             
-            // فیلتر: Liara اول (فعال)، بقیه آخر (غیرفعال)
+            // فیلتر: تمام کلیدها فعال (تا از Dashboard انتخاب کند)
+            // اولویت: Liara اول
             val liaraKeys = allKeys.filter { it.provider == AIProvider.LIARA }
                 .map { it.copy(isActive = true) }
             val otherKeys = allKeys.filter { it.provider != AIProvider.LIARA }
-                .map { it.copy(isActive = false) }
+                .map { it.copy(isActive = true) }  // تمام کلیدها فعال هستند، Dashboard انتخاب می‌کند
             val processedKeys = liaraKeys + otherKeys
             
             // ذخیره

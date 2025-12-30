@@ -108,6 +108,13 @@ enum class AIModel(
         AIProvider.ANTHROPIC,
         "نسخه سریع و مقرون به صرفه Claude",
         200000
+    ),
+    GPT_35_TURBO(
+        "gpt-3.5-turbo",
+        "GPT-3.5 Turbo",
+        AIProvider.OPENAI,
+        "مدل اقتصادی OpenAI",
+        4000
     );
 
     companion object {
