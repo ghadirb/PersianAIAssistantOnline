@@ -584,16 +584,19 @@ class DashboardActivity : AppCompatActivity() {
     private fun showApiKeysStatus() {
         try {
             val keys = prefsManager.getAPIKeys()
-            val openAI = keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }
-            val openRouter = keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }
-            val apiPrefs = getSharedPreferences("api_keys", MODE_PRIVATE)
-            val huggingFace = apiPrefs.getString("hf_api_key", null)
+            val activeKeys = keys.filter { it.isActive }
             
-            val status = buildString {
-                append("کلیدها: ")
-                append(if (openAI != null) "OpenAI ✅  " else "OpenAI ⛔  ")
-                append(if (openRouter != null) "OpenRouter ✅  " else "OpenRouter ⛔  ")
-                append(if (!huggingFace.isNullOrBlank()) "HF ✅" else "HF ⛔")
+            android.util.Log.d("DashboardActivity", "📊 API Keys Status:")
+            keys.forEach { key ->
+                android.util.Log.d("DashboardActivity", "  - ${key.provider.name}: ${if (key.isActive) "✅ ACTIVE" else "❌ INACTIVE"}")
+            }
+            
+            // نمایش فقط کلیدهای فعال (باید فقط Liara باشد)
+            val liaraKey = activeKeys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA }
+            val status = if (liaraKey != null) {
+                "✅ Liara (OpenAI GPT-4o-mini + Gemini 2.0)"
+            } else {
+                "❌ هیچ کلید فعالی یافت نشد"
             }
             
             Snackbar.make(binding.root, status, Snackbar.LENGTH_LONG).show()
@@ -619,7 +622,8 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /**
-     * دانلود/رمزگشایی مجدد کلیدها از Google Drive با رمز 12345 و همگام‌سازی SharedPreferences
+     * دانلود/رمزگشایی مجدد کلیدها از Google Drive با رمز 12345
+     * فقط کلید Liara فعال می‌شود، بقیه غیرفعال
      */
     private fun refreshKeysFromDrive() {
         lifecycleScope.launch {
@@ -630,13 +634,27 @@ class DashboardActivity : AppCompatActivity() {
                 val parsed = parseAPIKeys(decrypted)
                 if (parsed.isEmpty()) throw Exception("هیچ کلیدی پیدا نشد")
 
-                prefsManager.saveAPIKeys(parsed)
+                // اولویت: فقط Liara فعال، بقیه غیرفعال
+                val liaraKeys = parsed.filter { it.provider == com.persianai.assistant.models.AIProvider.LIARA }
+                    .map { it.copy(isActive = true) }
+                val otherKeys = parsed.filter { it.provider != com.persianai.assistant.models.AIProvider.LIARA }
+                    .map { it.copy(isActive = false) }
+                val processedKeys = liaraKeys + otherKeys
+
+                prefsManager.saveAPIKeys(processedKeys)
+                prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
                 syncApiPrefs(prefsManager)
                 showApiKeysStatus()
-                Snackbar.make(binding.root, "کلیدها به‌روزرسانی شدند (${parsed.size})", Snackbar.LENGTH_LONG).show()
+                
+                android.util.Log.d("DashboardActivity", "✅ کلیدها دانلود و پردازش شدند:")
+                processedKeys.forEach { k ->
+                    android.util.Log.d("DashboardActivity", "  - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"}")
+                }
+                
+                Snackbar.make(binding.root, "✅ کلیدها به‌روزرسانی شدند (Liara فعال)", Snackbar.LENGTH_LONG).show()
             } catch (e: Exception) {
                 android.util.Log.e("DashboardActivity", "Error refreshing keys", e)
-                Snackbar.make(binding.root, "خطا در به‌روزرسانی کلیدها: ${e.message}", Snackbar.LENGTH_LONG).show()
+                Snackbar.make(binding.root, "❌ خطا: ${e.message}", Snackbar.LENGTH_LONG).show()
             }
         }
     }
@@ -676,7 +694,7 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     /**
-     * پارس کلیدها مشابه SplashActivity
+     * پارس کلیدها - baseUrl صحیح برای Liara
      */
     private fun parseAPIKeys(data: String): List<APIKey> {
         val keys = mutableListOf<APIKey>()
@@ -689,16 +707,16 @@ class DashboardActivity : AppCompatActivity() {
             val parts = trimmed.split(":", limit = 2)
             if (parts.size == 2) {
                 when (parts[0].lowercase()) {
-                    "openai" -> keys.add(APIKey(AIProvider.OPENAI, parts[1].trim(), isActive = true))
-                    "anthropic", "claude" -> keys.add(APIKey(AIProvider.ANTHROPIC, parts[1].trim(), isActive = true))
-                    "openrouter" -> keys.add(APIKey(AIProvider.OPENROUTER, parts[1].trim(), isActive = true))
-                    "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(AIProvider.AIML, parts[1].trim(), isActive = true))
+                    "openai" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.OPENAI, parts[1].trim(), isActive = false))
+                    "anthropic", "claude" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.ANTHROPIC, parts[1].trim(), isActive = false))
+                    "openrouter" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.OPENROUTER, parts[1].trim(), isActive = false))
+                    "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.AIML, parts[1].trim(), isActive = false))
                     "liara" -> keys.add(
                         APIKey(
-                            provider = AIProvider.LIARA,
+                            provider = com.persianai.assistant.models.AIProvider.LIARA,
                             key = parts[1].trim(),
-                            baseUrl = "https://api.liara.ir",
-                            isActive = true
+                            baseUrl = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1",
+                            isActive = false
                         )
                     )
                     "huggingface", "hf" -> huggingFaceKey = parts[1].trim()
@@ -706,10 +724,10 @@ class DashboardActivity : AppCompatActivity() {
             } else if (parts.size == 1) {
                 val token = trimmed
                 when {
-                    token.startsWith("sk-or-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENROUTER, token, isActive = true))
-                    token.startsWith("sk-", ignoreCase = true) -> keys.add(APIKey(AIProvider.OPENAI, token, isActive = true))
+                    token.startsWith("sk-or-", ignoreCase = true) -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.OPENROUTER, token, isActive = false))
+                    token.startsWith("sk-", ignoreCase = true) -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.OPENAI, token, isActive = false))
                     token.startsWith("hf_", ignoreCase = true) -> huggingFaceKey = token
-                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> keys.add(APIKey(AIProvider.AIML, token, isActive = true))
+                    token.contains("aiml", ignoreCase = true) || token.contains("aimlapi", ignoreCase = true) -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.AIML, token, isActive = false))
                 }
             }
         }

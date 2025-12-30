@@ -71,9 +71,10 @@ class AIModelManager(private val context: Context) {
     fun getAvailableModels(): List<ModelConfig> {
         val models = mutableListOf<ModelConfig>()
 
-        // Liara Models (اولویت اول)
+        // Liara Models (اولویت اول) - GPT-4o-mini برای چت و Gemini برای ضبط صدا
         val liaraKey = prefs.getString("liara_api_key", null)
         if (!liaraKey.isNullOrEmpty()) {
+            // GPT-4o-mini برای چت عمومی
             models.add(
                 ModelConfig(
                     name = "openai/gpt-4o-mini",
@@ -82,7 +83,20 @@ class AIModelManager(private val context: Context) {
                     apiKey = liaraKey,
                     endpoint = LIARA_API_URL,
                     isAvailable = true,
-                    features = listOf("اولویت ۱", "Liara", "GPT-4o Mini")
+                    features = listOf("اولویت ۱", "Liara", "GPT-4o Mini", "چت عمومی")
+                )
+            )
+            
+            // Gemini-2.0-flash برای ضبط صدا و تحلیل
+            models.add(
+                ModelConfig(
+                    name = "google/gemini-2.0-flash-001",
+                    displayName = "Gemini 2.0 Flash (Liara)",
+                    provider = "LIARA",
+                    apiKey = liaraKey,
+                    endpoint = LIARA_API_URL,
+                    isAvailable = true,
+                    features = listOf("اولویت ۱", "Liara", "Gemini 2.0", "ضبط صدا، تحلیل")
                 )
             )
         }

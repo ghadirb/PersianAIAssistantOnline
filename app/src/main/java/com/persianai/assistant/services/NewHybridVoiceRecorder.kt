@@ -338,24 +338,40 @@ class NewHybridVoiceRecorder(private val context: Context) {
 
             val prefs = PreferencesManager(context)
             val mode = prefs.getWorkingMode()
+            Log.d(TAG, "📱 Online mode check: $mode")
+            
             if (mode == PreferencesManager.WorkingMode.OFFLINE) {
+                Log.w(TAG, "❌ WorkingMode is OFFLINE, skipping online")
                 return@withContext Result.failure(IllegalStateException("WorkingMode is OFFLINE"))
             }
 
             val keys = prefs.getAPIKeys()
-            val hasKeys = keys.isNotEmpty() && keys.any { it.isActive }
-            if (!hasKeys) {
+            Log.d(TAG, "🔑 Total keys: ${keys.size}")
+            keys.forEach { k ->
+                Log.d(TAG, "   - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"}")
+            }
+            
+            val activeKeys = keys.filter { it.isActive }
+            if (activeKeys.isEmpty()) {
+                Log.e(TAG, "❌ No active API keys found")
                 return@withContext Result.failure(IllegalStateException("No active API key"))
             }
 
-            val client = AIClient(keys)
+            Log.d(TAG, "🌐 Creating AIClient with ${activeKeys.size} active key(s)")
+            val client = AIClient(activeKeys)
+            
+            Log.d(TAG, "📤 Calling transcribeAudio: ${audioFile.absolutePath}")
             val text = client.transcribeAudio(audioFile.absolutePath).trim()
+            
+            Log.d(TAG, "📥 Transcription result: ${if (text.isBlank()) "EMPTY" else "OK (${text.length} chars)"}")
+            
             if (text.isBlank()) {
                 Result.failure(IllegalStateException("Online STT returned blank"))
             } else {
                 Result.success(text)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Online analysis exception: ${e.message}", e)
             Result.failure(e)
         }
     }

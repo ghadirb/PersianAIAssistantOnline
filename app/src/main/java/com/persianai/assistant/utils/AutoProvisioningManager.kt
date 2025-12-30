@@ -8,261 +8,195 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * مدیر بارگذاری خودکار کلیدهای API با اولویت‌بندی هوشمند
- * 
- * اولویت‌های کلید:
- * 1. AIML API (aimlapi.com) - رایگان
- * 2. OpenRouter (openrouter.ai) - رایگان/ارزان
- * 3. OpenAI (openai.com) - پولی
- * 4. HuggingFace (huggingface.co) - برای STT
- * 
- * مدل‌های اولویت‌دار (برای موبایل‌های ضعیف):
- * 1. Qwen2.5 1.5B
- * 2. LLaMA 3.2 1B quantized
- * 3. LLaMA 3.2 3B quantized
- * 4. GPT و مدل‌های رایگان دیگر
+ * مدیر بارگذاری خودکار کلیدهای API
+ * استراتژی: اولویت Liara، سپس سایر providers
  */
 object AutoProvisioningManager {
     
     private const val TAG = "AutoProvisioning"
-    private const val DRIVE_FILE_ID = "17iwkjyGcxJeDgwQWEcsOdfbOxOah_0u0"
     private const val DEFAULT_PASSWORD = "12345"
+    private const val GIST_KEYS_URL =
+        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/5ec50251e01128e0ad8d380350a2002d5c5b585f/keys.txt"
     
     /**
-     * بارگذاری خودکار کلیدها در ابتدای برنامه
+     * بارگذاری خودکار کلیدها - اولویت Liara
      */
     suspend fun autoProvision(context: Context): Result<List<APIKey>> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "شروع بارگذاری خودکار کلیدها...")
+            Log.d(TAG, "🔄 شروع بارگذاری خودکار کلیدها...")
             
             val prefsManager = PreferencesManager(context)
             val existing = prefsManager.getAPIKeys()
             val hasActiveLiara = existing.any { it.provider == AIProvider.LIARA && it.isActive }
-            // اگر لیارا یا هیچ کلید فعالی نداریم، دوباره تلاش می‌کنیم دانلود و فعال‌سازی کنیم
-            if (prefsManager.hasAPIKeys() && existing.isNotEmpty() && hasActiveLiara) {
-                Log.d(TAG, "کلیدهای قبلی یافت شد و Liara فعال است، بازگشت")
+            
+            if (hasActiveLiara) {
+                Log.d(TAG, "✅ کلید Liara فعال است")
                 return@withContext Result.success(existing)
             }
             
-            // دانلود فایل رمزشده
-            Log.d(TAG, "دانلود فایل از Google Drive...")
+            // دانلود از gist
+            Log.d(TAG, "📥 دانلود فایل رمزشده از gist...")
             val encryptedData = try {
-                DriveHelper.downloadEncryptedKeys()
+                DriveHelper.downloadFromUrl(GIST_KEYS_URL)
             } catch (e: Exception) {
-                Log.e(TAG, "خطا در دانلود", e)
-                return@withContext Result.failure(Exception("خطا در دانلود فایل کلیدها: ${e.message}"))
+                Log.e(TAG, "❌ خطا در دانلود از gist: ${e.message}")
+                return@withContext Result.failure(e)
+            }
+            
+            if (encryptedData.isBlank()) {
+                Log.e(TAG, "❌ فایل دانلود شده خالی است")
+                return@withContext Result.failure(Exception("فایل گیست خالی است"))
             }
             
             // رمزگشایی
-            Log.d(TAG, "رمزگشایی فایل...")
+            Log.d(TAG, "🔐 رمزگشایی فایل...")
             val decryptedData = try {
                 EncryptionHelper.decrypt(encryptedData, DEFAULT_PASSWORD)
             } catch (e: Exception) {
-                Log.e(TAG, "خطا در رمزگشایی", e)
-                return@withContext Result.failure(Exception("خطا در رمزگشایی کلیدها: ${e.message}"))
+                Log.e(TAG, "❌ خطا در رمزگشایی: ${e.message}")
+                return@withContext Result.failure(e)
+            }
+            
+            if (decryptedData.isBlank()) {
+                Log.e(TAG, "❌ فایل رمزگشایی شده خالی است")
+                return@withContext Result.failure(Exception("رمزگشایی ناموفق"))
             }
             
             // پارس کلیدها
-            Log.d(TAG, "پارس کلیدها...")
-            val apiKeys = parseAPIKeys(decryptedData)
+            Log.d(TAG, "📋 پارس کلیدها...")
+            val allKeys = parseAPIKeys(decryptedData)
             
-            if (apiKeys.isEmpty()) {
-                Log.w(TAG, "هیچ کلید معتبری یافت نشد")
+            if (allKeys.isEmpty()) {
+                Log.w(TAG, "⚠️ هیچ کلید یافت نشد")
+                Log.d(TAG, "Content: $decryptedData")
                 return@withContext Result.failure(Exception("هیچ کلید معتبری در فایل یافت نشد"))
             }
             
-            // ذخیره کلیدها
-            prefsManager.saveAPIKeys(apiKeys)
-            Log.d(TAG, "✅ ${apiKeys.size} کلید با موفقیت بارگذاری شد")
+            // فیلتر: Liara اول (فعال)، بقیه آخر (غیرفعال)
+            val liaraKeys = allKeys.filter { it.provider == AIProvider.LIARA }
+                .map { it.copy(isActive = true) }
+            val otherKeys = allKeys.filter { it.provider != AIProvider.LIARA }
+                .map { it.copy(isActive = false) }
+            val processedKeys = liaraKeys + otherKeys
             
-            // نمایش اطلاعات کلیدها
-            apiKeys.groupBy { it.provider }.forEach { (provider, keys) ->
-                Log.d(TAG, "  - ${provider.name}: ${keys.size} کلید")
+            // ذخیره
+            prefsManager.saveAPIKeys(processedKeys)
+            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+            Log.d(TAG, "✅ ${processedKeys.size} کلید بارگذاری شد (اولویت Liara)")
+            processedKeys.forEach { key ->
+                Log.d(TAG, "  - ${key.provider.name}: ${if (key.isActive) "✔ فعال" else "✕ غیرفعال"}")
             }
             
-            Result.success(apiKeys)
+            Result.success(processedKeys)
             
         } catch (e: Exception) {
-            Log.e(TAG, "خطای بارگذاری خودکار", e)
+            Log.e(TAG, "خطای بارگذاری: ${e.message}")
             Result.failure(e)
         }
     }
     
     /**
-     * پارس کلیدها از فایل متنی با اولویت‌بندی
+     * پارس کلیدها
      */
     private fun parseAPIKeys(data: String): List<APIKey> {
         val keys = mutableListOf<APIKey>()
         
-        // فرمت‌های پشتیبانی شده:
-        // provider:key
-        // key (با تشخیص خودکار)
-        
         data.lines().forEach { line ->
             val trimmed = line.trim()
-            
-            // نادیده گرفتن خطوط خالی و کامنت
-            if (trimmed.isBlank() || trimmed.startsWith("#") || trimmed.startsWith("//")) {
-                return@forEach
-            }
+            if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
             
             try {
-                val (provider, key) = parseKeyLine(trimmed)
+                val (provider, key, baseUrl) = parseKeyLine(trimmed)
                 if (provider != null && key.isNotBlank()) {
-                    if (provider == AIProvider.LIARA) {
-                        keys.add(
-                            APIKey(
-                                provider = AIProvider.LIARA,
-                                key = key,
-                                baseUrl = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1",
-                                isActive = true
-                            )
-                        )
-                    } else {
-                        keys.add(APIKey(provider, key, isActive = true))
-                    }
-                    Log.d(TAG, "کلید پارس شد: ${provider.name} (${key.take(10)}...)")
+                    keys.add(APIKey(
+                        provider = provider,
+                        key = key,
+                        baseUrl = baseUrl,
+                        isActive = false // شروع غیرفعال، بعداً فعال می‌شود
+                    ))
+                    Log.d(TAG, "✓ پارس: ${provider.name}")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "خط نامعتبر نادیده گرفته شد: $trimmed")
+                Log.w(TAG, "خط نامعتبر: $trimmed")
             }
         }
         
-        return prioritizeKeys(keys)
+        return keys
     }
     
     /**
-     * پارس یک خط کلید با تشخیص خودکار provider
+     * پارس یک خط
+     * فرمت: provider:key:baseUrl (baseUrl اختیاری)
      */
-    private fun parseKeyLine(line: String): Pair<AIProvider?, String> {
-        // فرمت: provider:key
-        if (line.contains(":")) {
-            val parts = line.split(":", limit = 2)
-            if (parts.size == 2) {
-                val providerName = parts[0].trim().lowercase()
-                val key = parts[1].trim()
-                
-                val provider = when (providerName) {
-                    "aiml", "aimlapi" -> AIProvider.AIML
-                    "openrouter", "or" -> AIProvider.OPENROUTER
-                    "openai", "gpt" -> AIProvider.OPENAI
-                    "huggingface", "hf" -> AIProvider.OPENROUTER // ذخیره در OpenRouter برای سازگاری
-                    "anthropic", "claude" -> AIProvider.ANTHROPIC
+    private fun parseKeyLine(line: String): Triple<AIProvider?, String, String?> {
+        val parts = line.split(":").map { it.trim() }
+        
+        return when {
+            parts.size >= 2 -> {
+                val provider = when (parts[0].lowercase()) {
                     "liara" -> AIProvider.LIARA
-                    else -> null
+                    "openai", "gpt" -> AIProvider.OPENAI
+                    "anthropic", "claude" -> AIProvider.ANTHROPIC
+                    "openrouter", "or" -> AIProvider.OPENROUTER
+                    "aiml", "aimlapi" -> AIProvider.AIML
+                    else -> return Triple(null, "", null)
                 }
                 
-                return Pair(provider, key)
+                val key = parts.getOrNull(1) ?: ""
+                val baseUrl = parts.getOrNull(2)
+                
+                Triple(provider, key, baseUrl)
             }
-        }
-        
-        // تشخیص خودکار از روی pattern کلید
-        val key = line.trim()
-        val provider = detectProvider(key)
-        return Pair(provider, key)
-    }
-    
-    /**
-     * تشخیص خودکار provider از روی pattern کلید
-     */
-    private fun detectProvider(key: String): AIProvider? {
-        return when {
-            // Liara: هر کلیدی که هیچ الگوی دیگر ندارد را پیش‌فرض Liara می‌گیریم تا از AIML اشتباه تشخیص داده نشود
-            key.startsWith("liara_", ignoreCase = true) -> AIProvider.LIARA
-
-            // AIML API
-            key.startsWith("sk-aiml-") -> AIProvider.AIML
-            
-            // OpenRouter
-            key.startsWith("sk-or-") -> AIProvider.OPENROUTER
-            
-            // OpenAI
-            key.startsWith("sk-proj-") || (key.startsWith("sk-") && key.length > 40 && key.length < 55) -> AIProvider.OPENAI
-            
-            // HuggingFace
-            key.startsWith("hf_") -> AIProvider.OPENROUTER // ذخیره با OpenRouter برای سازگاری
-            
-            // Anthropic (Claude)
-            key.startsWith("sk-ant-") -> AIProvider.ANTHROPIC
-
-            // اگر هیچ الگوی شناخته‌شده‌ای نبود، پیش‌فرض را Liara می‌گیریم (درخواست کاربر)
-            else -> AIProvider.LIARA
+            else -> Triple(null, "", null)
         }
     }
     
     /**
-     * اولویت‌بندی کلیدها بر اساس استراتژی:
-     * 1. Liara (درخواست کاربر)
-     * 2. AIML (رایگان)
-     * 3. OpenRouter (رایگان/ارزان)
-     * 4. OpenAI (پولی)
-     * 5. Anthropic (پولی)
-     */
-    private fun prioritizeKeys(keys: List<APIKey>): List<APIKey> {
-        val priorityOrder = listOf(
-            AIProvider.LIARA,
-            AIProvider.AIML,
-            AIProvider.OPENROUTER,
-            AIProvider.OPENAI,
-            AIProvider.ANTHROPIC
-        )
-        
-        return keys.sortedBy { key ->
-            priorityOrder.indexOf(key.provider).takeIf { it >= 0 } ?: Int.MAX_VALUE
-        }
-    }
-    
-    /**
-     * تست کلیدها و غیرفعال کردن کلیدهای نامعتبر
+     * تست کلیدها
      */
     suspend fun validateAndUpdateKeys(context: Context): Int {
         val prefsManager = PreferencesManager(context)
         val keys = prefsManager.getAPIKeys()
         
-        if (keys.isEmpty()) return 0
-        
         var validCount = 0
         val updatedKeys = mutableListOf<APIKey>()
         
         keys.forEach { key ->
-            val isValid = testAPIKey(key)
-            
-            if (isValid) {
-                validCount++
-                updatedKeys.add(key.copy(isActive = true))
-                Log.d(TAG, "✅ کلید معتبر: ${key.provider.name}")
-            } else {
+            try {
+                val isValid = testAPIKey(key)
+                if (isValid) {
+                    validCount++
+                    updatedKeys.add(key.copy(isActive = true))
+                    Log.d(TAG, "✅ معتبر: ${key.provider.name}")
+                } else {
+                    updatedKeys.add(key.copy(isActive = false))
+                    Log.w(TAG, "❌ نامعتبر: ${key.provider.name}")
+                }
+            } catch (e: Exception) {
                 updatedKeys.add(key.copy(isActive = false))
-                Log.w(TAG, "❌ کلید نامعتبر: ${key.provider.name}")
+                Log.e(TAG, "خطا در تست: ${e.message}")
             }
         }
         
-        // ذخیره کلیدهای به‌روز شده
         prefsManager.saveAPIKeys(updatedKeys)
-        
         return validCount
     }
     
     /**
-     * تست یک کلید API
+     * تست یک کلید
      */
     private suspend fun testAPIKey(apiKey: APIKey): Boolean = withContext(Dispatchers.IO) {
         try {
-            // درخواست ساده برای تست کلید
             val client = okhttp3.OkHttpClient.Builder()
                 .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
             
             val request = when (apiKey.provider) {
-                AIProvider.AIML -> {
+                AIProvider.LIARA -> {
+                    val baseUrl = apiKey.baseUrl?.trim()?.trimEnd('/') 
+                        ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
                     okhttp3.Request.Builder()
-                        .url("https://api.aimlapi.com/v1/models")
-                        .addHeader("Authorization", "Bearer ${apiKey.key}")
-                        .build()
-                }
-                AIProvider.OPENROUTER -> {
-                    okhttp3.Request.Builder()
-                        .url("https://openrouter.ai/api/v1/models")
+                        .url("$baseUrl/models")
                         .addHeader("Authorization", "Bearer ${apiKey.key}")
                         .build()
                 }
@@ -272,33 +206,20 @@ object AutoProvisioningManager {
                         .addHeader("Authorization", "Bearer ${apiKey.key}")
                         .build()
                 }
-                AIProvider.LIARA -> {
-                    val base = apiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.liara.ir"
-                    okhttp3.Request.Builder()
-                        .url("$base/v1/models")
-                        .addHeader("Authorization", "Bearer ${apiKey.key}")
-                        .build()
-                }
                 AIProvider.ANTHROPIC -> {
                     okhttp3.Request.Builder()
-                        .url("https://api.anthropic.com/v1/messages")
+                        .url("https://api.anthropic.com/v1/models")
                         .addHeader("x-api-key", apiKey.key)
-                        .addHeader("anthropic-version", "2023-06-01")
                         .build()
                 }
-                AIProvider.LOCAL -> {
-                    // مدل آفلاین نیاز به تست شبکه ندارد؛ معتبر فرض می‌شود
-                    return@withContext true
-                }
+                else -> return@withContext true
             }
             
             client.newCall(request).execute().use { response ->
-                // 200-299 = موفق
                 response.isSuccessful
             }
-            
         } catch (e: Exception) {
-            Log.e(TAG, "خطا در تست کلید ${apiKey.provider.name}", e)
+            Log.w(TAG, "تست شکست: ${e.message}")
             false
         }
     }

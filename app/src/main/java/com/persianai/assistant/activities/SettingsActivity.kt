@@ -193,9 +193,9 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
         
-        // دکمه به‌روزرسانی کلیدها
+        // دکمه به‌روزرسانی کلیدها - بدون درخواست رمز، فقط Liara فعال
         binding.refreshKeysButton.setOnClickListener {
-            showPasswordDialogForRefresh()
+            refreshKeysFromGist()
         }
         // دکمه پاک کردن کلیدها
         binding.clearKeysButton.setOnClickListener {
@@ -287,44 +287,36 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun showPasswordDialogForRefresh() {
-        val input = android.widget.EditText(this).apply {
-            hint = "رمز عبور کلیدها"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        
-        MaterialAlertDialogBuilder(this)
-            .setTitle("🔑 بروزرسانی کلیدهای API")
-            .setMessage("لطفاً رمز عبور کلیدهای API را وارد کنید:")
-            .setView(input)
-            .setPositiveButton("دانلود") { _, _ ->
-                val password = input.text.toString()
-                if (password.isNotBlank()) {
-                    downloadAPIKeys(password)
-                } else {
-                    Toast.makeText(this, "⚠️ رمز عبور را وارد کنید", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("انصراف", null)
-            .show()
-    }
-    
-    private fun downloadAPIKeys(password: String) {
+    private fun refreshKeysFromGist() {
         lifecycleScope.launch {
             try {
                 Toast.makeText(this@SettingsActivity, "در حال دانلود کلیدها...", Toast.LENGTH_SHORT).show()
                 
                 val encryptedData = DriveHelper.downloadEncryptedKeys()
-                val decryptedData = EncryptionHelper.decrypt(encryptedData, password)
+                val decryptedData = EncryptionHelper.decrypt(encryptedData, "12345")
                 val keys = parseAPIKeys(decryptedData)
                 
                 withContext(Dispatchers.Main) {
                     if (keys.isNotEmpty()) {
-                        prefsManager.saveAPIKeys(keys)
+                        // اولویت: فقط Liara فعال، بقیه غیرفعال
+                        val liaraKeys = keys.filter { it.provider == com.persianai.assistant.models.AIProvider.LIARA }
+                            .map { it.copy(isActive = true) }
+                        val otherKeys = keys.filter { it.provider != com.persianai.assistant.models.AIProvider.LIARA }
+                            .map { it.copy(isActive = false) }
+                        val processedKeys = liaraKeys + otherKeys
+                        
+                        prefsManager.saveAPIKeys(processedKeys)
+                        prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+                        
+                        android.util.Log.d("SettingsActivity", "✅ کلیدها دانلود و پردازش شدند:")
+                        processedKeys.forEach { k ->
+                            android.util.Log.d("SettingsActivity", "  - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"}")
+                        }
+                        
                         loadSettings()
                         Toast.makeText(
                             this@SettingsActivity,
-                            "✅ ${keys.size} کلید دانلود شد",
+                            "✅ ${liaraKeys.size} کلید Liara فعال شد",
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
@@ -343,6 +335,14 @@ class SettingsActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+    
+    private fun showPasswordDialogForRefresh() {
+        // غیرفعال - رمز دیگر درخواست نمی‌شود
+    }
+    
+    private fun downloadAPIKeys(password: String) {
+        // غیرفعال - از refreshKeysFromGist استفاده کنید
     }
     
     private fun parseAPIKeys(data: String): List<com.persianai.assistant.models.APIKey> {
@@ -370,12 +370,12 @@ class SettingsActivity : AppCompatActivity() {
                             com.persianai.assistant.models.APIKey(
                                 provider = com.persianai.assistant.models.AIProvider.LIARA,
                                 key = token,
-                                baseUrl = "https://api.liara.ir",
-                                isActive = true
+                                baseUrl = "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1",
+                                isActive = false
                             )
                         )
                     } else {
-                        keys.add(com.persianai.assistant.models.APIKey(provider, token, isActive = true))
+                        keys.add(com.persianai.assistant.models.APIKey(provider, token, isActive = false))
                     }
                 }
             } else if (parts.size == 1 && trimmed.startsWith("sk-")) {
@@ -385,7 +385,7 @@ class SettingsActivity : AppCompatActivity() {
                     trimmed.length == 51 && trimmed.startsWith("sk-") -> com.persianai.assistant.models.AIProvider.ANTHROPIC
                     else -> com.persianai.assistant.models.AIProvider.OPENAI
                 }
-                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, isActive = true))
+                keys.add(com.persianai.assistant.models.APIKey(provider, trimmed, isActive = false))
             }
         }
         

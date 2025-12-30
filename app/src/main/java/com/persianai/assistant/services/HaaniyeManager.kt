@@ -105,15 +105,23 @@ object HaaniyeManager {
     fun isModelAvailable(context: Context): Boolean {
         val candidates = listOf("fa-haaniye_low.onnx", "fa-haaniye.onnx")
         val dir = getModelDir(context)
+        
+        // ابتدا چک کن که آیا در filesDir موجود است
         if (dir.exists() && dir.isDirectory) {
-            if (candidates.any { File(dir, it).exists() }) return true
+            if (candidates.any { File(dir, it).exists() }) {
+                Log.d(TAG, "✅ Model available in filesDir: ${dir.absolutePath}")
+                return true
+            }
         }
-        return try {
-            val list = context.assets.list(ASSET_DIR)?.toList().orEmpty()
-            candidates.any { it in list }
-        } catch (_: Exception) {
-            false
+        
+        // دوم: چک کن assets
+        val assetResult = ensureModelPresent(context)
+        if (assetResult) {
+            Log.d(TAG, "✅ Model available from assets")
+        } else {
+            Log.w(TAG, "⚠️ Model not found in filesDir or assets. Expected: ${dir.absolutePath}")
         }
+        return assetResult
     }
 
     fun ensureModelPresent(context: Context): Boolean {

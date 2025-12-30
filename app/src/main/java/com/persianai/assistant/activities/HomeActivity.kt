@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -36,10 +37,18 @@ class HomeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val prefsManager = PreferencesManager(this@HomeActivity)
-                // همیشه تلاش برای provision؛ اگر لیارا فعال نیست یا کلیدها خالی‌اند، دوباره از gist/Drive دانلود می‌شود
-                AutoProvisioningManager.autoProvision(this@HomeActivity)
-                syncApiPrefsToShared(prefsManager)
-            } catch (_: Exception) {
+                Log.d("HomeActivity", "🔄 Auto-provisioning API keys...")
+                val result = AutoProvisioningManager.autoProvision(this@HomeActivity)
+                result.onSuccess { keys ->
+                    Log.d("HomeActivity", "✅ Provisioning successful: ${keys.size} keys")
+                    syncApiPrefsToShared(prefsManager)
+                    val activeCount = keys.count { it.isActive }
+                    Log.d("HomeActivity", "✅ Active keys: $activeCount")
+                }.onFailure { e ->
+                    Log.e("HomeActivity", "⚠️ Provisioning failed: ${e.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeActivity", "❌ Auto-provision exception: ${e.message}")
             }
         }
 
