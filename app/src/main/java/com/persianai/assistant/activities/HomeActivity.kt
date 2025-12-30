@@ -16,6 +16,7 @@ import com.persianai.assistant.core.AIIntentRequest
 import com.persianai.assistant.core.intent.ReminderListIntent
 import com.persianai.assistant.databinding.ActivityHomeBinding
 import com.persianai.assistant.ui.VoiceActionButton
+import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.DefaultApiKeys
 import kotlinx.coroutines.launch
@@ -32,26 +33,16 @@ class HomeActivity : AppCompatActivity() {
 
         controller = AIIntentController(this)
 
-        try {
-            val prefsManager = PreferencesManager(this)
-            val keys = prefsManager.getAPIKeys()
-            if (keys.isNotEmpty() && keys.any { it.isActive }) {
-                if (keys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.LIARA }) {
-                    prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+        lifecycleScope.launch {
+            try {
+                val prefsManager = PreferencesManager(this@HomeActivity)
+                if (!prefsManager.hasAPIKeys()) {
+                    // دانلود از gist (fallback Drive) و فعال‌سازی خودکار با رمز پیش‌فرض
+                    AutoProvisioningManager.autoProvision(this@HomeActivity)
                 }
-                val sp = getSharedPreferences("api_keys", MODE_PRIVATE)
-                val e = sp.edit()
-                e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)
-                e.putString("openai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }?.key)
-                e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)
-                e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
-                e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
-                // نگه داشتن HF اگر وجود دارد
-                val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
-                hf?.let { e.putString("hf_api_key", it) }
-                e.apply()
+                syncApiPrefsToShared(prefsManager)
+            } catch (_: Exception) {
             }
-        } catch (_: Exception) {
         }
 
         try {
@@ -143,6 +134,26 @@ class HomeActivity : AppCompatActivity() {
             // پاک‌کردن ورودی بعد از ارسال
             binding.inputEdit.setText("")
             maybeHandleUiAction(res.actionType, res.actionData)
+        }
+    }
+
+    private fun syncApiPrefsToShared(prefsManager: PreferencesManager) {
+        val keys = prefsManager.getAPIKeys()
+        if (keys.isNotEmpty() && keys.any { it.isActive }) {
+            if (keys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.LIARA }) {
+                prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+            }
+            val sp = getSharedPreferences("api_keys", MODE_PRIVATE)
+            val e = sp.edit()
+            e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)
+            e.putString("openai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }?.key)
+            e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)
+            e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
+            e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
+            // نگه داشتن HF اگر وجود دارد
+            val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
+            hf?.let { e.putString("hf_api_key", it) }
+            e.apply()
         }
     }
 
