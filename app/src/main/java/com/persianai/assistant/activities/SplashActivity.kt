@@ -50,14 +50,24 @@ class SplashActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val prefsManager = PreferencesManager(this@SplashActivity)
             try {
-                if (prefsManager.hasAPIKeys()) {
-                    // کلیدهای موجود را همگام کن
-                    syncApiPrefs(prefsManager)
-                    android.util.Log.i("SplashActivity", "Keys already present (${prefsManager.getAPIKeys().size})")
-                } else {
-                    // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (بدون دیالوگ)
-                    attemptSilentAutoActivationAndSync(prefsManager)
+                val existing = prefsManager.getAPIKeys()
+                val hasActiveLiara = existing.any { it.provider == AIProvider.LIARA && it.isActive }
+                if (!prefsManager.hasAPIKeys() || existing.isEmpty() || !hasActiveLiara) {
+                    // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (gist → Drive) با رمز پیش‌فرض
+                    try {
+                        val res = com.persianai.assistant.utils.AutoProvisioningManager.autoProvision(this@SplashActivity)
+                        if (res.isSuccess) {
+                            android.util.Log.i("SplashActivity", "AutoProvision success: ${res.getOrNull()?.size ?: 0} keys")
+                        } else {
+                            android.util.Log.w("SplashActivity", "AutoProvision failed: ${res.exceptionOrNull()?.message}")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("SplashActivity", "AutoProvision exception: ${e.message}")
+                    }
                 }
+                // همگام‌سازی با SharedPreferences
+                syncApiPrefs(prefsManager)
+                android.util.Log.i("SplashActivity", "Keys applied (${prefsManager.getAPIKeys().size})")
             } catch (e: Exception) {
                 android.util.Log.e("SplashActivity", "Error initializing keys", e)
             } finally {

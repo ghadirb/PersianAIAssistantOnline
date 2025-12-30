@@ -36,10 +36,8 @@ class HomeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val prefsManager = PreferencesManager(this@HomeActivity)
-                if (!prefsManager.hasAPIKeys()) {
-                    // دانلود از gist (fallback Drive) و فعال‌سازی خودکار با رمز پیش‌فرض
-                    AutoProvisioningManager.autoProvision(this@HomeActivity)
-                }
+                // همیشه تلاش برای provision؛ اگر لیارا فعال نیست یا کلیدها خالی‌اند، دوباره از gist/Drive دانلود می‌شود
+                AutoProvisioningManager.autoProvision(this@HomeActivity)
                 syncApiPrefsToShared(prefsManager)
             } catch (_: Exception) {
             }
@@ -139,22 +137,23 @@ class HomeActivity : AppCompatActivity() {
 
     private fun syncApiPrefsToShared(prefsManager: PreferencesManager) {
         val keys = prefsManager.getAPIKeys()
+        val sp = getSharedPreferences("api_keys", MODE_PRIVATE)
+        val e = sp.edit()
+        e.clear()
         if (keys.isNotEmpty() && keys.any { it.isActive }) {
             if (keys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.LIARA }) {
                 prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
             }
-            val sp = getSharedPreferences("api_keys", MODE_PRIVATE)
-            val e = sp.edit()
             e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)
             e.putString("openai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }?.key)
             e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)
             e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
             e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
-            // نگه داشتن HF اگر وجود دارد
-            val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
-            hf?.let { e.putString("hf_api_key", it) }
-            e.apply()
         }
+        // نگه داشتن HF اگر وجود دارد
+        val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
+        hf?.let { e.putString("hf_api_key", it) }
+        e.apply()
     }
 
     private fun maybeHandleUiAction(actionType: String?, actionData: String?) {

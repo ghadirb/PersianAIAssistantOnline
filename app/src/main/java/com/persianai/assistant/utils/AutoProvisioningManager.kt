@@ -36,11 +36,12 @@ object AutoProvisioningManager {
             Log.d(TAG, "شروع بارگذاری خودکار کلیدها...")
             
             val prefsManager = PreferencesManager(context)
-            
-            // چک کردن که قبلاً کلید داریم یا نه
-            if (prefsManager.hasAPIKeys()) {
-                Log.d(TAG, "کلیدهای قبلی یافت شد، بازگشت")
-                return@withContext Result.success(prefsManager.getAPIKeys())
+            val existing = prefsManager.getAPIKeys()
+            val hasActiveLiara = existing.any { it.provider == AIProvider.LIARA && it.isActive }
+            // اگر لیارا یا هیچ کلید فعالی نداریم، دوباره تلاش می‌کنیم دانلود و فعال‌سازی کنیم
+            if (prefsManager.hasAPIKeys() && existing.isNotEmpty() && hasActiveLiara) {
+                Log.d(TAG, "کلیدهای قبلی یافت شد و Liara فعال است، بازگشت")
+                return@withContext Result.success(existing)
             }
             
             // دانلود فایل رمزشده
@@ -166,8 +167,11 @@ object AutoProvisioningManager {
      */
     private fun detectProvider(key: String): AIProvider? {
         return when {
+            // Liara: هر کلیدی که هیچ الگوی دیگر ندارد را پیش‌فرض Liara می‌گیریم تا از AIML اشتباه تشخیص داده نشود
+            key.startsWith("liara_", ignoreCase = true) -> AIProvider.LIARA
+
             // AIML API
-            key.startsWith("sk-aiml-") || key.length == 64 -> AIProvider.AIML
+            key.startsWith("sk-aiml-") -> AIProvider.AIML
             
             // OpenRouter
             key.startsWith("sk-or-") -> AIProvider.OPENROUTER
@@ -180,20 +184,23 @@ object AutoProvisioningManager {
             
             // Anthropic (Claude)
             key.startsWith("sk-ant-") -> AIProvider.ANTHROPIC
-            
-            else -> null
+
+            // اگر هیچ الگوی شناخته‌شده‌ای نبود، پیش‌فرض را Liara می‌گیریم (درخواست کاربر)
+            else -> AIProvider.LIARA
         }
     }
     
     /**
      * اولویت‌بندی کلیدها بر اساس استراتژی:
-     * 1. AIML (رایگان)
-     * 2. OpenRouter (رایگان/ارزان)
-     * 3. OpenAI (پولی)
-     * 4. Anthropic (پولی)
+     * 1. Liara (درخواست کاربر)
+     * 2. AIML (رایگان)
+     * 3. OpenRouter (رایگان/ارزان)
+     * 4. OpenAI (پولی)
+     * 5. Anthropic (پولی)
      */
     private fun prioritizeKeys(keys: List<APIKey>): List<APIKey> {
         val priorityOrder = listOf(
+            AIProvider.LIARA,
             AIProvider.AIML,
             AIProvider.OPENROUTER,
             AIProvider.OPENAI,

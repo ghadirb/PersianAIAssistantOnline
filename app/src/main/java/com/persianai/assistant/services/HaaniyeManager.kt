@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.os.Environment
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
@@ -120,42 +121,61 @@ object HaaniyeManager {
         if (!dir.exists()) dir.mkdirs()
 
         val candidates = listOf("fa-haaniye_low.onnx", "fa-haaniye.onnx")
-        val already = candidates.any { File(dir, it).exists() }
-        if (already) {
+        if (candidates.any { File(dir, it).exists() }) {
             Log.d(TAG, "Model available: true, dir=${dir.absolutePath}")
             return true
         }
 
-        val assetFiles = try {
-            context.assets.list(ASSET_DIR)?.toList().orEmpty()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to list assets: ${e.message}")
-            emptyList()
-        }
-
-        val hasInAssets = candidates.any { it in assetFiles }
-        if (!hasInAssets) {
-            Log.d(TAG, "Model available: false, dir=${dir.absolutePath}")
-            return false
-        }
-
-        return try {
-            assetFiles.forEach { name ->
+        // اول تلاش: کپی مستقیم از assets حتی اگر لیست‌کردن شکست بخورد
+        try {
+            candidates.forEach { name ->
                 val out = File(dir, name)
                 if (out.exists()) return@forEach
-                context.assets.open("$ASSET_DIR/$name").use { input ->
-                    FileOutputStream(out).use { output ->
-                        input.copyTo(output)
+                runCatching {
+                    context.assets.open("$ASSET_DIR/$name").use { input ->
+                        FileOutputStream(out).use { output -> input.copyTo(output) }
                     }
+                    Log.d(TAG, "Copied Haaniye from assets: $name")
+                }.onFailure {
+                    // ignore, maybe not present in assets
                 }
             }
-            val finalOk = candidates.any { File(dir, it).exists() }
-            Log.d(TAG, "Model extracted from assets: $finalOk, dir=${dir.absolutePath}")
-            finalOk
         } catch (e: Exception) {
-            Log.e(TAG, "Model extraction failed", e)
-            false
+            Log.w(TAG, "Asset copy failed: ${e.message}")
         }
+
+        if (candidates.any { File(dir, it).exists() }) {
+            Log.d(TAG, "Model extracted from assets, dir=${dir.absolutePath}")
+            return true
+        }
+
+        // fallback: جستجو در مسیرهای خارجی برای کپی دستی
+        val externalCandidates = buildList {
+            context.getExternalFilesDir(null)?.let { add(File(it, "haaniye/fa-haaniye_low.onnx")) }
+            context.getExternalFilesDir(null)?.let { add(File(it, "haaniye/fa-haaniye.onnx")) }
+            add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "fa-haaniye_low.onnx"))
+            add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "fa-haaniye.onnx"))
+            add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "haaniye/fa-haaniye_low.onnx"))
+            add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "haaniye/fa-haaniye.onnx"))
+        }
+
+        externalCandidates.forEach { src ->
+            if (src.exists() && src.canRead()) {
+                val out = File(dir, src.name)
+                try {
+                    src.copyTo(out, overwrite = true)
+                    Log.d(TAG, "Copied Haaniye from external: ${src.absolutePath}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed copying from external ${src.absolutePath}: ${e.message}")
+                }
+            }
+        }
+
+        val finalOk = candidates.any { File(dir, it).exists() }
+        if (!finalOk) {
+            Log.d(TAG, "Model available: false, dir=${dir.absolutePath}")
+        }
+        return finalOk
     }
 
     suspend fun inferOffline(context: Context, audioFile: File): String {
