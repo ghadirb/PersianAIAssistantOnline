@@ -81,3 +81,14 @@ lint/tmp/
 # OS files
 .DS_Store
 Thumbs.db
+# Large ONNX models (>50MB) - using lightweight versions instead
+# Haaniye TTS: 109MB full model - using 3MB fa-haaniye_low.onnx
+app/src/main/assets/tts/haaniye/fa-haaniye.onnx
+# Coqui TTS: 100MB+ model - users should download at runtime
+app/src/main/assets/tts/coqui/model.onnx
+
+# Build artifacts
+build_detailed.log
+build_detailed_error.log
+build_output.txt
+build_final.log
