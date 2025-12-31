@@ -81,3 +81,7 @@ lint/tmp/
 # OS files
 .DS_Store
 Thumbs.db
+# Large ONNX model (using low version instead - 3MB vs 109MB)
+app/src/main/assets/tts/haaniye/fa-haaniye.onnx
+build.log
+build3.log
