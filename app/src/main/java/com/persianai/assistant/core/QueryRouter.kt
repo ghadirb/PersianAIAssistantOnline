@@ -111,10 +111,10 @@ class QueryRouter(private val context: Context) {
                 return null
             }
             
-            // Find best model
+            // Find best model: اول OpenRouter (رایگان/مقرون‌به‌صرفه)، سپس Liara
             val model = when {
+                activeKeys.any { it.provider.name == "OPENROUTER" } -> AIModel.LLAMA_3_3_70B
                 activeKeys.any { it.provider.name == "LIARA" } -> AIModel.GPT_4O_MINI
-                activeKeys.any { it.provider.name == "OPENROUTER" } -> AIModel.QWEN_2_5_1B5
                 activeKeys.any { it.provider.name == "OPENAI" } -> AIModel.GPT_35_TURBO
                 else -> AIModel.QWEN_2_5_1B5
             }

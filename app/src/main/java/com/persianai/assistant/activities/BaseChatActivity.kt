@@ -443,17 +443,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
                         addMessage(ChatMessage(role = MessageRole.USER, content = userText))
 
                         statusText.text = "🤖 در حال پاسخ..."
-                        val controller = AIIntentController(this@BaseChatActivity)
-                        val intent = controller.detectIntentFromTextAsync(userText)
-                        val result = controller.handle(
-                            AIIntentRequest(
-                                intent = intent,
-                                source = AIIntentRequest.Source.VOICE,
-                                workingModeName = prefsManager.getWorkingMode().name
-                            )
-                        )
-                        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = result.text))
-                        lastText.text = "دستیار: ${result.text.take(300)}"
+                        // Route through QueryRouter تا آنلاین (OpenRouter→Liara) یا آفلاین اجرا شود
+                        val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
+                        val result = router.routeQuery(userText)
+                        val reply = result.response
+                        addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = reply, isError = !result.success))
+                        lastText.text = "دستیار: ${reply.take(300)}"
 
                         statusText.text = "🎤 دوباره گوش می‌دم..."
                         kotlinx.coroutines.delay(500)

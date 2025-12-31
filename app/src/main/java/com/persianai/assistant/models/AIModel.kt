@@ -122,7 +122,7 @@ enum class AIModel(
             return values().find { it.modelId == modelId }
         }
 
-        fun getDefaultModel(): AIModel = GPT_4O_MINI
+        fun getDefaultModel(): AIModel = LLAMA_3_3_70B
     }
 }
 

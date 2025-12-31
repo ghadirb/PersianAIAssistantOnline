@@ -13,26 +13,22 @@ object ModelSelector {
      * اولویت مدل‌ها برای موبایل‌های ضعیف (از سبک به سنگین)
      */
     private val LIGHTWEIGHT_MODELS_PRIORITY = listOf(
-        // مدل‌های خیلی سبک (1-2B)
-        AIModel.QWEN_2_5_1B5,          // 1.5B - سریع‌ترین
+        // --- اولویت اول: OpenRouter (کلید رایگان/مقرون‌به‌صرفه) ---
+        AIModel.QWEN_2_5_1B5,          // 1.5B - خیلی سبک
         AIModel.LLAMA_3_2_1B,          // 1B quantized
         AIModel.LLAMA_3_2_3B,          // 3B quantized
-        
-        // مدل‌های متوسط (7-8B)
         AIModel.MIXTRAL_8X7B,          // 8x7B MoE
+        AIModel.LLAMA_3_3_70B,         // قدرتمند رایگان
+        AIModel.DEEPSEEK_R1T2,         // استدلال قوی
+        AIModel.LLAMA_2_70B,           // پشتیبان
         
-        // مدل‌های سنگین‌تر (70B+)
-        AIModel.LLAMA_3_3_70B,
-        AIModel.DEEPSEEK_R1T2,
-        AIModel.LLAMA_2_70B,
-        
-        // مدل‌های پولی (آخرین اولویت)
+        // --- اولویت دوم: Liara (بعد از فعال‌سازی کاربر) ---
         AIModel.GPT_4O_MINI,
+        
+        // --- سایر ارائه‌دهنده‌ها در انتها ---
         AIModel.GPT_4O,
         AIModel.CLAUDE_HAIKU,
         AIModel.CLAUDE_SONNET,
-        
-        // AIML
         AIModel.AIML_GPT_35
     )
     

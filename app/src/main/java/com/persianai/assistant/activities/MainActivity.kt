@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var checkManager: CheckManager
     private lateinit var installmentManager: InstallmentManager
     private var aiClient: AIClient? = null
-    private var currentModel: AIModel = AIModel.LLAMA_3_3_70B
+    private var currentModel: AIModel = AIModel.getDefaultModel()
     private lateinit var speechRecognizer: SpeechRecognizer
 
     companion object {
@@ -423,27 +423,20 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val controller = AIIntentController(this@MainActivity)
-                val aiIntent = controller.detectIntentFromTextAsync(text)
-                val result = controller.handle(
-                    AIIntentRequest(
-                        intent = aiIntent,
-                        source = AIIntentRequest.Source.UI,
-                        workingModeName = prefsManager.getWorkingMode().name
-                    )
-                )
-                val response = result.text
-                
+                // استفاده از QueryRouter تا هم آنلاین (OpenRouter→Liara) و هم آفلاین پوشش داده شود
+                val router = com.persianai.assistant.core.QueryRouter(this@MainActivity)
+                val result = router.routeQuery(text)
+
                 val finalMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,
-                    content = response,
-                    timestamp = System.currentTimeMillis()
+                    content = result.response,
+                    timestamp = System.currentTimeMillis(),
+                    isError = !result.success
                 )
                 addMessage(finalMessage)
-                
+
                 // ذخیره چت
                 saveCurrentConversation()
-                
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,

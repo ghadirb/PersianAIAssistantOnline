@@ -77,12 +77,12 @@ class SpeechToTextPipeline(private val context: Context) {
                 if (!haaniyeAvailable) {
                     Log.w(TAG, "❌ Haaniye model not found. User must download model first.")
                     val modelDir = com.persianai.assistant.services.HaaniyeManager.getModelDir(context).absolutePath
-                    return@withContext Result.failure(Exception("Haaniye model not available at $modelDir. Please ensure model files are in project assets."))
+                    return@withContext Result.failure(Exception("مدل آفلاین حانیه پیدا نشد. فایل fa-haaniye_low.onnx را در $modelDir قرار دهید یا از assets/tts/haaniye کپی کنید."))
                 }
                 
                 Log.w(TAG, "📱 Fallback: محدود‌شده به متن ساده (برای آزمایش)")
                 // Fallback ساده: بگذاریم کاربر متن وارد کند
-                return@withContext Result.failure(Exception("Offline STT failed - please use text input or download Haaniye model"))
+                return@withContext Result.failure(Exception("تبدیل گفتار آفلاین انجام نشد. لطفاً مدل حانیه را بررسی کنید یا برای Coqui/TinyLlama مدل را دانلود کنید."))
             }
 
             Result.failure(IllegalStateException("No transcription method available"))

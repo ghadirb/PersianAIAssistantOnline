@@ -585,18 +585,20 @@ class DashboardActivity : AppCompatActivity() {
         try {
             val keys = prefsManager.getAPIKeys()
             val activeKeys = keys.filter { it.isActive }
+            val mode = prefsManager.getWorkingMode()
             
             android.util.Log.d("DashboardActivity", "📊 API Keys Status:")
             keys.forEach { key ->
                 android.util.Log.d("DashboardActivity", "  - ${key.provider.name}: ${if (key.isActive) "✅ ACTIVE" else "❌ INACTIVE"}")
             }
             
-            // نمایش فقط کلیدهای فعال (باید فقط Liara باشد)
+            val orKey = activeKeys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER }
             val liaraKey = activeKeys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA }
-            val status = if (liaraKey != null) {
-                "✅ Liara (OpenAI GPT-4o-mini + Gemini 2.0)"
-            } else {
-                "❌ هیچ کلید فعالی یافت نشد"
+            
+            val status = when {
+                orKey != null -> "✅ OpenRouter فعال | حالت ${mode.name}"
+                liaraKey != null -> "✅ Liara فعال | حالت ${mode.name}"
+                else -> "❌ هیچ کلید فعالی نیست | حالت ${mode.name}"
             }
             
             Snackbar.make(binding.root, status, Snackbar.LENGTH_LONG).show()
