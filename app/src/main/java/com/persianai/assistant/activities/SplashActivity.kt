@@ -51,9 +51,9 @@ class SplashActivity : AppCompatActivity() {
             val prefsManager = PreferencesManager(this@SplashActivity)
             try {
                 val existing = prefsManager.getAPIKeys()
-                val hasActiveLiara = existing.any { it.provider == AIProvider.LIARA && it.isActive }
-                if (!prefsManager.hasAPIKeys() || existing.isEmpty() || !hasActiveLiara) {
-                    // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (gist → Drive) با رمز پیش‌فرض
+                val hasAnyActive = existing.any { it.isActive }
+                if (!hasAnyActive) {
+                    // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (gist) با رمز پیش‌فرض
                     try {
                         val res = com.persianai.assistant.utils.AutoProvisioningManager.autoProvision(this@SplashActivity)
                         if (res.isSuccess) {

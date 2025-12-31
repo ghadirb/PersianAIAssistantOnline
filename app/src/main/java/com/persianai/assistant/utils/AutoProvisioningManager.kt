@@ -16,7 +16,7 @@ object AutoProvisioningManager {
     private const val TAG = "AutoProvisioning"
     private const val DEFAULT_PASSWORD = "12345"
     private const val GIST_KEYS_URL =
-        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/5ec50251e01128e0ad8d380350a2002d5c5b585f/keys.txt"
+        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/2f64f5cba16c724540723915d70f60162d667cc0/keys.txt"
     
     /**
      * بارگذاری خودکار کلیدها - اولویت Liara
@@ -27,10 +27,11 @@ object AutoProvisioningManager {
             
             val prefsManager = PreferencesManager(context)
             val existing = prefsManager.getAPIKeys()
-            val hasActiveLiara = existing.any { it.provider == AIProvider.LIARA && it.isActive }
+            val hasAnyActive = existing.any { it.isActive }
             
-            if (hasActiveLiara) {
-                Log.d(TAG, "✅ کلید Liara فعال است")
+            // اگر هیچ کلید فعالی نیست، دانلود کن
+            if (hasAnyActive) {
+                Log.d(TAG, "✅ کلید(های) فعال موجود است، از همان‌ها استفاده می‌کنیم")
                 return@withContext Result.success(existing)
             }
             
@@ -89,22 +90,25 @@ object AutoProvisioningManager {
                 Log.d(TAG, "  - ${key.provider.name}: ${key.key.take(10)}... (baseUrl: ${key.baseUrl?.take(30)}...)")
             }
             
-            // فیلتر: تمام کلیدها فعال (تا از Dashboard انتخاب کند)
-            // اولویت: Liara اول
-            val liaraKeys = allKeys.filter { it.provider == AIProvider.LIARA }
-                .map { it.copy(isActive = true) }
-            val otherKeys = allKeys.filter { it.provider != AIProvider.LIARA }
-                .map { it.copy(isActive = true) }  // تمام کلیدها فعال هستند، Dashboard انتخاب می‌کند
-            val processedKeys = liaraKeys + otherKeys
+            // تمام کلیدها فعال و baseUrl پیش‌فرض تنظیم شود
+            val processedKeys = allKeys.map { key ->
+                val defaultBase = when (key.provider) {
+                    AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                    AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
+                    AIProvider.OPENAI -> "https://api.openai.com/v1"
+                    else -> key.baseUrl
+                }
+                key.copy(
+                    isActive = true,
+                    baseUrl = key.baseUrl ?: defaultBase
+                )
+            }
             
             // ذخیره
             prefsManager.saveAPIKeys(processedKeys)
             prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-            Log.d(TAG, "✅ ${processedKeys.size} کلید بارگذاری شد (اولویت Liara)")
-            processedKeys.forEach { key ->
-                Log.d(TAG, "  - ${key.provider.name}: ${if (key.isActive) "✔ فعال" else "✕ غیرفعال"}")
-            }
-            
+            Log.d(TAG, "✅ ${processedKeys.size} کلید بارگذاری شد (فعال: OpenRouter/لیارا/...)")
+
             Result.success(processedKeys)
             
         } catch (e: Exception) {

@@ -99,6 +99,12 @@ object HaaniyeManager {
     fun getModelDir(context: Context): File {
         // Prefer filesDir/haaniye (copied by CI/dev or extracted from assets)
         val filesDir = File(context.filesDir, "haaniye")
+        if (!filesDir.exists()) {
+            val created = filesDir.mkdirs()
+            Log.d(TAG, "Model dir created=${created} -> ${filesDir.absolutePath}")
+        } else {
+            Log.d(TAG, "Model dir exists -> ${filesDir.absolutePath}")
+        }
         return filesDir
     }
 
@@ -138,14 +144,19 @@ object HaaniyeManager {
         try {
             candidates.forEach { name ->
                 val out = File(dir, name)
-                if (out.exists()) return@forEach
+                if (out.exists()) {
+                    Log.d(TAG, "Asset copy skipped, already exists: ${out.absolutePath}")
+                    return@forEach
+                }
                 runCatching {
-                    context.assets.open("$ASSET_DIR/$name").use { input ->
+                    val assetPath = "$ASSET_DIR/$name"
+                    Log.d(TAG, "Attempting asset copy from $assetPath to ${out.absolutePath}")
+                    context.assets.open(assetPath).use { input ->
                         FileOutputStream(out).use { output -> input.copyTo(output) }
                     }
-                    Log.d(TAG, "Copied Haaniye from assets: $name")
+                    Log.d(TAG, "Copied Haaniye from assets: $name -> ${out.absolutePath}")
                 }.onFailure {
-                    // ignore, maybe not present in assets
+                    Log.w(TAG, "Asset copy failed for $name: ${it.message}")
                 }
             }
         } catch (e: Exception) {
