@@ -304,28 +304,39 @@ class NewHybridVoiceRecorder(private val context: Context) {
 
     suspend fun analyzeOffline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
         try {
+            Log.d(TAG, "🎤 analyzeOffline: starting with file=${audioFile.name}, size=${audioFile.length()} bytes")
+            
             if (!audioFile.exists() || audioFile.length() == 0L) {
+                Log.e(TAG, "❌ analyzeOffline: Invalid audio file")
                 return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
             }
 
             if (haaniyeModel == null) {
+                Log.d(TAG, "🔍 analyzeOffline: checking Haaniye model availability...")
                 val available = HaaniyeManager.ensureModelPresent(context)
+                Log.d(TAG, "📊 analyzeOffline: Haaniye available=$available")
                 haaniyeModel = if (available) "haaniye_model_placeholder" else null
             }
 
             if (haaniyeModel == null) {
                 val modelDir = HaaniyeManager.getModelDir(context).absolutePath
+                Log.e(TAG, "❌ analyzeOffline: Haaniye model not available at $modelDir")
                 return@withContext Result.failure(IllegalStateException("Haaniye model not available. Expected in: $modelDir"))
             }
 
+            Log.d(TAG, "🎯 analyzeOffline: running Haaniye inference...")
             val text = HaaniyeManager.inferOffline(context, audioFile)
+            Log.d(TAG, "✅ analyzeOffline: result length=${text?.length} chars")
+            
             if (text.isBlank()) {
-                Log.w(TAG, "⚠️ Offline STT returned blank (Haaniye not implemented or failed).")
+                Log.w(TAG, "⚠️ analyzeOffline: Offline STT returned blank (Haaniye inference failed or returned empty)")
                 Result.failure(IllegalStateException("Offline STT not available"))
             } else {
+                Log.d(TAG, "✔ analyzeOffline: Success - $text")
                 Result.success(text)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ analyzeOffline: Exception - ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -348,12 +359,14 @@ class NewHybridVoiceRecorder(private val context: Context) {
             val keys = prefs.getAPIKeys()
             Log.d(TAG, "🔑 Total keys: ${keys.size}")
             keys.forEach { k ->
-                Log.d(TAG, "   - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"}")
+                Log.d(TAG, "   - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"} (${k.key.take(8)}...)")
             }
             
             val activeKeys = keys.filter { it.isActive }
             if (activeKeys.isEmpty()) {
                 Log.e(TAG, "❌ No active API keys found - Fallback to offline")
+                Log.w(TAG, "💡 کلیدهای Liara رایگان غیر فعال هستند")
+                Log.w(TAG, "💡 شاید نیاز به پنل پولی یا فعال کردن کلید در Dashboard است")
                 return@withContext Result.failure(IllegalStateException("No active API key"))
             }
 

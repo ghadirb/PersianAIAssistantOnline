@@ -44,13 +44,15 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
         
         if (availableKeys.isEmpty()) {
-            throw IllegalStateException("هیچ کلید فعالی برای ${model.provider.name} یافت نشد")
+            android.util.Log.e("AIClient", "❌ No active keys for ${model.provider.name}")
+            throw IllegalStateException("هیچ کلید فعالی برای ${model.provider.name} یافت نشد - برای استفاده از ویژگی‌های آنلاین کلید اضافه کنید")
         }
 
         // تلاش با کلیدهای مختلف تا موفق شویم
         var lastError: Exception? = null
         for (apiKey in availableKeys) {
             try {
+                android.util.Log.d("AIClient", "🔄 تلاش برای ارسال پیام با ${model.provider.name} key: ${apiKey.key.take(8)}...")
                 return@withContext when (model.provider) {
                     AIProvider.AIML -> sendToOpenAI(model, messages, systemPrompt, apiKey) // AIML API سازگار با OpenAI
                     AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
@@ -59,6 +61,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 }
             } catch (e: Exception) {
                 lastError = e
+                android.util.Log.w("AIClient", "⚠️ Key failed: ${e.message}")
                 // اگر خطای 401 (Unauthorized) یا 400 بود، این کلید را علامت‌گذاری کن
                 if (e.message?.contains("401") == true || e.message?.contains("400") == true) {
                     failedKeys.add(apiKey.key)
@@ -69,6 +72,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
         
         // اگر همه کلیدها ناموفق بودند
+        android.util.Log.e("AIClient", "❌ All keys failed: ${lastError?.message}")
         throw lastError ?: Exception("خطای نامشخص در ارسال پیام")
     }
 

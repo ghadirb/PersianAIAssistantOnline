@@ -89,10 +89,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         // اولویت آنلاین: Liara (بهترین) → AIML → OpenRouter → OpenAI → آفلاین (fallback)
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
-        return when {
+        
+        val selected = when {
             activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> {
-                android.util.Log.d("BaseChatActivity", "✅ استفاده از Liara - بهترین مدل‌ها")
-                AIModel.GPT_4O_MINI  // Liara: بهترین مدل‌های OpenAI/Gemini
+                android.util.Log.d("BaseChatActivity", "✅ استفاده از Liara")
+                // برای کلیدهای رایگان Liara: استفاده از مدل‌های پایداری
+                AIModel.GPT_4O_MINI  // مدل پایدار و خوب
             }
             activeProviders.contains(com.persianai.assistant.models.AIProvider.AIML) -> AIModel.AIML_GPT_35
             activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER) -> AIModel.QWEN_2_5_1B5
@@ -103,6 +105,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 AIModel.TINY_LLAMA_OFFLINE
             }
         }
+        
+        android.util.Log.d("BaseChatActivity", "📊 Selected Model: ${selected.modelId}")
+        return selected
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -518,15 +523,6 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val text = getMessageInput().text.toString().trim()
         if (text.isEmpty()) return
 
-        lifecycleScope.launch {
-            try {
-                val controller = AIIntentController(this@BaseChatActivity)
-                val intent = controller.detectIntentFromTextAsync(text)
-                android.util.Log.d("BaseChatActivity", "AIIntent: ${intent.name}")
-            } catch (_: Exception) {
-            }
-        }
-
         val userMessage = ChatMessage(role = MessageRole.USER, content = text, timestamp = System.currentTimeMillis())
         addMessage(userMessage)
         getMessageInput().text?.clear()
@@ -535,24 +531,32 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val controller = AIIntentController(this@BaseChatActivity)
-                val aiIntent = controller.detectIntentFromTextAsync(text)
-                val result = controller.handle(
-                    AIIntentRequest(
-                        intent = aiIntent,
-                        source = AIIntentRequest.Source.UI,
-                        workingModeName = prefsManager.getWorkingMode().name
-                    )
-                )
-
-                val aiMessage = ChatMessage(
+                // استعمال کریں QueryRouter - مرکزی routing system
+                val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
+                val result = router.routeQuery(text)
+                
+                Log.d("BaseChatActivity", "Query routed via: ${result.source} (Model: ${result.model})")
+                
+                val responseMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,
-                    content = result.text,
-                    timestamp = System.currentTimeMillis()
+                    content = result.response,
+                    timestamp = System.currentTimeMillis(),
+                    isError = !result.success
                 )
-                addMessage(aiMessage)
+                addMessage(responseMessage)
+                
+                // اگر action execute ہوا تو لاگ کریں
+                if (result.actionExecuted) {
+                    Log.d("BaseChatActivity", "✅ Action executed automatically")
+                }
             } catch (e: Exception) {
-                val errorMessage = ChatMessage(role = MessageRole.ASSISTANT, content = "❌ خطا: ${e.message}", timestamp = System.currentTimeMillis(), isError = true)
+                Log.e("BaseChatActivity", "❌ Error in query routing: ${e.message}", e)
+                val errorMessage = ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = "❌ خطا: ${e.message}",
+                    timestamp = System.currentTimeMillis(),
+                    isError = true
+                )
                 addMessage(errorMessage)
             } finally {
                 getSendButton().isEnabled = true

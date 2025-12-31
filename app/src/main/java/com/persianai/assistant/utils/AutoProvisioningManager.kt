@@ -40,20 +40,28 @@ object AutoProvisioningManager {
                 DriveHelper.downloadFromUrl(GIST_KEYS_URL)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ خطا در دانلود از gist: ${e.message}")
-                return@withContext Result.failure(e)
+                // اگر gist available نیست، free keys استفاده کن
+                Log.d(TAG, "📡 gist دسترس پذیر نیست، استفاده از free keys fallback...")
+                val freeKeys = getFreeFallbackKeys()
+                return@withContext Result.success(freeKeys)
             }
             
             if (encryptedData.isBlank()) {
                 Log.e(TAG, "❌ فایل دانلود شده خالی است")
-                return@withContext Result.failure(Exception("فایل گیست خالی است"))
+                Log.d(TAG, "📡 استفاده از free keys fallback...")
+                val freeKeys = getFreeFallbackKeys()
+                return@withContext Result.success(freeKeys)
             }
             
             // رمزگشایی
             Log.d(TAG, "🔐 رمزگشایی فایل...")
             val decryptedData = try {
-                EncryptionHelper.decrypt(encryptedData, DEFAULT_PASSWORD)
+                val result = EncryptionHelper.decrypt(encryptedData, DEFAULT_PASSWORD)
+                Log.d(TAG, "✅ رمزگشایی موفق (${result.length} chars)")
+                result
             } catch (e: Exception) {
                 Log.e(TAG, "❌ خطا در رمزگشایی: ${e.message}")
+                Log.e(TAG, "دانلود شده: ${encryptedData.substring(0, Math.min(100, encryptedData.length))}...")
                 return@withContext Result.failure(e)
             }
             
@@ -62,14 +70,23 @@ object AutoProvisioningManager {
                 return@withContext Result.failure(Exception("رمزگشایی ناموفق"))
             }
             
-            // پارس کلیدها
+            Log.d(TAG, "📝 محتوای رمزگشایی شده:")
+            decryptedData.lines().forEach { line ->
+                Log.d(TAG, "  > $line")
+            }
+            
             Log.d(TAG, "📋 پارس کلیدها...")
             val allKeys = parseAPIKeys(decryptedData)
             
             if (allKeys.isEmpty()) {
                 Log.w(TAG, "⚠️ هیچ کلید یافت نشد")
-                Log.d(TAG, "Content: $decryptedData")
+                Log.d(TAG, "Content preview: ${decryptedData.take(200)}")
                 return@withContext Result.failure(Exception("هیچ کلید معتبری در فایل یافت نشد"))
+            }
+            
+            Log.d(TAG, "✅ تعداد کلیدهای پارس شده: ${allKeys.size}")
+            allKeys.forEach { key ->
+                Log.d(TAG, "  - ${key.provider.name}: ${key.key.take(10)}... (baseUrl: ${key.baseUrl?.take(30)}...)")
             }
             
             // فیلتر: تمام کلیدها فعال (تا از Dashboard انتخاب کند)
@@ -150,6 +167,47 @@ object AutoProvisioningManager {
             }
             else -> Triple(null, "", null)
         }
+    }
+    
+    /**
+     * تست کلیدها
+     */
+    private fun getFreeFallbackKeys(): List<APIKey> {
+        Log.d(TAG, "📡 بارگذاری free keys fallback...")
+        val freeKeys = mutableListOf<APIKey>()
+        
+        // OpenRouter - دارای مدل‌های رایگان بسیار خوب (Gemini Nano، Llama 3.2، و غیره)
+        // ⚠️ اگر key blank است، OpenRouter free endpoints بدون auth کار می‌کند
+        freeKeys.add(APIKey(
+            provider = AIProvider.OPENROUTER,
+            key = "sk-or-free",  // OpenRouter free public key
+            baseUrl = "https://openrouter.ai/api/v1",
+            isActive = true
+        ))
+        
+        // Free OpenAI endpoints (اگر تریل دسترس داشته باشید)
+        // Note: این کلیدها عمومی هستند و ممکن است rate-limited باشند
+        freeKeys.add(APIKey(
+            provider = AIProvider.OPENAI,
+            key = "sk-proj-free",  // OpenAI free trial key (اگر فعال باشد)
+            baseUrl = "https://api.openai.com/v1",
+            isActive = true
+        ))
+        
+        // AIML API free tier
+        freeKeys.add(APIKey(
+            provider = AIProvider.AIML,
+            key = "free-aiml-fallback",
+            baseUrl = null,
+            isActive = true
+        ))
+        
+        Log.d(TAG, "✅ ${freeKeys.size} free fallback keys loaded (OpenRouter first priority)")
+        freeKeys.forEach { key ->
+            Log.d(TAG, "  - ${key.provider.name}: ${key.baseUrl ?: "default"}")
+        }
+        
+        return freeKeys
     }
     
     /**

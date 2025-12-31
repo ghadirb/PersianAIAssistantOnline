@@ -41,14 +41,30 @@ class HomeActivity : AppCompatActivity() {
                 val result = AutoProvisioningManager.autoProvision(this@HomeActivity)
                 result.onSuccess { keys ->
                     Log.d("HomeActivity", "✅ Provisioning successful: ${keys.size} keys")
+                    keys.forEach { key ->
+                        Log.d("HomeActivity", "   - ${key.provider.name}: ${if (key.isActive) "✔ ACTIVE" else "✕ INACTIVE"}")
+                    }
                     syncApiPrefsToShared(prefsManager)
                     val activeCount = keys.count { it.isActive }
                     Log.d("HomeActivity", "✅ Active keys: $activeCount")
+                    
+                    // اگر کلید Liara وجود دارد
+                    val liaraKey = keys.find { it.provider.name == "LIARA" }
+                    if (liaraKey != null) {
+                        Log.d("HomeActivity", "🎉 Liara key found!")
+                        Log.d("HomeActivity", "   Key: ${liaraKey.key.take(10)}...")
+                        Log.d("HomeActivity", "   Base URL: ${liaraKey.baseUrl ?: "default"}")
+                    } else {
+                        Log.w("HomeActivity", "⚠️ No Liara key found - voice features limited")
+                    }
                 }.onFailure { e ->
                     Log.e("HomeActivity", "⚠️ Provisioning failed: ${e.message}")
+                    Log.e("HomeActivity", "   Cause: ${e.cause?.message}")
+                    e.printStackTrace()
                 }
             } catch (e: Exception) {
                 Log.e("HomeActivity", "❌ Auto-provision exception: ${e.message}")
+                e.printStackTrace()
             }
         }
 

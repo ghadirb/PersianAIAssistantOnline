@@ -60,7 +60,7 @@ class SpeechToTextPipeline(private val context: Context) {
                 }
             }
 
-            // آفلاین fallback (Haaniye)
+            // آفلاین fallback (Haaniye یا TinyLlama)
             Log.d(TAG, "📱 Attempting offline transcription (Haaniye model)...")
             val offline = recorder.analyzeOffline(audioFile)
             val offlineText = offline.getOrNull()?.trim()
@@ -70,7 +70,19 @@ class SpeechToTextPipeline(private val context: Context) {
                 return@withContext Result.success(offlineText)
             } else {
                 val err = offline.exceptionOrNull()?.message ?: "Empty response"
-                Log.e(TAG, "❌ Offline failed: $err")
+                Log.w(TAG, "⚠️ Haaniye failed: $err")
+                
+                // اگر Haaniye model نیست، user کو prompt کریں
+                val haaniyeAvailable = com.persianai.assistant.services.HaaniyeManager.isModelAvailable(context)
+                if (!haaniyeAvailable) {
+                    Log.w(TAG, "❌ Haaniye model not found. User must download model first.")
+                    val modelDir = com.persianai.assistant.services.HaaniyeManager.getModelDir(context).absolutePath
+                    return@withContext Result.failure(Exception("Haaniye model not available at $modelDir. Please ensure model files are in project assets."))
+                }
+                
+                Log.w(TAG, "📱 Fallback: محدود‌شده به متن ساده (برای آزمایش)")
+                // Fallback ساده: بگذاریم کاربر متن وارد کند
+                return@withContext Result.failure(Exception("Offline STT failed - please use text input or download Haaniye model"))
             }
 
             Result.failure(IllegalStateException("No transcription method available"))

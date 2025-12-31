@@ -1,0 +1,92 @@
+name: Build and Release APK
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: ☕ Setup Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'adopt'
+    
+    - name: 🔧 Setup Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 34
+        ndk-version: 25.1.8937393
+    
+    - name: 📦 Cache Gradle
+      uses: actions/cache@v3
+      with:
+        path: ~/.gradle/caches
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    
+    - name: ✅ Grant execute permission
+      run: chmod +x gradlew
+    
+    - name: 🔨 Build Debug APK
+      run: ./gradlew assembleDebug --no-build-cache
+      env:
+        GRADLE_OPTS: -Xmx2048m
+    
+    - name: 📊 Generate Build Report
+      if: always()
+      run: |
+        echo "# 📱 Build Report" > build_report.md
+        echo "" >> build_report.md
+        echo "**Status**: Build Completed" >> build_report.md
+        echo "**Date**: $(date)" >> build_report.md
+        echo "**Commit**: ${{ github.sha }}" >> build_report.md
+        echo "**Branch**: ${{ github.ref }}" >> build_report.md
+        echo "" >> build_report.md
+        echo "## 📝 Build Details" >> build_report.md
+        echo "- **Gradle Version**: 8.2" >> build_report.md
+        echo "- **Android SDK**: 34" >> build_report.md
+        echo "- **Min SDK**: 26" >> build_report.md
+        echo "- **Java**: 17" >> build_report.md
+    
+    - name: 📤 Upload APK
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+    
+    - name: 📋 Upload Build Logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: |
+          build_report.md
+          app/build/reports/**
+        retention-days: 7
+    
+    - name: 🎉 Build Success
+      if: success()
+      run: |
+        echo "✅ Build Successful!"
+        echo "APK: app/build/outputs/apk/debug/app-debug.apk"
+        ls -lh app/build/outputs/apk/debug/
+    
+    - name: ❌ Build Failed
+      if: failure()
+      run: |
+        echo "❌ Build Failed!"
+        echo "Check logs above for details"
+        exit 1
