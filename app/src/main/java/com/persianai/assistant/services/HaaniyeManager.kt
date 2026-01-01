@@ -215,7 +215,11 @@ object HaaniyeManager {
 
             Log.d(TAG, "inferOffline: waveform decoded, length=${waveform.size}")
 
-            val inputName = s.inputNames.firstOrNull() ?: return ""
+            // Resolve inputs by name (robust to ordering)
+            val inputName = s.inputNames.firstOrNull { it.contains("input", ignoreCase = true) } ?: s.inputNames.first()
+            val lengthsName = s.inputNames.firstOrNull { it.contains("length", ignoreCase = true) }
+            val scalesName = s.inputNames.firstOrNull { it.contains("scale", ignoreCase = true) }
+
             val shape = longArrayOf(1, waveform.size.toLong())
 
             val tensorInfo = s.inputInfo[inputName]?.info as? ai.onnxruntime.TensorInfo
@@ -223,10 +227,8 @@ object HaaniyeManager {
             Log.d(TAG, "inferOffline: inputName=$inputName, shape=${shape.contentToString()}, expectedType=$expectedType")
 
             val inputTensor = if (expectedType == ai.onnxruntime.OnnxJavaType.INT64) {
-                // Some Haaniye builds expect int64 waveform; convert float [-1..1] to PCM16 and then to int64
                 val longs = LongArray(waveform.size) { idx ->
-                    val v = (waveform[idx] * 32768f).toLong()
-                    v
+                    (waveform[idx] * 32768f).toLong()
                 }
                 val lb: LongBuffer = ByteBuffer
                     .allocateDirect(longs.size * 8)
@@ -236,7 +238,6 @@ object HaaniyeManager {
                 lb.rewind()
                 OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), lb, shape)
             } else {
-                // Default: float waveform [1, N]
                 val fb: FloatBuffer = ByteBuffer
                     .allocateDirect(waveform.size * 4)
                     .order(ByteOrder.nativeOrder())
@@ -246,7 +247,35 @@ object HaaniyeManager {
                 OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), fb, shape)
             }
 
-            val results = s.run(mapOf(inputName to inputTensor))
+            val feeds = mutableMapOf<String, OnnxTensor>()
+            feeds[inputName] = inputTensor
+
+            // Optional inputs
+            lengthsName?.let {
+                val lenTensor = OnnxTensor.createTensor(
+                    env ?: OrtEnvironment.getEnvironment(),
+                    longArrayOf(waveform.size.toLong()),
+                    longArrayOf(1)
+                )
+                feeds[it] = lenTensor
+            }
+            scalesName?.let {
+                val scales = floatArrayOf(1f, 1f, 1f)
+                val sb: FloatBuffer = ByteBuffer
+                    .allocateDirect(scales.size * 4)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer()
+                    .put(scales)
+                sb.rewind()
+                val scaleTensor = OnnxTensor.createTensor(
+                    env ?: OrtEnvironment.getEnvironment(),
+                    sb,
+                    longArrayOf(3)
+                )
+                feeds[it] = scaleTensor
+            }
+
+            val results = s.run(feeds)
             results.use {
                 val first = it.firstOrNull()?.value
                 if (first == null) {

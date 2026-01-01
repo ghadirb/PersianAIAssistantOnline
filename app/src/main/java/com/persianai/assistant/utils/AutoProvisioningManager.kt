@@ -107,18 +107,18 @@ object AutoProvisioningManager {
             val trimmed = line.trim()
             if (trimmed.isBlank() || trimmed.startsWith("#")) return@forEach
             
-            try {
-                val (provider, key, baseUrl) = parseKeyLine(trimmed)
-                if (provider != null && key.isNotBlank()) {
-                    keys.add(APIKey(
+            val (provider, key, baseUrl) = parseKeyLine(trimmed)
+            if (provider != null && key.isNotBlank()) {
+                keys.add(
+                    APIKey(
                         provider = provider,
                         key = key,
                         baseUrl = baseUrl,
                         isActive = false // شروع غیرفعال، بعداً فعال می‌شود
-                    ))
-                    Log.d(TAG, "✓ پارس: ${provider.name}")
-                }
-            } catch (e: Exception) {
+                    )
+                )
+                Log.d(TAG, "✓ پارس: ${provider.name}")
+            } else {
                 Log.w(TAG, "خط نامعتبر: $trimmed")
             }
         }
@@ -133,24 +133,52 @@ object AutoProvisioningManager {
     private fun parseKeyLine(line: String): Triple<AIProvider?, String, String?> {
         val parts = line.split(":").map { it.trim() }
         
-        return when {
-            parts.size >= 2 -> {
-                val provider = when (parts[0].lowercase()) {
-                    "liara" -> AIProvider.LIARA
-                    "openai", "gpt" -> AIProvider.OPENAI
-                    "anthropic", "claude" -> AIProvider.ANTHROPIC
-                    "openrouter", "or" -> AIProvider.OPENROUTER
-                    "aiml", "aimlapi" -> AIProvider.AIML
-                    else -> return Triple(null, "", null)
-                }
-                
+        // Case 1: explicit provider:key(:baseUrl) ONLY if provider token is recognized
+        if (parts.size >= 2) {
+            val provider = when (parts[0].lowercase()) {
+                "liara" -> AIProvider.LIARA
+                "openai", "gpt" -> AIProvider.OPENAI
+                "anthropic", "claude" -> AIProvider.ANTHROPIC
+                "openrouter", "or" -> AIProvider.OPENROUTER
+                "aiml", "aimlapi" -> AIProvider.AIML
+                else -> null
+            }
+            if (provider != null) {
                 val key = parts.getOrNull(1) ?: ""
                 val baseUrl = parts.getOrNull(2)
-                
-                Triple(provider, key, baseUrl)
+                return Triple(provider, key, baseUrl)
             }
-            else -> Triple(null, "", null)
         }
+
+        // Case 2: raw key with no provider prefix (or unrecognized first token) -> infer by pattern
+        val inferredProvider = inferProviderFromRawKey(line)
+        return Triple(inferredProvider, line, null)
+    }
+
+    /**
+     * Heuristic provider detection for raw keys (no prefix in file)
+     * Priority: OpenRouter (sk-or), Liara (JWT-like), OpenAI (sk- or project), otherwise null.
+     */
+    private fun inferProviderFromRawKey(raw: String): AIProvider? {
+        val trimmed = raw.trim()
+        val lower = trimmed.lowercase()
+
+        // OpenRouter keys start with sk-or
+        if (lower.startsWith("sk-or")) return AIProvider.OPENROUTER
+
+        // Liara keys in gist are JWT-like tokens starting with eyJ...
+        if (trimmed.startsWith("eyJ")) return AIProvider.LIARA
+
+        // OpenAI (and some project keys) start with sk- or sk-proj-
+        if (lower.startsWith("sk-")) return AIProvider.OPENAI
+
+        // Google-style API keys (AIza...) -> treat as OpenAI-compatible for now
+        if (trimmed.startsWith("AIza")) return AIProvider.OPENAI
+
+        // Hex-only 32-char keys -> treat as OpenAI to avoid dropping
+        if (trimmed.matches(Regex("^[a-fA-F0-9]{32}\$"))) return AIProvider.OPENAI
+
+        return null
     }
     
     /**
