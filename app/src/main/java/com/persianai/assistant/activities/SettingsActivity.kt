@@ -11,6 +11,7 @@ import com.persianai.assistant.databinding.ActivitySettingsBinding
 import com.persianai.assistant.services.AIAssistantService
 import com.persianai.assistant.tts.CoquiTtsManager
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import kotlinx.coroutines.launch
@@ -290,41 +291,27 @@ class SettingsActivity : AppCompatActivity() {
     private fun refreshKeysFromGist() {
         lifecycleScope.launch {
             try {
-                Toast.makeText(this@SettingsActivity, "در حال دانلود کلیدها...", Toast.LENGTH_SHORT).show()
-                
-                val encryptedData = DriveHelper.downloadEncryptedKeys()
-                val decryptedData = EncryptionHelper.decrypt(encryptedData, "12345")
-                val keys = parseAPIKeys(decryptedData)
-                
+                Toast.makeText(this@SettingsActivity, "در حال دانلود و فعال‌سازی کلیدها...", Toast.LENGTH_SHORT).show()
+                val result = AutoProvisioningManager.autoProvision(this@SettingsActivity)
                 withContext(Dispatchers.Main) {
-                    if (keys.isNotEmpty()) {
-                        // اولویت: فقط Liara فعال، بقیه غیرفعال
-                        val liaraKeys = keys.filter { it.provider == com.persianai.assistant.models.AIProvider.LIARA }
-                            .map { it.copy(isActive = true) }
-                        val otherKeys = keys.filter { it.provider != com.persianai.assistant.models.AIProvider.LIARA }
-                            .map { it.copy(isActive = false) }
-                        val processedKeys = liaraKeys + otherKeys
-                        
-                        prefsManager.saveAPIKeys(processedKeys)
-                        prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-                        
-                        android.util.Log.d("SettingsActivity", "✅ کلیدها دانلود و پردازش شدند:")
-                        processedKeys.forEach { k ->
-                            android.util.Log.d("SettingsActivity", "  - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"}")
+                    result.onSuccess { keys ->
+                        android.util.Log.d("SettingsActivity", "✅ کلیدها دانلود و فعال شدند:")
+                        keys.forEach { k ->
+                            android.util.Log.d("SettingsActivity", "  - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"} base=${k.baseUrl}")
                         }
-                        
                         loadSettings()
                         Toast.makeText(
                             this@SettingsActivity,
-                            "✅ ${liaraKeys.size} کلید Liara فعال شد",
+                            "✅ ${keys.count { it.isActive }} کلید فعال شد",
                             Toast.LENGTH_SHORT
                         ).show()
-                    } else {
+                    }.onFailure { e ->
                         Toast.makeText(
                             this@SettingsActivity,
-                            "❌ کلیدی پیدا نشد",
-                            Toast.LENGTH_SHORT
+                            "❌ خطا در دانلود/فعال‌سازی: ${e.message}",
+                            Toast.LENGTH_LONG
                         ).show()
+                        android.util.Log.e("SettingsActivity", "AutoProvisioning from SettingsActivity failed", e)
                     }
                 }
             } catch (e: Exception) {

@@ -11,6 +11,7 @@ import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.nio.LongBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
@@ -214,20 +215,36 @@ object HaaniyeManager {
 
             Log.d(TAG, "inferOffline: waveform decoded, length=${waveform.size}")
 
-            // Heuristic: assume model accepts float waveform [1, N]
             val inputName = s.inputNames.firstOrNull() ?: return ""
             val shape = longArrayOf(1, waveform.size.toLong())
 
-            Log.d(TAG, "inferOffline: inputName=$inputName, shape=${shape.contentToString()}")
+            val tensorInfo = s.inputInfo[inputName]?.info as? ai.onnxruntime.TensorInfo
+            val expectedType = tensorInfo?.type
+            Log.d(TAG, "inferOffline: inputName=$inputName, shape=${shape.contentToString()}, expectedType=$expectedType")
 
-            val fb: FloatBuffer = ByteBuffer
-                .allocateDirect(waveform.size * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer()
-                .put(waveform)
-            fb.rewind()
-
-            val inputTensor = OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), fb, shape)
+            val inputTensor = if (expectedType == ai.onnxruntime.OnnxJavaType.INT64) {
+                // Some Haaniye builds expect int64 waveform; convert float [-1..1] to PCM16 and then to int64
+                val longs = LongArray(waveform.size) { idx ->
+                    val v = (waveform[idx] * 32768f).toLong()
+                    v
+                }
+                val lb: LongBuffer = ByteBuffer
+                    .allocateDirect(longs.size * 8)
+                    .order(ByteOrder.nativeOrder())
+                    .asLongBuffer()
+                    .put(longs)
+                lb.rewind()
+                OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), lb, shape)
+            } else {
+                // Default: float waveform [1, N]
+                val fb: FloatBuffer = ByteBuffer
+                    .allocateDirect(waveform.size * 4)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer()
+                    .put(waveform)
+                fb.rewind()
+                OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), fb, shape)
+            }
 
             val results = s.run(mapOf(inputName to inputTensor))
             results.use {
