@@ -221,12 +221,30 @@ object HaaniyeManager {
 
             Log.d(TAG, "inferOffline: waveform decoded, length=${waveform.size}")
 
+            // Model metadata (fa-haaniye_low.onnx.json) shows max_seq_length ~400; keep input short to avoid overflow
+            val maxSeqLen = 400
+            val shortened: FloatArray = if (waveform.size > maxSeqLen) {
+                val stride = kotlin.math.ceil(waveform.size.toDouble() / maxSeqLen).toInt().coerceAtLeast(1)
+                val out = FloatArray((waveform.size + stride - 1) / stride)
+                var o = 0
+                var i = 0
+                while (i < waveform.size && o < out.size) {
+                    out[o] = waveform[i]
+                    i += stride
+                    o++
+                }
+                Log.w(TAG, "inferOffline: waveform too long (${waveform.size}), downsampled with stride=$stride to ${out.size}")
+                out
+            } else {
+                waveform
+            }
+
             // Resolve inputs by name (robust to ordering)
             val inputName = s.inputNames.firstOrNull { it.contains("input", ignoreCase = true) } ?: s.inputNames.first()
             val lengthsName = s.inputNames.firstOrNull { it.contains("length", ignoreCase = true) }
             val scalesName = s.inputNames.firstOrNull { it.contains("scale", ignoreCase = true) }
 
-            val shape = longArrayOf(1, waveform.size.toLong())
+            val shape = longArrayOf(1, shortened.size.toLong())
 
             val tensorInfo = s.inputInfo[inputName]?.info as? ai.onnxruntime.TensorInfo
             val expectedType = tensorInfo?.type
@@ -235,9 +253,9 @@ object HaaniyeManager {
             val inputTensor = if (expectedType == ai.onnxruntime.OnnxJavaType.INT64) {
                 // Model expects token-like int64 values; clamp into vocab range to avoid Gather OOB
                 val maxIdx = (tokens.size - 1).coerceAtLeast(1)
-                val longs = LongArray(waveform.size) { idx ->
+                val longs = LongArray(shortened.size) { idx ->
                     // Map [-1,1] -> [0, maxIdx]
-                    val scaled = (((waveform[idx].coerceIn(-1f, 1f)) + 1f) / 2f) * maxIdx
+                    val scaled = (((shortened[idx].coerceIn(-1f, 1f)) + 1f) / 2f) * maxIdx
                     scaled.toLong().coerceIn(0L, maxIdx.toLong())
                 }
                 val lb: LongBuffer = ByteBuffer
@@ -249,10 +267,10 @@ object HaaniyeManager {
                 OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), lb, shape)
             } else {
                 val fb: FloatBuffer = ByteBuffer
-                    .allocateDirect(waveform.size * 4)
+                    .allocateDirect(shortened.size * 4)
                     .order(ByteOrder.nativeOrder())
                     .asFloatBuffer()
-                    .put(waveform)
+                    .put(shortened)
                 fb.rewind()
                 OnnxTensor.createTensor(env ?: OrtEnvironment.getEnvironment(), fb, shape)
             }
@@ -262,7 +280,7 @@ object HaaniyeManager {
 
             // Optional inputs
             lengthsName?.let {
-                val lens = longArrayOf(waveform.size.toLong())
+                val lens = longArrayOf(shortened.size.toLong())
                 val lb: LongBuffer = ByteBuffer
                     .allocateDirect(lens.size * 8)
                     .order(ByteOrder.nativeOrder())
