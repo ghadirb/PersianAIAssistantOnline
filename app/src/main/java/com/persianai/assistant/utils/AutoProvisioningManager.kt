@@ -19,79 +19,54 @@ object AutoProvisioningManager {
         "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/2f64f5cba16c724540723915d70f60162d667cc0/keys.txt"
     
     /**
-     * بارگذاری خودکار کلیدها - اولویت Liara
+     * بارگذاری و فعال‌سازی کلیدها از gist (بدون تکیه بر وضعیت قبلی)
      */
     suspend fun autoProvision(context: Context): Result<List<APIKey>> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "🔄 شروع بارگذاری خودکار کلیدها...")
-            
-            val prefsManager = PreferencesManager(context)
-            val existing = prefsManager.getAPIKeys()
-            val hasAnyActive = existing.any { it.isActive }
-            
-            // اگر هیچ کلید فعالی نیست، دانلود کن
-            if (hasAnyActive) {
-                Log.d(TAG, "✅ کلید(های) فعال موجود است، از همان‌ها استفاده می‌کنیم")
-                return@withContext Result.success(existing)
-            }
-            
-            // دانلود از gist
-            Log.d(TAG, "📥 دانلود فایل رمزشده از gist...")
-            val encryptedData = try {
+            Log.d(TAG, "🔄 شروع بارگذاری خودکار کلیدها (بازنویسی‌شده)...")
+
+            // 1) دانلود از gist
+            val encryptedData = runCatching {
+                Log.d(TAG, "📥 دانلود فایل رمزشده از gist: $GIST_KEYS_URL")
                 DriveHelper.downloadFromUrl(GIST_KEYS_URL)
-            } catch (e: Exception) {
+            }.getOrElse { e ->
                 Log.e(TAG, "❌ خطا در دانلود از gist: ${e.message}")
-                // اگر gist available نیست، free keys استفاده کن
-                Log.d(TAG, "📡 gist دسترس پذیر نیست، استفاده از free keys fallback...")
-                val freeKeys = getFreeFallbackKeys()
-                return@withContext Result.success(freeKeys)
-            }
-            
-            if (encryptedData.isBlank()) {
-                Log.e(TAG, "❌ فایل دانلود شده خالی است")
-                Log.d(TAG, "📡 استفاده از free keys fallback...")
-                val freeKeys = getFreeFallbackKeys()
-                return@withContext Result.success(freeKeys)
-            }
-            
-            // رمزگشایی
-            Log.d(TAG, "🔐 رمزگشایی فایل...")
-            val decryptedData = try {
-                val result = EncryptionHelper.decrypt(encryptedData, DEFAULT_PASSWORD)
-                Log.d(TAG, "✅ رمزگشایی موفق (${result.length} chars)")
-                result
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ خطا در رمزگشایی: ${e.message}")
-                Log.e(TAG, "دانلود شده: ${encryptedData.substring(0, Math.min(100, encryptedData.length))}...")
                 return@withContext Result.failure(e)
             }
-            
+
+            if (encryptedData.isBlank()) {
+                Log.e(TAG, "❌ فایل دانلود شده خالی است")
+                return@withContext Result.failure(Exception("فایل کلیدها خالی است"))
+            }
+
+            // 2) رمزگشایی
+            val decryptedData = runCatching {
+                EncryptionHelper.decrypt(encryptedData, DEFAULT_PASSWORD)
+            }.onFailure {
+                Log.e(TAG, "❌ خطا در رمزگشایی: ${it.message}")
+                Log.e(TAG, "دانلود شده (پیش‌نمایش): ${encryptedData.take(120)}")
+            }.getOrElse { e ->
+                return@withContext Result.failure(e)
+            }
+
             if (decryptedData.isBlank()) {
                 Log.e(TAG, "❌ فایل رمزگشایی شده خالی است")
-                return@withContext Result.failure(Exception("رمزگشایی ناموفق"))
+                return@withContext Result.failure(Exception("رمزگشایی ناموفق بود (خروجی خالی)"))
             }
-            
+
             Log.d(TAG, "📝 محتوای رمزگشایی شده:")
             decryptedData.lines().forEach { line ->
                 Log.d(TAG, "  > $line")
             }
-            
-            Log.d(TAG, "📋 پارس کلیدها...")
-            val allKeys = parseAPIKeys(decryptedData)
-            
-            if (allKeys.isEmpty()) {
-                Log.w(TAG, "⚠️ هیچ کلید یافت نشد")
-                Log.d(TAG, "Content preview: ${decryptedData.take(200)}")
+
+            // 3) پارس و نرمال‌سازی
+            val parsed = parseAPIKeys(decryptedData)
+            if (parsed.isEmpty()) {
+                Log.w(TAG, "⚠️ هیچ کلید معتبری یافت نشد")
                 return@withContext Result.failure(Exception("هیچ کلید معتبری در فایل یافت نشد"))
             }
-            
-            Log.d(TAG, "✅ تعداد کلیدهای پارس شده: ${allKeys.size}")
-            allKeys.forEach { key ->
-                Log.d(TAG, "  - ${key.provider.name}: ${key.key.take(10)}... (baseUrl: ${key.baseUrl?.take(30)}...)")
-            }
-            
-            // تمام کلیدها فعال و baseUrl پیش‌فرض تنظیم شود
-            val processedKeys = allKeys.map { key ->
+
+            val processedKeys = parsed.map { key ->
                 val defaultBase = when (key.provider) {
                     AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
                     AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
@@ -103,16 +78,21 @@ object AutoProvisioningManager {
                     baseUrl = key.baseUrl ?: defaultBase
                 )
             }
-            
-            // ذخیره
+
+            Log.d(TAG, "✅ تعداد کلیدهای پارس شده: ${processedKeys.size}")
+            processedKeys.forEach { key ->
+                Log.d(TAG, "  - ${key.provider.name}: ${key.key.take(10)}... base=${key.baseUrl}")
+            }
+
+            // 4) ذخیره و فعال‌سازی
+            val prefsManager = PreferencesManager(context)
             prefsManager.saveAPIKeys(processedKeys)
             prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-            Log.d(TAG, "✅ ${processedKeys.size} کلید بارگذاری شد (فعال: OpenRouter/لیارا/...)")
+            Log.d(TAG, "✅ ${processedKeys.size} کلید در prefs ذخیره و فعال شد")
 
             Result.success(processedKeys)
-            
         } catch (e: Exception) {
-            Log.e(TAG, "خطای بارگذاری: ${e.message}")
+            Log.e(TAG, "خطای بارگذاری: ${e.message}", e)
             Result.failure(e)
         }
     }

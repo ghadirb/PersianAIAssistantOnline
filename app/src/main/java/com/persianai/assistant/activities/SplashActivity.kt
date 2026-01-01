@@ -50,20 +50,17 @@ class SplashActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val prefsManager = PreferencesManager(this@SplashActivity)
             try {
-                val existing = prefsManager.getAPIKeys()
-                val hasAnyActive = existing.any { it.isActive }
-                if (!hasAnyActive) {
-                    // تلاش خودکار برای دریافت و فعال‌سازی کلیدها (gist) با رمز پیش‌فرض
-                    try {
-                        val res = com.persianai.assistant.utils.AutoProvisioningManager.autoProvision(this@SplashActivity)
-                        if (res.isSuccess) {
-                            android.util.Log.i("SplashActivity", "AutoProvision success: ${res.getOrNull()?.size ?: 0} keys")
-                        } else {
-                            android.util.Log.w("SplashActivity", "AutoProvision failed: ${res.exceptionOrNull()?.message}")
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("SplashActivity", "AutoProvision exception: ${e.message}")
+                // همیشه از gist تازه بارگذاری کن تا وضعیت کلیدها همگام شود
+                try {
+                    val res = com.persianai.assistant.utils.AutoProvisioningManager.autoProvision(this@SplashActivity)
+                    if (res.isSuccess) {
+                        val keys = res.getOrNull().orEmpty()
+                        android.util.Log.i("SplashActivity", "AutoProvision success: ${keys.size} keys; active=${keys.count { it.isActive }}")
+                    } else {
+                        android.util.Log.w("SplashActivity", "AutoProvision failed: ${res.exceptionOrNull()?.message}")
                     }
+                } catch (e: Exception) {
+                    android.util.Log.w("SplashActivity", "AutoProvision exception: ${e.message}", e)
                 }
                 // همگام‌سازی با SharedPreferences
                 syncApiPrefs(prefsManager)
