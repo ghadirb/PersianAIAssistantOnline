@@ -53,6 +53,7 @@ object HaaniyeManager {
             emptyList()
         }
         tokens = list
+        Log.d(TAG, "Loaded ${list.size} tokens for decoding")
         return list
     }
 
@@ -212,6 +213,11 @@ object HaaniyeManager {
                 Log.w(TAG, "inferOffline: decoded waveform is empty")
                 return ""
             }
+            val tokens = loadTokens(context)
+            if (tokens.isEmpty()) {
+                Log.w(TAG, "inferOffline: tokens.txt is empty, cannot decode")
+                return ""
+            }
 
             Log.d(TAG, "inferOffline: waveform decoded, length=${waveform.size}")
 
@@ -227,8 +233,12 @@ object HaaniyeManager {
             Log.d(TAG, "inferOffline: inputName=$inputName, shape=${shape.contentToString()}, expectedType=$expectedType")
 
             val inputTensor = if (expectedType == ai.onnxruntime.OnnxJavaType.INT64) {
+                // Model expects token-like int64 values; clamp into vocab range to avoid Gather OOB
+                val maxIdx = (tokens.size - 1).coerceAtLeast(1)
                 val longs = LongArray(waveform.size) { idx ->
-                    (waveform[idx] * 32768f).toLong()
+                    // Map [-1,1] -> [0, maxIdx]
+                    val scaled = (((waveform[idx].coerceIn(-1f, 1f)) + 1f) / 2f) * maxIdx
+                    scaled.toLong().coerceIn(0L, maxIdx.toLong())
                 }
                 val lb: LongBuffer = ByteBuffer
                     .allocateDirect(longs.size * 8)
