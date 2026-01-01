@@ -252,9 +252,16 @@ object HaaniyeManager {
 
             // Optional inputs
             lengthsName?.let {
+                val lens = longArrayOf(waveform.size.toLong())
+                val lb: LongBuffer = ByteBuffer
+                    .allocateDirect(lens.size * 8)
+                    .order(ByteOrder.nativeOrder())
+                    .asLongBuffer()
+                    .put(lens)
+                lb.rewind()
                 val lenTensor = OnnxTensor.createTensor(
                     env ?: OrtEnvironment.getEnvironment(),
-                    longArrayOf(waveform.size.toLong()),
+                    lb,
                     longArrayOf(1)
                 )
                 feeds[it] = lenTensor
