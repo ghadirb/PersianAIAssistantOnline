@@ -70,6 +70,12 @@ object DefaultApiKeys {
             null
         }
     }
+
+    /**
+     * لینک مدل Vosk فارسی برای دانلود زمان اجرا
+     */
+    fun getVoskFaModelUrl(): String =
+        "https://github.com/rhasspy/fa_kaldi-rhasspy/releases/download/v1.0/vosk-model-small-fa-rhasspy-0.15.zip"
     
     /**
      * رمزگذاری کلید

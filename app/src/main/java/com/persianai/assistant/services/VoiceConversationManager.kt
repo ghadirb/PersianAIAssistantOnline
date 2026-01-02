@@ -102,23 +102,64 @@ class VoiceConversationManager(
         }
     }
 
-    private suspend fun speakWithCoquiOrFallback(text: String) = withContext(Dispatchers.Main) {
-        if (text.isBlank()) return@withContext
+    private fun playWavWithMediaPlayer(wav: File) {
         try {
-            // Load model lazily; synthesis path will be implemented once model IO is verified.
-            // For now, we still prefer Android TTS but keep Coqui as the first init point.
-            coquiTts.ensureLoaded()
-        } catch (_: Exception) {
+            haaniyeTTS?.reset()
+            haaniyeTTS = (haaniyeTTS ?: MediaPlayer()).apply {
+                setDataSource(wav.absolutePath)
+                setOnCompletionListener {
+                    try { it.reset() } catch (_: Exception) {}
+                }
+                setOnErrorListener { mp, what, extra ->
+                    try { mp.reset() } catch (_: Exception) {}
+                    Log.w(TAG, "MediaPlayer error what=$what extra=$extra")
+                    true
+                }
+                prepare()
+                start()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "playWavWithMediaPlayer failed: ${e.message}")
+            try { haaniyeTTS?.reset() } catch (_: Exception) {}
+        }
+    }
+
+    private suspend fun speakWithHaaniyeOrFallback(text: String) = withContext(Dispatchers.Main) {
+        if (text.isBlank()) return@withContext
+        // 1) Try Haaniye TTS (ONNX)
+        try {
+            val wav = withContext(Dispatchers.IO) { HaaniyeManager.synthesizeToWav(context, text) }
+            if (wav != null && wav.exists() && wav.length() > 0) {
+                playWavWithMediaPlayer(wav)
+                return@withContext
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Haaniye TTS failed: ${e.message}")
         }
 
-        // Coqui synthesis is intentionally not executed until we have a verified frontend.
-        // Always fallback to Android TTS for actual speech, then beep as last resort.
+        // 2) Try Coqui (if model present) else Android TTS
+        try {
+            val coquiOk = withContext(Dispatchers.IO) { coquiTts.ensureLoaded() }
+            if (coquiOk && coquiTts.isReady() && coquiTts.canSynthesizeText(text)) {
+                val wav = withContext(Dispatchers.IO) { coquiTts.synthesizeToWav(text) }
+                if (wav != null && wav.exists() && wav.length() > 0) {
+                    playWavWithMediaPlayer(wav)
+                    return@withContext
+                } else {
+                    Log.w(TAG, "Coqui synthesis returned empty; falling back to Android TTS")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Coqui TTS failed or not ready: ${e.message}")
+        }
+
+        // 3) Android TTS
         try {
             speakWithAndroidTTS(text)
             return@withContext
-        } catch (_: Exception) {
-        }
+        } catch (_: Exception) {}
 
+        // 4) Beep fallback
         try {
             BeepFallback.beep()
         } catch (_: Exception) {
@@ -385,8 +426,8 @@ class VoiceConversationManager(
         try {
             Log.d(TAG, "🔊 Speaking response: $response")
 
-            // Audio output must be guaranteed offline (Coqui/Android/beep), regardless of online/offline LLM.
-            speakWithCoquiOrFallback(response)
+            // Audio output preference: Haaniye ONNX -> Android TTS -> beep.
+            speakWithHaaniyeOrFallback(response)
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error speaking response", e)

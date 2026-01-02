@@ -286,18 +286,32 @@ class OfflineModelManager(private val context: Context) {
      * اسکن پوشه برای شناسایی مدل‌های دستی
      */
     private fun scanForManuallyDownloadedModels() {
-        val modelDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "models")
-        if (!modelDir.exists()) {
-            modelDir.mkdirs()
-            android.util.Log.d("OfflineModelManager", "Created models directory: ${modelDir.absolutePath}")
-            return
+        val candidateDirs = mutableListOf<File>()
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
+            candidateDirs.add(File(it, "models"))
+            candidateDirs.add(it)
         }
-        
-        android.util.Log.d("OfflineModelManager", "Scanning: ${modelDir.absolutePath}")
-        
-        val files = modelDir.listFiles() ?: return
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.let {
+            candidateDirs.add(it)
+            candidateDirs.add(File(it, "models"))
+        }
+        Environment.getExternalStorageDirectory()?.let { candidateDirs.add(it) }
+
         val prefs = context.getSharedPreferences("offline_models", Context.MODE_PRIVATE)
         val editor = prefs.edit()
+
+        candidateDirs.forEach { dir ->
+            if (!dir.exists()) return@forEach
+            android.util.Log.d("OfflineModelManager", "Scanning: ${dir.absolutePath}")
+            val files = dir.listFiles() ?: return@forEach
+            scanFilesIntoPrefs(files, editor)
+        }
+
+        editor.apply()
+    }
+
+    private fun scanFilesIntoPrefs(files: Array<File>, editor: android.content.SharedPreferences.Editor) {
+        val prefs = context.getSharedPreferences("offline_models", Context.MODE_PRIVATE)
         
         for (file in files) {
             if (!file.name.endsWith(".gguf", ignoreCase = true)) continue

@@ -219,10 +219,10 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        val openAiLikeKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
-            ?: apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
-        val hfKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_") }
-            ?: apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.key.startsWith("hf_") }
+        // Priority: Liara -> HF (any provider, key starts with hf_) -> OpenAI -> fallback HF default
+        val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
+        val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
+        val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
         val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
         val file = java.io.File(audioFilePath)
@@ -254,41 +254,29 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 .addFormDataPart("language", "fa")
                 .build()
 
-            // اولویت: Liara -> OpenAI -> HF Whisper
-            val responseText = openAiLikeKey?.let { key ->
-                val baseUrl = if (key.provider == AIProvider.LIARA) {
-                    key.baseUrl?.trim()?.trimEnd('/') ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                } else {
-                    key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+            // اولویت: Liara -> HF -> OpenAI -> HF fallback
+            val responseText = when {
+                liaraKey != null -> {
+                    val baseUrl = liaraKey.baseUrl?.trim()?.trimEnd('/')
+                        ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                    val url = "$baseUrl/audio/transcriptions"
+                    android.util.Log.d("AIClient", "transcribeAudio using LIARA at $url")
+                    callWhisperLike(url, liaraKey.key, requestBody)
                 }
-                
-                val audioUrl = when {
-                    baseUrl.endsWith("/v1", ignoreCase = true) -> "$baseUrl/audio/transcriptions"
-                    baseUrl.contains("/v1/", ignoreCase = true) -> baseUrl.replaceAfterLast('/', "audio/transcriptions")
-                    else -> "$baseUrl/v1/audio/transcriptions"
+                hfKey != null -> {
+                    val url = hfKey.baseUrl?.trim()?.trimEnd('/')
+                        ?: "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
+                    android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
+                    callHuggingFaceWhisper(url, hfKey.key, requestBody)
                 }
-                
-                android.util.Log.d("AIClient", "Whisper URL: $audioUrl")
-                
-                val request = Request.Builder()
-                    .url(audioUrl)
-                    .addHeader("Authorization", "Bearer ${key.key}")
-                    .post(requestBody)
-                    .build()
-                    
-                try {
-                    client.newCall(request).execute().use { response ->
-                        val bodyStr = response.body?.string()
-                        if (!response.isSuccessful) {
-                            android.util.Log.e("AIClient", "Whisper error: ${response.code} - $bodyStr")
-                            null
-                        } else {
-                            val jsonResponse = gson.fromJson(bodyStr, JsonObject::class.java)
-                            jsonResponse.get("text")?.asString
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("AIClient", "Whisper exception: ${e.message}")
+                openAiKey != null -> {
+                    val baseUrl = openAiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                    val url = "$baseUrl/audio/transcriptions"
+                    android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
+                    callWhisperLike(url, openAiKey.key, requestBody)
+                }
+                else -> {
+                    // fallback to default HF key if provided
                     null
                 }
             }

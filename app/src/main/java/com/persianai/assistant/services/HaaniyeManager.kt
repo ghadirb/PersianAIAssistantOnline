@@ -25,11 +25,13 @@ import ai.onnxruntime.OrtSession
 object HaaniyeManager {
     private const val TAG = "HaaniyeManager"
     private const val ASSET_DIR = "tts/haaniye"
+    private const val SAMPLE_RATE = 22050  // from model metadata
 
     private val ortInit = AtomicBoolean(false)
     @Volatile private var env: OrtEnvironment? = null
     @Volatile private var session: OrtSession? = null
     @Volatile private var tokens: List<String>? = null
+    @Volatile private var tokenToId: Map<String, Int>? = null
 
     private fun getModelFile(context: Context): File {
         val dir = getModelDir(context)
@@ -53,6 +55,7 @@ object HaaniyeManager {
             emptyList()
         }
         tokens = list
+        tokenToId = list.mapIndexed { idx, tok -> tok to idx }.toMap()
         Log.d(TAG, "Loaded ${list.size} tokens for decoding")
         return list
     }
@@ -197,6 +200,100 @@ object HaaniyeManager {
             Log.d(TAG, "Model available: false, dir=${dir.absolutePath}")
         }
         return finalOk
+    }
+
+    /**
+     * Text -> Haaniye TTS -> wav file path (cache). Returns null on failure.
+     */
+    fun synthesizeToWav(context: Context, text: String): File? {
+        try {
+            if (text.isBlank()) return null
+            if (!ensureOrtSession(context)) return null
+            val s = session ?: return null
+            val toks = loadTokens(context)
+            if (toks.isEmpty()) return null
+            val map = tokenToId ?: return null
+
+            // naive tokenization: split by space; match tokens.txt
+            val pieces = text.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+            if (pieces.isEmpty()) return null
+            val ids = pieces.mapNotNull { map[it.lowercase()] ?: map[it] }.toLongArray()
+            if (ids.isEmpty()) return null
+
+            val inputName = s.inputNames.firstOrNull { it.contains("text", true) }
+                ?: s.inputNames.firstOrNull { it.contains("input", true) }
+                ?: s.inputNames.firstOrNull() ?: return null
+            val lengthName = s.inputNames.firstOrNull { it.contains("length", true) }
+            val scalesName = s.inputNames.firstOrNull { it.contains("scale", true) }
+
+            val inputs = mutableMapOf<String, OnnxTensor>()
+            val envLocal = env ?: OrtEnvironment.getEnvironment()
+            inputs[inputName] = OnnxTensor.createTensor(envLocal, arrayOf(ids))
+            lengthName?.let {
+                inputs[it] = OnnxTensor.createTensor(envLocal, longArrayOf(ids.size.toLong()))
+            }
+            scalesName?.let {
+                // default scales (noise) 0.667 often used in VITS-like models
+                inputs[it] = OnnxTensor.createTensor(envLocal, floatArrayOf(0.667f))
+            }
+
+            val out = s.run(inputs)
+            val first = out.firstOrNull()?.value
+            out.forEach { it.close() }
+            inputs.values.forEach { it.close() }
+            val audioFloats: FloatArray = when (first) {
+                is Array<*> -> {
+                    // could be Array<FloatArray>
+                    (first.firstOrNull() as? FloatArray) ?: return null
+                }
+                is FloatArray -> first
+                is java.nio.FloatBuffer -> {
+                    val arr = FloatArray(first.remaining())
+                    first.get(arr)
+                    arr
+                }
+                else -> return null
+            }
+            if (audioFloats.isEmpty()) return null
+
+            val wavFile = File(context.cacheDir, "haaniye_tts_${System.currentTimeMillis()}.wav")
+            writeWav(wavFile, audioFloats, SAMPLE_RATE)
+            return wavFile
+        } catch (e: Exception) {
+            Log.e(TAG, "synthesizeToWav failed: ${e.message}", e)
+            return null
+        }
+    }
+
+    private fun writeWav(outFile: File, samples: FloatArray, sampleRate: Int) {
+        // 16-bit PCM WAV minimal writer
+        val pcm = ByteBuffer.allocate(samples.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        samples.forEach { f ->
+            val s = (f * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            pcm.putShort(s)
+        }
+        val pcmData = pcm.array()
+        val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+        val totalDataLen = pcmData.size + 36
+        header.put("RIFF".toByteArray())
+        header.putInt(totalDataLen)
+        header.put("WAVE".toByteArray())
+        header.put("fmt ".toByteArray())
+        header.putInt(16) // PCM
+        header.putShort(1) // PCM format
+        header.putShort(1) // mono
+        header.putInt(sampleRate)
+        header.putInt(sampleRate * 2) // byte rate
+        header.putShort(2) // block align
+        header.putShort(16) // bits per sample
+        header.put("data".toByteArray())
+        header.putInt(pcmData.size)
+
+        FileOutputStream(outFile).use { fos ->
+            fos.write(header.array())
+            fos.write(pcmData)
+            fos.flush()
+        }
     }
 
     suspend fun inferOffline(context: Context, audioFile: File): String {

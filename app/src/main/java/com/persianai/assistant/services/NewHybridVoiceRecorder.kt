@@ -311,28 +311,22 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
             }
 
-            if (haaniyeModel == null) {
-                Log.d(TAG, "🔍 analyzeOffline: checking Haaniye model availability...")
-                val available = HaaniyeManager.ensureModelPresent(context)
-                Log.d(TAG, "📊 analyzeOffline: Haaniye available=$available")
-                haaniyeModel = if (available) "haaniye_model_placeholder" else null
+            // Try Vosk offline first
+            val voskResult = VoskManager.transcribe(context, audioFile)
+            if (voskResult.isNotBlank()) {
+                Log.d(TAG, "✔ analyzeOffline (Vosk): Success - $voskResult")
+                return@withContext Result.success(voskResult)
             }
 
-            if (haaniyeModel == null) {
-                val modelDir = HaaniyeManager.getModelDir(context).absolutePath
-                Log.e(TAG, "❌ analyzeOffline: Haaniye model not available at $modelDir")
-                return@withContext Result.failure(IllegalStateException("Haaniye model not available. Expected in: $modelDir"))
-            }
+            Log.w(TAG, "⚠️ Vosk offline returned blank; falling back to legacy Haaniye")
 
-            Log.d(TAG, "🎯 analyzeOffline: running Haaniye inference...")
             val text = HaaniyeManager.inferOffline(context, audioFile)
-            Log.d(TAG, "✅ analyzeOffline: result length=${text?.length} chars")
-            
+            Log.d(TAG, "✅ analyzeOffline: legacy Haaniye result length=${text?.length} chars")
+
             if (text.isBlank()) {
-                Log.w(TAG, "⚠️ analyzeOffline: Offline STT returned blank (Haaniye inference failed or returned empty)")
+                Log.w(TAG, "⚠️ analyzeOffline: Offline STT returned blank")
                 Result.failure(IllegalStateException("Offline STT not available"))
             } else {
-                Log.d(TAG, "✔ analyzeOffline: Success - $text")
                 Result.success(text)
             }
         } catch (e: Exception) {

@@ -9,13 +9,17 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class CoquiTtsManager(private val context: Context) {
 
     private val tag = "CoquiTtsManager"
+    private val sampleRate = 22050
 
     @Volatile private var env: OrtEnvironment? = null
     @Volatile private var session: OrtSession? = null
+    @Volatile private var tokens: Map<String, Int>? = null
 
     private val assetDir = "tts/coqui"
     private val modelName = "model.onnx"
@@ -76,26 +80,150 @@ class CoquiTtsManager(private val context: Context) {
     fun canSynthesizeText(text: String): Boolean {
         if (text.isBlank()) return false
         // If Coqui ONNX session is loaded and text frontend is available, we can synthesize
-        return session != null && text.length > 0 && text.trim().isNotEmpty()
+        return session != null && text.trim().isNotEmpty()
+    }
+
+    fun synthesizeToWav(text: String): File? {
+        try {
+            if (text.isBlank()) return null
+            if (!ensureLoaded()) return null
+            val s = session ?: return null
+            val tokenIds = tokenize(text)
+            if (tokenIds.isEmpty()) return null
+
+            val inputName = s.inputNames.firstOrNull { it.contains("text", true) }
+                ?: s.inputNames.firstOrNull { it.contains("input", true) }
+                ?: s.inputNames.firstOrNull() ?: return null
+            val lengthName = s.inputNames.firstOrNull { it.contains("length", true) }
+            val scalesName = s.inputNames.firstOrNull { it.contains("scale", true) }
+
+            val envLocal = env ?: OrtEnvironment.getEnvironment()
+            val inputs = mutableMapOf<String, ai.onnxruntime.OnnxTensor>()
+            inputs[inputName] = ai.onnxruntime.OnnxTensor.createTensor(envLocal, arrayOf(tokenIds))
+            lengthName?.let { inputs[it] = ai.onnxruntime.OnnxTensor.createTensor(envLocal, longArrayOf(tokenIds.size.toLong())) }
+            scalesName?.let { inputs[it] = ai.onnxruntime.OnnxTensor.createTensor(envLocal, floatArrayOf(0.667f)) }
+
+            val results = s.run(inputs)
+            val first = results.firstOrNull()?.value
+            results.forEach { it.close() }
+            inputs.values.forEach { it.close() }
+
+            val audioFloats: FloatArray = when (first) {
+                is Array<*> -> (first.firstOrNull() as? FloatArray) ?: return null
+                is FloatArray -> first
+                is java.nio.FloatBuffer -> {
+                    val arr = FloatArray(first.remaining()); first.get(arr); arr
+                }
+                else -> return null
+            }
+            if (audioFloats.isEmpty()) return null
+
+            val wav = File(context.cacheDir, "coqui_tts_${System.currentTimeMillis()}.wav")
+            writeWav(wav, audioFloats, sampleRate)
+            return wav
+        } catch (e: Exception) {
+            Log.w(tag, "synthesizeToWav failed: ${e.message}", e)
+            return null
+        }
+    }
+
+    private fun tokenize(text: String): LongArray {
+        val map = loadTokens()
+        if (map.isEmpty()) return longArrayOf()
+        val ids = mutableListOf<Long>()
+        text.forEach { ch ->
+            val key = ch.toString()
+            map[key]?.let { ids.add(it.toLong()) }
+        }
+        return ids.toLongArray()
+    }
+
+    private fun loadTokens(): Map<String, Int> {
+        tokens?.let { return it }
+        val map = mutableMapOf<String, Int>()
+        try {
+            val assetPath = "$assetDir/tokens.txt"
+            context.assets.open(assetPath).bufferedReader().useLines { seq ->
+                seq.forEach { line ->
+                    val parts = line.trim().split("\\s+".toRegex())
+                    if (parts.size >= 2) {
+                        val tok = parts[0]
+                        val id = parts[1].toIntOrNull()
+                        if (id != null) map[tok] = id
+                    }
+                }
+            }
+            Log.d(tag, "Loaded ${map.size} coqui tokens")
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to load coqui tokens", e)
+        }
+        tokens = map
+        return map
+    }
+
+    private fun writeWav(outFile: File, samples: FloatArray, sampleRate: Int) {
+        val pcm = ByteBuffer.allocate(samples.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+        samples.forEach { f ->
+            val s = (f * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            pcm.putShort(s)
+        }
+        val pcmData = pcm.array()
+        val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+        val totalDataLen = pcmData.size + 36
+        header.put("RIFF".toByteArray())
+        header.putInt(totalDataLen)
+        header.put("WAVE".toByteArray())
+        header.put("fmt ".toByteArray())
+        header.putInt(16)
+        header.putShort(1)
+        header.putShort(1) // mono
+        header.putInt(sampleRate)
+        header.putInt(sampleRate * 2)
+        header.putShort(2)
+        header.putShort(16)
+        header.put("data".toByteArray())
+        header.putInt(pcmData.size)
+
+        FileOutputStream(outFile).use { fos ->
+            fos.write(header.array())
+            fos.write(pcmData)
+            fos.flush()
+        }
     }
 
     private fun getExistingModelFile(): File? {
-        // 1) Prefer a user-provided model in external app-specific downloads
-        try {
-            val extBase = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            if (extBase != null) {
-                val manualDir = File(extBase, "coqui_tts")
-                val manualModel = File(manualDir, modelName)
-                if (manualModel.exists() && manualModel.length() > 0) return manualModel
-            }
-        } catch (_: Exception) {
+        val candidateDirs = mutableListOf<File>()
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
+            candidateDirs.add(File(it, "coqui_tts"))
+            candidateDirs.add(it)
         }
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.let {
+            candidateDirs.add(it)
+            candidateDirs.add(File(it, "coqui_tts"))
+        }
+        Environment.getExternalStorageDirectory()?.let {
+            candidateDirs.add(it)
+            candidateDirs.add(File(it, "Download"))
+        }
+        candidateDirs.add(File(context.filesDir, "coqui_tts"))
 
-        // 2) Fallback to internal storage
-        val internalDir = File(context.filesDir, "coqui_tts")
-        val internalModel = File(internalDir, modelName)
-        if (internalModel.exists() && internalModel.length() > 0) return internalModel
+        candidateDirs.forEach { dir ->
+            findModelFile(dir, depth = 2)?.let { return it }
+        }
+        return null
+    }
 
+    private fun findModelFile(dir: File, depth: Int): File? {
+        if (depth < 0 || !dir.exists() || !dir.isDirectory) return null
+        dir.listFiles()?.forEach { f ->
+            if (f.isFile && f.name.equals(modelName, ignoreCase = true) && f.length() > 0) {
+                Log.d(tag, "Found Coqui model at ${f.absolutePath}")
+                return f
+            }
+            if (f.isDirectory && (f.name.contains("coqui", true) || depth > 0)) {
+                findModelFile(f, depth - 1)?.let { return it }
+            }
+        }
         return null
     }
 

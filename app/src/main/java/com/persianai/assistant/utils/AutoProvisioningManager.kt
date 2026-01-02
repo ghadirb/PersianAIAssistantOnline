@@ -67,10 +67,13 @@ object AutoProvisioningManager {
             }
 
             val processedKeys = parsed.map { key ->
-                val defaultBase = when (key.provider) {
-                    AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                    AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
-                    AIProvider.OPENAI -> "https://api.openai.com/v1"
+                val inferredProvider = key.provider
+                val defaultBase = when {
+                    inferredProvider == AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                    inferredProvider == AIProvider.OPENROUTER && key.key.startsWith("hf_") ->
+                        "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
+                    inferredProvider == AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
+                    inferredProvider == AIProvider.OPENAI -> "https://api.openai.com/v1"
                     else -> key.baseUrl
                 }
                 key.copy(
@@ -139,8 +142,9 @@ object AutoProvisioningManager {
                 "liara" -> AIProvider.LIARA
                 "openai", "gpt" -> AIProvider.OPENAI
                 "anthropic", "claude" -> AIProvider.ANTHROPIC
-                "openrouter", "or" -> AIProvider.OPENROUTER
+                "openrouter" -> AIProvider.OPENROUTER
                 "aiml", "aimlapi" -> AIProvider.AIML
+                "huggingface", "hf" -> AIProvider.OPENROUTER
                 else -> null
             }
             if (provider != null) {
@@ -168,6 +172,9 @@ object AutoProvisioningManager {
 
         // Liara keys in gist are JWT-like tokens starting with eyJ...
         if (trimmed.startsWith("eyJ")) return AIProvider.LIARA
+
+        // HuggingFace tokens start with hf_
+        if (lower.startsWith("hf_")) return AIProvider.OPENROUTER
 
         // OpenAI (and some project keys) start with sk- or sk-proj-
         if (lower.startsWith("sk-")) return AIProvider.OPENAI

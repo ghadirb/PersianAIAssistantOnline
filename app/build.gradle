@@ -5,7 +5,7 @@ plugins {
     id 'kotlin-parcelize'
 }
 
-// می‌توان با -PskipNativeBuild=true ساخت بومی را در CI غیرفعال کرد (در این حالت استنتاج آفلاین واقعی غیرفعال می‌شود)
+// To disable native build in CI use -PskipNativeBuild=true (offline native inference disabled)
 def enableNativeBuild = !project.hasProperty("skipNativeBuild")
 // مسیر resolve شده llama.cpp
 def resolvedLlamaDir = null
@@ -51,8 +51,27 @@ task copyCoqui(type: Copy) {
     }
 }
 
+// Copy offline Vosk STT model into app assets if developer provided it under project root or via env var
+def voskHost = System.getenv('VOSK_MODEL_PATH') ?: file(rootDir.toString() + '/vosk-model').toString()
+task copyVosk(type: Copy) {
+    def src = file(voskHost)
+    if (src.exists()) {
+        from src
+        into "$projectDir/src/main/assets/vosk"
+    } else {
+        doFirst {
+            println "Vosk model not found at ${voskHost} — skipping copyVosk"
+        }
+    }
+}
+
 preBuild.dependsOn copyHaaniye
 preBuild.dependsOn copyCoqui
+if (System.getenv('INCLUDE_VOSK_ASSETS') == 'true') {
+    preBuild.dependsOn copyVosk
+} else {
+    println "Skipping copyVosk (set INCLUDE_VOSK_ASSETS=true to embed model; otherwise runtime download keeps APK smaller)"
+}
 
 // If PREBUILT_LIBS_URL is provided in CI environment, run fetch script to populate prebuilt_libs
 def prebuiltUrl = System.getenv('PREBUILT_LIBS_URL')
@@ -234,6 +253,9 @@ dependencies {
 
     // ONNX Runtime (for offline Haaniye STT)
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.1'
+
+    // Vosk offline STT
+    implementation 'com.alphacephei:vosk-android:0.3.42'
     
     // Google Services
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
