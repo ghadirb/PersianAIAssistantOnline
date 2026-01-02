@@ -254,8 +254,8 @@ dependencies {
     // ONNX Runtime (for offline Haaniye STT)
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.1'
 
-    // Vosk offline STT
-    implementation 'com.alphacephei:vosk-android:0.3.42'
+    // Vosk offline STT (use 0.3.45 available on Maven Central)
+    implementation 'com.alphacephei:vosk-android:0.3.45'
     
     // Google Services
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
