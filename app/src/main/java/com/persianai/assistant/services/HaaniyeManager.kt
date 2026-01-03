@@ -217,7 +217,7 @@ object HaaniyeManager {
             // naive tokenization: split by space; match tokens.txt
             val pieces = text.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
             if (pieces.isEmpty()) return null
-            val ids = pieces.mapNotNull { map[it.lowercase()] ?: map[it] }.toLongArray()
+            val ids = pieces.mapNotNull { map[it.lowercase()] ?: map[it] }.map { it.toLong() }.toLongArray()
             if (ids.isEmpty()) return null
 
             val inputName = s.inputNames.firstOrNull { it.contains("text", true) }
@@ -237,22 +237,23 @@ object HaaniyeManager {
                 inputs[it] = OnnxTensor.createTensor(envLocal, floatArrayOf(0.667f))
             }
 
-            val out = s.run(inputs)
-            val first = out.firstOrNull()?.value
-            out.forEach { it.close() }
-            inputs.values.forEach { it.close() }
-            val audioFloats: FloatArray = when (first) {
-                is Array<*> -> {
-                    // could be Array<FloatArray>
-                    (first.firstOrNull() as? FloatArray) ?: return null
+            val result = s.run(inputs)
+            val audioFloats: FloatArray = try {
+                val firstVal = result[0] as? ai.onnxruntime.OnnxValue
+                val raw = firstVal?.value
+                when (raw) {
+                    is Array<*> -> (raw.firstOrNull() as? FloatArray) ?: return null
+                    is FloatArray -> raw
+                    is java.nio.FloatBuffer -> {
+                        val arr = FloatArray(raw.remaining())
+                        raw.get(arr)
+                        arr
+                    }
+                    else -> return null
                 }
-                is FloatArray -> first
-                is java.nio.FloatBuffer -> {
-                    val arr = FloatArray(first.remaining())
-                    first.get(arr)
-                    arr
-                }
-                else -> return null
+            } finally {
+                try { result.close() } catch (_: Exception) {}
+                inputs.values.forEach { v -> try { v.close() } catch (_: Exception) {} }
             }
             if (audioFloats.isEmpty()) return null
 

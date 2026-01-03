@@ -154,6 +154,51 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
     }
 
+    private fun callWhisperLike(url: String, key: String, body: okhttp3.MultipartBody): String {
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $key")
+            .post(body)
+            .build()
+        client.newCall(request).execute().use { resp ->
+            val respBody = resp.body?.string()
+            if (!resp.isSuccessful) {
+                android.util.Log.e("AIClient", "Whisper-like error ${resp.code}: $respBody")
+                return ""
+            }
+            if (respBody.isNullOrBlank()) return ""
+            return try {
+                val json = gson.fromJson(respBody, JsonObject::class.java)
+                json.get("text")?.asString ?: json.get("generated_text")?.asString ?: respBody
+            } catch (_: Exception) {
+                respBody
+            }
+        }
+    }
+
+    private fun callHuggingFaceWhisper(url: String, key: String, body: okhttp3.MultipartBody): String {
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $key")
+            .addHeader("Accept", "application/json")
+            .post(body)
+            .build()
+        client.newCall(request).execute().use { resp ->
+            val respBody = resp.body?.string()
+            if (!resp.isSuccessful) {
+                android.util.Log.e("AIClient", "HF Whisper error ${resp.code}: $respBody")
+                return ""
+            }
+            if (respBody.isNullOrBlank()) return ""
+            return try {
+                val json = gson.fromJson(respBody, JsonObject::class.java)
+                json.get("text")?.asString ?: json.get("generated_text")?.asString ?: respBody
+            } catch (_: Exception) {
+                respBody
+            }
+        }
+    }
+
     /**
      * ارسال به Claude (Anthropic)
      */

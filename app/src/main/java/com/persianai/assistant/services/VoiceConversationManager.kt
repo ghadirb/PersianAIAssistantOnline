@@ -246,7 +246,7 @@ class VoiceConversationManager(
 
                     // In offline voice conversation we must not get stuck in silence.
                     try {
-                        speakWithCoquiOrFallback("متوجه نشدم، دوباره بگو")
+                        speakWithHaaniyeOrFallback("متوجه نشدم، دوباره بگو")
                     } catch (_: Exception) {
                     }
                     continue

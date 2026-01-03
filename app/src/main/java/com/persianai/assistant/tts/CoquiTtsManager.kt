@@ -11,6 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import ai.onnxruntime.OnnxValue
 
 class CoquiTtsManager(private val context: Context) {
 
@@ -104,17 +105,19 @@ class CoquiTtsManager(private val context: Context) {
             scalesName?.let { inputs[it] = ai.onnxruntime.OnnxTensor.createTensor(envLocal, floatArrayOf(0.667f)) }
 
             val results = s.run(inputs)
-            val first = results.firstOrNull()?.value
-            results.forEach { it.close() }
-            inputs.values.forEach { it.close() }
-
-            val audioFloats: FloatArray = when (first) {
-                is Array<*> -> (first.firstOrNull() as? FloatArray) ?: return null
-                is FloatArray -> first
-                is java.nio.FloatBuffer -> {
-                    val arr = FloatArray(first.remaining()); first.get(arr); arr
+            val audioFloats: FloatArray = try {
+                val raw = results[0].value
+                when (raw) {
+                    is Array<*> -> (raw.firstOrNull() as? FloatArray) ?: return null
+                    is FloatArray -> raw
+                    is java.nio.FloatBuffer -> {
+                        val arr = FloatArray(raw.remaining()); raw.get(arr); arr
+                    }
+                    else -> return null
                 }
-                else -> return null
+            } finally {
+                try { results.close() } catch (_: Exception) {}
+                inputs.values.forEach { v -> try { v.close() } catch (_: Exception) {} }
             }
             if (audioFloats.isEmpty()) return null
 
