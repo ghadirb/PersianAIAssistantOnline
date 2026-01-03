@@ -264,7 +264,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        // Priority: Liara -> HF (any provider, key starts with hf_) -> OpenAI -> fallback HF default
+        // Priority: Liara -> HF (any provider, key starts with hf_) -> OpenAI -> fallback HF default (raw)
         val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
         val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
@@ -299,70 +299,77 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 .addFormDataPart("language", "fa")
                 .build()
 
-            // اولویت: Liara -> HF -> OpenAI -> HF fallback
-            val responseText = when {
-                liaraKey != null -> {
-                    val baseUrl = liaraKey.baseUrl?.trim()?.trimEnd('/')
-                        ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                    val url1 = "$baseUrl/audio/transcriptions"
-                    android.util.Log.d("AIClient", "transcribeAudio using LIARA at $url1")
-                    val liaraResp1 = callWhisperLike(url1, liaraKey.key, requestBody)
-                    if (liaraResp1.isNotBlank()) liaraResp1 else {
-                        // بعضی دیپلوی‌ها از مسیر audio:transcribe استفاده می‌کنند
-                        val url2 = "$baseUrl/audio:transcribe"
-                        android.util.Log.d("AIClient", "Liara retry at $url2")
-                        callWhisperLike(url2, liaraKey.key, requestBody)
-                    }
-                }
-                hfKey != null -> {
-                    val url = hfKey.baseUrl?.trim()?.trimEnd('/')
-                        ?: "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
-                    android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
-                    callHuggingFaceWhisper(url, hfKey.key, requestBody)
-                }
-                openAiKey != null -> {
-                    val baseUrl = openAiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
-                    val url = "$baseUrl/audio/transcriptions"
-                    android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
-                    callWhisperLike(url, openAiKey.key, requestBody)
-                }
-                else -> {
-                    // fallback to default HF key if provided
-                    null
-                }
+            // اولویت: Liara -> HF -> OpenAI -> HF (خام) -> HF پیش‌فرض
+            // Liara
+            liaraKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/')
+                    ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                val url1 = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using LIARA at $url1")
+                callWhisperLike(url1, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+                val url2 = "$baseUrl/audio:transcribe"
+                android.util.Log.d("AIClient", "Liara retry at $url2")
+                callWhisperLike(url2, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            if (!responseText.isNullOrBlank()) return@withContext responseText
+            // HuggingFace (multipart)
+            hfKey?.let { key ->
+                val url = key.baseUrl?.trim()?.trimEnd('/')
+                    ?: "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
+                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
+                callHuggingFaceWhisper(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+            }
 
+            // OpenAI (اگر HF پاسخ نداد)
+            openAiKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                val url = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
+                callWhisperLike(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+            }
+
+            // HF raw bytes با توکن موجود یا پیش‌فرض
             val hfToken = hfKey?.key ?: fallbackHf
-            if (hfToken.isNullOrBlank()) return@withContext ""
-
-            val hfReqBody = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
-            val hfRequest = Request.Builder()
-                .url("https://api-inference.huggingface.co/models/openai/whisper-large-v3")
-                .addHeader("Authorization", "Bearer $hfToken")
-                .post(hfReqBody)
-                .build()
-            client.newCall(hfRequest).execute().use { resp ->
-                val bodyStr = resp.body?.string()
-                if (!resp.isSuccessful) {
-                    android.util.Log.e("AIClient", "HF STT error: ${resp.code} - $bodyStr")
-                    return@withContext ""
-                }
-                if (bodyStr.isNullOrBlank()) return@withContext ""
-                if (bodyStr.trim().startsWith("{")) {
-                    return@withContext try {
-                        val json = gson.fromJson(bodyStr, JsonObject::class.java)
-                        json.get("text")?.asString ?: json.get("generated_text")?.asString ?: ""
-                    } catch (_: Exception) {
-                        bodyStr
-                    }
-                }
-                return@withContext bodyStr
+            if (!hfToken.isNullOrBlank()) {
+                val raw = callHuggingFaceRaw(hfToken, mediaTypeStr, file)
+                if (raw.isNotBlank()) return@withContext raw
             }
+
+            ""
         } catch (e: Exception) {
             android.util.Log.e("AIClient", "Whisper transcription error: ${e.message}", e)
             return@withContext ""
+        }
+    }
+
+    private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
+        val url = "https://api-inference.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
+        val body = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("Accept", "application/json")
+            .post(body)
+            .build()
+
+        client.newCall(request).execute().use { resp ->
+            val respBody = resp.body?.string()
+            if (!resp.isSuccessful) {
+                android.util.Log.e("AIClient", "HF STT (raw) error: ${resp.code} - $respBody")
+                return ""
+            }
+            if (respBody.isNullOrBlank()) return ""
+            if (respBody.startsWith("<!doctype", true)) {
+                android.util.Log.e("AIClient", "HF STT returned HTML (blocked)")
+                return ""
+            }
+            return try {
+                val json = gson.fromJson(respBody, JsonObject::class.java)
+                json.get("text")?.asString ?: json.get("generated_text")?.asString ?: respBody
+            } catch (_: Exception) {
+                respBody
+            }
         }
     }
 }
