@@ -103,10 +103,27 @@ object VoskManager {
 
     private fun isValidVoskDir(dir: File?): Boolean {
         if (dir == null || !dir.exists() || !dir.isDirectory) return false
-        val hasConf = File(dir, "conf").exists()
-        val hasAm = File(dir, "am").exists()
-        val hasGraph = File(dir, "graph").exists() || File(dir, "ivector").exists()
-        return hasConf && hasAm
+        val missing = listMissingModelParts(dir)
+        if (missing.isNotEmpty()) {
+            Log.w(TAG, "Vosk dir missing files: ${missing.joinToString()} at ${dir.absolutePath}")
+            return false
+        }
+        return true
+    }
+
+    private fun listMissingModelParts(dir: File): List<String> {
+        val missing = mutableListOf<String>()
+        val conf = File(dir, "conf/mfcc.conf")
+        val am = File(dir, "am/final.mdl")
+        val graph = File(dir, "graph/HCLG.fst")
+        val graphAlt = File(dir, "graph/words.txt")
+
+        if (!conf.exists() || conf.length() == 0L) missing.add("conf/mfcc.conf")
+        if (!am.exists() || am.length() == 0L) missing.add("am/final.mdl")
+        if ((!graph.exists() || graph.length() == 0L) && (!graphAlt.exists() || graphAlt.length() == 0L)) {
+            missing.add("graph/HCLG.fst")
+        }
+        return missing
     }
 
     private fun findVoskDirRecursive(base: File, depth: Int): File? {
