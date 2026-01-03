@@ -14,6 +14,8 @@ import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
+import com.persianai.assistant.models.AIProvider
+import com.persianai.assistant.models.APIKey
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,6 +39,12 @@ class SettingsActivity : AppCompatActivity() {
 
         prefsManager = PreferencesManager(this)
         
+        // Hide offline-related cards completely
+        binding.changeModeButton.visibility = View.GONE
+        binding.currentModeText.text = "حالت فعلی: آنلاین 🌐"
+        binding.offlineModelCard.visibility = View.GONE
+        binding.coquiTtsCard.visibility = View.GONE
+
         loadSettings()
         setupListeners()
     }
@@ -68,15 +76,9 @@ class SettingsActivity : AppCompatActivity() {
         
         // وضعیت TTS
         binding.ttsSwitch.isChecked = prefsManager.isTTSEnabled()
-        
-        // حالت کار فعلی
-        updateCurrentModeText()
-        
-        // وضعیت مدل آفلاین
-        updateOfflineModelStatus()
 
-        // وضعیت Coqui TTS
-        updateCoquiTtsStatus()
+        // حالت کار فعلی (اجباری آنلاین)
+        binding.currentModeText.text = "حالت فعلی: آنلاین 🌐"
     }
 
     private fun updateCoquiTtsStatus() {
@@ -150,32 +152,12 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
         
-        // دکمه تغییر حالت کار
-        binding.changeModeButton.setOnClickListener {
-            showChangeModeDialog()
-        }
-        
-        // دکمه انتخاب نوع مدل
-        binding.selectModelTypeButton.setOnClickListener {
-            showSelectModelTypeDialog()
-        }
-        
-        // دکمه دانلود / مدیریت مدل آفلاین
-        binding.downloadModelButton.setOnClickListener {
-            try {
-                val intent = Intent(this, OfflineModelsActivity::class.java)
-                startActivity(intent)
-            } catch (e: Exception) {
-                android.util.Log.e("SettingsActivity", "Error opening OfflineModelsActivity", e)
-                Toast.makeText(this, "خطا در باز کردن مدل‌های آفلاین: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
-        
-        // دکمه حذف مدل
-        binding.deleteModelButton.setOnClickListener {
-            showDeleteModelDialog()
-        }
-        
+        // حالت و مدل آفلاین غیرفعال شده‌اند
+        binding.changeModeButton.setOnClickListener { /* no-op: forced ONLINE */ }
+        binding.selectModelTypeButton.setOnClickListener { /* no-op */ }
+        binding.downloadModelButton.setOnClickListener { /* no-op */ }
+        binding.deleteModelButton.setOnClickListener { /* no-op */ }
+
         // دکمه مدیریت برنامه‌های متصل
         binding.manageAppsButton.setOnClickListener {
             try {
@@ -249,42 +231,11 @@ class SettingsActivity : AppCompatActivity() {
             showAboutDialog()
         }
 
-        binding.downloadCoquiTtsButton.setOnClickListener {
-            lifecycleScope.launch {
-                try {
-                    Toast.makeText(this@SettingsActivity, "در حال دانلود مدل Coqui...", Toast.LENGTH_SHORT).show()
-                    val ok = withContext(Dispatchers.IO) {
-                        CoquiTtsManager(this@SettingsActivity).downloadModelNow(force = false)
-                    }
-                    updateCoquiTtsStatus()
-                    Toast.makeText(
-                        this@SettingsActivity,
-                        if (ok) "✅ دانلود مدل انجام شد" else "❌ دانلود انجام نشد (ممکن است لینک مسدود باشد)"
-                        ,
-                        Toast.LENGTH_LONG
-                    ).show()
-                } catch (e: Exception) {
-                    android.util.Log.e("SettingsActivity", "downloadCoquiTtsButton failed", e)
-                    Toast.makeText(this@SettingsActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
+        binding.downloadCoquiTtsButton.setOnClickListener { /* no-op */ }
+        binding.openCoquiDriveButton.setOnClickListener { /* no-op */ }
 
-        binding.openCoquiDriveButton.setOnClickListener {
-            try {
-                val coqui = CoquiTtsManager(this)
-                val url = coqui.getDriveViewUrl()
-                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                startActivity(intent)
-
-                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Coqui Drive URL", url)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "🌐 لینک باز شد و در کلیپ‌بورد کپی شد", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                android.util.Log.e("SettingsActivity", "openCoquiDriveButton failed", e)
-                Toast.makeText(this, "❌ خطا در باز کردن لینک", Toast.LENGTH_SHORT).show()
-            }
+        binding.addOpenAiKeyButton.setOnClickListener {
+            promptAddOpenAiKey()
         }
     }
 
@@ -322,6 +273,38 @@ class SettingsActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    private fun promptAddOpenAiKey() {
+        val editText = android.widget.EditText(this).apply {
+            hint = "sk-proj-..."
+            setSingleLine()
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("افزودن کلید OpenAI (sk-proj-...)")
+            .setView(editText)
+            .setPositiveButton("ذخیره") { dialog, _ ->
+                val token = editText.text?.toString()?.trim().orEmpty()
+                if (token.startsWith("sk-proj-")) {
+                    val key = APIKey(
+                        provider = AIProvider.OPENAI,
+                        key = token,
+                        baseUrl = "https://api.openai.com/v1",
+                        isActive = true
+                    )
+                    val all = prefsManager.getAPIKeys().toMutableList().apply {
+                        add(key)
+                    }
+                    prefsManager.saveAPIKeys(all)
+                    loadSettings()
+                    Toast.makeText(this, "✅ کلید اضافه شد و فعال است", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "❌ فرمت باید با sk-proj- شروع شود", Toast.LENGTH_LONG).show()
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("انصراف") { dialog, _ -> dialog.dismiss() }
+            .show()
     }
     
     private fun showPasswordDialogForRefresh() {

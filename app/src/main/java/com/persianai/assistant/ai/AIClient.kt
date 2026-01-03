@@ -316,7 +316,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
             // HuggingFace (multipart)
             hfKey?.let { key ->
                 val url = key.baseUrl?.trim()?.trimEnd('/')
-                    ?: "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
+                    ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
                 android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
                 callHuggingFaceWhisper(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
@@ -344,7 +344,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
     }
 
     private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
-        val url = "https://api-inference.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
+        val url = "https://router.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
         val body = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
         val request = Request.Builder()
             .url(url)

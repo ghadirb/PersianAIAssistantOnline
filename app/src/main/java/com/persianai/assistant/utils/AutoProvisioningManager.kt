@@ -72,7 +72,7 @@ object AutoProvisioningManager {
                 val defaultBase = when {
                     inferredProvider == AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
                     inferredProvider == AIProvider.OPENROUTER && key.key.startsWith("hf_") ->
-                        "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
+                        "https://router.huggingface.co/models/openai/whisper-large-v3"
                     inferredProvider == AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
                     inferredProvider == AIProvider.OPENAI -> "https://api.openai.com/v1"
                     else -> key.baseUrl
@@ -91,7 +91,8 @@ object AutoProvisioningManager {
             // 4) ذخیره و فعال‌سازی
             val prefsManager = PreferencesManager(context)
             prefsManager.saveAPIKeys(processedKeys)
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+            // اجباری آنلاین
+            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.ONLINE)
             Log.d(TAG, "✅ ${processedKeys.size} کلید در prefs ذخیره و فعال شد")
 
             Result.success(processedKeys)
