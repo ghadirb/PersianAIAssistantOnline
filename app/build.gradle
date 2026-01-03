@@ -5,6 +5,10 @@ plugins {
     id 'kotlin-parcelize'
 }
 
+configurations.all {
+    exclude group: 'net.java.dev.jna', module: 'jna' // avoid jar duplicate; we add aar variant explicitly
+}
+
 // To disable native build in CI use -PskipNativeBuild=true (offline native inference disabled)
 def enableNativeBuild = !project.hasProperty("skipNativeBuild")
 // مسیر resolve شده llama.cpp

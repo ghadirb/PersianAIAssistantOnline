@@ -120,6 +120,81 @@
                     app:iconGravity="textStart"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
+                <!-- انتخاب پوشه‌های مدل -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:padding="8dp"
+                    android:background="#F5F5F5">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="پوشه‌های مدل (اختیاری):"
+                        android:textColor="#333"
+                        android:textStyle="bold"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/chooseVoskButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="انتخاب پوشه Vosk"
+                        app:icon="@android:drawable/ic_menu_search"
+                        app:iconGravity="textStart"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                    <TextView
+                        android:id="@+id/voskPathText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Vosk: (پوشه پیش‌فرض)"
+                        android:textColor="#555"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="8dp"
+                        android:layout_marginTop="4dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/chooseCoquiButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="انتخاب پوشه Coqui"
+                        app:icon="@android:drawable/ic_menu_search"
+                        app:iconGravity="textStart"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                    <TextView
+                        android:id="@+id/coquiPathText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Coqui: (پوشه پیش‌فرض)"
+                        android:textColor="#555"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="8dp"
+                        android:layout_marginTop="4dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/chooseLlmButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="انتخاب پوشه TinyLlama"
+                        app:icon="@android:drawable/ic_menu_search"
+                        app:iconGravity="textStart"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                    <TextView
+                        android:id="@+id/llmPathText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TinyLlama: (پوشه پیش‌فرض)"
+                        android:textColor="#555"
+                        android:textSize="12sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
             </LinearLayout>
 
         </androidx.cardview.widget.CardView>

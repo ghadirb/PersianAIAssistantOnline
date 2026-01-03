@@ -35,6 +35,11 @@ class PreferencesManager(context: Context) {
 
         private const val KEY_PERSISTENT_STATUS_NOTIFICATION = "persistent_status_notification"
         private const val KEY_PERSISTENT_NOTIFICATION_ACTIONS = "persistent_notification_actions"
+
+        // کاربر بتواند مسیر پوشه مدل‌ها را دستی انتخاب کند
+        private const val KEY_CUSTOM_VOSK_DIR = "custom_vosk_dir"
+        private const val KEY_CUSTOM_COQUI_DIR = "custom_coqui_dir"
+        private const val KEY_CUSTOM_LLM_DIR = "custom_llm_dir"
         
         const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
@@ -199,6 +204,37 @@ JSON ONLY."""
             ProviderPreference.AUTO
         }
     }
+
+    // مسیرهای انتخابی کاربر برای مدل‌ها
+    fun setCustomVoskDir(path: String?) {
+        if (path.isNullOrBlank()) {
+            prefs.edit().remove(KEY_CUSTOM_VOSK_DIR).apply()
+        } else {
+            prefs.edit().putString(KEY_CUSTOM_VOSK_DIR, path.trim()).apply()
+        }
+    }
+
+    fun getCustomVoskDir(): String? = prefs.getString(KEY_CUSTOM_VOSK_DIR, null)
+
+    fun setCustomCoquiDir(path: String?) {
+        if (path.isNullOrBlank()) {
+            prefs.edit().remove(KEY_CUSTOM_COQUI_DIR).apply()
+        } else {
+            prefs.edit().putString(KEY_CUSTOM_COQUI_DIR, path.trim()).apply()
+        }
+    }
+
+    fun getCustomCoquiDir(): String? = prefs.getString(KEY_CUSTOM_COQUI_DIR, null)
+
+    fun setCustomLlmDir(path: String?) {
+        if (path.isNullOrBlank()) {
+            prefs.edit().remove(KEY_CUSTOM_LLM_DIR).apply()
+        } else {
+            prefs.edit().putString(KEY_CUSTOM_LLM_DIR, path.trim()).apply()
+        }
+    }
+
+    fun getCustomLlmDir(): String? = prefs.getString(KEY_CUSTOM_LLM_DIR, null)
 
     fun setWelcomeCompleted(completed: Boolean) {
         prefs.edit().putBoolean(KEY_WELCOME_COMPLETED, completed).apply()

@@ -1,19 +1,21 @@
 package com.persianai.assistant.models
 
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
-import androidx.lifecycle.LiveData
+import android.webkit.URLUtil
+import androidx.core.net.toFile
 import androidx.lifecycle.MutableLiveData
-import kotlinx.coroutines.*
-import kotlinx.coroutines.delay
+import com.persianai.assistant.utils.DefaultApiKeys
+import com.persianai.assistant.utils.PreferencesManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.*
-import java.net.HttpURLConnection
+import java.io.File
 import java.net.URL
-import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * مدیریت دانلود و استفاده از مدل‌های آفلاین
@@ -287,6 +289,16 @@ class OfflineModelManager(private val context: Context) {
      */
     private fun scanForManuallyDownloadedModels() {
         val candidateDirs = mutableListOf<File>()
+
+        // User-selected directory (highest priority)
+        try {
+            val custom = PreferencesManager(context).getCustomLlmDir()
+            if (!custom.isNullOrBlank()) {
+                val dir = File(custom)
+                if (dir.exists()) candidateDirs.add(dir)
+            }
+        } catch (_: Exception) {}
+
         context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
             candidateDirs.add(File(it, "models"))
             candidateDirs.add(it)

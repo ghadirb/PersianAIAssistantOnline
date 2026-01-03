@@ -3,12 +3,14 @@ package com.persianai.assistant.tts
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
-import android.util.Log
+import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Environment
+import android.util.Log
+import com.persianai.assistant.utils.DefaultApiKeys
+import com.persianai.assistant.utils.PreferencesManager
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import ai.onnxruntime.OnnxValue
@@ -196,6 +198,16 @@ class CoquiTtsManager(private val context: Context) {
 
     private fun getExistingModelFile(): File? {
         val candidateDirs = mutableListOf<File>()
+
+        // user-selected path first
+        try {
+            val custom = PreferencesManager(context).getCustomCoquiDir()
+            if (!custom.isNullOrBlank()) {
+                val f = findModelFile(File(custom), depth = 3)
+                if (f != null) return f
+            }
+        } catch (_: Exception) {}
+
         context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
             candidateDirs.add(File(it, "coqui_tts"))
             candidateDirs.add(it)

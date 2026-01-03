@@ -14,6 +14,7 @@ import java.util.zip.ZipInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import android.os.Environment
+import com.persianai.assistant.utils.PreferencesManager
 
 object VoskManager {
     private const val TAG = "VoskManager"
@@ -44,6 +45,18 @@ object VoskManager {
      * Try external/shared storage before assets/download.
      */
     private fun resolveOrDownloadModel(context: Context): File? {
+        // User-selected directory (if any) has highest priority
+        try {
+            val custom = PreferencesManager(context).getCustomVoskDir()
+            if (!custom.isNullOrBlank()) {
+                val dir = File(custom)
+                if (isValidVoskDir(dir)) {
+                    Log.d(TAG, "Using user-selected Vosk dir: ${dir.absolutePath}")
+                    return dir
+                }
+            }
+        } catch (_: Exception) {}
+
         // 1) External common locations (no copy, just use in-place)
         val externalDirs = listOfNotNull(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),

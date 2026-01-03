@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
@@ -25,6 +26,22 @@ class OfflineModelsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityOfflineModelsBinding
     private lateinit var modelManager: OfflineModelManager
     private lateinit var adapter: ModelsAdapter
+    private lateinit var prefs: com.persianai.assistant.utils.PreferencesManager
+
+    private val pickVoskDir = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri ?: return@registerForActivityResult
+        handleTreeSelection(uri, ModelFolder.VOSK)
+    }
+    private val pickCoquiDir = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri ?: return@registerForActivityResult
+        handleTreeSelection(uri, ModelFolder.COQUI)
+    }
+    private val pickLlmDir = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri ?: return@registerForActivityResult
+        handleTreeSelection(uri, ModelFolder.LLM)
+    }
+
+    private enum class ModelFolder { VOSK, COQUI, LLM }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,6 +53,7 @@ class OfflineModelsActivity : AppCompatActivity() {
         supportActionBar?.title = "مدل‌های آفلاین"
         
         modelManager = OfflineModelManager(this)
+        prefs = com.persianai.assistant.utils.PreferencesManager(this)
         
         setupViews()
         observeDownloadProgress()
@@ -67,6 +85,13 @@ class OfflineModelsActivity : AppCompatActivity() {
             loadModels()
             Toast.makeText(this, "✅ اسکن کامل شد", Toast.LENGTH_SHORT).show()
         }
+
+        // انتخاب مسیرها
+        binding.chooseVoskButton?.setOnClickListener { pickVoskDir.launch(null) }
+        binding.chooseCoquiButton?.setOnClickListener { pickCoquiDir.launch(null) }
+        binding.chooseLlmButton?.setOnClickListener { pickLlmDir.launch(null) }
+
+        updateSelectedPaths()
 
         binding.cancelDownloadButton?.setOnClickListener {
             modelManager.cancelDownload()
@@ -106,6 +131,51 @@ class OfflineModelsActivity : AppCompatActivity() {
             binding.downloadProgress.visibility = visibility
             binding.downloadStatus.visibility = visibility
         })
+    }
+
+    private fun handleTreeSelection(uri: android.net.Uri, folder: ModelFolder) {
+        // نگه داشتن دسترسی
+        val flags = (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        try {
+            contentResolver.takePersistableUriPermission(uri, flags)
+        } catch (_: Exception) {
+        }
+
+        val resolvedPath = resolveTreeUriToPath(uri)
+        if (resolvedPath.isNullOrBlank()) {
+            Toast.makeText(this, "❌ مسیر قابل استفاده نیست. لطفاً پوشه‌ای از حافظه داخلی انتخاب کنید.", Toast.LENGTH_LONG).show()
+            return
+        }
+        when (folder) {
+            ModelFolder.VOSK -> prefs.setCustomVoskDir(resolvedPath)
+            ModelFolder.COQUI -> prefs.setCustomCoquiDir(resolvedPath)
+            ModelFolder.LLM -> prefs.setCustomLlmDir(resolvedPath)
+        }
+        updateSelectedPaths()
+        Toast.makeText(this, "✅ مسیر ذخیره شد: $resolvedPath", Toast.LENGTH_SHORT).show()
+        // پس از تغییر مسیر، یک اسکن سریع انجام بده
+        loadModels()
+    }
+
+    private fun resolveTreeUriToPath(uri: android.net.Uri): String? {
+        // فقط primary storage را پشتیبانی می‌کنیم (content://com.android.externalstorage.documents/tree/primary:Download/...)
+        val docId = android.provider.DocumentsContract.getTreeDocumentId(uri) ?: return null
+        val parts = docId.split(":")
+        if (parts.isEmpty()) return null
+        val volume = parts[0]
+        val relPath = if (parts.size > 1) parts[1] else ""
+        val base = when (volume.lowercase()) {
+            "primary" -> android.os.Environment.getExternalStorageDirectory().absolutePath
+            "home" -> android.os.Environment.getExternalStorageDirectory().absolutePath + "/Documents"
+            else -> "/storage/$volume"
+        }
+        return if (relPath.isBlank()) base else "$base/$relPath"
+    }
+
+    private fun updateSelectedPaths() {
+        binding.voskPathText?.text = prefs.getCustomVoskDir()?.let { "Vosk: $it" } ?: "Vosk: (پوشه پیش‌فرض)"
+        binding.coquiPathText?.text = prefs.getCustomCoquiDir()?.let { "Coqui: $it" } ?: "Coqui: (پوشه پیش‌فرض)"
+        binding.llmPathText?.text = prefs.getCustomLlmDir()?.let { "TinyLlama: $it" } ?: "TinyLlama: (پوشه پیش‌فرض)"
     }
     
     inner class ModelsAdapter : RecyclerView.Adapter<ModelsAdapter.ModelViewHolder>() {
