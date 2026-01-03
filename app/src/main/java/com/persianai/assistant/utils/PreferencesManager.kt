@@ -173,17 +173,13 @@ JSON ONLY."""
     }
 
     fun setWorkingMode(mode: WorkingMode) {
-        prefs.edit().putString(KEY_WORKING_MODE, mode.name).apply()
+        // همیشه آنلاین؛ ورودی را نادیده می‌گیریم
+        prefs.edit().putString(KEY_WORKING_MODE, WorkingMode.ONLINE.name).apply()
     }
 
     fun getWorkingMode(): WorkingMode {
-        // پیش‌فرض را کاملاً آفلاین می‌گیریم تا همه ضبط‌ها و مکالمات بدون اینترنت کار کنند
-        val modeName = prefs.getString(KEY_WORKING_MODE, WorkingMode.HYBRID.name)
-        return try {
-            WorkingMode.valueOf(modeName!!)
-        } catch (e: Exception) {
-            WorkingMode.HYBRID
-        }
+        // حالت اجباری آنلاین برای جلوگیری از مسیرهای آفلاین/هیبرید
+        return WorkingMode.ONLINE
     }
 
     enum class ProviderPreference {

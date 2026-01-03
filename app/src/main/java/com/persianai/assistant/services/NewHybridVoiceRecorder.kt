@@ -303,36 +303,9 @@ class NewHybridVoiceRecorder(private val context: Context) {
     fun getRecordingFile(): File? = currentFile
 
     suspend fun analyzeOffline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🎤 analyzeOffline: starting with file=${audioFile.name}, size=${audioFile.length()} bytes")
-            
-            if (!audioFile.exists() || audioFile.length() == 0L) {
-                Log.e(TAG, "❌ analyzeOffline: Invalid audio file")
-                return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
-            }
-
-            // Try Vosk offline first
-            val voskResult = VoskManager.transcribe(context, audioFile)
-            if (voskResult.isNotBlank()) {
-                Log.d(TAG, "✔ analyzeOffline (Vosk): Success - $voskResult")
-                return@withContext Result.success(voskResult)
-            }
-
-            Log.w(TAG, "⚠️ Vosk offline returned blank; falling back to legacy Haaniye")
-
-            val text = HaaniyeManager.inferOffline(context, audioFile)
-            Log.d(TAG, "✅ analyzeOffline: legacy Haaniye result length=${text?.length} chars")
-
-            if (text.isBlank()) {
-                Log.w(TAG, "⚠️ analyzeOffline: Offline STT returned blank")
-                Result.failure(IllegalStateException("Offline STT not available"))
-            } else {
-                Result.success(text)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ analyzeOffline: Exception - ${e.message}", e)
-            Result.failure(e)
-        }
+        // آفلاین موقتاً غیرفعال شده تا کرش Vosk رخ ندهد
+        Log.w(TAG, "⚠️ analyzeOffline disabled (forcing online-only)")
+        Result.failure(IllegalStateException("Offline STT disabled"))
     }
 
     suspend fun analyzeOnline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
@@ -365,36 +338,51 @@ class NewHybridVoiceRecorder(private val context: Context) {
             }
 
             Log.d(TAG, "🌐 Creating AIClient with ${activeKeys.size} active key(s)")
-            // اولویت: Gemini 2.0 Flash برای ضبط صدا
             val client = AIClient(activeKeys)
             
             Log.d(TAG, "📤 Calling transcribeAudio: ${audioFile.absolutePath}")
-            Log.d(TAG, "🎤 Using: Liara (Gemini 2.0 Flash) for voice transcription")
             val text = client.transcribeAudio(audioFile.absolutePath).trim()
             
             Log.d(TAG, "📥 Transcription result: ${if (text.isBlank()) "EMPTY" else "OK (${text.length} chars)"}")
             
             if (text.isBlank()) {
-                Log.w(TAG, "⚠️ Online STT returned blank - Trying offline...")
+                Log.w(TAG, "⚠️ Online STT returned blank")
                 Result.failure(IllegalStateException("Online STT returned blank"))
             } else {
-                Log.d(TAG, "✅ Online transcription successful with Gemini 2.0 Flash")
+                Log.d(TAG, "✅ Online transcription successful")
                 Result.success(text)
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Online analysis exception: ${e.message}", e)
-            Log.w(TAG, "⚠️ Online failed - will fallback to offline Haaniye")
             Result.failure(e)
         }
     }
 
     suspend fun analyzeHybrid(audioFile: File): Result<HybridAnalysisResult> = withContext(Dispatchers.IO) {
+        val prefs = PreferencesManager(context)
+        val mode = prefs.getWorkingMode()
+
+        // اگر آفلاین نیستیم، مستقیماً آنلاین را صدا بزنیم
+        if (mode != PreferencesManager.WorkingMode.OFFLINE) {
+            val online = analyzeOnline(audioFile)
+            val onlineText = online.getOrNull()?.trim()
+            val primary = onlineText.orEmpty()
+            return@withContext Result.success(
+                HybridAnalysisResult(
+                    offlineText = null,
+                    onlineText = onlineText,
+                    primaryText = primary,
+                    confidence = if (!onlineText.isNullOrBlank()) 0.75 else 0.0,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+
+        // فقط وقتی کاربر صراحتاً OFFLINE است، آفلاین را امتحان کنیم
         val offline = analyzeOffline(audioFile)
         val offlineText = offline.getOrNull()?.trim()
-
-        // If offline succeeded with non-blank text, keep it as primary.
-        if (!offlineText.isNullOrBlank()) {
-            return@withContext Result.success(
+        return@withContext if (!offlineText.isNullOrBlank()) {
+            Result.success(
                 HybridAnalysisResult(
                     offlineText = offlineText,
                     onlineText = null,
@@ -403,22 +391,9 @@ class NewHybridVoiceRecorder(private val context: Context) {
                     timestamp = System.currentTimeMillis()
                 )
             )
+        } else {
+            Result.failure(Exception(offline.exceptionOrNull()?.message ?: "Offline STT disabled"))
         }
-
-        // If offline failed/blank, attempt online only when allowed by WorkingMode.
-        val online = analyzeOnline(audioFile)
-        val onlineText = online.getOrNull()?.trim()
-
-        val primary = onlineText.orEmpty()
-        Result.success(
-            HybridAnalysisResult(
-                offlineText = offlineText,
-                onlineText = onlineText,
-                primaryText = primary,
-                confidence = if (!onlineText.isNullOrBlank()) 0.75 else 0.0,
-                timestamp = System.currentTimeMillis()
-            )
-        )
     }
 
     /**

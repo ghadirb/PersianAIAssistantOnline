@@ -26,7 +26,7 @@ class SpeechToTextPipeline(private val context: Context) {
             
             Log.d(TAG, "Working mode: $mode")
 
-            // آنلاین اول (اگر حالت آفلاین نباشد)
+            // فقط آنلاین (ONLINE یا HYBRID)؛ آفلاین را فعلاً غیرفعال می‌کنیم تا کرش نشود
             if (mode != PreferencesManager.WorkingMode.OFFLINE) {
                 Log.d(TAG, "🌐 Attempting online transcription (Priority: Liara Gemini 2.0 Flash)...")
                 val keys = prefs.getAPIKeys()
@@ -60,32 +60,19 @@ class SpeechToTextPipeline(private val context: Context) {
                 }
             }
 
-            // آفلاین fallback (Haaniye یا TinyLlama)
-            Log.d(TAG, "📱 Attempting offline transcription (Haaniye model)...")
-            val offline = recorder.analyzeOffline(audioFile)
-            val offlineText = offline.getOrNull()?.trim()
-            
-            if (!offlineText.isNullOrBlank()) {
-                Log.d(TAG, "✅ Offline transcription (Haaniye): $offlineText")
-                return@withContext Result.success(offlineText)
-            } else {
-                val err = offline.exceptionOrNull()?.message ?: "Empty response"
-                Log.w(TAG, "⚠️ Haaniye failed: $err")
-                
-                // اگر Haaniye model نیست، user کو prompt کریں
-                val haaniyeAvailable = com.persianai.assistant.services.HaaniyeManager.isModelAvailable(context)
-                if (!haaniyeAvailable) {
-                    Log.w(TAG, "❌ Haaniye model not found. User must download model first.")
-                    val modelDir = com.persianai.assistant.services.HaaniyeManager.getModelDir(context).absolutePath
-                    return@withContext Result.failure(Exception("مدل آفلاین حانیه پیدا نشد. فایل fa-haaniye_low.onnx را در $modelDir قرار دهید یا از assets/tts/haaniye کپی کنید."))
+            // در حالت ONLINE/HYBRID اگر آنلاین خالی بود، دیگر به آفلاین نرویم
+            if (mode == PreferencesManager.WorkingMode.OFFLINE) {
+                Log.d(TAG, "📱 WorkingMode=OFFLINE => calling analyzeOffline")
+                val offline = recorder.analyzeOffline(audioFile)
+                val offlineText = offline.getOrNull()?.trim()
+                return@withContext if (!offlineText.isNullOrBlank()) {
+                    Result.success(offlineText)
+                } else {
+                    Result.failure(Exception(offline.exceptionOrNull()?.message ?: "Offline STT not available"))
                 }
-                
-                Log.w(TAG, "📱 Fallback: محدود‌شده به متن ساده (برای آزمایش)")
-                // Fallback ساده: بگذاریم کاربر متن وارد کند
-                return@withContext Result.failure(Exception("تبدیل گفتار آفلاین انجام نشد. لطفاً مدل حانیه را بررسی کنید یا برای Coqui/TinyLlama مدل را دانلود کنید."))
             }
 
-            Result.failure(IllegalStateException("No transcription method available"))
+            Result.failure(IllegalStateException("Online STT returned blank"))
         } catch (e: Exception) {
             Log.e(TAG, "❌ Transcription exception: ${e.message}", e)
             Result.failure(e)
