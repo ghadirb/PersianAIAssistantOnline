@@ -15,8 +15,9 @@ object AutoProvisioningManager {
     
     private const val TAG = "AutoProvisioning"
     private const val DEFAULT_PASSWORD = "12345"
+    // بدون هش کامیت تا با ویرایش محتوا نیاز به بیلد جدید نباشد
     private const val GIST_KEYS_URL =
-        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/2f64f5cba16c724540723915d70f60162d667cc0/keys.txt"
+        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/keys.txt"
     
     /**
      * بارگذاری و فعال‌سازی کلیدها از gist (بدون تکیه بر وضعیت قبلی)

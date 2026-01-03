@@ -114,11 +114,13 @@ object VoskManager {
     private fun listMissingModelParts(dir: File): List<String> {
         val missing = mutableListOf<String>()
         val conf = File(dir, "conf/mfcc.conf")
+        val confModel = File(dir, "conf/model.conf")
         val am = File(dir, "am/final.mdl")
         val graph = File(dir, "graph/HCLG.fst")
         val graphAlt = File(dir, "graph/words.txt")
 
         if (!conf.exists() || conf.length() == 0L) missing.add("conf/mfcc.conf")
+        if (!confModel.exists() || confModel.length() == 0L) missing.add("conf/model.conf")
         if (!am.exists() || am.length() == 0L) missing.add("am/final.mdl")
         if ((!graph.exists() || graph.length() == 0L) && (!graphAlt.exists() || graphAlt.length() == 0L)) {
             missing.add("graph/HCLG.fst")
