@@ -11,6 +11,8 @@ import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.PreferencesManager
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import ai.onnxruntime.OnnxValue

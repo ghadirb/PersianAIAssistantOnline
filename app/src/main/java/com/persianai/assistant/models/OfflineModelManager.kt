@@ -5,17 +5,28 @@ import android.net.Uri
 import android.os.Environment
 import android.webkit.URLUtil
 import androidx.core.net.toFile
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
+import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.net.URL
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 /**
  * مدیریت دانلود و استفاده از مدل‌های آفلاین

@@ -117,16 +117,16 @@ class OfflineModelsActivity : AppCompatActivity() {
     }
     
     private fun observeDownloadProgress() {
-        modelManager.downloadProgress.observe(this, Observer { progress ->
-            binding.downloadProgress.progress = progress.toInt()
+        modelManager.downloadProgress.observe(this, Observer { progress: Float? ->
+            binding.downloadProgress.progress = (progress ?: 0f).toInt()
         })
         
-        modelManager.downloadStatus.observe(this, Observer { status ->
-            binding.downloadStatus.text = status
+        modelManager.downloadStatus.observe(this, Observer { status: String? ->
+            binding.downloadStatus.text = status ?: ""
         })
         
-        modelManager.isDownloading.observe(this, Observer { isDownloading ->
-            val visibility = if (isDownloading) View.VISIBLE else View.GONE
+        modelManager.isDownloading.observe(this, Observer { isDownloading: Boolean? ->
+            val visibility = if (isDownloading == true) View.VISIBLE else View.GONE
             binding.downloadContainer.visibility = visibility
             binding.downloadProgress.visibility = visibility
             binding.downloadStatus.visibility = visibility
