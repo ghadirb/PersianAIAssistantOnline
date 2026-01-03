@@ -256,6 +256,8 @@ dependencies {
 
     // Vosk offline STT (use 0.3.45 available on Maven Central)
     implementation 'com.alphacephei:vosk-android:0.3.45'
+    // JNA required by Vosk native loader on Android
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
     
     // Google Services
     implementation 'com.google.android.gms:play-services-auth:20.7.0'

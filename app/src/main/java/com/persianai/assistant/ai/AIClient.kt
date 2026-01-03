@@ -304,9 +304,15 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 liaraKey != null -> {
                     val baseUrl = liaraKey.baseUrl?.trim()?.trimEnd('/')
                         ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                    val url = "$baseUrl/audio/transcriptions"
-                    android.util.Log.d("AIClient", "transcribeAudio using LIARA at $url")
-                    callWhisperLike(url, liaraKey.key, requestBody)
+                    val url1 = "$baseUrl/audio/transcriptions"
+                    android.util.Log.d("AIClient", "transcribeAudio using LIARA at $url1")
+                    val liaraResp1 = callWhisperLike(url1, liaraKey.key, requestBody)
+                    if (liaraResp1.isNotBlank()) liaraResp1 else {
+                        // بعضی دیپلوی‌ها از مسیر audio:transcribe استفاده می‌کنند
+                        val url2 = "$baseUrl/audio:transcribe"
+                        android.util.Log.d("AIClient", "Liara retry at $url2")
+                        callWhisperLike(url2, liaraKey.key, requestBody)
+                    }
                 }
                 hfKey != null -> {
                     val url = hfKey.baseUrl?.trim()?.trimEnd('/')
