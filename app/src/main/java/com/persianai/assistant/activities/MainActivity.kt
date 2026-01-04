@@ -41,7 +41,6 @@ import kotlinx.coroutines.withContext
 import android.view.MotionEvent
 import java.io.File
 import com.persianai.assistant.services.VoiceRecordingHelper
-import com.persianai.assistant.models.OfflineModelManager
 
 /**
  * صفحه اصلی چت

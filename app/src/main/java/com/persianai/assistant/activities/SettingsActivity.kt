@@ -9,7 +9,6 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.databinding.ActivitySettingsBinding
 import com.persianai.assistant.services.AIAssistantService
-import com.persianai.assistant.tts.CoquiTtsManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.DriveHelper
@@ -81,32 +80,6 @@ class SettingsActivity : AppCompatActivity() {
         binding.currentModeText.text = "حالت فعلی: آنلاین 🌐"
     }
 
-    private fun updateCoquiTtsStatus() {
-        try {
-            val coqui = CoquiTtsManager(this)
-            val manualPath = coqui.getManualModelPath()
-            val internalPath = coqui.getInternalModelPath()
-
-            binding.coquiTtsPathInfo.text =
-                "📁 مسیر کپی دستی:\n$manualPath\n\n📁 مسیر داخلی برنامه:\n$internalPath\n\nنام فایل باید دقیقاً: model.onnx"
-
-            val present = coqui.isModelFilePresent()
-            binding.coquiTtsStatus.text = "وضعیت: " + (if (present) "✅ مدل موجود است" else "❌ مدل موجود نیست")
-            binding.coquiTtsStatus.setTextColor(
-                getColor(if (present) android.R.color.holo_green_dark else android.R.color.holo_red_dark)
-            )
-
-            binding.coquiTtsPathInfo.setOnClickListener {
-                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Coqui Model Path", manualPath)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "✅ مسیر کپی شد", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("SettingsActivity", "updateCoquiTtsStatus failed", e)
-        }
-    }
-    
     private fun updateCurrentModeText() {
         val mode = prefsManager.getWorkingMode()
         val modeText = when (mode) {
@@ -115,33 +88,6 @@ class SettingsActivity : AppCompatActivity() {
             PreferencesManager.WorkingMode.HYBRID -> "ترکیبی ⚡"
         }
         binding.currentModeText.text = "حالت فعلی: $modeText"
-    }
-    
-    private fun updateOfflineModelStatus() {
-        val modelType = prefsManager.getOfflineModelType()
-
-        // نمایش نوع مدل انتخاب‌شده در تنظیمات
-        binding.offlineModelType.text = "نوع: ${modelType.displayName} (${modelType.size})"
-
-        // خواندن وضعیت واقعی از OfflineModelManager
-        val modelManager = com.persianai.assistant.models.OfflineModelManager(this)
-        val downloadedModels = modelManager.getDownloadedModels()
-
-        if (downloadedModels.isNotEmpty()) {
-            val names = downloadedModels.joinToString("، ") { it.first.name }
-            binding.offlineModelStatus.text = "✅ مدل(ها) آماده است: $names"
-            binding.offlineModelStatus.setTextColor(getColor(android.R.color.holo_green_dark))
-            // دکمه را برای مدیریت دوباره باز می‌گذاریم
-            binding.downloadModelButton.visibility = android.view.View.VISIBLE
-            binding.downloadModelButton.text = "مدیریت مدل‌های آفلاین"
-            binding.deleteModelButton.visibility = android.view.View.GONE
-        } else {
-            binding.offlineModelStatus.text = "❌ مدل دانلود نشده"
-            binding.offlineModelStatus.setTextColor(getColor(android.R.color.holo_red_dark))
-            binding.downloadModelButton.visibility = android.view.View.VISIBLE
-            binding.downloadModelButton.text = "دانلود / مدیریت مدل‌های آفلاین"
-            binding.deleteModelButton.visibility = android.view.View.GONE
-        }
     }
 
     private fun setupListeners() {
@@ -520,45 +466,12 @@ class SettingsActivity : AppCompatActivity() {
                 "آیا میخواهید دانلود شود؟"
             )
             .setPositiveButton("دانلود") { _, _ ->
-                startModelDownload()
+                dialog.dismiss()
             }
             .setNegativeButton("انصراف", null)
             .show()
     }
     
-    private fun startModelDownload() {
-        val downloadManager = com.persianai.assistant.utils.ModelDownloadManager(this)
-        val progressDialog = android.app.ProgressDialog(this).apply {
-            setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL)
-            max = 100
-            show()
-        }
-        
-        lifecycleScope.launch {
-            downloadManager.downloadModel(prefsManager.getOfflineModelType()) { progress ->
-                progressDialog.progress = progress
-            }
-            progressDialog.dismiss()
-            prefsManager.setOfflineModelDownloaded(true)
-            updateOfflineModelStatus()
-            Toast.makeText(this@SettingsActivity, "✅ دانلود شد", Toast.LENGTH_SHORT).show()
-        }
-    }
-    
-    private fun showDeleteModelDialog() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("حذف مدل آفلاین")
-            .setMessage("مطمئنید؟")
-            .setPositiveButton("حذف") { _, _ ->
-                com.persianai.assistant.utils.ModelDownloadManager(this).deleteModel()
-                prefsManager.setOfflineModelDownloaded(false)
-                updateOfflineModelStatus()
-                Toast.makeText(this, "✅ حذف شد", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("خیر", null)
-            .show()
-    }
-
     private fun showChangeModeDialog() {
         val modes = arrayOf(
             "🌐 آنلاین - پاسخ‌های دقیق با AI پیشرفته",

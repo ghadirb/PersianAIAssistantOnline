@@ -9,10 +9,8 @@ import java.io.File
 import java.util.*
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.core.AIIntentRequest
-import com.persianai.assistant.models.OfflineModelManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.tts.BeepFallback
-import com.persianai.assistant.tts.CoquiTtsManager
 import com.persianai.assistant.core.voice.SpeechToTextPipeline
 
 /**
@@ -37,7 +35,6 @@ class VoiceConversationManager(
     // TTS Engine
     private var textToSpeech: TextToSpeech? = null
     private var haaniyeTTS: MediaPlayer? = null
-    private val coquiTts by lazy { CoquiTtsManager(context) }
     
     // Conversation state
     private var isConversationActive = false
@@ -126,40 +123,12 @@ class VoiceConversationManager(
 
     private suspend fun speakWithHaaniyeOrFallback(text: String) = withContext(Dispatchers.Main) {
         if (text.isBlank()) return@withContext
-        // 1) Try Haaniye TTS (ONNX)
-        try {
-            val wav = withContext(Dispatchers.IO) { HaaniyeManager.synthesizeToWav(context, text) }
-            if (wav != null && wav.exists() && wav.length() > 0) {
-                playWavWithMediaPlayer(wav)
-                return@withContext
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Haaniye TTS failed: ${e.message}")
-        }
-
-        // 2) Try Coqui (if model present) else Android TTS
-        try {
-            val coquiOk = withContext(Dispatchers.IO) { coquiTts.ensureLoaded() }
-            if (coquiOk && coquiTts.isReady() && coquiTts.canSynthesizeText(text)) {
-                val wav = withContext(Dispatchers.IO) { coquiTts.synthesizeToWav(text) }
-                if (wav != null && wav.exists() && wav.length() > 0) {
-                    playWavWithMediaPlayer(wav)
-                    return@withContext
-                } else {
-                    Log.w(TAG, "Coqui synthesis returned empty; falling back to Android TTS")
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Coqui TTS failed or not ready: ${e.message}")
-        }
-
-        // 3) Android TTS
+        // Only Android TTS, then beep fallback
         try {
             speakWithAndroidTTS(text)
             return@withContext
         } catch (_: Exception) {}
 
-        // 4) Beep fallback
         try {
             BeepFallback.beep()
         } catch (_: Exception) {
@@ -408,17 +377,6 @@ class VoiceConversationManager(
         }
     }
 
-    private fun tryFindOfflineModelPath(): String? {
-        return try {
-            val manager = OfflineModelManager(context)
-            val list = manager.getDownloadedModels()
-            list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
-                ?: list.firstOrNull()?.second
-        } catch (_: Exception) {
-            null
-        }
-    }
-    
     /**
      * Speak AI response using appropriate TTS
      */
