@@ -1,26 +1,13 @@
 package com.persianai.assistant.ai
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import org.json.JSONObject
 
 /**
- * تحلیل‌گر دستورات آفلاین (بدون نیاز به AI)
- * از الگوهای ساده برای تشخیص intent استفاده می‌کند
+ * آفلاین غیرفعال شده؛ فقط پیغام ثابت برمی‌گردد.
  */
 class OfflineIntentParser(private val context: Context) {
 
-    companion object {
-        // نقشه برنامه‌های معروف
-        private val APP_MAPPINGS = mapOf(
-            // اپلیکیشن‌های فارسی
-            "دیجی کالا" to "com.digikala",
-            "دیجیکالا" to "com.digikala",
-            "اسنپ" to "cab.snapp.passenger",
-            "تپسی" to "taxi.tapsi.passenger",
-            "بله" to "com.bale.android",
-            "روبیکا" to "com.rubika.android",
             "ایتا" to "ir.eitaa.messenger",
             "شاد" to "ir.shad.android",
             

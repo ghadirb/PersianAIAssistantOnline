@@ -243,27 +243,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         val prefs = PreferencesManager(this)
         val workingMode = prefs.getWorkingMode()
         val canTryOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE || workingMode == PreferencesManager.WorkingMode.HYBRID) && aiClient != null
-
-        fun tryOfflineTinyLlama(): String? {
-            return try {
-                val manager = com.persianai.assistant.models.OfflineModelManager(this)
-                val list = manager.getDownloadedModels()
-                val modelPath = list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
-                    ?: list.firstOrNull()?.second
-                if (modelPath.isNullOrBlank()) return null
-                if (!com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable()) return null
-
-                val prompt = """
-                    شما یک دستیار هوشمند فارسی هستید. پاسخ را کوتاه، واضح و کاملاً فارسی بده.
-                    کاربر: $message
-                    دستیار:
-                """.trimIndent()
-
-                com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, 180)?.trim()
-            } catch (_: Exception) {
-                null
-            }
-        }
+        fun tryOfflineTinyLlama(): String? = null
 
         binding.messageInput.setText("")
         binding.statusText.text = "در حال ارسال پیام به مدل..."
@@ -271,7 +251,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val reply = if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-                    tryOfflineTinyLlama() ?: "⚠️ مدل آفلاین موجود نیست. لطفاً مدل را دانلود کنید."
+                    "⚠️ حالت آفلاین غیرفعال است؛ لطفاً کلید آنلاین تنظیم کنید."
                 } else {
                     val onlineReply = if (canTryOnline) {
                         try {
@@ -292,11 +272,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
                         ""
                     }
 
-                    if (onlineReply.isNotBlank()) {
-                        onlineReply
-                    } else {
-                        tryOfflineTinyLlama() ?: "⚠️ پاسخ آنلاین در دسترس نبود و مدل آفلاین هم موجود نیست."
-                    }
+                    if (onlineReply.isNotBlank()) onlineReply else "⚠️ پاسخ آنلاین در دسترس نبود؛ مدل آفلاین حذف شده است."
                 }
 
                 binding.statusText.text = "پاسخ مدل: $reply"

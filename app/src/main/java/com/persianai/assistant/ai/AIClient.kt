@@ -41,6 +41,11 @@ class AIClient(private val apiKeys: List<APIKey>) {
         // دریافت تمام کلیدهای فعال برای این provider
         val availableKeys = apiKeys.filter { 
             it.provider == model.provider && it.isActive && !failedKeys.contains(it.key)
+        }.filter {
+            // hf_ کلید فقط برای STT است؛ برای چت OpenRouter استفاده نشود
+            if (model.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_")) {
+                false
+            } else true
         }
         
         if (availableKeys.isEmpty()) {
@@ -88,7 +93,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         
         val baseUrl = apiKey.baseUrl?.trim()?.trimEnd('/')
         val apiUrl = when (apiKey.provider) {
-            AIProvider.OPENROUTER -> baseUrl?.let { "$it/api/v1/chat/completions" }
+            AIProvider.OPENROUTER -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://openrouter.ai/api/v1/chat/completions"
             AIProvider.AIML -> baseUrl?.let { "$it/v1/chat/completions" }
                 ?: "https://api.aimlapi.com/v1/chat/completions"
@@ -128,12 +133,16 @@ class AIClient(private val apiKeys: List<APIKey>) {
         val jsonBody = gson.toJson(requestBody)
         val body = jsonBody.toRequestBody(mediaType)
 
-        val request = Request.Builder()
+        val requestBuilder = Request.Builder()
             .url(apiUrl)
             .addHeader("Authorization", "Bearer ${apiKey.key}")
             .addHeader("Content-Type", "application/json")
-            .post(body)
-            .build()
+        if (apiKey.provider == AIProvider.OPENROUTER) {
+            // OpenRouter نیاز به Referer و X-Title دارد
+            requestBuilder.addHeader("HTTP-Referer", "https://openrouter.ai/")
+            requestBuilder.addHeader("X-Title", "Persian AI Assistant")
+        }
+        val request = requestBuilder.post(body).build()
 
         client.newCall(request).execute().use { response ->
             val responseBody = response.body?.string()
@@ -315,8 +324,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
             // HuggingFace (multipart)
             hfKey?.let { key ->
-                val url = key.baseUrl?.trim()?.trimEnd('/')
-                    ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
+                val url = (key.baseUrl?.trim()?.trimEnd('/')
+                    ?: "https://router.huggingface.co/openai/whisper-large-v3") + "?wait_for_model=true"
                 android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
                 callHuggingFaceWhisper(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
@@ -344,7 +353,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
     }
 
     private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
-        val url = "https://router.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
+        val url = "https://router.huggingface.co/openai/whisper-large-v3?wait_for_model=true"
         val body = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
         val request = Request.Builder()
             .url(url)

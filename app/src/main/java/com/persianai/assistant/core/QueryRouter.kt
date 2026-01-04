@@ -42,7 +42,7 @@ class QueryRouter(private val context: Context) {
                 )
             }
             
-            // Step 2: Try Online Model (if available)
+            // Step 2: Try Online Model (only path)
             Log.d(TAG, "2️⃣ Checking for online model...")
             val onlineResult = tryOnlineModel(query)
             if (onlineResult != null) {
@@ -56,22 +56,8 @@ class QueryRouter(private val context: Context) {
                 )
             }
             
-            // Step 3: Fallback to Offline Model
-            Log.d(TAG, "3️⃣ Falling back to offline model...")
-            val offlineResult = tryOfflineModel(query)
-            if (offlineResult != null) {
-                Log.d(TAG, "✅ Offline model responded")
-                return@withContext QueryResult(
-                    success = true,
-                    response = offlineResult.response,
-                    source = "offline",
-                    actionExecuted = false,
-                    model = offlineResult.model
-                )
-            }
-            
-            // Step 4: All failed
-            Log.w(TAG, "❌ All methods failed")
+            // Step 3: All failed (no offline fallback)
+            Log.w(TAG, "❌ Online model failed")
             return@withContext QueryResult(
                 success = false,
                 response = "معافی چاہتا ہوں، کوئی بھی طریقہ کام نہ کر سکا۔ براہ مہربانی دوبارہ کوشش کریں۔",
@@ -97,12 +83,6 @@ class QueryRouter(private val context: Context) {
      */
     private suspend fun tryOnlineModel(query: String): OnlineResult? {
         return try {
-            val workingMode = prefs.getWorkingMode()
-            if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-                Log.d(TAG, "⏭️ Offline mode - skipping online")
-                return null
-            }
-            
             val apiKeys = prefs.getAPIKeys()
             val activeKeys = apiKeys.filter { it.isActive }
             
@@ -129,59 +109,6 @@ class QueryRouter(private val context: Context) {
             OnlineResult(response.content, model.displayName)
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Online model failed: ${e.message}")
-            null
-        }
-    }
-    
-    /**
-     * آفلاین ماڈل کو try کریں
-     */
-    private suspend fun tryOfflineModel(query: String): OfflineResult? {
-        return try {
-            Log.d(TAG, "📱 Trying offline model...")
-            
-            val response = com.persianai.assistant.offline.LocalLlamaRunner.infer(
-                findOfflineModelPath() ?: return null,
-                buildOfflinePrompt(query),
-                maxTokens = 200
-            )
-            
-            if (response.isNullOrBlank()) {
-                Log.w(TAG, "⚠️ Offline model returned empty")
-                return null
-            }
-            
-            Log.d(TAG, "✅ Got offline response")
-            OfflineResult(response.trim(), "TinyLlama")
-        } catch (e: Exception) {
-            Log.w(TAG, "⚠️ Offline model failed: ${e.message}")
-            null
-        }
-    }
-    
-    /**
-     * آفلاین ماڈل کے لیے prompt بنائیں
-     */
-    private fun buildOfflinePrompt(query: String): String {
-        return buildString {
-            appendLine("آپ ایک ذہین دستیار ہو۔ صارف کے سوال کا جواب دیں۔")
-            appendLine("جواب مختصر اور واضح ہونا چاہیے۔")
-            appendLine()
-            appendLine("صارف: $query")
-            appendLine("دستیار:")
-        }
-    }
-    
-    /**
-     * آفلاین ماڈل کا راستہ تلاش کریں
-     */
-    private fun findOfflineModelPath(): String? {
-        return try {
-            val manager = com.persianai.assistant.models.OfflineModelManager(context)
-            val downloaded = manager.getDownloadedModels()
-            downloaded.firstOrNull()?.second
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to find offline model: ${e.message}")
             null
         }
     }

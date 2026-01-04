@@ -662,28 +662,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
             return domain
         }
 
-        try {
-            val modelPath = findOfflineModelPath()
-            if (!modelPath.isNullOrBlank() && com.persianai.assistant.offline.LocalLlamaRunner.isBackendAvailable()) {
-                val prompt = buildString {
-                    appendLine(getSystemPrompt())
-                    appendLine("قوانین: فقط فارسی، کوتاه و مفید. اگر اطلاعات کافی نداری سوال بپرس.")
-                    appendLine("گفتگو:")
-                    messages.takeLast(12).forEach { m ->
-                        val role = if (m.role == MessageRole.USER) "کاربر" else "دستیار"
-                        appendLine("$role: ${m.content}")
-                    }
-                    appendLine("کاربر: $text")
-                    appendLine("دستیار:")
-                }
-                val llm = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, 220)
-                if (!llm.isNullOrBlank()) {
-                    return llm.trim()
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("BaseChatActivity", "⚠️ LocalLlamaRunner offline fallback failed: ${e.message}")
-        }
+        // آفلاین غیرفعال شد
+        return null
 
         // در صورت ناتوانی آفلاین، یک پاسخ عمومی بده (نه پیام الزام آنلاین)
         Log.d("BaseChatActivity", "⚠️ SimpleOfflineResponder did not respond")
@@ -696,22 +676,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
      * یافتن مسیر مدل tinyllama دانلود‌شده (دستی یا از طریق OfflineModelManager)
      */
     private fun findOfflineModelPath(): String? {
-        return try {
-            val manager = com.persianai.assistant.models.OfflineModelManager(this)
-            val list = manager.getDownloadedModels()
-            android.util.Log.d("BaseChatActivity", "findOfflineModelPath: found ${list.size} downloaded models")
-            list.forEach { pair ->
-                try {
-                    android.util.Log.d("BaseChatActivity", "Model entry: ${pair.first.name} -> ${pair.second}")
-                } catch (_: Exception) { }
-            }
-            // اول TinyLlama
-            list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
-                ?: list.firstOrNull()?.second
-        } catch (e: Exception) {
-            android.util.Log.w("BaseChatActivity", "findOfflineModelPath failed: ${e.message}", e)
-            null
-        }
+        return null
     }
 
     protected open fun shouldUseOnlinePriority(): Boolean = false
