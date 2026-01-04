@@ -273,9 +273,10 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        // Priority: Liara -> HF (any provider, key starts with hf_) -> OpenAI -> fallback HF default (raw)
+        // Priority: Liara -> AIML (aimlapi.com) -> OpenAI -> HF (any provider, key starts with hf_) -> fallback HF default (raw)
         val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
+        val aimlKey = apiKeys.firstOrNull { it.provider == AIProvider.AIML && it.isActive }
         val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
         val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
@@ -294,6 +295,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 "mp3" -> "audio/mpeg"
                 else -> "application/octet-stream"
             }
+            // AIML audio models expect gpt-4o-mini-audio-preview (ChatGPT mini audio)
+            val modelForStt = if (aimlKey != null) "gpt-4o-mini-audio-preview" else "whisper-1"
             val requestBody = okhttp3.MultipartBody.Builder()
                 .setType(okhttp3.MultipartBody.FORM)
                 .addFormDataPart(
@@ -304,7 +307,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
                         file
                     )
                 )
-                .addFormDataPart("model", "whisper-1")
+                .addFormDataPart("model", modelForStt)
                 .addFormDataPart("language", "fa")
                 .build()
 
@@ -322,20 +325,31 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 callWhisperLike(url2, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // HuggingFace (multipart)
-            hfKey?.let { key ->
-                val url = (key.baseUrl?.trim()?.trimEnd('/')
-                    ?: "https://router.huggingface.co/openai/whisper-large-v3") + "?wait_for_model=true"
-                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
-                callHuggingFaceWhisper(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+            // AIML API (OpenAI-compatible)
+            aimlKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
+                // gpt-4o-mini-audio-preview / chatgpt-4o-mini-tts hinted as audio-capable
+                val url = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using AIML at $url (gpt-4o-mini-audio-preview)")
+                callWhisperLike(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // OpenAI (اگر HF پاسخ نداد)
+            // OpenAI
             openAiKey?.let { key ->
                 val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
                 val url = "$baseUrl/audio/transcriptions"
                 android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
                 callWhisperLike(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+            }
+
+            // HuggingFace (multipart)
+            hfKey?.let { key ->
+                // Ensure we hit the /models/* route; previous path without /models caused 404.
+                val base = key.baseUrl?.trim()?.trimEnd('/')
+                    ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
+                val url = "$base?wait_for_model=true"
+                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
+                callHuggingFaceWhisper(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
             // HF raw bytes با توکن موجود یا پیش‌فرض
@@ -353,7 +367,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
     }
 
     private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
-        val url = "https://router.huggingface.co/openai/whisper-large-v3?wait_for_model=true"
+        val url = "https://router.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
         val body = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
         val request = Request.Builder()
             .url(url)

@@ -71,6 +71,7 @@ object AutoProvisioningManager {
                 val inferredProvider = key.provider
                 val defaultBase = when {
                     inferredProvider == AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                    inferredProvider == AIProvider.AIML -> "https://api.aimlapi.com/v1"
                     inferredProvider == AIProvider.OPENROUTER && key.key.startsWith("hf_") ->
                         "https://router.huggingface.co/models/openai/whisper-large-v3"
                     inferredProvider == AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
@@ -171,6 +172,9 @@ object AutoProvisioningManager {
 
         // OpenRouter keys start with sk-or
         if (lower.startsWith("sk-or")) return AIProvider.OPENROUTER
+
+        // AIML API keys sometimes start with aiml_ or sk-aiml
+        if (lower.startsWith("aiml") || lower.startsWith("sk-aiml")) return AIProvider.AIML
 
         // Liara keys in gist are JWT-like tokens starting with eyJ...
         if (trimmed.startsWith("eyJ")) return AIProvider.LIARA
