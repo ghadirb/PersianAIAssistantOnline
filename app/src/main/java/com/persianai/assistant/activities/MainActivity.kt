@@ -609,49 +609,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun handleOfflineRequest(text: String): String = withContext(Dispatchers.IO) {
-        // 1) اگر مدل واقعی GGUF وجود دارد، از TinyLlama استفاده کن
-        val modelPath = findOfflineModelPath()
-        if (modelPath != null) {
-            val prompt = buildString {
-                append("شما یک دستیار فارسی هستید. پاسخ کوتاه و مستقیم بده.\n")
-                append("کاربر: ").append(text).append("\nدستیار:")
-            }
-            return@withContext try {
-                android.util.Log.d("MainActivity", "offline llm using model=$modelPath")
-                val out = com.persianai.assistant.offline.LocalLlamaRunner.infer(modelPath, prompt, maxTokens = 128)
-                if (!out.isNullOrBlank()) {
-                    "🟢 پاسخ آفلاین (TinyLlama):\n$out"
-                } else {
-                    android.util.Log.w("MainActivity", "offline llm returned empty; fallback to parser")
-                    offlineParserFallback(text)
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("MainActivity", "offline llm failed: ${e.message}")
-                offlineParserFallback(text)
-            }
-        }
-
-        // 2) در غیر این صورت، fallback قبلی (پارسر آفلاین)
-        return@withContext offlineParserFallback(text)
+        "⚠️ حالت آفلاین حذف شده است؛ لطفاً از حالت آنلاین و کلید معتبر استفاده کنید."
     }
 
     private suspend fun offlineParserFallback(text: String): String {
-        val parser = com.persianai.assistant.ai.OfflineIntentParser(this@MainActivity)
-        val intentJson = parser.parse(text)
-        return processAIResponse(intentJson)
+        return "⚠️ حالت آفلاین حذف شده است؛ لطفاً از حالت آنلاین و کلید معتبر استفاده کنید."
     }
 
-    private fun findOfflineModelPath(): String? {
-        return try {
-            val manager = OfflineModelManager(this)
-            val list = manager.getDownloadedModels()
-            list.firstOrNull { it.first.name.contains("TinyLlama", ignoreCase = true) }?.second
-                ?: list.firstOrNull()?.second
-        } catch (e: Exception) {
-            android.util.Log.w("MainActivity", "findOfflineModelPath failed: ${e.message}")
-            null
-        }
-    }
+    private fun findOfflineModelPath(): String? = null
     
     private suspend fun handleOnlineRequest(text: String): String = withContext(Dispatchers.IO) {
         val enhancedPrompt = """

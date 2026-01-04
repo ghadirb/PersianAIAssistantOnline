@@ -251,17 +251,6 @@ dependencies {
     // Kotlin Serialization
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
 
-    // ONNX Runtime (for offline Haaniye STT)
-    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.1'
-
-    // Vosk offline STT (use 0.3.45 available on Maven Central)
-    implementation('com.alphacephei:vosk-android:0.3.45') {
-        // avoid pulling the plain JNA jar; we supply the aar with natives
-        exclude group: 'net.java.dev.jna', module: 'jna'
-    }
-    // JNA required by Vosk native loader on Android (aar contains natives)
-    implementation 'net.java.dev.jna:jna:5.13.0@aar'
-    
     // Google Services
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
     implementation 'com.google.android.gms:play-services-maps:18.2.0'

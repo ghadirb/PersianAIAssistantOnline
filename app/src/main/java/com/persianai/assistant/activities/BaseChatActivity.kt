@@ -613,34 +613,15 @@ abstract class BaseChatActivity : AppCompatActivity() {
             }
         }
 
-        fun tryOffline(): String? {
-            return try {
-                offlineRespond(text)
-            } catch (e: Exception) {
-                android.util.Log.w("BaseChatActivity", "⚠️ tryOffline failed: ${e.message}")
-                null
-            }
-        }
-
         val onlineFirst = shouldUseOnlineFirst()
         if (onlineFirst) {
             val online = tryOnline()
             if (!online.isNullOrBlank()) return@withContext online
 
-            val offline = tryOffline()
-            if (!offline.isNullOrBlank()) return@withContext offline
-
             return@withContext "❌ خطا در پردازش درخواست"
         }
 
         // OFFLINE: strictly offline
-        val offline = tryOffline()
-        if (!offline.isNullOrBlank()) return@withContext offline
-
-        // If not OFFLINE and online is available, try it as secondary.
-        val online = tryOnline()
-        if (!online.isNullOrBlank()) return@withContext online
-
         if (workingMode != PreferencesManager.WorkingMode.OFFLINE && !canUseOnline) {
             return@withContext "⚠️ پاسخ آنلاین فعال نیست. لطفاً در تنظیمات کلید API معتبر وارد کنید یا یک کلید فعال را انتخاب کنید."
         }
@@ -648,27 +629,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         return@withContext "❌ خطا در پردازش درخواست"
     }
 
-    private fun offlineRespond(text: String): String {
-        // ✅ ابتدا SimpleOfflineResponder را امتحان کن - بدون نیاز به Native Library
-        val simpleResponse = com.persianai.assistant.ai.SimpleOfflineResponder.respond(this, text)
-        if (!simpleResponse.isNullOrBlank()) {
-            Log.d("BaseChatActivity", "✅ SimpleOfflineResponder returned response")
-            return simpleResponse
-        }
-
-        // Section-specific offline fallback (e.g., counseling)
-        val domain = offlineDomainRespond(text)
-        if (!domain.isNullOrBlank()) {
-            return domain
-        }
-
-        // آفلاین غیرفعال شد
-        return null
-
-        // در صورت ناتوانی آفلاین، یک پاسخ عمومی بده (نه پیام الزام آنلاین)
-        Log.d("BaseChatActivity", "⚠️ SimpleOfflineResponder did not respond")
-        return "می‌تونی دقیق‌تر بگی چی می‌خوای انجام بدی؟ (مثلاً: «یادآوری فردا ساعت ۸»، «ثبت هزینه ۵۰ هزار تومان»، «محاسبه ۱۲+۵» )"
-    }
+    private fun offlineRespond(text: String): String? = null
 
     protected open fun offlineDomainRespond(text: String): String? = null
 

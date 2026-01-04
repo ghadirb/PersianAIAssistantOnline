@@ -88,11 +88,6 @@
             android:parentActivityName=".activities.SettingsActivity" />
             
         <activity
-            android:name=".activities.OfflineModelsActivity"
-            android:exported="false"
-            android:parentActivityName=".activities.SettingsActivity" />
-            
-        <activity
             android:name=".activities.ApiSettingsActivity"
             android:exported="false"
             android:parentActivityName=".activities.SettingsActivity" />

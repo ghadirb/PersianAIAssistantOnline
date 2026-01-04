@@ -19,11 +19,6 @@
         android:showAsAction="never" />
 
     <item
-        android:id="@+id/action_offline_models"
-        android:title="مدل‌های آفلاین"
-        android:showAsAction="never" />
-
-    <item
         android:id="@+id/action_saved_locations"
         android:title="مکان‌های ذخیره‌شده"
         android:showAsAction="never" />
