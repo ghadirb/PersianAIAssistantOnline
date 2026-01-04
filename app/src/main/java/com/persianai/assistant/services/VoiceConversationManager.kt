@@ -473,14 +473,6 @@ class VoiceConversationManager(
                 }
             }
 
-            // Best-effort: try load Coqui so we can log model IO early.
-            try {
-                withContext(Dispatchers.IO) {
-                    coquiTts.ensureLoaded()
-                }
-            } catch (_: Exception) {
-            }
-            
             // Initialize Haaniye TTS (placeholder)
             Log.d(TAG, "🔧 Haaniye TTS framework ready")
             
