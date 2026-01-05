@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager

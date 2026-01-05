@@ -332,6 +332,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         val openRouterKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENROUTER && it.isActive }
         val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
+        val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
         val file = java.io.File(audioFilePath)
         if (!file.exists()) {
@@ -339,225 +340,102 @@ class AIClient(private val apiKeys: List<APIKey>) {
             return@withContext ""
         }
 
-        try {
-            val mediaTypeStr = when (file.extension.lowercase()) {
-                "m4a", "mp4" -> "audio/mp4"
-                "wav" -> "audio/wav"
-                "ogg" -> "audio/ogg"
-                "webm" -> "audio/webm"
-                "mp3" -> "audio/mpeg"
-                else -> "application/octet-stream"
-            }
-            
-            val standardBody = okhttp3.MultipartBody.Builder()
-                .setType(okhttp3.MultipartBody.FORM)
-                .addFormDataPart("file", file.name, 
-                    okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file))
-                .addFormDataPart("model", "whisper-1")
-                .addFormDataPart("language", "fa")
-                .build()
+        val mediaTypeStr = when (file.extension.lowercase()) {
+            "m4a", "mp4" -> "audio/mp4"
+            "wav" -> "audio/wav"
+            "ogg" -> "audio/ogg"
+            "webm" -> "audio/webm"
+            "mp3" -> "audio/mpeg"
+            else -> "application/octet-stream"
+        }
 
+        val standardBody = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
+            )
+            .addFormDataPart("model", "whisper-1")
+            .addFormDataPart("language", "fa")
+            .build()
+
+        try {
             // ✅ 1. OpenAI Whisper (بہترین اور قابل اعتماد)
             openAiKey?.let { key ->
-                try {
-                    android.util.Log.d("AIClient", "transcribeAudio using OpenAI Whisper")
-                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
-                    val url = "$baseUrl/audio/transcriptions"
-                    callWhisperLike(url, key.key, standardBody)
-                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
-                } catch (e: Exception) {
-                    android.util.Log.w("AIClient", "OpenAI STT failed: ${e.message}")
-                }
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                val url = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
+                callWhisperLike(url, key.key, standardBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
             // ✅ 2. AIML STT (fallback #1)
             aimlKey?.let { key ->
-                try {
-                    android.util.Log.d("AIClient", "transcribeAudio using AIML STT")
-                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
-                    
-                    // Try stt/create پہلے
-                    callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file)
-                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
-                    
-                    // Fallback audio/transcriptions
-                    val transcribeBody = okhttp3.MultipartBody.Builder()
-                        .setType(okhttp3.MultipartBody.FORM)
-                        .addFormDataPart("file", file.name,
-                            okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file))
-                        .addFormDataPart("model", "#g1_whisper-small")
-                        .addFormDataPart("language", "fa")
-                        .build()
-                    
-                    val transcribeUrl = "$baseUrl/audio/transcriptions"
-                    android.util.Log.d("AIClient", "AIML fallback at $transcribeUrl")
-                    callWhisperLike(transcribeUrl, key.key, transcribeBody)
-                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
-                } catch (e: Exception) {
-                    android.util.Log.w("AIClient", "AIML STT failed: ${e.message}")
-                }
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
+                android.util.Log.d("AIClient", "transcribeAudio using AIML async at $baseUrl/stt/create")
+                callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+                val transcribeBody = okhttp3.MultipartBody.Builder()
+                    .setType(okhttp3.MultipartBody.FORM)
+                    .addFormDataPart(
+                        "file",
+                        file.name,
+                        okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
+                    )
+                    .addFormDataPart("model", "#g1_whisper-small")
+                    .addFormDataPart("language", "fa")
+                    .build()
+
+                val transcribeUrl = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "AIML fallback at $transcribeUrl")
+                callWhisperLike(transcribeUrl, key.key, transcribeBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ✅ 3. OpenRouter (fallback #2 - اگر دوسرے fail ہوں)
+            // ✅ 3. OpenRouter (fallback #2)
             openRouterKey?.let { key ->
-                try {
-                    android.util.Log.d("AIClient", "transcribeAudio using OpenRouter")
-                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/v1"
-                    val url = "$baseUrl/audio/transcriptions"
-                    callWhisperLike(url, key.key, standardBody)
-                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
-                } catch (e: Exception) {
-                    android.util.Log.w("AIClient", "OpenRouter STT failed: ${e.message}")
-                }
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/v1"
+                val url = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using OpenRouter at $url")
+                callWhisperLike(url, key.key, standardBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ✅ 4. Liara (اگر دستیاب ہو)
+            // ✅ 4. Liara
             liaraKey?.let { key ->
-                try {
-                    android.util.Log.d("AIClient", "transcribeAudio using Liara")
-                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') 
-                        ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                    val url = "$baseUrl/audio/transcriptions"
-                    callWhisperLike(url, key.key, standardBody)
-                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
-                } catch (e: Exception) {
-                    android.util.Log.w("AIClient", "Liara STT failed: ${e.message}")
-                }
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                val url = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using Liara at $url")
+                callWhisperLike(url, key.key, standardBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ✅ 5. HuggingFace (آخری fallback)
+            // ✅ 5. HuggingFace
             hfKey?.let { key ->
-                try {
-                    android.util.Log.d("AIClient", "transcribeAudio using HuggingFace")
-                    val base = key.baseUrl?.trim()?.trimEnd('/')
-                        ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
-                    val url = "$base?wait_for_model=true"
-                    callHuggingFaceWhisper(url, key.key, standardBody)
-                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
-                } catch (e: Exception) {
-                    android.util.Log.w("AIClient", "HuggingFace STT failed: ${e.message}")
-                }
+                val base = key.baseUrl?.trim()?.trimEnd('/') ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
+                val url = "$base?wait_for_model=true"
+                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
+                callHuggingFaceWhisper(url, key.key, standardBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ❌ ہمہ providers fail
             android.util.Log.e("AIClient", "❌ All STT providers failed")
             return@withContext ""
         } catch (e: Exception) {
             android.util.Log.e("AIClient", "❌ Transcription exception: ${e.message}", e)
             return@withContext ""
         }
-            }
 
-            // HF raw bytes با توکن موجود یا پیش‌فرض
-            val hfToken = hfKey?.key ?: fallbackHf
-            if (!hfToken.isNullOrBlank()) {
-                val raw = callHuggingFaceRaw(hfToken, mediaTypeStr, file)
-                if (raw.isNotBlank()) return@withContext raw
-            }
-
-            ""
-        } catch (e: Exception) {
-            android.util.Log.e("AIClient", "Whisper transcription error: ${e.message}", e)
-            return@withContext ""
-        }
-    }
-
-    /**
-     * AIML async STT دو مرحله‌ای: stt/create سپس polling روی stt/{id}
-     */
-    private suspend fun callAimlSttAsync(
-        baseUrl: String,
-        key: String,
-        mediaTypeStr: String,
-        file: java.io.File
-    ): String {
-        val createUrl = "$baseUrl/stt/create"
-        val body = okhttp3.MultipartBody.Builder()
-            .setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart(
-                "file",
-                file.name,
-                okhttp3.RequestBody.Companion.create(
-                    mediaTypeStr.toMediaType(),
-                    file
-                )
-            )
-            .addFormDataPart("model", "#g1_whisper-small")
-            .addFormDataPart("language", "fa")
-            .build()
-
-        val createReq = Request.Builder()
-            .url(createUrl)
-            .addHeader("Authorization", "Bearer $key")
-            .addHeader("Accept", "application/json")
-            .post(body)
-            .build()
-
-        val generationId = try {
-            client.newCall(createReq).execute().use { resp ->
-                val respBody = resp.body?.string()
-                if (!resp.isSuccessful) {
-                    android.util.Log.e("AIClient", "AIML stt/create error ${resp.code}: $respBody")
-                    return ""
-                }
-                val json = gson.fromJson(respBody, JsonObject::class.java)
-                json.get("generation_id")?.asString ?: ""
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AIClient", "AIML stt/create exception: ${e.message}", e)
-            return ""
+        // HF raw bytes با توکن موجود یا پیش‌فرض
+        val hfToken = hfKey?.key ?: fallbackHf
+        if (!hfToken.isNullOrBlank()) {
+            val raw = callHuggingFaceRaw(hfToken, mediaTypeStr, file)
+            if (raw.isNotBlank()) return@withContext raw
         }
 
-        if (generationId.isBlank()) return ""
-
-        val pollUrl = "$baseUrl/stt/$generationId"
-        repeat(5) { attempt ->
-            val pollReq = Request.Builder()
-                .url(pollUrl)
-                .addHeader("Authorization", "Bearer $key")
-                .addHeader("Accept", "application/json")
-                .get()
-                .build()
-
-            try {
-                client.newCall(pollReq).execute().use { resp ->
-                    val respBody = resp.body?.string()
-                    if (!resp.isSuccessful) {
-                        android.util.Log.e("AIClient", "AIML stt poll error ${resp.code}: $respBody")
-                        return ""
-                    }
-                    if (respBody.isNullOrBlank()) return ""
-                    val json = gson.fromJson(respBody, JsonObject::class.java)
-                    val status = json.get("status")?.asString ?: ""
-                    if (status.equals("waiting", true) || status.equals("active", true)) {
-                        // keep polling
-                    } else {
-                        // ساختار result.results.channels[0].alternatives[0].transcript
-                        val result = json.getAsJsonObject("result")
-                        val transcript = result
-                            ?.getAsJsonObject("results")
-                            ?.getAsJsonArray("channels")
-                            ?.firstOrNull()
-                            ?.asJsonObject
-                            ?.getAsJsonArray("alternatives")
-                            ?.firstOrNull()
-                            ?.asJsonObject
-                            ?.get("transcript")
-                            ?.asString
-                        if (!transcript.isNullOrBlank()) return transcript
-                        return respBody
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("AIClient", "AIML stt poll exception: ${e.message}", e)
-                return ""
-            }
-
-            // wait before next poll (avoid long delay to keep UI responsive)
-            delay(1500)
-        }
-
-        return ""
+        ""
     }
 
     private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
