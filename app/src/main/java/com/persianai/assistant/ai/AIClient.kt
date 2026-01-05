@@ -10,7 +10,12 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ConnectionPool
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
+import java.security.cert.X509Certificate
 
 /**
  * کلاینت اصلی برای ارتباط با APIهای هوش مصنوعی
@@ -19,9 +24,44 @@ import java.util.concurrent.TimeUnit
 class AIClient(private val apiKeys: List<APIKey>) {
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(120, TimeUnit.SECONDS)  // 60 سے 120
+        .readTimeout(120, TimeUnit.SECONDS)     // 60 سے 120
+        .writeTimeout(120, TimeUnit.SECONDS)    // 60 سے 120
+        .retryOnConnectionFailure(true)
+        .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
+        .addInterceptor { chain ->
+            var request = chain.request()
+            var attempt = 0
+            var response: okhttp3.Response? = null
+            var exception: Exception? = null
+            
+            while (attempt < 3) {
+                try {
+                    response = chain.proceed(request)
+                    if (response.isSuccessful) return@addInterceptor response
+                    if (response.code !in listOf(500, 502, 503, 504)) break
+                    attempt++
+                    response.close()
+                } catch (e: Exception) {
+                    exception = e
+                    if (attempt < 2) {
+                        Thread.sleep(1000L * (attempt + 1))
+                    }
+                    attempt++
+                }
+            }
+            response ?: throw exception ?: Exception("Unknown error")
+        }
+        // SSL certificate trust (development میں)
+        .sslSocketFactory(
+            createSSLSocketFactory(),
+            object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            }
+        )
+        .hostnameVerifier { _, _ -> true }
         .build()
 
     private val gson = Gson()
@@ -68,10 +108,19 @@ class AIClient(private val apiKeys: List<APIKey>) {
             } catch (e: Exception) {
                 lastError = e
                 android.util.Log.w("AIClient", "⚠️ Key failed: ${e.message}")
-                // اگر خطای 401 (Unauthorized) یا 400 بود، این کلید را علامت‌گذاری کن
-                if (e.message?.contains("401") == true || e.message?.contains("400") == true) {
+                
+                // اگر خطای permanent ہو تو کلید کو mark کریں
+                val errorMsg = e.message ?: ""
+                if (errorMsg.contains("401") ||  // Unauthorized
+                    errorMsg.contains("402") ||  // Insufficient credits
+                    errorMsg.contains("403") ||  // Forbidden - invalid key
+                    errorMsg.contains("400") ||  // Bad request
+                    errorMsg.contains("Invalid")
+                ) {
                     failedKeys.add(apiKey.key)
+                    android.util.Log.d("AIClient", "🚫 Key marked as permanently failed: ${apiKey.key.take(8)}...")
                 }
+                
                 // ادامه به کلید بعدی
                 continue
             }
@@ -274,15 +323,15 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
     /**
      * تبدیل صوت به متن با Whisper API
+     * ✅ Priority: OpenAI > AIML > OpenRouter > Liara > HuggingFace
+     * ❌ Skip: Gladia (known 403 issues)
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        // Priority: Liara -> GLADIA -> OpenAI -> AIML (best-effort) -> HF (any provider, key starts with hf_) -> fallback HF default (raw)
+        val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
+        val aimlKey = apiKeys.firstOrNull { it.provider == AIProvider.AIML && it.isActive }
+        val openRouterKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENROUTER && it.isActive }
         val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
-        val gladiaKey = apiKeys.firstOrNull { it.provider == AIProvider.GLADIA && it.isActive }
-        val aimlKey = apiKeys.firstOrNull { it.provider == AIProvider.AIML && it.isActive }
-        val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
-        val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
         val file = java.io.File(audioFilePath)
         if (!file.exists()) {
@@ -299,96 +348,104 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 "mp3" -> "audio/mpeg"
                 else -> "application/octet-stream"
             }
-            val modelForStt = "whisper-1"
-            val requestBody = okhttp3.MultipartBody.Builder()
+            
+            val standardBody = okhttp3.MultipartBody.Builder()
                 .setType(okhttp3.MultipartBody.FORM)
-                .addFormDataPart(
-                    "file",
-                    file.name,
-                    okhttp3.RequestBody.Companion.create(
-                        mediaTypeStr.toMediaType(),
-                        file
-                    )
-                )
-                .addFormDataPart("model", modelForStt)
+                .addFormDataPart("file", file.name, 
+                    okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file))
+                .addFormDataPart("model", "whisper-1")
                 .addFormDataPart("language", "fa")
                 .build()
 
-            // AIML نیاز به مدل #g1_whisper-small دارد (مسیر جدید stt/create)
-            val aimlRequestBody = okhttp3.MultipartBody.Builder()
-                .setType(okhttp3.MultipartBody.FORM)
-                .addFormDataPart(
-                    "file",
-                    file.name,
-                    okhttp3.RequestBody.Companion.create(
-                        mediaTypeStr.toMediaType(),
-                        file
-                    )
-                )
-                .addFormDataPart("model", "#g1_whisper-small")
-                .addFormDataPart("language", "fa")
-                .build()
-
-            // اولویت: Liara -> HF -> OpenAI -> HF (خام) -> HF پیش‌فرض
-            // Liara
-            liaraKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/')
-                    ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                val url1 = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using LIARA at $url1")
-                callWhisperLike(url1, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
-
-                val url2 = "$baseUrl/audio:transcribe"
-                android.util.Log.d("AIClient", "Liara retry at $url2")
-                callWhisperLike(url2, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // GLADIA (OpenAI-ish but uses its own headers)
-            gladiaKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.gladia.io"
-                val urlV2 = "$baseUrl/v2/transcription"
-                android.util.Log.d("AIClient", "transcribeAudio using GLADIA at $urlV2")
-                callGladiaTranscribe(urlV2, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
-
-                // fallback to older endpoint if available
-                val urlV1 = "$baseUrl/v1/transcription"
-                android.util.Log.d("AIClient", "Gladia retry at $urlV1")
-                callGladiaTranscribe(urlV1, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // AIML API (OpenAI-compatible) — best effort; some plans may not expose audio endpoints
-            aimlKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
-                android.util.Log.d("AIClient", "transcribeAudio using AIML async at $baseUrl/stt/create (#g1_whisper-small)")
-                callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file).takeIf { it.isNotBlank() }?.let { return@withContext it }
-
-                // fallback قدیمی OpenAI-compatible
-                val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "AIML fallback at $url (#g1_whisper-small)")
-                callWhisperLike(url, key.key, aimlRequestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
-
-                // fallback Legacy stt (قبل از audio/transcriptions)
-                val legacyUrl = "$baseUrl/stt"
-                android.util.Log.d("AIClient", "AIML legacy retry at $legacyUrl")
-                callWhisperLike(legacyUrl, key.key, aimlRequestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // OpenAI
+            // ✅ 1. OpenAI Whisper (بہترین اور قابل اعتماد)
             openAiKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
-                val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
-                callWhisperLike(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+                try {
+                    android.util.Log.d("AIClient", "transcribeAudio using OpenAI Whisper")
+                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                    val url = "$baseUrl/audio/transcriptions"
+                    callWhisperLike(url, key.key, standardBody)
+                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                } catch (e: Exception) {
+                    android.util.Log.w("AIClient", "OpenAI STT failed: ${e.message}")
+                }
             }
 
-            // HuggingFace (multipart)
+            // ✅ 2. AIML STT (fallback #1)
+            aimlKey?.let { key ->
+                try {
+                    android.util.Log.d("AIClient", "transcribeAudio using AIML STT")
+                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
+                    
+                    // Try stt/create پہلے
+                    callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file)
+                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                    
+                    // Fallback audio/transcriptions
+                    val transcribeBody = okhttp3.MultipartBody.Builder()
+                        .setType(okhttp3.MultipartBody.FORM)
+                        .addFormDataPart("file", file.name,
+                            okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file))
+                        .addFormDataPart("model", "#g1_whisper-small")
+                        .addFormDataPart("language", "fa")
+                        .build()
+                    
+                    val transcribeUrl = "$baseUrl/audio/transcriptions"
+                    android.util.Log.d("AIClient", "AIML fallback at $transcribeUrl")
+                    callWhisperLike(transcribeUrl, key.key, transcribeBody)
+                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                } catch (e: Exception) {
+                    android.util.Log.w("AIClient", "AIML STT failed: ${e.message}")
+                }
+            }
+
+            // ✅ 3. OpenRouter (fallback #2 - اگر دوسرے fail ہوں)
+            openRouterKey?.let { key ->
+                try {
+                    android.util.Log.d("AIClient", "transcribeAudio using OpenRouter")
+                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/v1"
+                    val url = "$baseUrl/audio/transcriptions"
+                    callWhisperLike(url, key.key, standardBody)
+                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                } catch (e: Exception) {
+                    android.util.Log.w("AIClient", "OpenRouter STT failed: ${e.message}")
+                }
+            }
+
+            // ✅ 4. Liara (اگر دستیاب ہو)
+            liaraKey?.let { key ->
+                try {
+                    android.util.Log.d("AIClient", "transcribeAudio using Liara")
+                    val baseUrl = key.baseUrl?.trim()?.trimEnd('/') 
+                        ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                    val url = "$baseUrl/audio/transcriptions"
+                    callWhisperLike(url, key.key, standardBody)
+                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                } catch (e: Exception) {
+                    android.util.Log.w("AIClient", "Liara STT failed: ${e.message}")
+                }
+            }
+
+            // ✅ 5. HuggingFace (آخری fallback)
             hfKey?.let { key ->
-                // Ensure we hit the /models/* route; previous path without /models caused 404.
-                val base = key.baseUrl?.trim()?.trimEnd('/')
-                    ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
-                val url = "$base?wait_for_model=true"
-                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
-                callHuggingFaceWhisper(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+                try {
+                    android.util.Log.d("AIClient", "transcribeAudio using HuggingFace")
+                    val base = key.baseUrl?.trim()?.trimEnd('/')
+                        ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
+                    val url = "$base?wait_for_model=true"
+                    callHuggingFaceWhisper(url, key.key, standardBody)
+                        .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                } catch (e: Exception) {
+                    android.util.Log.w("AIClient", "HuggingFace STT failed: ${e.message}")
+                }
+            }
+
+            // ❌ ہمہ providers fail
+            android.util.Log.e("AIClient", "❌ All STT providers failed")
+            return@withContext ""
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "❌ Transcription exception: ${e.message}", e)
+            return@withContext ""
+        }
             }
 
             // HF raw bytes با توکن موجود یا پیش‌فرض
@@ -558,6 +615,16 @@ class AIClient(private val apiKeys: List<APIKey>) {
             } catch (_: Exception) {
                 respBody
             }
+        }
+    }
+
+    private fun createSSLSocketFactory(): javax.net.ssl.SSLSocketFactory {
+        try {
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, null, null)
+            return sslContext.socketFactory
+        } catch (e: Exception) {
+            throw RuntimeException("Failed to create SSL socket factory", e)
         }
     }
 }

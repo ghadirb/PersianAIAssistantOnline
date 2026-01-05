@@ -26,41 +26,55 @@ class SpeechToTextPipeline(private val context: Context) {
             
             Log.d(TAG, "Working mode: $mode")
 
-            // فقط آنلاین (ONLINE یا HYBRID)؛ آفلاین را فعلاً غیرفعال می‌کنیم تا کرش نشود
+            // Only attempt online if not OFFLINE mode
             if (mode != PreferencesManager.WorkingMode.OFFLINE) {
-                Log.d(TAG, "🌐 Attempting online transcription (Priority: Liara Gemini 2.0 Flash)...")
+                Log.d(TAG, "🌐 Attempting online transcription (Priority: OpenAI Whisper)...")
                 val keys = prefs.getAPIKeys()
-                val liarageminiKey = keys.firstOrNull { it.isActive && it.provider.name == "LIARA" }
+                val activeKeys = keys.filter { it.isActive && !it.key.isNullOrBlank() }
                 
-                if (liarageminiKey != null) {
-                    Log.d(TAG, "✔ Found active Liara key for Gemini 2.0 Flash")
-                    val online = recorder.analyzeOnline(audioFile)
-                    val onlineText = online.getOrNull()?.trim()
-                    
-                    if (!onlineText.isNullOrBlank()) {
-                        Log.d(TAG, "✅ Online transcription (Gemini 2.0 Flash): $onlineText")
-                        return@withContext Result.success(onlineText)
-                    } else {
-                        val err = online.exceptionOrNull()?.message ?: "Empty response"
-                        Log.w(TAG, "⚠️ Online failed: $err")
-                    }
+                if (activeKeys.isEmpty()) {
+                    Log.w(TAG, "⚠️ No active API keys for STT")
                 } else {
-                    Log.w(TAG, "⚠️ No active Liara key found - trying other keys")
-                    val activeKey = keys.firstOrNull { it.isActive }
-                    if (activeKey != null) {
-                        Log.d(TAG, "Using fallback key: ${activeKey.provider.name}")
-                        val online = recorder.analyzeOnline(audioFile)
-                        val onlineText = online.getOrNull()?.trim()
+                    // ✅ Priority order:
+                    // 1. OpenAI Whisper
+                    // 2. AIML STT
+                    // 3. OpenRouter
+                    // ❌ Skip Gladia (known to have issues)
+                    
+                    val sttsToTry = listOf(
+                        activeKeys.filter { it.provider.name == "OPENAI" },
+                        activeKeys.filter { it.provider.name == "AIML" },
+                        activeKeys.filter { it.provider.name == "OPENROUTER" },
+                        activeKeys.filter { it.provider.name == "LIARA" }
+                    )
+                    
+                    for (providerKeys in sttsToTry) {
+                        if (providerKeys.isEmpty()) continue
                         
-                        if (!onlineText.isNullOrBlank()) {
-                            Log.d(TAG, "✅ Online transcription (fallback): $onlineText")
-                            return@withContext Result.success(onlineText)
+                        val providerName = providerKeys[0].provider.name
+                        Log.d(TAG, "✔ Trying $providerName STT")
+                        
+                        try {
+                            val online = recorder.analyzeOnline(audioFile)
+                            val onlineText = online.getOrNull()?.trim()
+                            
+                            if (!onlineText.isNullOrBlank()) {
+                                Log.d(TAG, "✅ Online transcription ($providerName): $onlineText")
+                                return@withContext Result.success(onlineText)
+                            } else {
+                                val err = online.exceptionOrNull()?.message ?: "Empty response"
+                                Log.w(TAG, "⚠️ $providerName returned blank/error: $err")
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "⚠️ $providerName STT failed: ${e.message}")
                         }
                     }
+                    
+                    Log.e(TAG, "❌ All online STT providers failed")
                 }
             }
 
-            // در حالت ONLINE/HYBRID اگر آنلاین خالی بود، دیگر به آفلاین نرویم
+            // Offline fallback
             if (mode == PreferencesManager.WorkingMode.OFFLINE) {
                 Log.d(TAG, "📱 WorkingMode=OFFLINE => calling analyzeOffline")
                 val offline = recorder.analyzeOffline(audioFile)
@@ -72,7 +86,7 @@ class SpeechToTextPipeline(private val context: Context) {
                 }
             }
 
-            Result.failure(IllegalStateException("Online STT returned blank"))
+            Result.failure(IllegalStateException("All STT providers failed"))
         } catch (e: Exception) {
             Log.e(TAG, "❌ Transcription exception: ${e.message}", e)
             Result.failure(e)

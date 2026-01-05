@@ -4,7 +4,9 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import android.util.Log
 import com.persianai.assistant.ai.PuterBridge
+import com.persianai.assistant.config.APIKeyConfig
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,10 @@ class AIAssistantApplication : Application() {
         instance = this
         createNotificationChannel()
         PuterBridge.setContext(this)
+        
+        // ✅ Initialize API Keys configuration
+        Log.d("AIAssistantApplication", "🔄 Initializing API Key configuration...")
+        APIKeyConfig.initializeKeys(this)
 
         // Dev-only: if a host path is provided via env var, copy Haaniye model into app files
         try {

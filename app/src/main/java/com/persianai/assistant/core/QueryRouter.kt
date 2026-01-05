@@ -84,28 +84,50 @@ class QueryRouter(private val context: Context) {
     private suspend fun tryOnlineModel(query: String): OnlineResult? {
         return try {
             val apiKeys = prefs.getAPIKeys()
-            val activeKeys = apiKeys.filter { it.isActive }
+            val activeKeys = apiKeys.filter { it.isActive && !it.key.isNullOrBlank() }
             
             if (activeKeys.isEmpty()) {
                 Log.w(TAG, "⚠️ No active API keys")
                 return null
             }
             
-            // Find best model: اول OpenRouter (رایگان/مقرون‌به‌صرفه)، سپس Liara
+            Log.d(TAG, "📊 Available providers: ${activeKeys.map { it.provider.name }}")
+            
+            // ✅ بہترین ترتیب: OpenAI > Liara > AIML > OpenRouter
             val model = when {
-                activeKeys.any { it.provider.name == "OPENROUTER" } -> AIModel.LLAMA_3_3_70B
-                activeKeys.any { it.provider.name == "LIARA" } -> AIModel.GPT_4O_MINI
-                activeKeys.any { it.provider.name == "OPENAI" } -> AIModel.GPT_35_TURBO
-                else -> AIModel.QWEN_2_5_1B5
+                // 1️⃣ OpenAI (سب سے قابل اعتماد)
+                activeKeys.any { it.provider == AIProvider.OPENAI && !it.key.startsWith("hf_") } -> {
+                    Log.d(TAG, "🌐 Using OpenAI (GPT-3.5 Turbo)")
+                    AIModel.GPT_35_TURBO
+                }
+                // 2️⃣ Liara
+                activeKeys.any { it.provider == AIProvider.LIARA } -> {
+                    Log.d(TAG, "🌐 Using Liara (GPT-4o Mini)")
+                    AIModel.GPT_4O_MINI
+                }
+                // 3️⃣ AIML
+                activeKeys.any { it.provider == AIProvider.AIML } -> {
+                    Log.d(TAG, "🌐 Using AIML (GPT-3.5)")
+                    AIModel.AIML_GPT_35
+                }
+                // 4️⃣ OpenRouter (آخری انتخاب)
+                activeKeys.any { it.provider == AIProvider.OPENROUTER } -> {
+                    Log.d(TAG, "🌐 Using OpenRouter (Llama 3.3 70B)")
+                    AIModel.LLAMA_3_3_70B
+                }
+                else -> {
+                    Log.w(TAG, "⚠️ کوئی معتبر provider دستیاب نہیں")
+                    return null
+                }
             }
             
-            Log.d(TAG, "🌐 Trying online model: ${model.name}")
+            Log.d(TAG, "🌐 Trying online model: ${model.displayName}")
             
-            val aiClient = AIClient(apiKeys)
+            val aiClient = AIClient(activeKeys)
             val messages = listOf(ChatMessage(role = MessageRole.USER, content = query))
             val response = aiClient.sendMessage(model, messages)
             
-            Log.d(TAG, "✅ Got online response")
+            Log.d(TAG, "✅ Got online response from ${model.displayName}")
             OnlineResult(response.content, model.displayName)
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Online model failed: ${e.message}")
