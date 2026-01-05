@@ -438,6 +438,102 @@ class AIClient(private val apiKeys: List<APIKey>) {
         ""
     }
 
+    /**
+     * AIML async STT دو مرحله‌ای: stt/create سپس polling روی stt/{id}
+     */
+    private suspend fun callAimlSttAsync(
+        baseUrl: String,
+        key: String,
+        mediaTypeStr: String,
+        file: java.io.File
+    ): String {
+        val createUrl = "$baseUrl/stt/create"
+        val body = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                okhttp3.RequestBody.Companion.create(
+                    mediaTypeStr.toMediaType(),
+                    file
+                )
+            )
+            .addFormDataPart("model", "#g1_whisper-small")
+            .addFormDataPart("language", "fa")
+            .build()
+
+        val createReq = Request.Builder()
+            .url(createUrl)
+            .addHeader("Authorization", "Bearer $key")
+            .addHeader("Accept", "application/json")
+            .post(body)
+            .build()
+
+        val generationId = try {
+            client.newCall(createReq).execute().use { resp ->
+                val respBody = resp.body?.string()
+                if (!resp.isSuccessful) {
+                    android.util.Log.e("AIClient", "AIML stt/create error ${resp.code}: $respBody")
+                    return ""
+                }
+                val json = gson.fromJson(respBody, JsonObject::class.java)
+                json.get("generation_id")?.asString ?: ""
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "AIML stt/create exception: ${e.message}", e)
+            return ""
+        }
+
+        if (generationId.isBlank()) return ""
+
+        val pollUrl = "$baseUrl/stt/$generationId"
+        repeat(5) { _ ->
+            val pollReq = Request.Builder()
+                .url(pollUrl)
+                .addHeader("Authorization", "Bearer $key")
+                .addHeader("Accept", "application/json")
+                .get()
+                .build()
+
+            try {
+                client.newCall(pollReq).execute().use { resp ->
+                    val respBody = resp.body?.string()
+                    if (!resp.isSuccessful) {
+                        android.util.Log.e("AIClient", "AIML stt poll error ${resp.code}: $respBody")
+                        return ""
+                    }
+                    if (respBody.isNullOrBlank()) return ""
+                    val json = gson.fromJson(respBody, JsonObject::class.java)
+                    val status = json.get("status")?.asString ?: ""
+                    if (status.equals("waiting", true) || status.equals("active", true)) {
+                        // keep polling
+                    } else {
+                        val result = json.getAsJsonObject("result")
+                        val transcript = result
+                            ?.getAsJsonObject("results")
+                            ?.getAsJsonArray("channels")
+                            ?.firstOrNull()
+                            ?.asJsonObject
+                            ?.getAsJsonArray("alternatives")
+                            ?.firstOrNull()
+                            ?.asJsonObject
+                            ?.get("transcript")
+                            ?.asString
+                        if (!transcript.isNullOrBlank()) return transcript
+                        return respBody
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AIClient", "AIML stt poll exception: ${e.message}", e)
+                return ""
+            }
+
+            delay(1500)
+        }
+
+        return ""
+    }
+
     private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
         val url = "https://router.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
         val body = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
