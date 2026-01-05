@@ -93,24 +93,13 @@ class QueryRouter(private val context: Context) {
             }
             
             Log.d(TAG, "📊 Available providers: ${activeKeys.map { it.provider.name }}")
-            
-            // ✅ Low-cost / unfiltered priority: AIML -> OpenRouter -> Liara -> OpenAI
+
+            // فقط OpenRouter/Llama 3.3 برای چت آنلاین
             val candidates = mutableListOf<AIModel>()
-            if (activeKeys.any { it.provider == AIProvider.AIML }) {
-                candidates.add(AIModel.AIML_GPT_35)
-            }
             if (activeKeys.any { it.provider == AIProvider.OPENROUTER }) {
                 candidates.add(AIModel.LLAMA_3_3_70B)
-            }
-            if (activeKeys.any { it.provider == AIProvider.LIARA }) {
-                candidates.add(AIModel.GPT_4O_MINI)
-            }
-            if (activeKeys.any { it.provider == AIProvider.OPENAI && !it.key.startsWith("hf_") }) {
-                candidates.add(AIModel.GPT_35_TURBO)
-            }
-
-            if (candidates.isEmpty()) {
-                Log.w(TAG, "⚠️ کوئی معتبر provider دستیاب نہیں")
+            } else {
+                Log.w(TAG, "⚠️ No OpenRouter key active; skipping online chat")
                 return null
             }
 

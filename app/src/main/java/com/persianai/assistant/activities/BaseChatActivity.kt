@@ -87,25 +87,17 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
-        // اولویت آنلاین: Liara (بهترین) → AIML → OpenRouter → OpenAI → آفلاین (fallback)
+        // فقط OpenRouter/Llama 3.3 برای چت آنلاین؛ در غیر این صورت آفلاین
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
-        
-        val selected = when {
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> {
-                android.util.Log.d("BaseChatActivity", "✅ استفاده از Liara")
-                // برای کلیدهای رایگان Liara: استفاده از مدل‌های پایداری
-                AIModel.GPT_4O_MINI  // مدل پایدار و خوب
-            }
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.AIML) -> AIModel.AIML_GPT_35
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER) -> AIModel.QWEN_2_5_1B5
-            activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENAI) -> AIModel.GPT_35_TURBO
-            else -> {
-                // Fallback به آفلاین
-                android.util.Log.w("BaseChatActivity", "❌ تمام کلیدهای آنلاین شکست خوردند، استفاده از مدل آفلاین...")
-                AIModel.TINY_LLAMA_OFFLINE
-            }
+
+        val selected = if (activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER)) {
+            android.util.Log.d("BaseChatActivity", "✅ استفاده از OpenRouter: Llama 3.3 70B")
+            AIModel.LLAMA_3_3_70B
+        } else {
+            android.util.Log.w("BaseChatActivity", "⚠️ OpenRouter فعال نیست، استفاده از مدل آفلاین")
+            AIModel.TINY_LLAMA_OFFLINE
         }
-        
+
         android.util.Log.d("BaseChatActivity", "📊 Selected Model: ${selected.modelId}")
         return selected
     }

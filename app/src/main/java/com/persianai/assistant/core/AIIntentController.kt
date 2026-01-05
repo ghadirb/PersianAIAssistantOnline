@@ -125,14 +125,10 @@ import com.persianai.assistant.models.MessageRole
                 }
             }.trim()
 
-            // انتخاب مدل آنلاین بر اساس کلیدهای فعال (ترجیح رایگان/در دسترس‌تر)
-            val model = when {
-                keys.any { it.isActive && it.provider == AIProvider.AIML } -> AIModel.GPT_35_TURBO // AIML openai-compatible و ارزان‌تر
-                keys.any { it.isActive && it.provider == AIProvider.OPENROUTER } -> AIModel.LLAMA_3_3_70B // رایگان/مقرون‌به‌صرفه
-                keys.any { it.isActive && it.provider == AIProvider.OPENAI } -> AIModel.GPT_35_TURBO
-                keys.any { it.isActive && it.provider == AIProvider.LIARA } -> AIModel.GPT_4O_MINI
-                else -> null
-            } ?: return@withContext null
+            // فقط اگر OpenRouter فعال است، از Llama 3.3 70B برای تشخیص Intent استفاده کن
+            val hasOpenRouter = keys.any { it.isActive && it.provider == AIProvider.OPENROUTER }
+            if (!hasOpenRouter) return@withContext null
+            val model = AIModel.LLAMA_3_3_70B
 
             Log.d("AIIntentController", "Online intent via model=${model.displayName} provider=${model.provider.name}")
 
