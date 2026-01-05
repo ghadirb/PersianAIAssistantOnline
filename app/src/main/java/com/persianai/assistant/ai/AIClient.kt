@@ -323,7 +323,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
     /**
      * تبدیل صوت به متن با Whisper API
-     * ✅ Priority: OpenAI > AIML > OpenRouter > Liara > HuggingFace
+     * ✅ Priority (کم‌هزینه/در دسترس‌تر مقدم): AIML > HuggingFace > OpenRouter > Liara > OpenAI
      * ❌ Skip: Gladia (known 403 issues)
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
@@ -361,40 +361,37 @@ class AIClient(private val apiKeys: List<APIKey>) {
             .build()
 
         try {
-            // ✅ 1. OpenAI Whisper (بہترین اور قابل اعتماد)
-            openAiKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
-                val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
-                callWhisperLike(url, key.key, standardBody)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // ✅ 2. AIML STT (fallback #1)
+            // ✅ 1. AIML STT (اولویت کم‌هزینه) - official transcribe models
             aimlKey?.let { key ->
                 val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
-                android.util.Log.d("AIClient", "transcribeAudio using AIML async at $baseUrl/stt/create")
-                callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-
                 val transcribeBody = okhttp3.MultipartBody.Builder()
                     .setType(okhttp3.MultipartBody.FORM)
                     .addFormDataPart(
-                        "file",
+                        "audio", // AIML expects "audio"
                         file.name,
                         okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
                     )
-                    .addFormDataPart("model", "#g1_whisper-small")
+                    // per AIML docs: openai/gpt-4o-mini-transcribe or openai/gpt-4o-transcribe
+                    .addFormDataPart("model", "openai/gpt-4o-mini-transcribe")
                     .addFormDataPart("language", "fa")
                     .build()
 
                 val transcribeUrl = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "AIML fallback at $transcribeUrl")
+                android.util.Log.d("AIClient", "AIML transcribe at $transcribeUrl")
                 callWhisperLike(transcribeUrl, key.key, transcribeBody)
                     .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ✅ 3. OpenRouter (fallback #2)
+            // ✅ 2. HuggingFace (fast fallback - no quota)
+            hfKey?.let { key ->
+                val base = key.baseUrl?.trim()?.trimEnd('/') ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
+                val url = "$base?wait_for_model=true"
+                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
+                callHuggingFaceWhisper(url, key.key, standardBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
+            }
+
+            // ✅ 3. OpenRouter (best-effort)
             openRouterKey?.let { key ->
                 val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/v1"
                 val url = "$baseUrl/audio/transcriptions"
@@ -412,12 +409,12 @@ class AIClient(private val apiKeys: List<APIKey>) {
                     .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ✅ 5. HuggingFace
-            hfKey?.let { key ->
-                val base = key.baseUrl?.trim()?.trimEnd('/') ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
-                val url = "$base?wait_for_model=true"
-                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
-                callHuggingFaceWhisper(url, key.key, standardBody)
+            // ✅ 5. OpenAI Whisper (آخر خط - ممکن است محدودیت یا فیلتر)
+            openAiKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                val url = "$baseUrl/audio/transcriptions"
+                android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
+                callWhisperLike(url, key.key, standardBody)
                     .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 

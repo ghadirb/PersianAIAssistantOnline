@@ -94,42 +94,43 @@ class QueryRouter(private val context: Context) {
             
             Log.d(TAG, "📊 Available providers: ${activeKeys.map { it.provider.name }}")
             
-            // ✅ بہترین ترتیب: OpenAI > Liara > AIML > OpenRouter
-            val model = when {
-                // 1️⃣ OpenAI (سب سے قابل اعتماد)
-                activeKeys.any { it.provider == AIProvider.OPENAI && !it.key.startsWith("hf_") } -> {
-                    Log.d(TAG, "🌐 Using OpenAI (GPT-3.5 Turbo)")
-                    AIModel.GPT_35_TURBO
-                }
-                // 2️⃣ Liara
-                activeKeys.any { it.provider == AIProvider.LIARA } -> {
-                    Log.d(TAG, "🌐 Using Liara (GPT-4o Mini)")
-                    AIModel.GPT_4O_MINI
-                }
-                // 3️⃣ AIML
-                activeKeys.any { it.provider == AIProvider.AIML } -> {
-                    Log.d(TAG, "🌐 Using AIML (GPT-3.5)")
-                    AIModel.AIML_GPT_35
-                }
-                // 4️⃣ OpenRouter (آخری انتخاب)
-                activeKeys.any { it.provider == AIProvider.OPENROUTER } -> {
-                    Log.d(TAG, "🌐 Using OpenRouter (Llama 3.3 70B)")
-                    AIModel.LLAMA_3_3_70B
-                }
-                else -> {
-                    Log.w(TAG, "⚠️ کوئی معتبر provider دستیاب نہیں")
-                    return null
-                }
+            // ✅ Low-cost / unfiltered priority: AIML -> OpenRouter -> Liara -> OpenAI
+            val candidates = mutableListOf<AIModel>()
+            if (activeKeys.any { it.provider == AIProvider.AIML }) {
+                candidates.add(AIModel.AIML_GPT_35)
             }
-            
-            Log.d(TAG, "🌐 Trying online model: ${model.displayName}")
-            
+            if (activeKeys.any { it.provider == AIProvider.OPENROUTER }) {
+                candidates.add(AIModel.LLAMA_3_3_70B)
+            }
+            if (activeKeys.any { it.provider == AIProvider.LIARA }) {
+                candidates.add(AIModel.GPT_4O_MINI)
+            }
+            if (activeKeys.any { it.provider == AIProvider.OPENAI && !it.key.startsWith("hf_") }) {
+                candidates.add(AIModel.GPT_35_TURBO)
+            }
+
+            if (candidates.isEmpty()) {
+                Log.w(TAG, "⚠️ کوئی معتبر provider دستیاب نہیں")
+                return null
+            }
+
             val aiClient = AIClient(activeKeys)
             val messages = listOf(ChatMessage(role = MessageRole.USER, content = query))
-            val response = aiClient.sendMessage(model, messages)
-            
-            Log.d(TAG, "✅ Got online response from ${model.displayName}")
-            OnlineResult(response.content, model.displayName)
+
+            for (model in candidates) {
+                try {
+                    Log.d(TAG, "🌐 Trying online model: ${model.displayName}")
+                    val response = aiClient.sendMessage(model, messages)
+                    Log.d(TAG, "✅ Got online response from ${model.displayName}")
+                    return OnlineResult(response.content, model.displayName)
+                } catch (e: Exception) {
+                    Log.w(TAG, "⚠️ ${model.displayName} failed: ${e.message}")
+                    continue
+                }
+            }
+
+            Log.e(TAG, "❌ All online providers failed in fallback chain")
+            null
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Online model failed: ${e.message}")
             null
