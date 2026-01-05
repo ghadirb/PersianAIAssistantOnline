@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.persianai.assistant.models.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -275,9 +276,10 @@ class AIClient(private val apiKeys: List<APIKey>) {
      * تبدیل صوت به متن با Whisper API
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        // Priority: Liara -> AIML (aimlapi.com) -> OpenAI -> HF (any provider, key starts with hf_) -> fallback HF default (raw)
+        // Priority: Liara -> GLADIA -> OpenAI -> AIML (best-effort) -> HF (any provider, key starts with hf_) -> fallback HF default (raw)
         val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
+        val gladiaKey = apiKeys.firstOrNull { it.provider == AIProvider.GLADIA && it.isActive }
         val aimlKey = apiKeys.firstOrNull { it.provider == AIProvider.AIML && it.isActive }
         val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
         val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
@@ -297,8 +299,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 "mp3" -> "audio/mpeg"
                 else -> "application/octet-stream"
             }
-            // AIML audio models expect gpt-4o-mini-audio-preview (ChatGPT mini audio)
-            val modelForStt = if (aimlKey != null) "gpt-4o-mini-audio-preview" else "whisper-1"
+            val modelForStt = "whisper-1"
             val requestBody = okhttp3.MultipartBody.Builder()
                 .setType(okhttp3.MultipartBody.FORM)
                 .addFormDataPart(
@@ -310,6 +311,21 @@ class AIClient(private val apiKeys: List<APIKey>) {
                     )
                 )
                 .addFormDataPart("model", modelForStt)
+                .addFormDataPart("language", "fa")
+                .build()
+
+            // AIML نیاز به مدل #g1_whisper-small دارد (مسیر جدید stt/create)
+            val aimlRequestBody = okhttp3.MultipartBody.Builder()
+                .setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart(
+                    "file",
+                    file.name,
+                    okhttp3.RequestBody.Companion.create(
+                        mediaTypeStr.toMediaType(),
+                        file
+                    )
+                )
+                .addFormDataPart("model", "#g1_whisper-small")
                 .addFormDataPart("language", "fa")
                 .build()
 
@@ -327,13 +343,34 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 callWhisperLike(url2, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // AIML API (OpenAI-compatible)
+            // GLADIA (OpenAI-ish but uses its own headers)
+            gladiaKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.gladia.io"
+                val urlV2 = "$baseUrl/v2/transcription"
+                android.util.Log.d("AIClient", "transcribeAudio using GLADIA at $urlV2")
+                callGladiaTranscribe(urlV2, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+                // fallback to older endpoint if available
+                val urlV1 = "$baseUrl/v1/transcription"
+                android.util.Log.d("AIClient", "Gladia retry at $urlV1")
+                callGladiaTranscribe(urlV1, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+            }
+
+            // AIML API (OpenAI-compatible) — best effort; some plans may not expose audio endpoints
             aimlKey?.let { key ->
                 val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
-                // gpt-4o-mini-audio-preview / chatgpt-4o-mini-tts hinted as audio-capable
+                android.util.Log.d("AIClient", "transcribeAudio using AIML async at $baseUrl/stt/create (#g1_whisper-small)")
+                callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file).takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+                // fallback قدیمی OpenAI-compatible
                 val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using AIML at $url (gpt-4o-mini-audio-preview)")
-                callWhisperLike(url, key.key, requestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+                android.util.Log.d("AIClient", "AIML fallback at $url (#g1_whisper-small)")
+                callWhisperLike(url, key.key, aimlRequestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+                // fallback Legacy stt (قبل از audio/transcriptions)
+                val legacyUrl = "$baseUrl/stt"
+                android.util.Log.d("AIClient", "AIML legacy retry at $legacyUrl")
+                callWhisperLike(legacyUrl, key.key, aimlRequestBody).takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
             // OpenAI
@@ -368,6 +405,104 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
     }
 
+    /**
+     * AIML async STT دو مرحله‌ای: stt/create سپس polling روی stt/{id}
+     */
+    private suspend fun callAimlSttAsync(
+        baseUrl: String,
+        key: String,
+        mediaTypeStr: String,
+        file: java.io.File
+    ): String {
+        val createUrl = "$baseUrl/stt/create"
+        val body = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                okhttp3.RequestBody.Companion.create(
+                    mediaTypeStr.toMediaType(),
+                    file
+                )
+            )
+            .addFormDataPart("model", "#g1_whisper-small")
+            .addFormDataPart("language", "fa")
+            .build()
+
+        val createReq = Request.Builder()
+            .url(createUrl)
+            .addHeader("Authorization", "Bearer $key")
+            .addHeader("Accept", "application/json")
+            .post(body)
+            .build()
+
+        val generationId = try {
+            client.newCall(createReq).execute().use { resp ->
+                val respBody = resp.body?.string()
+                if (!resp.isSuccessful) {
+                    android.util.Log.e("AIClient", "AIML stt/create error ${resp.code}: $respBody")
+                    return ""
+                }
+                val json = gson.fromJson(respBody, JsonObject::class.java)
+                json.get("generation_id")?.asString ?: ""
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "AIML stt/create exception: ${e.message}", e)
+            return ""
+        }
+
+        if (generationId.isBlank()) return ""
+
+        val pollUrl = "$baseUrl/stt/$generationId"
+        repeat(5) { attempt ->
+            val pollReq = Request.Builder()
+                .url(pollUrl)
+                .addHeader("Authorization", "Bearer $key")
+                .addHeader("Accept", "application/json")
+                .get()
+                .build()
+
+            try {
+                client.newCall(pollReq).execute().use { resp ->
+                    val respBody = resp.body?.string()
+                    if (!resp.isSuccessful) {
+                        android.util.Log.e("AIClient", "AIML stt poll error ${resp.code}: $respBody")
+                        return ""
+                    }
+                    if (respBody.isNullOrBlank()) return ""
+                    val json = gson.fromJson(respBody, JsonObject::class.java)
+                    val status = json.get("status")?.asString ?: ""
+                    if (status.equals("waiting", true) || status.equals("active", true)) {
+                        // keep polling
+                    } else {
+                        // ساختار result.results.channels[0].alternatives[0].transcript
+                        val result = json.getAsJsonObject("result")
+                        val transcript = result
+                            ?.getAsJsonObject("results")
+                            ?.getAsJsonArray("channels")
+                            ?.firstOrNull()
+                            ?.asJsonObject
+                            ?.getAsJsonArray("alternatives")
+                            ?.firstOrNull()
+                            ?.asJsonObject
+                            ?.get("transcript")
+                            ?.asString
+                        if (!transcript.isNullOrBlank()) return transcript
+                        return respBody
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AIClient", "AIML stt poll exception: ${e.message}", e)
+                return ""
+            }
+
+            // wait before next poll (avoid long delay to keep UI responsive)
+            delay(1500)
+        }
+
+        return ""
+    }
+
     private fun callHuggingFaceRaw(token: String, mediaTypeStr: String, file: java.io.File): String {
         val url = "https://router.huggingface.co/models/openai/whisper-large-v3?wait_for_model=true"
         val body = file.readBytes().toRequestBody(mediaTypeStr.toMediaType())
@@ -392,6 +527,34 @@ class AIClient(private val apiKeys: List<APIKey>) {
             return try {
                 val json = gson.fromJson(respBody, JsonObject::class.java)
                 json.get("text")?.asString ?: json.get("generated_text")?.asString ?: respBody
+            } catch (_: Exception) {
+                respBody
+            }
+        }
+    }
+
+    private fun callGladiaTranscribe(url: String, key: String, body: okhttp3.MultipartBody): String {
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-gladia-key", key)
+            .addHeader("Accept", "application/json")
+            .post(body)
+            .build()
+
+        client.newCall(request).execute().use { resp ->
+            val respBody = resp.body?.string()
+            if (!resp.isSuccessful) {
+                android.util.Log.e("AIClient", "Gladia STT error ${resp.code}: $respBody")
+                return ""
+            }
+            if (respBody.isNullOrBlank()) return ""
+            return try {
+                val json = gson.fromJson(respBody, JsonObject::class.java)
+                // Prefer common fields
+                json.get("text")?.asString
+                    ?: json.get("transcription")?.asString
+                    ?: json.get("result")?.asJsonObject?.get("transcription")?.asString
+                    ?: respBody
             } catch (_: Exception) {
                 respBody
             }

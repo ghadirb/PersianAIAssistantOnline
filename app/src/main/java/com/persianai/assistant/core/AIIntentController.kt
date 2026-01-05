@@ -124,8 +124,19 @@ package com.persianai.assistant.core
                 }
             }.trim()
 
+            // انتخاب مدل آنلاین بر اساس کلیدهای فعال (ترجیح رایگان/پایدارتر)
+            val model = when {
+                keys.any { it.isActive && it.provider == AIProvider.LIARA } -> AIModel.GPT_4O_MINI
+                keys.any { it.isActive && it.provider == AIProvider.OPENROUTER } -> AIModel.LLAMA_3_3_70B
+                keys.any { it.isActive && it.provider == AIProvider.OPENAI } -> AIModel.GPT_35_TURBO
+                keys.any { it.isActive && it.provider == AIProvider.AIML } -> AIModel.GPT_4O_MINI // AIML openai-compatible
+                else -> null
+            } ?: return@withContext null
+
+            Log.d("AIIntentController", "Online intent via model=${model.displayName} provider=${model.provider.name}")
+
             val resp = client.sendMessage(
-                model = AIModel.GPT_4O_MINI,
+                model = model,
                 messages = listOf(
                     ChatMessage(role = MessageRole.USER, content = userPrompt)
                 ),

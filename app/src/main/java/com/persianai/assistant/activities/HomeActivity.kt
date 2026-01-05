@@ -166,14 +166,15 @@ class HomeActivity : AppCompatActivity() {
         val e = sp.edit()
         e.clear()
         if (keys.isNotEmpty() && keys.any { it.isActive }) {
-            if (keys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.LIARA }) {
-                prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-            }
+            // اگر هر کلیدی فعال است، حالت HYBRID بگذار تا آنلاین فعال شود
+            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
+
             e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)
             e.putString("openai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }?.key)
             e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)
             e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
             e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
+            e.putString("gladia_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.GLADIA && it.isActive }?.key)
         }
         // نگه داشتن HF اگر وجود دارد
         val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
