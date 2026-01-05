@@ -131,6 +131,7 @@ enum class AIModel(
  */
 enum class AIProvider {
     AIML,
+    GLADIA,
     OPENAI,
     ANTHROPIC,
     OPENROUTER,

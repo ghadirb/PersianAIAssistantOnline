@@ -72,6 +72,7 @@ object AutoProvisioningManager {
                 val defaultBase = when {
                     inferredProvider == AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
                     inferredProvider == AIProvider.AIML -> "https://api.aimlapi.com/v1"
+                    inferredProvider == AIProvider.GLADIA -> "https://api.gladia.io"
                     inferredProvider == AIProvider.OPENROUTER && key.key.startsWith("hf_") ->
                         "https://router.huggingface.co/models/openai/whisper-large-v3"
                     inferredProvider == AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
@@ -147,9 +148,11 @@ object AutoProvisioningManager {
                 "anthropic", "claude" -> AIProvider.ANTHROPIC
                 "openrouter" -> AIProvider.OPENROUTER
                 "aiml", "aimlapi" -> AIProvider.AIML
+                "gladia" -> AIProvider.GLADIA
                 "huggingface", "hf" -> AIProvider.OPENROUTER
                 else -> null
             }
+            
             if (provider != null) {
                 val key = parts.getOrNull(1) ?: ""
                 val baseUrl = parts.getOrNull(2)
@@ -179,17 +182,21 @@ object AutoProvisioningManager {
         // Liara keys in gist are JWT-like tokens starting with eyJ...
         if (trimmed.startsWith("eyJ")) return AIProvider.LIARA
 
+        // Gladia API keys are UUID-like (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+        if (trimmed.matches(Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\$")))
+            return AIProvider.GLADIA
+
         // HuggingFace tokens start with hf_
         if (lower.startsWith("hf_")) return AIProvider.OPENROUTER
+
+        // AIML often uses 32-char hex tokens (e.g., 3335a3...)
+        if (trimmed.matches(Regex("^[a-fA-F0-9]{32}\$"))) return AIProvider.AIML
 
         // OpenAI (and some project keys) start with sk- or sk-proj-
         if (lower.startsWith("sk-")) return AIProvider.OPENAI
 
         // Google-style API keys (AIza...) -> treat as OpenAI-compatible for now
         if (trimmed.startsWith("AIza")) return AIProvider.OPENAI
-
-        // Hex-only 32-char keys -> treat as OpenAI to avoid dropping
-        if (trimmed.matches(Regex("^[a-fA-F0-9]{32}\$"))) return AIProvider.OPENAI
 
         return null
     }

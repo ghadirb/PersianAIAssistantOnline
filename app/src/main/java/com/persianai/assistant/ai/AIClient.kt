@@ -59,7 +59,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
             try {
                 android.util.Log.d("AIClient", "🔄 تلاش برای ارسال پیام با ${model.provider.name} key: ${apiKey.key.take(8)}...")
                 return@withContext when (model.provider) {
-                    AIProvider.AIML -> sendToOpenAI(model, messages, systemPrompt, apiKey) // AIML API سازگار با OpenAI
+                    AIProvider.AIML, AIProvider.GLADIA -> sendToOpenAI(model, messages, systemPrompt, apiKey) // سازگار با OpenAI
                     AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
@@ -97,6 +97,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 ?: "https://openrouter.ai/api/v1/chat/completions"
             AIProvider.AIML -> baseUrl?.let { "$it/v1/chat/completions" }
                 ?: "https://api.aimlapi.com/v1/chat/completions"
+            AIProvider.GLADIA -> baseUrl?.let { "$it/v1/chat/completions" }
+                ?: "https://api.gladia.io/v1/chat/completions"
             AIProvider.OPENAI -> baseUrl?.let { "$it/v1/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
             AIProvider.LIARA -> baseUrl?.let {
