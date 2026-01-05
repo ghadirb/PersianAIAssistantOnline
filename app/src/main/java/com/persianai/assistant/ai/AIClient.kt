@@ -145,16 +145,15 @@ class AIClient(private val apiKeys: List<APIKey>) {
         val apiUrl = when (apiKey.provider) {
             AIProvider.OPENROUTER -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://openrouter.ai/api/v1/chat/completions"
-            AIProvider.AIML -> baseUrl?.let { "$it/v1/chat/completions" }
+            AIProvider.AIML -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.aimlapi.com/v1/chat/completions"
-            AIProvider.GLADIA -> baseUrl?.let { "$it/v1/chat/completions" }
+            AIProvider.GLADIA -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.gladia.io/v1/chat/completions"
-            AIProvider.OPENAI -> baseUrl?.let { "$it/v1/chat/completions" }
+            AIProvider.OPENAI -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
-            AIProvider.LIARA -> baseUrl?.let {
-                if (it.endsWith("/v1", ignoreCase = true)) "$it/chat/completions" else "$it/v1/chat/completions"
-            } ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1/chat/completions"
-            else -> baseUrl?.let { "$it/v1/chat/completions" }
+            AIProvider.LIARA -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1/chat/completions"
+            else -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
         }
 
@@ -323,14 +322,13 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
     /**
      * تبدیل صوت به متن با Whisper API
-     * ✅ Priority (کم‌هزینه/در دسترس‌تر مقدم): AIML > HuggingFace > OpenRouter > Liara > OpenAI
-     * ❌ Skip: Gladia (known 403 issues)
+     * ✅ Priority (کم‌هزینه/در دسترس‌تر مقدم): AIML async > Gladia > HuggingFace > Liara > OpenAI
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
         val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
         val aimlKey = apiKeys.firstOrNull { it.provider == AIProvider.AIML && it.isActive }
-        val openRouterKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENROUTER && it.isActive }
         val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
+        val gladiaKey = apiKeys.firstOrNull { it.provider == AIProvider.GLADIA && it.isActive }
         val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
         val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
@@ -361,42 +359,38 @@ class AIClient(private val apiKeys: List<APIKey>) {
             .build()
 
         try {
-            // ✅ 1. AIML STT (اولویت کم‌هزینه) - official transcribe models
+            // ✅ 1. AIML STT (async / دو مرحله‌ای)
             aimlKey?.let { key ->
                 val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
-                val transcribeBody = okhttp3.MultipartBody.Builder()
-                    .setType(okhttp3.MultipartBody.FORM)
-                    .addFormDataPart(
-                        "audio", // AIML expects "audio"
-                        file.name,
-                        okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
-                    )
-                    // per AIML docs: openai/gpt-4o-mini-transcribe or openai/gpt-4o-transcribe
-                    .addFormDataPart("model", "openai/gpt-4o-mini-transcribe")
-                    .addFormDataPart("language", "fa")
-                    .build()
-
-                val transcribeUrl = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "AIML transcribe at $transcribeUrl")
-                callWhisperLike(transcribeUrl, key.key, transcribeBody)
+                android.util.Log.d("AIClient", "AIML async STT at $baseUrl")
+                callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file)
                     .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
-            // ✅ 2. HuggingFace (fast fallback - no quota)
+            // ✅ 2. Gladia STT (کلید فعال)
+            gladiaKey?.let { key ->
+                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.gladia.io"
+                val url = "$baseUrl/audio/text"
+                val gladiaBody = okhttp3.MultipartBody.Builder()
+                    .setType(okhttp3.MultipartBody.FORM)
+                    .addFormDataPart(
+                        "audio",
+                        file.name,
+                        okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
+                    )
+                    .addFormDataPart("language", "fa")
+                    .build()
+                android.util.Log.d("AIClient", "transcribeAudio using Gladia at $url")
+                callGladiaTranscribe(url, key.key, gladiaBody)
+                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
+            }
+
+            // ✅ 3. HuggingFace (fast fallback - no quota)
             hfKey?.let { key ->
                 val base = key.baseUrl?.trim()?.trimEnd('/') ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
                 val url = "$base?wait_for_model=true"
                 android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
                 callHuggingFaceWhisper(url, key.key, standardBody)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // ✅ 3. OpenRouter (best-effort)
-            openRouterKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/v1"
-                val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using OpenRouter at $url")
-                callWhisperLike(url, key.key, standardBody)
                     .takeIf { it.isNotBlank() }?.let { return@withContext it }
             }
 
