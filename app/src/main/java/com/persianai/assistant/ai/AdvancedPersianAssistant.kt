@@ -1,7 +1,10 @@
 package com.persianai.assistant.ai
 
 import android.content.Context
-import com.persianai.assistant.api.AIModelManager
+import com.persianai.assistant.ai.AIClient
+import com.persianai.assistant.models.AIModel
+import com.persianai.assistant.models.ChatMessage
+import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.finance.CheckManager
 import com.persianai.assistant.finance.InstallmentManager
 import com.persianai.assistant.finance.FinanceManager
@@ -63,22 +66,33 @@ class AdvancedPersianAssistant(private val context: Context) {
         val baseResponse = processRequest(userInput)
 
         val workingMode = prefsManager.getWorkingMode()
-        val aiManager = AIModelManager(context)
-        val hasKey = aiManager.hasApiKey()
+        val apiKeys = prefsManager.getAPIKeys()
+        val hasOpenRouterKey = apiKeys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER }
 
         val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
-                workingMode == PreferencesManager.WorkingMode.HYBRID) && hasKey
+                workingMode == PreferencesManager.WorkingMode.HYBRID) && hasOpenRouterKey
 
         if (!canUseOnline) {
-            if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasKey) {
+            if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasOpenRouterKey) {
                 return AssistantResponse(
-                    text = "برای استفاده از مدل آنلاین، ابتدا کلید API را در تنظیمات وارد کنید."
+                    text = "برای استفاده از مدل آنلاین، ابتدا کلید OpenRouter را در تنظیمات وارد کنید."
                 )
             }
             return baseResponse
         }
 
         return try {
+            val aiClient = AIClient(apiKeys)
+            val model = AIModel.LLAMA_3_3_70B
+
+            suspend fun callOnline(prompt: String): String {
+                val resp = aiClient.sendMessage(
+                    model = model,
+                    messages = listOf(ChatMessage(role = MessageRole.USER, content = prompt))
+                )
+                return resp.content.trim()
+            }
+
             if (baseResponse.actionType == ActionType.NEEDS_AI) {
                 val contextLine = contextHint?.takeIf { it.isNotBlank() }?.let { "زمینه/بخش: $it.\n" } ?: ""
                 val prompt = """
@@ -92,10 +106,8 @@ class AdvancedPersianAssistant(private val context: Context) {
                     "$userInput"
                 """.trimIndent()
 
-                val aiText = aiManager.generateText(prompt).trim()
-                if (aiText.isNotBlank()) {
-                    return AssistantResponse(text = aiText)
-                }
+                val aiText = callOnline(prompt)
+                if (aiText.isNotBlank()) return AssistantResponse(text = aiText)
                 return baseResponse
             }
 
@@ -115,7 +127,7 @@ class AdvancedPersianAssistant(private val context: Context) {
                 اطلاعات و نتیجه را عوض نکن، فقط بیان را بهتر کن.
             """.trimIndent()
 
-            val aiText = aiManager.generateText(prompt)
+            val aiText = callOnline(prompt)
             if (aiText.isNotBlank()) {
                 baseResponse.copy(text = aiText)
             } else {
