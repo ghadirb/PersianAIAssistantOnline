@@ -297,6 +297,9 @@ dependencies {
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
     
+    // Offline STT (Vosk)
+    implementation 'com.alphacephei:vosk-android:0.3.38'
+    
     // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

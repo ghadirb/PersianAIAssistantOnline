@@ -3,6 +3,11 @@ package com.persianai.assistant.services
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
@@ -11,8 +16,20 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.ByteArrayOutputStream
+import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import kotlin.math.abs
+
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import org.json.JSONObject
+import org.vosk.Model
+import org.vosk.Recognizer
+
 import com.persianai.assistant.services.HybridAnalysisResult
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.utils.PreferencesManager
@@ -36,11 +53,16 @@ class NewHybridVoiceRecorder(private val context: Context) {
     private val recordingStartTime = AtomicLong(0)
     private var currentFile: File? = null
     private var mediaRecorder: MediaRecorder? = null
+    private var audioRecord: AudioRecord? = null
+    private var recordingJob: Job? = null
+    private var pcmBuffer: ByteArrayOutputStream? = null
     private var amplitudeCallback: ((Int) -> Unit)? = null
+    private val lastAmplitude = AtomicInteger(0)
     
-    // Haaniye model integration
-    private var haaniyeModel: Any? = null // Placeholder for ONNX model
-    private val haaniyeAssets = "tts/haaniye"
+    // Vosk offline model
+    @Volatile
+    private var voskModel: Model? = null
+    private val voskAssetsDir = "vosk"
     
     // Amplitude monitoring
     private var amplitudeHandler: Handler? = null
@@ -48,9 +70,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
         override fun run() {
             if (isRecording.get()) {
                 try {
-                    mediaRecorder?.maxAmplitude?.let { amplitude ->
-                        amplitudeCallback?.invoke(amplitude)
-                    }
+                    amplitudeCallback?.invoke(lastAmplitude.get())
                     amplitudeHandler?.postDelayed(this, 100) // Every 100ms
                 } catch (e: Exception) {
                     Log.w(TAG, "Error reading amplitude", e)
@@ -95,36 +115,63 @@ class NewHybridVoiceRecorder(private val context: Context) {
             val recordingDir = File(context.cacheDir, "recordings").apply {
                 if (!exists()) mkdirs()
             }
-            
-            // Generate unique filename
+
+            // Generate unique filename (WAV)
             val timestamp = System.currentTimeMillis()
-            currentFile = File(recordingDir, "voice_$timestamp.m4a")
-            
-            // Initialize MediaRecorder with safety checks
-            mediaRecorder = createMediaRecorderSafely()
-                ?: return@withContext Result.failure(IllegalStateException("Failed to create MediaRecorder"))
-            
-            // Configure MediaRecorder
-            setupMediaRecorder(mediaRecorder!!, currentFile!!)
-            
-            // Start recording
-            try {
-                mediaRecorder!!.prepare()
-                mediaRecorder!!.start()
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to start recording", e)
-                cleanupMediaRecorder()
-                return@withContext Result.failure(e)
+            currentFile = File(recordingDir, "voice_$timestamp.wav")
+
+            val sampleRate = 16000
+            val channelConfig = AudioFormat.CHANNEL_IN_MONO
+            val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+            val minBuffer = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+            if (minBuffer == AudioRecord.ERROR || minBuffer == AudioRecord.ERROR_BAD_VALUE) {
+                return@withContext Result.failure(IllegalStateException("Invalid minBuffer for AudioRecord"))
             }
-            
-            // Update state
+
+            val recorder = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                channelConfig,
+                audioFormat,
+                minBuffer * 2
+            )
+
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                recorder.release()
+                return@withContext Result.failure(IllegalStateException("AudioRecord not initialized"))
+            }
+
+            pcmBuffer = ByteArrayOutputStream()
+            recorder.startRecording()
+            audioRecord = recorder
+
             isRecording.set(true)
             recordingStartTime.set(System.currentTimeMillis())
-            
-            // Start amplitude monitoring
+
+            recordingJob = CoroutineScope(Dispatchers.IO).launch {
+                val buffer = ByteArray(minBuffer)
+                while (isRecording.get()) {
+                    val read = recorder.read(buffer, 0, buffer.size)
+                    if (read > 0) {
+                        pcmBuffer?.write(buffer, 0, read)
+                        // crude peak amplitude for UI (convert 16-bit PCM to absolute max)
+                        var peak = 0
+                        var i = 0
+                        while (i + 1 < read) {
+                            val sample = (buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xFF)
+                            val absVal = abs(sample)
+                            if (absVal > peak) peak = absVal
+                            i += 2
+                        }
+                        lastAmplitude.set(peak)
+                    }
+                }
+            }
+
+            // Start amplitude monitoring using AudioRecord buffer (approx)
             startAmplitudeMonitoring()
-            
-            Log.d(TAG, "✅ Recording started successfully: ${currentFile?.absolutePath}")
+
+            Log.d(TAG, "✅ Recording started successfully (PCM/WAV): ${currentFile?.absolutePath}")
             Result.success(Unit)
             
         } catch (e: Exception) {
@@ -187,29 +234,38 @@ class NewHybridVoiceRecorder(private val context: Context) {
             // Stop amplitude monitoring
             stopAmplitudeMonitoring()
             
-            // Stop MediaRecorder safely
+            // Stop AudioRecord safely
             var duration = 0L
-            mediaRecorder?.let { recorder ->
+            recordingJob?.cancel()
+            recordingJob = null
+
+            audioRecord?.let { ar ->
                 try {
                     duration = System.currentTimeMillis() - recordingStartTime.get()
-                    recorder.stop()
+                    ar.stop()
                 } catch (e: Exception) {
-                    Log.w(TAG, "Error stopping recorder", e)
+                    Log.w(TAG, "Error stopping AudioRecord", e)
                 } finally {
-                    cleanupMediaRecorder()
+                    ar.release()
+                    audioRecord = null
                 }
             }
             
             // Update state
             isRecording.set(false)
             
-            // Verify audio file
+            // Write WAV file
             val file = currentFile
-            if (file == null || !file.exists() || file.length() == 0L) {
-                Log.e(TAG, "❌ Audio file is missing or empty")
-                return@withContext Result.failure(IllegalStateException("Audio file is invalid"))
+            val pcmBytes = pcmBuffer?.toByteArray() ?: ByteArray(0)
+            pcmBuffer = null
+
+            if (file == null || pcmBytes.isEmpty()) {
+                Log.e(TAG, "❌ Audio buffer is empty")
+                return@withContext Result.failure(IllegalStateException("Audio buffer is empty"))
             }
-            
+
+            writeWavFile(file, pcmBytes, 16000, 1, 16)
+
             Log.d(TAG, "✅ Recording stopped: ${file.absolutePath} (${file.length()} bytes, ${duration}ms)")
             
             // Create recording result
@@ -234,28 +290,31 @@ class NewHybridVoiceRecorder(private val context: Context) {
     suspend fun cancelRecording(): Result<Unit> = withContext(Dispatchers.Main) {
         try {
             Log.d(TAG, "❌ Cancelling recording...")
-            
-            // Stop recording
-            if (isRecording.get()) {
-                mediaRecorder?.let { recorder ->
-                    try {
-                        recorder.stop()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Error stopping recorder during cancel", e)
-                    }
+
+            recordingJob?.cancel()
+            recordingJob = null
+
+            audioRecord?.let { ar ->
+                try {
+                    ar.stop()
+                } catch (_: Exception) {
+                } finally {
+                    ar.release()
+                    audioRecord = null
                 }
             }
-            
-            // Delete file
+
+            // Delete file/buffer
+            pcmBuffer = null
             currentFile?.delete()
             currentFile = null
-            
+
             // Cleanup
             cleanup()
-            
+
             Log.d(TAG, "✅ Recording cancelled")
             Result.success(Unit)
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error cancelling recording", e)
             cleanup()
@@ -277,6 +336,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
     private fun stopAmplitudeMonitoring() {
         amplitudeHandler?.removeCallbacks(amplitudeRunnable)
         amplitudeHandler = null
+        lastAmplitude.set(0)
     }
 
     /**
@@ -287,11 +347,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
     }
 
     fun getCurrentAmplitude(): Int {
-        return try {
-            if (isRecording.get()) mediaRecorder?.maxAmplitude ?: 0 else 0
-        } catch (_: Exception) {
-            0
-        }
+        return if (isRecording.get()) lastAmplitude.get() else 0
     }
 
     fun isRecordingInProgress(): Boolean = isRecording.get()
@@ -303,53 +359,60 @@ class NewHybridVoiceRecorder(private val context: Context) {
     fun getRecordingFile(): File? = currentFile
 
     suspend fun analyzeOffline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
-        // آفلاین موقتاً غیرفعال شده تا کرش Vosk رخ ندهد
-        Log.w(TAG, "⚠️ analyzeOffline disabled (forcing online-only)")
-        Result.failure(IllegalStateException("Offline STT disabled"))
+        return@withContext try {
+            if (!audioFile.exists() || audioFile.length() == 0L) {
+                return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
+            }
+
+            val model = ensureVoskModel() ?: return@withContext Result.failure(IllegalStateException("Vosk model not loaded"))
+            val pcm = decodeToPcm(audioFile)
+                ?: return@withContext Result.failure(IllegalStateException("Failed to decode audio to PCM"))
+
+            val mono16k = resampleToMono16k(pcm.data, pcm.sampleRate, pcm.channels)
+            if (mono16k.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("PCM buffer empty after resample"))
+            }
+
+            Log.d(TAG, "🎧 Running Vosk recognizer on ${mono16k.size} samples")
+            Recognizer(model, 16000.0f).use { recognizer ->
+                val ok = recognizer.acceptWaveForm(shortArrayToByteArray(mono16k), mono16k.size * 2)
+                val json = if (ok) recognizer.result else recognizer.finalResult
+                val text = extractTextFromVoskJson(json)
+                if (text.isNullOrBlank()) {
+                    Result.failure(IllegalStateException("Vosk returned empty text"))
+                } else {
+                    Result.success(text.trim())
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Offline Vosk exception: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
     suspend fun analyzeOnline(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
-        try {
+        // آنلاین اختیاری: اگر کلید نبود یا خطا داد، به آفلاین واگذار می‌شود
+        return@withContext try {
             if (!audioFile.exists() || audioFile.length() == 0L) {
                 return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
             }
 
             val prefs = PreferencesManager(context)
             val mode = prefs.getWorkingMode()
-            Log.d(TAG, "📱 Online mode check: $mode")
-            
             if (mode == PreferencesManager.WorkingMode.OFFLINE) {
-                Log.w(TAG, "❌ WorkingMode is OFFLINE, skipping online")
                 return@withContext Result.failure(IllegalStateException("WorkingMode is OFFLINE"))
             }
 
-            val keys = prefs.getAPIKeys()
-            Log.d(TAG, "🔑 Total keys: ${keys.size}")
-            keys.forEach { k ->
-                Log.d(TAG, "   - ${k.provider.name}: ${if (k.isActive) "✔ ACTIVE" else "✕ INACTIVE"} (${k.key.take(8)}...)")
-            }
-            
-            val activeKeys = keys.filter { it.isActive }
-            if (activeKeys.isEmpty()) {
-                Log.e(TAG, "❌ No active API keys found - Fallback to offline")
-                Log.w(TAG, "💡 کلیدهای Liara رایگان غیر فعال هستند")
-                Log.w(TAG, "💡 شاید نیاز به پنل پولی یا فعال کردن کلید در Dashboard است")
+            val keys = prefs.getAPIKeys().filter { it.isActive && it.key.isNotBlank() }
+            if (keys.isEmpty()) {
                 return@withContext Result.failure(IllegalStateException("No active API key"))
             }
 
-            Log.d(TAG, "🌐 Creating AIClient with ${activeKeys.size} active key(s)")
-            val client = AIClient(activeKeys)
-            
-            Log.d(TAG, "📤 Calling transcribeAudio: ${audioFile.absolutePath}")
+            val client = AIClient(keys)
             val text = client.transcribeAudio(audioFile.absolutePath).trim()
-            
-            Log.d(TAG, "📥 Transcription result: ${if (text.isBlank()) "EMPTY" else "OK (${text.length} chars)"}")
-            
             if (text.isBlank()) {
-                Log.w(TAG, "⚠️ Online STT returned blank")
                 Result.failure(IllegalStateException("Online STT returned blank"))
             } else {
-                Log.d(TAG, "✅ Online transcription successful")
                 Result.success(text)
             }
         } catch (e: Exception) {
@@ -417,7 +480,171 @@ class NewHybridVoiceRecorder(private val context: Context) {
             cleanupMediaRecorder()
             isRecording.set(false)
             recordingStartTime.set(0L)
+            pcmBuffer = null
+            recordingJob?.cancel()
+            recordingJob = null
+            try { audioRecord?.release() } catch (_: Exception) {}
+            audioRecord = null
         } catch (_: Exception) {
+        }
+    }
+
+    // ----- Vosk helpers -----
+
+    private data class PCMData(val data: ShortArray, val sampleRate: Int, val channels: Int)
+
+    @Synchronized
+    private fun ensureVoskModel(): Model? {
+        if (voskModel != null) return voskModel
+        try {
+            val targetDir = File(context.filesDir, voskAssetsDir)
+            if (!targetDir.exists()) {
+                copyAssetsRecursively(voskAssetsDir, targetDir)
+            }
+            voskModel = Model(targetDir.absolutePath)
+            Log.d(TAG, "✅ Vosk model loaded from ${targetDir.absolutePath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed loading Vosk model: ${e.message}", e)
+            voskModel = null
+        }
+        return voskModel
+    }
+
+    private fun copyAssetsRecursively(assetPath: String, outDir: File) {
+        val assetManager = context.assets
+        val items = assetManager.list(assetPath) ?: return
+        if (!outDir.exists()) outDir.mkdirs()
+        for (item in items) {
+            val relPath = if (assetPath.isEmpty()) item else "$assetPath/$item"
+            val outFile = File(outDir, item)
+            val children = assetManager.list(relPath)
+            if (children.isNullOrEmpty()) {
+                assetManager.open(relPath).use { input ->
+                    FileOutputStream(outFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } else {
+                copyAssetsRecursively(relPath, outFile)
+            }
+        }
+    }
+
+    private fun decodeToPcm(file: File): PCMData? {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(file.absolutePath)
+            var audioTrackIndex = -1
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    break
+                }
+            }
+            if (audioTrackIndex < 0) return null
+
+            extractor.selectTrack(audioTrackIndex)
+            val format = extractor.getTrackFormat(audioTrackIndex)
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            val codec = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME) ?: return null)
+            codec.configure(format, null, null, 0)
+            codec.start()
+
+            val outPcm = ByteArrayOutputStream()
+            val bufferInfo = MediaCodec.BufferInfo()
+            val timeoutUs = 10_000L
+            var isEos = false
+            while (true) {
+                if (!isEos) {
+                    val inIndex = codec.dequeueInputBuffer(timeoutUs)
+                    if (inIndex >= 0) {
+                        val inputBuffer = codec.getInputBuffer(inIndex) ?: continue
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        if (sampleSize < 0) {
+                            codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            isEos = true
+                        } else {
+                            val presentationTimeUs = extractor.sampleTime
+                            codec.queueInputBuffer(inIndex, 0, sampleSize, presentationTimeUs, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+
+                val outIndex = codec.dequeueOutputBuffer(bufferInfo, timeoutUs)
+                if (outIndex >= 0) {
+                    val outputBuffer = codec.getOutputBuffer(outIndex)
+                        ?: continue
+                    val chunk = ByteArray(bufferInfo.size)
+                    outputBuffer.get(chunk)
+                    outputBuffer.clear()
+                    outPcm.write(chunk)
+                    codec.releaseOutputBuffer(outIndex, false)
+                    if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
+                }
+            }
+
+            codec.stop()
+            codec.release()
+            extractor.release()
+
+            val pcmBytes = outPcm.toByteArray()
+            val shorts = ByteBuffer.wrap(pcmBytes).asShortBuffer()
+            val data = ShortArray(shorts.remaining())
+            shorts.get(data)
+            return PCMData(data = data, sampleRate = sampleRate, channels = channels)
+        } catch (e: Exception) {
+            Log.e(TAG, "decodeToPcm error: ${e.message}", e)
+            try { extractor.release() } catch (_: Exception) {}
+            return null
+        }
+    }
+
+    private fun resampleToMono16k(data: ShortArray, sampleRate: Int, channels: Int): ShortArray {
+        if (data.isEmpty()) return data
+        // downmix to mono
+        val mono = if (channels > 1) {
+            val monoData = ShortArray(data.size / channels)
+            var m = 0
+            var i = 0
+            while (i + channels - 1 < data.size) {
+                var sum = 0
+                for (c in 0 until channels) {
+                    sum += data[i + c].toInt()
+                }
+                monoData[m++] = (sum / channels).toShort()
+                i += channels
+            }
+            monoData.copyOf(m)
+        } else data
+
+        if (sampleRate == 16000) return mono
+        val ratio = sampleRate.toDouble() / 16000.0
+        val outLen = (mono.size / ratio).toInt().coerceAtLeast(1)
+        val out = ShortArray(outLen)
+        for (i in 0 until outLen) {
+            val srcIdx = (i * ratio).toInt()
+            if (srcIdx in mono.indices) out[i] = mono[srcIdx]
+        }
+        return out
+    }
+
+    private fun shortArrayToByteArray(data: ShortArray): ByteArray {
+        val buffer = ByteBuffer.allocate(data.size * 2)
+        for (s in data) buffer.putShort(s)
+        return buffer.array()
+    }
+
+    private fun extractTextFromVoskJson(json: String): String? {
+        return try {
+            val obj = JSONObject(json)
+            obj.optString("text", null)?.trim()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse Vosk JSON: ${e.message}")
+            null
         }
     }
 }

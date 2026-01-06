@@ -107,7 +107,8 @@ class VoiceActionButton @JvmOverloads constructor(
 
                 val stopped = engine.stopRecording()
                 if (stopped.isFailure) {
-                    listener?.onRecordingError(stopped.exceptionOrNull()?.message ?: "خطا در توقف ضبط")
+                    val msg = stopped.exceptionOrNull()?.message ?: "خطا در توقف ضبط"
+                    listener?.onRecordingError(msg)
                     return@launch
                 }
 
@@ -123,7 +124,8 @@ class VoiceActionButton @JvmOverloads constructor(
                 if (text.isNotBlank()) {
                     listener?.onTranscript(text)
                 } else {
-                    listener?.onRecordingError(transcription.exceptionOrNull()?.message ?: "متنی دریافت نشد")
+                    val err = transcription.exceptionOrNull()?.message ?: "متنی دریافت نشد"
+                    listener?.onRecordingError(err)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Exception stopping recording", e)

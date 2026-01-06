@@ -21,44 +21,27 @@ class SpeechToTextPipeline(private val context: Context) {
             }
             
             Log.d(TAG, "🎤 Starting transcription for: ${audioFile.absolutePath}")
-            val prefs = PreferencesManager(context)
-            val mode = prefs.getWorkingMode()
-            
-            Log.d(TAG, "Working mode: $mode")
 
-            // Only attempt online if not OFFLINE mode
-            if (mode != PreferencesManager.WorkingMode.OFFLINE) {
-                val keys = prefs.getAPIKeys()
-                val activeKeys = keys.filter { it.isActive && !it.key.isNullOrBlank() }
-                if (activeKeys.isEmpty()) {
-                    Log.w(TAG, "⚠️ No active API keys for STT")
-                } else {
-                    Log.d(TAG, "🌐 Attempting online transcription via AIClient fallback chain (AIML > HF > OpenRouter > Liara > OpenAI)")
-                    val online = recorder.analyzeOnline(audioFile)
-                    val onlineText = online.getOrNull()?.trim()
-                    if (!onlineText.isNullOrBlank()) {
-                        Log.d(TAG, "✅ Online transcription: $onlineText")
-                        return@withContext Result.success(onlineText)
-                    } else {
-                        val err = online.exceptionOrNull()?.message ?: "Empty response"
-                        Log.w(TAG, "⚠️ Online STT returned blank/error: $err")
-                    }
-                }
+            // تلاش آنلاین (اگر خطا/خالی بود به آفلاین می‌رویم)
+            val online = recorder.analyzeOnline(audioFile)
+            val onlineText = online.getOrNull()?.trim()
+            if (!onlineText.isNullOrBlank()) {
+                Log.d(TAG, "✅ Online transcription: $onlineText")
+                return@withContext Result.success(onlineText)
+            } else {
+                val err = online.exceptionOrNull()?.message ?: "Empty response"
+                Log.w(TAG, "⚠️ Online STT returned blank/error: $err")
             }
 
-            // Offline fallback only when user explicitly set OFFLINE
-            if (mode == PreferencesManager.WorkingMode.OFFLINE) {
-                Log.d(TAG, "📱 WorkingMode=OFFLINE => calling analyzeOffline")
-                val offline = recorder.analyzeOffline(audioFile)
-                val offlineText = offline.getOrNull()?.trim()
-                return@withContext if (!offlineText.isNullOrBlank()) {
-                    Result.success(offlineText)
-                } else {
-                    Result.failure(Exception(offline.exceptionOrNull()?.message ?: "Offline STT not available"))
-                }
+            // آفلاین Vosk به‌عنوان فallback قطعی
+            Log.d(TAG, "📱 Falling back to offline Vosk transcription")
+            val offline = recorder.analyzeOffline(audioFile)
+            val offlineText = offline.getOrNull()?.trim()
+            return@withContext if (!offlineText.isNullOrBlank()) {
+                Result.success(offlineText)
+            } else {
+                Result.failure(Exception(offline.exceptionOrNull()?.message ?: "Offline STT not available"))
             }
-
-            Result.failure(IllegalStateException("All STT providers failed (online blank and offline disabled)"))
         } catch (e: Exception) {
             Log.e(TAG, "❌ Transcription exception: ${e.message}", e)
             Result.failure(e)
