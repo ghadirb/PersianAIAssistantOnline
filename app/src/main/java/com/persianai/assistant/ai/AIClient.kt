@@ -81,9 +81,9 @@ class AIClient(private val apiKeys: List<APIKey>) {
         
         // دریافت تمام کلیدهای فعال برای این provider
         val availableKeys = apiKeys.filter { 
-            it.provider == model.provider && it.isActive && !failedKeys.contains(it.key)
+            it.provider == model.provider && it.isActive && it.key.isNotBlank() && !failedKeys.contains(it.key)
         }.filter {
-            // hf_ کلید فقط برای STT است؛ برای چت OpenRouter استفاده نشود
+            // کلیدهای خاص برخی providerها را حذف کن (مثلاً hf_ برای OpenRouter)
             if (model.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_")) {
                 false
             } else true
