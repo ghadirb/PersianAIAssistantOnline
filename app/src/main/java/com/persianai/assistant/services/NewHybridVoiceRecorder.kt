@@ -21,6 +21,7 @@ import java.io.InputStream
 import java.io.ByteArrayOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.abs
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -636,6 +637,36 @@ class NewHybridVoiceRecorder(private val context: Context) {
         val buffer = ByteBuffer.allocate(data.size * 2)
         for (s in data) buffer.putShort(s)
         return buffer.array()
+    }
+
+    private fun writeWavFile(file: File, pcmData: ByteArray, sampleRate: Int, channels: Int, bitsPerSample: Int) {
+        try {
+            file.parentFile?.let { if (!it.exists()) it.mkdirs() }
+            val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+            val byteRate = sampleRate * channels * bitsPerSample / 8
+            header.put("RIFF".toByteArray())
+            header.putInt(36 + pcmData.size)
+            header.put("WAVE".toByteArray())
+            header.put("fmt ".toByteArray())
+            header.putInt(16) // Subchunk1Size for PCM
+            header.putShort(1) // AudioFormat PCM
+            header.putShort(channels.toShort())
+            header.putInt(sampleRate)
+            header.putInt(byteRate)
+            header.putShort((channels * bitsPerSample / 8).toShort()) // BlockAlign
+            header.putShort(bitsPerSample.toShort())
+            header.put("data".toByteArray())
+            header.putInt(pcmData.size)
+
+            FileOutputStream(file).use { out ->
+                out.write(header.array())
+                out.write(pcmData)
+                out.flush()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "writeWavFile error: ${e.message}", e)
+            throw e
+        }
     }
 
     private fun extractTextFromVoskJson(json: String): String? {
