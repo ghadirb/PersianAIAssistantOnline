@@ -125,10 +125,10 @@ import com.persianai.assistant.models.MessageRole
                 }
             }.trim()
 
-            // فقط اگر OpenRouter فعال است، از Llama 3.3 70B برای تشخیص Intent استفاده کن
-            val hasOpenRouter = keys.any { it.isActive && it.provider == AIProvider.OPENROUTER }
-            if (!hasOpenRouter) return@withContext null
-            val model = AIModel.LLAMA_3_3_70B
+            // فقط اگر OpenAI فعال است، از GPT-4o Mini برای تشخیص Intent استفاده کن
+            val hasOpenAI = keys.any { it.isActive && it.provider == AIProvider.OPENAI }
+            if (!hasOpenAI) return@withContext null
+            val model = AIModel.GPT_4O_MINI
 
             Log.d("AIIntentController", "Online intent via model=${model.displayName} provider=${model.provider.name}")
 

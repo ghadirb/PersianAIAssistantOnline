@@ -89,10 +89,10 @@ enum class AIModel(
         128000
     ),
     GPT_4O_MINI(
-        "openai/gpt-4o-mini",
+        "gpt-4o-mini",
         "GPT-4o Mini",
-        AIProvider.LIARA,
-        "نسخه سریع و کارآمد GPT-4o",
+        AIProvider.OPENAI,
+        "مدل سریع و سبک OpenAI برای مکالمه روزمره",
         128000
     ),
     CLAUDE_SONNET(
@@ -122,7 +122,7 @@ enum class AIModel(
             return values().find { it.modelId == modelId }
         }
 
-        fun getDefaultModel(): AIModel = LLAMA_3_3_70B
+        fun getDefaultModel(): AIModel = GPT_4O_MINI
     }
 }
 

@@ -87,14 +87,14 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
-        // فقط OpenRouter/Llama 3.3 برای چت آنلاین؛ در غیر این صورت آفلاین
+        // فقط OpenAI/GPT-4o-mini برای چت آنلاین؛ در غیر این صورت آفلاین
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
 
-        val selected = if (activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENROUTER)) {
-            android.util.Log.d("BaseChatActivity", "✅ استفاده از OpenRouter: Llama 3.3 70B")
-            AIModel.LLAMA_3_3_70B
+        val selected = if (activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENAI)) {
+            android.util.Log.d("BaseChatActivity", "✅ استفاده از OpenAI: GPT-4o Mini")
+            AIModel.GPT_4O_MINI
         } else {
-            android.util.Log.w("BaseChatActivity", "⚠️ OpenRouter فعال نیست، استفاده از مدل آفلاین")
+            android.util.Log.w("BaseChatActivity", "⚠️ OpenAI فعال نیست، استفاده از مدل آفلاین")
             AIModel.TINY_LLAMA_OFFLINE
         }
 

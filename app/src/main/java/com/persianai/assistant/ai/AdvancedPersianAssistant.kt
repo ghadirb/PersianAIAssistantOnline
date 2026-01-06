@@ -67,15 +67,15 @@ class AdvancedPersianAssistant(private val context: Context) {
 
         val workingMode = prefsManager.getWorkingMode()
         val apiKeys = prefsManager.getAPIKeys()
-        val hasOpenRouterKey = apiKeys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER }
+        val hasOpenAIKey = apiKeys.any { it.isActive && it.provider == com.persianai.assistant.models.AIProvider.OPENAI }
 
         val canUseOnline = (workingMode == PreferencesManager.WorkingMode.ONLINE ||
-                workingMode == PreferencesManager.WorkingMode.HYBRID) && hasOpenRouterKey
+                workingMode == PreferencesManager.WorkingMode.HYBRID) && hasOpenAIKey
 
         if (!canUseOnline) {
-            if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasOpenRouterKey) {
+            if (workingMode == PreferencesManager.WorkingMode.ONLINE && !hasOpenAIKey) {
                 return AssistantResponse(
-                    text = "برای استفاده از مدل آنلاین، ابتدا کلید OpenRouter را در تنظیمات وارد کنید."
+                    text = "برای استفاده از مدل آنلاین، ابتدا کلید OpenAI را در تنظیمات وارد کنید."
                 )
             }
             return baseResponse
@@ -83,7 +83,7 @@ class AdvancedPersianAssistant(private val context: Context) {
 
         return try {
             val aiClient = AIClient(apiKeys)
-            val model = AIModel.LLAMA_3_3_70B
+            val model = AIModel.GPT_4O_MINI
 
             suspend fun callOnline(prompt: String): String {
                 val resp = aiClient.sendMessage(

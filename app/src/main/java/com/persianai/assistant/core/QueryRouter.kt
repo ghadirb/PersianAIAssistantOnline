@@ -94,12 +94,12 @@ class QueryRouter(private val context: Context) {
             
             Log.d(TAG, "📊 Available providers: ${activeKeys.map { it.provider.name }}")
 
-            // فقط OpenRouter/Llama 3.3 برای چت آنلاین
+            // فقط OpenAI/GPT-4o-mini برای چت آنلاین
             val candidates = mutableListOf<AIModel>()
-            if (activeKeys.any { it.provider == AIProvider.OPENROUTER }) {
-                candidates.add(AIModel.LLAMA_3_3_70B)
+            if (activeKeys.any { it.provider == AIProvider.OPENAI }) {
+                candidates.add(AIModel.GPT_4O_MINI)
             } else {
-                Log.w(TAG, "⚠️ No OpenRouter key active; skipping online chat")
+                Log.w(TAG, "⚠️ No OpenAI key active; skipping online chat")
                 return null
             }
 

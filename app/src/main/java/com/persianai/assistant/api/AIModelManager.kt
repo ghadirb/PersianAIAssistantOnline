@@ -66,21 +66,21 @@ class AIModelManager(private val context: Context) {
     private val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
     
     /**
-     * دریافت لیست مدل‌های در دسترس (فقط OpenRouter/Llama 3.3 برای چت آنلاین)
+     * دریافت لیست مدل‌های در دسترس (فقط OpenAI/GPT-4o-mini برای چت آنلاین)
      */
     fun getAvailableModels(): List<ModelConfig> {
-        val openRouterKey = prefs.getString("openrouter_api_key", null)
-        if (openRouterKey.isNullOrEmpty()) return emptyList()
+        val openAiKey = prefs.getString("openai_api_key", null)
+        if (openAiKey.isNullOrEmpty()) return emptyList()
 
         return listOf(
             ModelConfig(
-                name = MODEL_LLAMA_3_3_70B,
-                displayName = "Llama 3.3 70B (OpenRouter)",
-                provider = "OpenRouter",
-                apiKey = openRouterKey,
-                endpoint = OPENROUTER_API_URL,
+                name = "gpt-4o-mini",
+                displayName = "GPT-4o Mini (OpenAI)",
+                provider = "OpenAI",
+                apiKey = openAiKey,
+                endpoint = OPENAI_API_URL,
                 isAvailable = true,
-                features = listOf("چت اصلی", "پایدار", "OpenRouter")
+                features = listOf("چت اصلی", "OpenAI")
             )
         )
     }
