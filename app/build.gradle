@@ -299,6 +299,8 @@ dependencies {
     
     // Offline STT (Vosk)
     implementation 'com.alphacephei:vosk-android:0.3.38'
+    // JNA for Vosk native bindings
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
     
     // Testing
     testImplementation 'junit:junit:4.13.2'

@@ -175,6 +175,7 @@ class HomeActivity : AppCompatActivity() {
             e.putString("aiml_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AIML && it.isActive }?.key)
             e.putString("claude_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.ANTHROPIC && it.isActive }?.key)
             e.putString("gladia_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.GLADIA && it.isActive }?.key)
+            e.putString("avalai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.AVALAI && it.isActive }?.key)
         }
         // نگه داشتن HF اگر وجود دارد
         val hf = sp.getString("hf_api_key", null) ?: DefaultApiKeys.getHuggingFaceKey()
