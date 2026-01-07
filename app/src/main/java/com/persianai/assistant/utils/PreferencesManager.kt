@@ -173,13 +173,17 @@ JSON ONLY."""
     }
 
     fun setWorkingMode(mode: WorkingMode) {
-        // همیشه آنلاین؛ ورودی را نادیده می‌گیریم
-        prefs.edit().putString(KEY_WORKING_MODE, WorkingMode.ONLINE.name).apply()
+        // اجازه دهیم حالت انتخاب‌شده ذخیره شود (برای اجبار آفلاین یا هیبرید)
+        prefs.edit().putString(KEY_WORKING_MODE, mode.name).apply()
     }
 
     fun getWorkingMode(): WorkingMode {
-        // حالت اجباری آنلاین برای جلوگیری از مسیرهای آفلاین/هیبرید
-        return WorkingMode.ONLINE
+        val name = prefs.getString(KEY_WORKING_MODE, WorkingMode.HYBRID.name)
+        return try {
+            WorkingMode.valueOf(name ?: WorkingMode.HYBRID.name)
+        } catch (_: Exception) {
+            WorkingMode.HYBRID
+        }
     }
 
     enum class ProviderPreference {

@@ -22,19 +22,8 @@ class SpeechToTextPipeline(private val context: Context) {
             
             Log.d(TAG, "🎤 Starting transcription for: ${audioFile.absolutePath}")
 
-            // تلاش آنلاین (فقط OpenAI، اگر خطا/خالی بود به آفلاین می‌رویم)
-            val online = recorder.analyzeOnline(audioFile)
-            val onlineText = online.getOrNull()?.trim()
-            if (!onlineText.isNullOrBlank()) {
-                Log.d(TAG, "✅ Online transcription: $onlineText")
-                return@withContext Result.success(onlineText)
-            } else {
-                val err = online.exceptionOrNull()?.message ?: "Empty response"
-                Log.w(TAG, "⚠️ Online STT returned blank/error: $err")
-            }
-
-            // آفلاین Vosk به‌عنوان فallback قطعی
-            Log.d(TAG, "📱 Falling back to offline Vosk transcription")
+            // فقط آفلاین Vosk (درخواست کاربر برای اطمینان از عملکرد پایدار)
+            Log.d(TAG, "📱 Offline-only transcription (Vosk)")
             val offline = recorder.analyzeOffline(audioFile)
             val offlineText = offline.getOrNull()?.trim()
             return@withContext if (!offlineText.isNullOrBlank()) {

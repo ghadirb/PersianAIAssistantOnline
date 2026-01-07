@@ -424,26 +424,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
     }
 
     suspend fun analyzeHybrid(audioFile: File): Result<HybridAnalysisResult> = withContext(Dispatchers.IO) {
-        val prefs = PreferencesManager(context)
-        val mode = prefs.getWorkingMode()
-
-        // اگر آفلاین نیستیم، مستقیماً آنلاین را صدا بزنیم
-        if (mode != PreferencesManager.WorkingMode.OFFLINE) {
-            val online = analyzeOnline(audioFile)
-            val onlineText = online.getOrNull()?.trim()
-            val primary = onlineText.orEmpty()
-            return@withContext Result.success(
-                HybridAnalysisResult(
-                    offlineText = null,
-                    onlineText = onlineText,
-                    primaryText = primary,
-                    confidence = if (!onlineText.isNullOrBlank()) 0.75 else 0.0,
-                    timestamp = System.currentTimeMillis()
-                )
-            )
-        }
-
-        // فقط وقتی کاربر صراحتاً OFFLINE است، آفلاین را امتحان کنیم
+        // حالت اجباری: فقط آفلاین برای پایدارسازی
         val offline = analyzeOffline(audioFile)
         val offlineText = offline.getOrNull()?.trim()
         return@withContext if (!offlineText.isNullOrBlank()) {
