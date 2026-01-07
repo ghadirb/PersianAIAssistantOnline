@@ -95,6 +95,13 @@ enum class AIModel(
         "مدل سریع و سبک OpenAI برای مکالمه روزمره",
         128000
     ),
+    LIARA_GPT_4O_MINI(
+        "gpt-4o-mini",
+        "GPT-4o Mini (Liara)",
+        AIProvider.LIARA,
+        "مدل سازگار با OpenAI از سرویس لیارا برای مکالمه",
+        128000
+    ),
     AVALAI_GEMINI_FLASH(
         "gemini-2.5-flash",
         "Gemini 2.5 Flash (Avalai)",

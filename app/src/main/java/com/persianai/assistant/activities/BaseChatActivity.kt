@@ -87,15 +87,26 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
-        // فقط OpenAI/GPT-4o-mini برای چت آنلاین؛ در غیر این صورت آفلاین
+        // اولویت: OpenAI > Liara > Avalai > آفلاین
         val activeProviders = apiKeys.filter { it.isActive }.map { it.provider }.toSet()
 
-        val selected = if (activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENAI)) {
-            android.util.Log.d("BaseChatActivity", "✅ استفاده از OpenAI: GPT-4o Mini")
-            AIModel.GPT_4O_MINI
-        } else {
-            android.util.Log.w("BaseChatActivity", "⚠️ OpenAI فعال نیست، استفاده از مدل آفلاین")
-            AIModel.TINY_LLAMA_OFFLINE
+        val selected = when {
+            activeProviders.contains(com.persianai.assistant.models.AIProvider.OPENAI) -> {
+                android.util.Log.d("BaseChatActivity", "✅ استفاده از OpenAI: GPT-4o Mini")
+                AIModel.GPT_4O_MINI
+            }
+            activeProviders.contains(com.persianai.assistant.models.AIProvider.LIARA) -> {
+                android.util.Log.d("BaseChatActivity", "✅ استفاده از Liara: GPT-4o Mini")
+                AIModel.LIARA_GPT_4O_MINI
+            }
+            activeProviders.contains(com.persianai.assistant.models.AIProvider.AVALAI) -> {
+                android.util.Log.d("BaseChatActivity", "✅ استفاده از Avalai: Gemini 2.5 Flash")
+                AIModel.AVALAI_GEMINI_FLASH
+            }
+            else -> {
+                android.util.Log.w("BaseChatActivity", "⚠️ هیچ کلید آنلاین فعال نیست، استفاده از مدل آفلاین")
+                AIModel.TINY_LLAMA_OFFLINE
+            }
         }
 
         android.util.Log.d("BaseChatActivity", "📊 Selected Model: ${selected.modelId}")

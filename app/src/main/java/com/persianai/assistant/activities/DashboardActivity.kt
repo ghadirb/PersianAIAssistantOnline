@@ -592,8 +592,8 @@ class DashboardActivity : AppCompatActivity() {
             val liaraKey = activeKeys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA }
             
             val status = when {
-                orKey != null -> "✅ OpenRouter فعال | حالت ${mode.name}"
                 liaraKey != null -> "✅ Liara فعال | حالت ${mode.name}"
+                orKey != null -> "✅ OpenRouter فعال | حالت ${mode.name}"
                 else -> "❌ هیچ کلید فعالی نیست | حالت ${mode.name}"
             }
             
@@ -671,6 +671,8 @@ class DashboardActivity : AppCompatActivity() {
         editor.remove("openrouter_api_key")
         editor.remove("claude_api_key")
         editor.remove("aiml_api_key")
+        editor.remove("avalai_api_key")
+        editor.remove("gladia_api_key")
 
         prefsManager.getAPIKeys().forEach { key ->
             when (key.provider) {
@@ -680,8 +682,9 @@ class DashboardActivity : AppCompatActivity() {
                 AIProvider.OPENROUTER -> editor.putString("openrouter_api_key", key.key)
                 AIProvider.AIML -> editor.putString("aiml_api_key", key.key)
                 AIProvider.GLADIA -> editor.putString("gladia_api_key", key.key)
+                AIProvider.AVALAI -> editor.putString("avalai_api_key", key.key)
                 AIProvider.LOCAL -> {
-                    // مدل آفلاین کلید نیاز ندارد
+                    // مدل آفلاین کلید ندارد
                 }
             }
         }
@@ -710,6 +713,14 @@ class DashboardActivity : AppCompatActivity() {
                     "anthropic", "claude" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.ANTHROPIC, parts[1].trim(), isActive = false))
                     "openrouter" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.OPENROUTER, parts[1].trim(), isActive = false))
                     "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(com.persianai.assistant.models.AIProvider.AIML, parts[1].trim(), isActive = false))
+                    "avalai" -> keys.add(
+                        APIKey(
+                            provider = com.persianai.assistant.models.AIProvider.AVALAI,
+                            key = parts[1].trim(),
+                            baseUrl = "https://avalai.ir/api/v1",
+                            isActive = false
+                        )
+                    )
                     "liara" -> keys.add(
                         APIKey(
                             provider = com.persianai.assistant.models.AIProvider.LIARA,

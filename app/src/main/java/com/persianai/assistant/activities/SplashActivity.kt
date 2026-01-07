@@ -257,6 +257,14 @@ class SplashActivity : AppCompatActivity() {
                     "anthropic", "claude" -> keys.add(APIKey(AIProvider.ANTHROPIC, parts[1].trim(), isActive = true))
                     "openrouter" -> keys.add(APIKey(AIProvider.OPENROUTER, parts[1].trim(), isActive = true))
                     "aiml", "aimlapi", "aimlapi.com" -> keys.add(APIKey(AIProvider.AIML, parts[1].trim(), isActive = true))
+                    "avalai" -> keys.add(
+                        APIKey(
+                            provider = AIProvider.AVALAI,
+                            key = parts[1].trim(),
+                            baseUrl = "https://avalai.ir/api/v1",
+                            isActive = true
+                        )
+                    )
                     "liara" -> keys.add(
                         APIKey(
                             provider = AIProvider.LIARA,
@@ -313,6 +321,7 @@ class SplashActivity : AppCompatActivity() {
                 AIProvider.OPENROUTER -> editor.putString("openrouter_api_key", key.key)
                 AIProvider.AIML -> editor.putString("aiml_api_key", key.key)
                 AIProvider.GLADIA -> editor.putString("gladia_api_key", key.key)
+                AIProvider.AVALAI -> editor.putString("avalai_api_key", key.key)
                 AIProvider.LOCAL -> {
                     // مدل آفلاین کلید ندارد
                 }

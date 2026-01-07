@@ -81,8 +81,20 @@ class AIClient(private val apiKeys: List<APIKey>) {
     ): ChatMessage = withContext(Dispatchers.IO) {
         
         // دریافت تمام کلیدهای فعال برای این provider
-        val availableKeys = apiKeys.filter { 
+        val priority = listOf(
+            AIProvider.OPENAI,
+            AIProvider.LIARA,
+            AIProvider.AVALAI,
+            AIProvider.OPENROUTER,
+            AIProvider.AIML,
+            AIProvider.GLADIA,
+            AIProvider.ANTHROPIC,
+            AIProvider.LOCAL
+        )
+        val availableKeys = apiKeys.filter {
             it.provider == model.provider && it.isActive && it.key.isNotBlank() && !failedKeys.contains(it.key)
+        }.sortedBy { k ->
+            priority.indexOf(k.provider).let { if (it == -1) Int.MAX_VALUE else it }
         }.filter {
             // کلیدهای خاص برخی providerها را حذف کن (مثلاً hf_ برای OpenRouter)
             if (model.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_")) {
@@ -144,18 +156,18 @@ class AIClient(private val apiKeys: List<APIKey>) {
         
         val baseUrl = apiKey.baseUrl?.trim()?.trimEnd('/')
         val apiUrl = when (apiKey.provider) {
+            AIProvider.OPENAI -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://api.openai.com/v1/chat/completions"
+            AIProvider.LIARA -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1/chat/completions"
+            AIProvider.AVALAI -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://avalai.ir/api/v1/chat/completions"
             AIProvider.OPENROUTER -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://openrouter.ai/api/v1/chat/completions"
             AIProvider.AIML -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.aimlapi.com/v1/chat/completions"
             AIProvider.GLADIA -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.gladia.io/v1/chat/completions"
-            AIProvider.OPENAI -> baseUrl?.let { "$it/chat/completions" }
-                ?: "https://api.openai.com/v1/chat/completions"
-            AIProvider.AVALAI -> baseUrl?.let { "$it/chat/completions" }
-                ?: "https://avalai.ir/api/v1/chat/completions"
-            AIProvider.LIARA -> baseUrl?.let { "$it/chat/completions" }
-                ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1/chat/completions"
             else -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
         }

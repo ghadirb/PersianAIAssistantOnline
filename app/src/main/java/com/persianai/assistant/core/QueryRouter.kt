@@ -94,16 +94,19 @@ class QueryRouter(private val context: Context) {
             
             Log.d(TAG, "📊 Available providers: ${activeKeys.map { it.provider.name }}")
 
-            // اولویت: OpenAI GPT-4o-mini سپس Avalai Gemini-2.5-Flash
+            // اولویت: OpenAI GPT-4o-mini -> Liara GPT-4o-mini -> Avalai Gemini-2.5-Flash
             val candidates = mutableListOf<AIModel>()
             if (activeKeys.any { it.provider == AIProvider.OPENAI }) {
                 candidates.add(AIModel.GPT_4O_MINI)
+            }
+            if (activeKeys.any { it.provider == AIProvider.LIARA }) {
+                candidates.add(AIModel.LIARA_GPT_4O_MINI)
             }
             if (activeKeys.any { it.provider == AIProvider.AVALAI }) {
                 candidates.add(AIModel.AVALAI_GEMINI_FLASH)
             }
             if (candidates.isEmpty()) {
-                Log.w(TAG, "⚠️ No OpenAI/Avalai key active; skipping online chat")
+                Log.w(TAG, "⚠️ No OpenAI/Liara/Avalai key active; skipping online chat")
                 return null
             }
 
