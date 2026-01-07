@@ -15,6 +15,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
+import kotlinx.coroutines.cancelAndJoin
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -237,7 +238,10 @@ class NewHybridVoiceRecorder(private val context: Context) {
             
             // Stop AudioRecord safely
             var duration = 0L
-            recordingJob?.cancel()
+            isRecording.set(false)
+            try {
+                recordingJob?.cancelAndJoin()
+            } catch (_: Exception) {}
             recordingJob = null
 
             audioRecord?.let { ar ->
@@ -251,9 +255,6 @@ class NewHybridVoiceRecorder(private val context: Context) {
                     audioRecord = null
                 }
             }
-            
-            // Update state
-            isRecording.set(false)
             
             // Write WAV file
             val file = currentFile

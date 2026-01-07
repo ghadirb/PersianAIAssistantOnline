@@ -95,6 +95,13 @@ enum class AIModel(
         "مدل سریع و سبک OpenAI برای مکالمه روزمره",
         128000
     ),
+    AVALAI_GEMINI_FLASH(
+        "gemini-2.5-flash",
+        "Gemini 2.5 Flash (Avalai)",
+        AIProvider.AVALAI,
+        "مدل Gemini از avalai.ir برای مکالمه فارسی/چندزبانه",
+        8192
+    ),
     CLAUDE_SONNET(
         "claude-3-5-sonnet-20241022",
         "Claude 3.5 Sonnet",
@@ -136,6 +143,7 @@ enum class AIProvider {
     ANTHROPIC,
     OPENROUTER,
     LIARA,
+    AVALAI,
     LOCAL
 }
 

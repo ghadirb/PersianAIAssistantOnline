@@ -6,6 +6,7 @@ import com.persianai.assistant.models.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -101,7 +102,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 android.util.Log.d("AIClient", "🔄 تلاش برای ارسال پیام با ${model.provider.name} key: ${apiKey.key.take(8)}...")
                 return@withContext when (model.provider) {
                     AIProvider.AIML, AIProvider.GLADIA -> sendToOpenAI(model, messages, systemPrompt, apiKey) // سازگار با OpenAI
-                    AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
+                    AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA, AIProvider.AVALAI -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
                 }
@@ -151,6 +152,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 ?: "https://api.gladia.io/v1/chat/completions"
             AIProvider.OPENAI -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
+            AIProvider.AVALAI -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://avalai.ir/api/v1/chat/completions"
             AIProvider.LIARA -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1/chat/completions"
             else -> baseUrl?.let { "$it/chat/completions" }
@@ -322,111 +325,39 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
     /**
      * تبدیل صوت به متن با Whisper API
-     * ✅ Priority (کم‌هزینه/در دسترس‌تر مقدم): AIML async > Gladia > HuggingFace > Liara > OpenAI
+     * ✅ فقط OpenAI (سریع‌تر/سازگارتر). اگر نبود یا خالی بود، استثناء برمی‌گرداند.
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
         val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
-        val aimlKey = apiKeys.firstOrNull { it.provider == AIProvider.AIML && it.isActive }
-        val liaraKey = apiKeys.firstOrNull { it.provider == AIProvider.LIARA && it.isActive }
-        val gladiaKey = apiKeys.firstOrNull { it.provider == AIProvider.GLADIA && it.isActive }
-        val hfKey = apiKeys.firstOrNull { it.isActive && it.key.startsWith("hf_") }
-        val fallbackHf = com.persianai.assistant.utils.DefaultApiKeys.getHuggingFaceKey()
 
+        // فایل
         val file = java.io.File(audioFilePath)
-        if (!file.exists()) {
-            android.util.Log.w("AIClient", "Audio file not found: $audioFilePath")
+        if (!file.exists()) return@withContext ""
+
+        if (openAiKey == null) {
+            android.util.Log.w("AIClient", "No OpenAI key for STT")
             return@withContext ""
         }
 
-        val mediaTypeStr = when (file.extension.lowercase()) {
-            "m4a", "mp4" -> "audio/mp4"
-            "wav" -> "audio/wav"
-            "ogg" -> "audio/ogg"
-            "webm" -> "audio/webm"
-            "mp3" -> "audio/mpeg"
-            else -> "application/octet-stream"
-        }
-
-        val standardBody = okhttp3.MultipartBody.Builder()
-            .setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart(
-                "file",
-                file.name,
-                okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
-            )
+        // بدنه استاندارد (OpenAI Whisper)
+        val mediaTypeAudio = "audio/wav".toMediaType()
+        val standardBody = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart("file", file.name, okhttp3.RequestBody.create(mediaTypeAudio, file))
             .addFormDataPart("model", "whisper-1")
             .addFormDataPart("language", "fa")
             .build()
 
-        try {
-            // ✅ 1. AIML STT (async / دو مرحله‌ای)
-            aimlKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.aimlapi.com/v1"
-                android.util.Log.d("AIClient", "AIML async STT at $baseUrl")
-                callAimlSttAsync(baseUrl, key.key, mediaTypeStr, file)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // ✅ 2. Gladia STT (کلید فعال)
-            gladiaKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.gladia.io"
-                val url = "$baseUrl/audio/text"
-                val gladiaBody = okhttp3.MultipartBody.Builder()
-                    .setType(okhttp3.MultipartBody.FORM)
-                    .addFormDataPart(
-                        "audio",
-                        file.name,
-                        okhttp3.RequestBody.Companion.create(mediaTypeStr.toMediaType(), file)
-                    )
-                    .addFormDataPart("language", "fa")
-                    .build()
-                android.util.Log.d("AIClient", "transcribeAudio using Gladia at $url")
-                callGladiaTranscribe(url, key.key, gladiaBody)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // ✅ 3. HuggingFace (fast fallback - no quota)
-            hfKey?.let { key ->
-                val base = key.baseUrl?.trim()?.trimEnd('/') ?: "https://router.huggingface.co/models/openai/whisper-large-v3"
-                val url = "$base?wait_for_model=true"
-                android.util.Log.d("AIClient", "transcribeAudio using HF key at $url")
-                callHuggingFaceWhisper(url, key.key, standardBody)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // ✅ 4. Liara
-            liaraKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
-                val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using Liara at $url")
-                callWhisperLike(url, key.key, standardBody)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
-            }
-
-            // ✅ 5. OpenAI Whisper (آخر خط - ممکن است محدودیت یا فیلتر)
-            openAiKey?.let { key ->
-                val baseUrl = key.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+        return@withContext try {
+            withTimeout(20000) {
+                val baseUrl = openAiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
                 val url = "$baseUrl/audio/transcriptions"
                 android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
-                callWhisperLike(url, key.key, standardBody)
-                    .takeIf { it.isNotBlank() }?.let { return@withContext it }
+                callWhisperLike(url, openAiKey.key, standardBody)
             }
-
-            android.util.Log.e("AIClient", "❌ All STT providers failed")
-            return@withContext ""
         } catch (e: Exception) {
-            android.util.Log.e("AIClient", "❌ Transcription exception: ${e.message}", e)
-            return@withContext ""
+            android.util.Log.e("AIClient", "OpenAI STT failed: ${e.message}")
+            ""
         }
-
-        // HF raw bytes با توکن موجود یا پیش‌فرض
-        val hfToken = hfKey?.key ?: fallbackHf
-        if (!hfToken.isNullOrBlank()) {
-            val raw = callHuggingFaceRaw(hfToken, mediaTypeStr, file)
-            if (raw.isNotBlank()) return@withContext raw
-        }
-
-        ""
     }
 
     /**

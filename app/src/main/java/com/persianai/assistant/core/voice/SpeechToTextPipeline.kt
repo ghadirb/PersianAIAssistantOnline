@@ -22,7 +22,7 @@ class SpeechToTextPipeline(private val context: Context) {
             
             Log.d(TAG, "🎤 Starting transcription for: ${audioFile.absolutePath}")
 
-            // تلاش آنلاین (اگر خطا/خالی بود به آفلاین می‌رویم)
+            // تلاش آنلاین (فقط OpenAI، اگر خطا/خالی بود به آفلاین می‌رویم)
             val online = recorder.analyzeOnline(audioFile)
             val onlineText = online.getOrNull()?.trim()
             if (!onlineText.isNullOrBlank()) {

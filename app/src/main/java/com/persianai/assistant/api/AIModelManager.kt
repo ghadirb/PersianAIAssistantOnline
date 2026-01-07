@@ -70,9 +70,10 @@ class AIModelManager(private val context: Context) {
      */
     fun getAvailableModels(): List<ModelConfig> {
         val openAiKey = prefs.getString("openai_api_key", null)
+        val avalaiKey = prefs.getString("avalai_api_key", null)
         if (openAiKey.isNullOrEmpty()) return emptyList()
 
-        return listOf(
+        val models = mutableListOf(
             ModelConfig(
                 name = "gpt-4o-mini",
                 displayName = "GPT-4o Mini (OpenAI)",
@@ -83,6 +84,21 @@ class AIModelManager(private val context: Context) {
                 features = listOf("چت اصلی", "OpenAI")
             )
         )
+
+        if (!avalaiKey.isNullOrEmpty()) {
+            models.add(
+                ModelConfig(
+                    name = "gemini-2.5-flash",
+                    displayName = "Gemini 2.5 Flash (Avalai)",
+                    provider = "Avalai",
+                    apiKey = avalaiKey,
+                    endpoint = "https://avalai.ir/api/v1",
+                    isAvailable = true,
+                    features = listOf("چت اصلی", "Avalai")
+                )
+            )
+        }
+        return models
     }
     
     /**
@@ -95,6 +111,7 @@ class AIModelManager(private val context: Context) {
             "openrouter" -> "openrouter_api_key"
             "aiml" -> "aiml_api_key"
             "liara" -> "liara_api_key"
+            "avalai" -> "avalai_api_key"
             else -> return
         }
         
@@ -108,13 +125,18 @@ class AIModelManager(private val context: Context) {
             "claude", "anthropic" -> AIProvider.ANTHROPIC
             "openrouter" -> AIProvider.OPENROUTER
             "liara" -> AIProvider.LIARA
+            "avalai" -> AIProvider.AVALAI
             else -> null
         }
         if (apiProvider != null) {
             val updatedKeys = prefsManager.getAPIKeys()
                 .filter { it.provider != apiProvider }
                 .toMutableList()
-            val baseUrl = if (apiProvider == AIProvider.LIARA) LIARA_BASE_URL else null
+            val baseUrl = when (apiProvider) {
+                AIProvider.LIARA -> LIARA_BASE_URL
+                AIProvider.AVALAI -> "https://avalai.ir/api/v1"
+                else -> null
+            }
             updatedKeys.add(APIKey(apiProvider, apiKey, baseUrl = baseUrl, isActive = true))
             prefsManager.saveAPIKeys(updatedKeys)
         }
