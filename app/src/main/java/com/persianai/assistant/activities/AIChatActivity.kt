@@ -80,8 +80,7 @@ class AIChatActivity : BaseChatActivity() {
                 override fun onTranscript(text: String) {
                     android.util.Log.d("AIChatActivity", "✅ Transcript received: $text")
                     chatBinding.voiceButton.alpha = 1.0f
-                    chatBinding.messageInput.setText(text)
-                    sendMessage()
+                    handleTranscript(text)
                 }
 
                 override fun onRecordingError(error: String) {

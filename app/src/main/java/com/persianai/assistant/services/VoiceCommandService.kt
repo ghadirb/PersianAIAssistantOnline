@@ -3,23 +3,22 @@ package com.persianai.assistant.services
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+
 import com.persianai.assistant.R
-import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.ai.AdvancedPersianAssistant
+import com.persianai.assistant.activities.NotificationCommandActivity
 import com.persianai.assistant.core.AIIntentController
-import com.persianai.assistant.core.AIIntentRequest
 import com.persianai.assistant.core.voice.SpeechToTextPipeline
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -35,6 +34,7 @@ class VoiceCommandService : Service() {
     companion object {
         const val ACTION_RECORD_COMMAND = "com.persianai.assistant.action.RECORD_COMMAND"
         const val ACTION_RECORD_REMINDER = "com.persianai.assistant.action.RECORD_REMINDER"
+        const val ACTION_CANCEL = "com.persianai.assistant.action.CANCEL_RECORD"
 
         private const val CHANNEL_ID = "voice_command_service"
         private const val NOTIFICATION_ID = 1210
@@ -48,24 +48,34 @@ class VoiceCommandService : Service() {
     private val tag = "VoiceCommandService"
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var started = false
+    @Volatile private var canceled = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_RECORD_COMMAND || intent?.action == ACTION_RECORD_REMINDER) {
-            if (!started) {
-                started = true
-                ensureChannel()
-                startForeground(NOTIFICATION_ID, buildNotification("🎤 آماده ضبط...", ""))
-            }
-            scope.launch {
-                val mode = intent.getStringExtra(EXTRA_MODE)?.takeIf { it.isNotBlank() }
-                    ?: if (intent.action == ACTION_RECORD_REMINDER) MODE_REMINDER else MODE_GENERAL
-                runOneShotCommand(intent.getStringExtra(EXTRA_HINT), mode)
-                stopForeground(STOP_FOREGROUND_REMOVE)
+        when (intent?.action) {
+            ACTION_CANCEL -> {
+                canceled = true
+                try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {}
                 stopSelf()
+                return START_NOT_STICKY
             }
-            return START_NOT_STICKY
+            ACTION_RECORD_COMMAND, ACTION_RECORD_REMINDER -> {
+                if (!started) {
+                    started = true
+                    ensureChannel()
+                    startForeground(NOTIFICATION_ID, buildNotification("🎤 آماده ضبط...", ""))
+                }
+                scope.launch {
+                    canceled = false
+                    val mode = intent.getStringExtra(EXTRA_MODE)?.takeIf { it.isNotBlank() }
+                        ?: if (intent.action == ACTION_RECORD_REMINDER) MODE_REMINDER else MODE_GENERAL
+                    runOneShotCommand(intent.getStringExtra(EXTRA_HINT), mode)
+                    try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {}
+                    stopSelf()
+                }
+                return START_NOT_STICKY
+            }
         }
 
         stopSelf()
@@ -98,6 +108,24 @@ class VoiceCommandService : Service() {
     }
 
     private fun buildNotification(title: String, text: String): Notification {
+        val cancelIntent = Intent(this, VoiceCommandService::class.java).apply {
+            action = ACTION_CANCEL
+        }
+        val cancelPending = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(
+                this,
+                99,
+                cancelIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        } else {
+            PendingIntent.getService(
+                this,
+                99,
+                cancelIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
@@ -106,6 +134,7 @@ class VoiceCommandService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSilent(true)
             .setOngoing(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "لغو", cancelPending)
             .build()
     }
 
@@ -130,7 +159,7 @@ class VoiceCommandService : Service() {
             notifyUpdate(title, hint.orEmpty())
             
             val recording = recordWithVad(engine)
-            if (recording == null) {
+            if (recording == null || canceled) {
                 notifyUpdate(
                     "⚠️ صدای تشخیص داده نشد",
                     "لطفاً دوباره سعی کنید و واضح‌تر صحبت کنید."
@@ -150,6 +179,11 @@ class VoiceCommandService : Service() {
             // Cleanup audio file
             try { recording.file.delete() } catch (_: Exception) {}
 
+            if (canceled) {
+                notifyUpdate("لغو شد", "")
+                return
+            }
+
             if (transcribedText.isBlank()) {
                 notifyUpdate(
                     "⚠️ متن تشخیص داده نشد",
@@ -161,49 +195,13 @@ class VoiceCommandService : Service() {
 
             Log.d(tag, "✅ STT Result: $transcribedText")
 
-            // Step 4: Normalize text based on mode
-            val normalizedText = if (mode == MODE_REMINDER) {
-                val t = transcribedText.trim()
-                val lower = t.lowercase()
-                val looksLikeReminder =
-                    lower.contains("یادم بنداز") ||
-                    lower.contains("یادآوری") ||
-                    lower.contains("یادآور") ||
-                    lower.contains("آلارم") ||
-                    lower.contains("هشدار")
-
-                if (looksLikeReminder) t else "یادم بنداز $t"
-            } else {
-                transcribedText.trim()
+            // Step 4: Launch UI for confirmation/execution
+            val launchIntent = Intent(this, NotificationCommandActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(NotificationCommandActivity.EXTRA_TRANSCRIPT, transcribedText.trim())
+                putExtra(NotificationCommandActivity.EXTRA_MODE, mode)
             }
-
-            notifyUpdate("✅ فرمان دریافت شد", normalizedText)
-
-            // Step 5: Process as Intent
-            val resp = try {
-                val intent = controller.detectIntentFromTextAsync(normalizedText, mode)
-                val result = controller.handle(
-                    AIIntentRequest(
-                        intent = intent,
-                        source = AIIntentRequest.Source.NOTIFICATION,
-                        workingModeName = PreferencesManager(this).getWorkingMode().name
-                    )
-                )
-                Log.d(tag, "✅ Intent processed: ${intent.name} -> ${result.text.take(50)}")
-                result.text
-            } catch (e: Exception) {
-                Log.e(tag, "Error processing intent", e)
-                // Fallback to old behavior
-                val assistant = AdvancedPersianAssistant(this)
-                try {
-                    assistant.processRequest(normalizedText).text
-                } catch (ex: Exception) {
-                    "❌ خطا در اجرای فرمان: ${ex.message}"
-                }
-            }
-
-            notifyUpdate("🤖 نتیجه", resp)
-            delay(2500)
+            startActivity(launchIntent)
             
         } catch (e: Exception) {
             Log.e(tag, "runOneShotCommand failed", e)
@@ -235,6 +233,10 @@ class VoiceCommandService : Service() {
             Log.d(tag, "Recording with VAD: timeout=$maxTotalMs, silence=$silenceStopMs")
 
             while (engine.isRecordingInProgress()) {
+                if (canceled) {
+                    try { engine.cancelRecording() } catch (_: Exception) {}
+                    return null
+                }
                 val now = System.currentTimeMillis()
                 val amp = engine.getCurrentAmplitude()
                 

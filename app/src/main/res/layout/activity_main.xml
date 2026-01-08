@@ -117,55 +117,66 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="4dp"
-                android:gravity="center_vertical">
+                android:orientation="vertical"
+                android:padding="4dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/attachButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    app:icon="@drawable/ic_attach"
-                    app:iconGravity="textStart"
-                    app:iconPadding="0dp"
-                    style="@style/Widget.Material3.Button.IconButton" />
-
-                <EditText
-                    android:id="@+id/messageInput"
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/sttWarning"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="پیام خود را بنویسید..."
-                    android:background="@null"
-                    android:padding="12dp"
-                    android:maxLines="4"
-                    android:inputType="textMultiLine|textCapSentences" />
+                    android:paddingBottom="6dp"
+                    android:text="تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید."
+                    android:textColor="@color/errorColor"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/voiceButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    app:icon="@drawable/ic_mic"
-                    app:iconGravity="textStart"
-                    app:iconPadding="0dp"
-                    style="@style/Widget.Material3.Button.IconButton" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/sendButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    app:icon="@drawable/ic_send"
-                    app:iconGravity="textStart"
-                    app:iconPadding="0dp"
-                    app:iconTint="@color/white"
-                    style="@style/Widget.Material3.Button.IconButton" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/attachButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:icon="@drawable/ic_attach"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        style="@style/Widget.Material3.Button.IconButton" />
 
+                    <EditText
+                        android:id="@+id/messageInput"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="پیام خود را بنویسید..."
+                        android:background="@null"
+                        android:padding="12dp"
+                        android:maxLines="4"
+                        android:inputType="textMultiLine|textCapSentences" />
+
+                    <com.persianai.assistant.ui.VoiceActionButton
+                        android:id="@+id/voiceButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="4dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/sendButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:icon="@drawable/ic_send"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        app:iconTint="@color/white"
+                        style="@style/Widget.Material3.Button.IconButton" />
+
+                </LinearLayout>
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>

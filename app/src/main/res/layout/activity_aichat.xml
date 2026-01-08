@@ -106,5 +106,15 @@
                 android:layout_marginStart="4dp"
                 style="@style/Widget.Material3.Button.Icon" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/sttWarning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="6dp"
+            android:textColor="@android:color/holo_orange_dark"
+            android:textSize="12sp"
+            android:visibility="gone"
+            android:text="تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید." />
     </LinearLayout>
 </LinearLayout>

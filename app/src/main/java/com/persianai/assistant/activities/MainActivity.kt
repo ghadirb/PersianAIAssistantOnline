@@ -214,16 +214,10 @@ class MainActivity : AppCompatActivity() {
                     override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
                         isRecording = false
                         binding.recordingIndicator.visibility = View.GONE
-                        try {
-                            transcribeAndSendAudio(audioFile.absolutePath)
-                        } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "Error processing recorded file", e)
-                        }
                     }
 
                     override fun onTranscript(text: String) {
-                        binding.messageInput.setText(text)
-                        sendMessage()
+                        handleTranscript(text)
                     }
 
                     override fun onRecordingError(error: String) {
@@ -446,6 +440,22 @@ class MainActivity : AppCompatActivity() {
                 addMessage(errorMessage)
             } finally {
                 binding.sendButton.isEnabled = true
+            }
+        }
+    }
+    
+    private fun handleTranscript(text: String) {
+        binding.messageInput.setText(text)
+        binding.messageInput.setSelection(text.length)
+        try {
+            binding.sttWarning.text = "تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید."
+            binding.sttWarning.visibility = View.VISIBLE
+        } catch (_: Exception) { }
+        
+        when (prefsManager.getRecordingMode()) {
+            PreferencesManager.RecordingMode.FAST -> sendMessage()
+            PreferencesManager.RecordingMode.PRECISE -> {
+                Toast.makeText(this, "✅ متن آماده ارسال؛ می‌توانید ویرایش و سپس ارسال کنید", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1280,13 +1290,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 android.util.Log.d("MainActivity", "Whisper transcribed: $transcribedText")
-
-                // نمایش متن در input
-                binding.messageInput.setText(transcribedText)
-                Toast.makeText(this@MainActivity, "✅ صوت به متن تبدیل شد", Toast.LENGTH_SHORT).show()
-
-                // ارسال خودکار
-                sendMessage()
+                handleTranscript(transcribedText)
 
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Transcription error", e)
@@ -1347,9 +1351,8 @@ class MainActivity : AppCompatActivity() {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
                     val recognizedText = matches[0]
-                    binding.messageInput.setText(recognizedText)
                     android.util.Log.d("MainActivity", "Recognized text: $recognizedText")
-                    Toast.makeText(this@MainActivity, "✅ متن شناسایی شد", Toast.LENGTH_SHORT).show()
+                    handleTranscript(recognizedText)
                 } else {
                     binding.messageInput.setText("🎤 پیام صوتی")
                 }

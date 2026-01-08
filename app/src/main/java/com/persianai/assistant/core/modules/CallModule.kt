@@ -37,15 +37,15 @@ class CallModule(context: Context) : BaseModule(context) {
         }
         
         return try {
-            val phoneNumber = findContactNumber(contactName)
+            val phoneNumbers = findContactNumbers(contactName)
             
-            if (phoneNumber != null) {
-                // نمایش تأیید قبل از تماس
+            if (phoneNumbers.isNotEmpty()) {
+                val numbersText = phoneNumbers.joinToString(separator = "\n") { "• $it" }
                 return createResult(
-                    text = "☎️ آماده تماس با $contactName\nشماره: $phoneNumber\n\nآیا تأیید می‌کنید؟",
+                    text = "☎️ آماده تماس با $contactName\n$numbersText\n\nیک شماره را انتخاب و تأیید کنید.",
                     intentName = intent.name,
                     actionType = "confirm_call",
-                    actionData = phoneNumber
+                    actionData = phoneNumbers.joinToString(separator = "|")
                 )
             } else {
                 return createResult(
@@ -84,7 +84,7 @@ class CallModule(context: Context) : BaseModule(context) {
         return text.trim()
     }
 
-    private fun findContactNumber(contactName: String): String? {
+    private fun findContactNumbers(contactName: String): List<String> {
         return try {
             val projection = arrayOf(
                 android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
@@ -101,19 +101,22 @@ class CallModule(context: Context) : BaseModule(context) {
                 null
             )
             
+            val results = mutableListOf<String>()
             cursor?.use {
-                if (it.moveToFirst()) {
-                    val numberIndex = it.getColumnIndex(
-                        android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
-                    )
-                    it.getString(numberIndex)
-                } else {
-                    null
+                val numberIndex = it.getColumnIndex(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                )
+                while (it.moveToNext()) {
+                    val num = it.getString(numberIndex)?.trim()
+                    if (!num.isNullOrBlank() && !results.contains(num)) {
+                        results.add(num)
+                    }
                 }
             }
+            results
         } catch (e: Exception) {
             Log.e(TAG, "Error finding contact", e)
-            null
+            emptyList()
         }
     }
 
