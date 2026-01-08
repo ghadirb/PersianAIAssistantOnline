@@ -5,6 +5,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import java.util.*
+import com.persianai.assistant.services.HaaniyeManager
 
 /**
  * کمک‌کننده برای تبدیل متن به گفتار فارسی
@@ -85,7 +86,15 @@ class TTSHelper(private val context: Context) {
             return
         }
 
-        Log.d(TAG, "Speaking: $cleanText")
+        // تلاش برای TTS آفلاین حانیه (اگر موفق نشد، اندروید)
+        try {
+            val handled = HaaniyeManager.speak(context, cleanText)
+            if (handled) return
+        } catch (e: Exception) {
+            Log.w(TAG, "Haaniye TTS failed: ${e.message}")
+        }
+
+        Log.d(TAG, "Speaking (Android TTS): $cleanText")
         tts?.speak(cleanText, queueMode, null, "tts_${System.currentTimeMillis()}")
     }
 

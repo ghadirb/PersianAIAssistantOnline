@@ -3,6 +3,7 @@ package com.persianai.assistant.core
 import android.content.Context
 import android.util.Log
 import com.persianai.assistant.ai.AIClient
+import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.ChatMessage
@@ -24,10 +25,14 @@ class QueryRouter(private val context: Context) {
     private val actionExecutor = ActionExecutor(context)
     private val intentController = AIIntentController(context)
     private val prefs = PreferencesManager(context)
+    private val offlineAssistant = AdvancedPersianAssistant(context)
     
     suspend fun routeQuery(query: String): QueryResult = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🚀 Routing query: $query")
+            val workingMode = prefs.getWorkingMode()
+            val apiKeys = prefs.getAPIKeys()
+            val activeKeys = apiKeys.filter { it.isActive && !it.key.isNullOrBlank() }
             
             // Step 1: Try Action Execution
             Log.d(TAG, "1️⃣ Checking for executable actions...")
@@ -43,9 +48,21 @@ class QueryRouter(private val context: Context) {
                 )
             }
             
-            // Step 2: Try Online Model (only path)
+            // Step 2: If offline-only or no keys, respond offline immediately
+            if (workingMode == PreferencesManager.WorkingMode.OFFLINE || activeKeys.isEmpty()) {
+                val offline = offlineAssistant.processRequest(query)
+                return@withContext QueryResult(
+                    success = true,
+                    response = offline.text,
+                    source = "offline",
+                    actionExecuted = false,
+                    model = "offline-assistant"
+                )
+            }
+
+            // Step 3: Try Online Model
             Log.d(TAG, "2️⃣ Checking for online model...")
-            val onlineResult = tryOnlineModel(query)
+            val onlineResult = tryOnlineModel(query, activeKeys)
             if (onlineResult != null) {
                 Log.d(TAG, "✅ Online model responded: ${onlineResult.model}")
                 return@withContext QueryResult(
@@ -56,16 +73,18 @@ class QueryRouter(private val context: Context) {
                     model = onlineResult.model
                 )
             }
-            
-            // Step 3: All failed (no offline fallback)
-            Log.w(TAG, "❌ Online model failed")
+
+            // Step 4: Fallback offline if online failed
+            Log.w(TAG, "❌ Online model failed, falling back to offline assistant")
+            val offline = offlineAssistant.processRequest(query)
             return@withContext QueryResult(
-                success = false,
-                response = "معافی چاہتا ہوں، کوئی بھی طریقہ کام نہ کر سکا۔ براہ مہربانی دوبارہ کوشش کریں۔",
-                source = "none",
+                success = true,
+                response = offline.text,
+                source = "offline",
                 actionExecuted = false,
-                model = null
+                model = "offline-assistant"
             )
+            
         } catch (e: Exception) {
             Log.e(TAG, "❌ Router error: ${e.message}", e)
             QueryResult(
@@ -82,11 +101,8 @@ class QueryRouter(private val context: Context) {
     /**
      * آنلاین ماڈل کو try کریں
      */
-    private suspend fun tryOnlineModel(query: String): OnlineResult? {
+    private suspend fun tryOnlineModel(query: String, activeKeys: List<com.persianai.assistant.models.APIKey>): OnlineResult? {
         return try {
-            val apiKeys = prefs.getAPIKeys()
-            val activeKeys = apiKeys.filter { it.isActive && !it.key.isNullOrBlank() }
-            
             if (activeKeys.isEmpty()) {
                 Log.w(TAG, "⚠️ No active API keys")
                 return null

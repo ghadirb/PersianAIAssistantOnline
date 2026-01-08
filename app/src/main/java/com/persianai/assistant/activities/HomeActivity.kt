@@ -21,11 +21,13 @@ import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.DefaultApiKeys
 import kotlinx.coroutines.launch
+import com.persianai.assistant.core.QueryRouter
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
     private lateinit var controller: AIIntentController
+    private lateinit var prefsManager: PreferencesManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,10 +35,12 @@ class HomeActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         controller = AIIntentController(this)
+        prefsManager = PreferencesManager(this)
+        // اجبار موقت به حالت آفلاین برای پایداری در صفحه خانه
+        prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
 
         lifecycleScope.launch {
             try {
-                val prefsManager = PreferencesManager(this@HomeActivity)
                 Log.d("HomeActivity", "🔄 Auto-provisioning API keys...")
                 val result = AutoProvisioningManager.autoProvision(this@HomeActivity)
                 result.onSuccess { keys ->
@@ -89,8 +93,7 @@ class HomeActivity : AppCompatActivity() {
             }
 
             override fun onTranscript(text: String) {
-                binding.inputEdit.setText(text)
-                sendTextAsIntent()
+                handleTranscript(text)
             }
 
             override fun onRecordingError(error: String) {
@@ -153,10 +156,41 @@ class HomeActivity : AppCompatActivity() {
             val aiIntent = controller.detectIntentFromTextAsync(text)
             val req = AIIntentRequest(aiIntent, AIIntentRequest.Source.UI)
             val res = controller.handle(req)
-            binding.outputText.text = res.text
-            // پاک‌کردن ورودی بعد از ارسال
+            var finalText = res.text.orEmpty()
+
+            // اگر خروجی خالی بود، از QueryRouter (آفلاین) استفاده کن
+            if (finalText.isBlank()) {
+                try {
+                    val router = QueryRouter(this@HomeActivity)
+                    val routed = router.routeQuery(text)
+                    finalText = routed.response
+                } catch (e: Exception) {
+                    Log.e("HomeActivity", "Router fallback failed: ${e.message}")
+                }
+            }
+
+            binding.outputText.text = finalText
             binding.inputEdit.setText("")
             maybeHandleUiAction(res.actionType, res.actionData)
+            binding.statusText.text = "✅ پاسخ آماده است"
+        }
+    }
+
+    private fun handleTranscript(text: String) {
+        binding.inputEdit.setText(text)
+        binding.inputEdit.setSelection(text.length)
+        try {
+            binding.sttWarning.text = "تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید."
+            binding.sttWarning.visibility = android.view.View.VISIBLE
+        } catch (_: Exception) { }
+
+        when (prefsManager.getRecordingMode()) {
+            PreferencesManager.RecordingMode.FAST -> {
+                sendTextAsIntent()
+            }
+            PreferencesManager.RecordingMode.PRECISE -> {
+                binding.statusText.text = "✅ متن آماده ارسال؛ می‌توانید ویرایش و سپس ارسال کنید"
+            }
         }
     }
 
@@ -166,9 +200,6 @@ class HomeActivity : AppCompatActivity() {
         val e = sp.edit()
         e.clear()
         if (keys.isNotEmpty() && keys.any { it.isActive }) {
-            // اگر هر کلیدی فعال است، حالت HYBRID بگذار تا آنلاین فعال شود
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-
             e.putString("liara_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.LIARA && it.isActive }?.key)
             e.putString("openai_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENAI && it.isActive }?.key)
             e.putString("openrouter_api_key", keys.firstOrNull { it.provider == com.persianai.assistant.models.AIProvider.OPENROUTER && it.isActive }?.key)

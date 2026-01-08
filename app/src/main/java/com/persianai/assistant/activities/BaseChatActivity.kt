@@ -50,6 +50,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
+import com.persianai.assistant.R
 
 abstract class BaseChatActivity : AppCompatActivity() {
 
@@ -116,6 +117,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefsManager = PreferencesManager(this)
+        // اجبار موقت به حالت آفلاین برای پایداری STT/چت
+        prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
@@ -170,6 +173,27 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 true
             }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    protected fun applyTranscriptToInput(text: String) {
+        try {
+            val edit = getMessageInput()
+            edit.setText(text)
+            edit.setSelection(edit.text?.length ?: 0)
+            try {
+                val warn = findViewById<android.widget.TextView?>(R.id.sttWarning)
+                warn?.text = "تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید."
+                warn?.visibility = View.VISIBLE
+            } catch (_: Exception) { }
+        } catch (_: Exception) { }
+    }
+
+    protected fun handleTranscript(text: String) {
+        applyTranscriptToInput(text)
+        val mode = prefsManager.getRecordingMode()
+        if (mode == PreferencesManager.RecordingMode.FAST) {
+            try { sendMessage() } catch (_: Exception) { }
         }
     }
 
@@ -259,12 +283,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
             val resolved = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)
-            // ✅ اگر کاربر صراحتاً حالت OFFLINE را انتخاب کرده، تغییر نده.
-            // در غیر این صورت بهترین حالت پیش‌فرض: HYBRID (تشخیص خودکار آنلاین/آفلاین).
-            val current = prefsManager.getWorkingMode()
-            if (current != PreferencesManager.WorkingMode.OFFLINE) {
-                prefsManager.setWorkingMode(PreferencesManager.WorkingMode.HYBRID)
-            }
+            // حالت کاربر را دست‌نخورده نگه می‌داریم (برای اجبار آفلاین)
             Log.d("BaseChatActivity", "✅ API Key یافت شد؛ حالت فعلی: ${prefsManager.getWorkingMode().name}")
         } else {
             Toast.makeText(this, "⚠️ کلید API یافت نشد - حالت آفلاین فعال است", Toast.LENGTH_LONG).show()
@@ -351,13 +370,13 @@ abstract class BaseChatActivity : AppCompatActivity() {
                     }
 
                     override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                        transcribeAudio(audioFile)
+                        // VoiceActionButton خودش STT را انجام می‌دهد؛ فقط UI را ریست می‌کنیم
+                        onVoiceRecordingCompleted(audioFile, durationMs)
                     }
 
                     override fun onTranscript(text: String) {
                         try {
-                            getMessageInput().setText(text)
-                            sendMessage()
+                            handleTranscript(text)
                         } catch (_: Exception) { }
                     }
 
@@ -367,28 +386,27 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 }
 
             // 1) Try explicit ids used across layouts
-            val vab1 = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
-                resources.getIdentifier("voiceActionButton", "id", packageName)
-            )
-            val vab2 = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(
-                resources.getIdentifier("voiceButton", "id", packageName)
-            )
+            val vab1 = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(R.id.voiceButton)
+            if (vab1 != null) {
+                vab1.setListener(listenerImpl)
+                android.util.Log.d("BaseChatActivity", "VoiceActionButton wired (id=voiceButton)")
+                return
+            }
 
-            // 2) Try the activity-provided voice view
-            val vab3 = try { getVoiceButton() as? com.persianai.assistant.ui.VoiceActionButton } catch (_: Exception) { null }
-
-            listOf(vab1, vab2, vab3)
-                .distinct()
-                .filterNotNull()
-                .forEach { it.setListener(listenerImpl) }
-
-            if (vab1 != null || vab2 != null || vab3 != null) {
-                android.util.Log.d("BaseChatActivity", "VoiceActionButton wired")
+            // 2) Try alternative id used in some layouts
+            val vab2 = findViewById<com.persianai.assistant.ui.VoiceActionButton?>(R.id.voiceActionButton)
+            if (vab2 != null) {
+                vab2.setListener(listenerImpl)
+                android.util.Log.d("BaseChatActivity", "VoiceActionButton wired (id=voiceActionButton)")
+                return
             }
         } catch (e: Exception) {
-            android.util.Log.w("BaseChatActivity", "VoiceActionButton not present or wiring failed", e)
+            android.util.Log.w("BaseChatActivity", "VoiceActionButton wiring skipped: ${e.message}")
         }
+    } catch (e: Exception) {
+        android.util.Log.w("BaseChatActivity", "VoiceActionButton not present or wiring failed", e)
     }
+}
 
     private fun startVoiceConversationDialog() {
         try {
@@ -738,9 +756,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 }
 
                 if (text.isNotBlank()) {
-                    getMessageInput().setText(text)
-                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد: \"$text\"", Toast.LENGTH_SHORT).show()
-                    sendMessage()
+                    applyTranscriptToInput(text)
+                    Toast.makeText(this@BaseChatActivity, "✅ صوت به متن تبدیل شد؛ می‌توانید ویرایش و سپس ارسال کنید", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(
                         this@BaseChatActivity,

@@ -18,6 +18,7 @@ import com.persianai.assistant.models.APIKey
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.google.android.material.button.MaterialButtonToggleGroup
 
 /**
  * صفحه تنظیمات
@@ -43,6 +44,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.currentModeText.text = "حالت فعلی: آنلاین 🌐"
         binding.offlineModelCard.visibility = View.GONE
         binding.coquiTtsCard.visibility = View.GONE
+        setupRecordingModeUI()
 
         loadSettings()
         setupListeners()
@@ -78,6 +80,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // حالت کار فعلی (اجباری آنلاین)
         binding.currentModeText.text = "حالت فعلی: آنلاین 🌐"
+        refreshRecordingModeUI()
     }
 
     private fun updateCurrentModeText() {
@@ -182,6 +185,41 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.addOpenAiKeyButton.setOnClickListener {
             promptAddOpenAiKey()
+        }
+    }
+
+    private fun setupRecordingModeUI() {
+        try {
+            refreshRecordingModeUI()
+            binding.recordingModeToggle.addOnButtonCheckedListener { group: MaterialButtonToggleGroup, checkedId, isChecked ->
+                if (!isChecked) return@addOnButtonCheckedListener
+                when (checkedId) {
+                    binding.btnModeFast.id -> {
+                        prefsManager.setRecordingMode(PreferencesManager.RecordingMode.FAST)
+                        binding.recordingModeDesc.text = "حالت فعلی: سریع (ارسال خودکار)"
+                        Toast.makeText(this, "حالت ضبط: سریع (ارسال خودکار)", Toast.LENGTH_SHORT).show()
+                    }
+                    binding.btnModePrecise.id -> {
+                        prefsManager.setRecordingMode(PreferencesManager.RecordingMode.PRECISE)
+                        binding.recordingModeDesc.text = "حالت فعلی: دقیق (تأیید دستی)"
+                        Toast.makeText(this, "حالت ضبط: دقیق (تأیید دستی)", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } catch (_: Exception) { }
+    }
+
+    private fun refreshRecordingModeUI() {
+        val mode = prefsManager.getRecordingMode()
+        when (mode) {
+            PreferencesManager.RecordingMode.FAST -> {
+                binding.recordingModeDesc.text = "حالت فعلی: سریع (ارسال خودکار)"
+                binding.recordingModeToggle.check(binding.btnModeFast.id)
+            }
+            PreferencesManager.RecordingMode.PRECISE -> {
+                binding.recordingModeDesc.text = "حالت فعلی: دقیق (تأیید دستی)"
+                binding.recordingModeToggle.check(binding.btnModePrecise.id)
+            }
         }
     }
 

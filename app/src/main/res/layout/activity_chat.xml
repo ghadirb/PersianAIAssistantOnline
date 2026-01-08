@@ -65,6 +65,16 @@
                     android:textColor="#555"
                     android:paddingBottom="6dp" />
 
+                <TextView
+                    android:id="@+id/sttWarning"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید."
+                    android:textSize="12sp"
+                    android:textColor="@color/errorColor"
+                    android:visibility="gone"
+                    android:paddingBottom="6dp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

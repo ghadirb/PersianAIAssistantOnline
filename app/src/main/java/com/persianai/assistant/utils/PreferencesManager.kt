@@ -32,6 +32,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_OFFLINE_MODEL_DOWNLOADED = "offline_model_downloaded"
         private const val KEY_PARENTAL_ENABLED = "parental_enabled"
         private const val KEY_PARENTAL_KEYWORDS = "parental_keywords"
+        private const val KEY_RECORDING_MODE = "recording_mode"
 
         private const val KEY_PERSISTENT_STATUS_NOTIFICATION = "persistent_status_notification"
         private const val KEY_PERSISTENT_NOTIFICATION_ACTIONS = "persistent_notification_actions"
@@ -172,6 +173,11 @@ JSON ONLY."""
         HYBRID     // ترکیبی (پیشنهادی)
     }
 
+    enum class RecordingMode {
+        FAST,      // بلافاصله ارسال
+        PRECISE    // نیاز به تأیید قبل از ارسال
+    }
+
     fun setWorkingMode(mode: WorkingMode) {
         // اجازه دهیم حالت انتخاب‌شده ذخیره شود (برای اجبار آفلاین یا هیبرید)
         prefs.edit().putString(KEY_WORKING_MODE, mode.name).apply()
@@ -183,6 +189,19 @@ JSON ONLY."""
             WorkingMode.valueOf(name ?: WorkingMode.HYBRID.name)
         } catch (_: Exception) {
             WorkingMode.HYBRID
+        }
+    }
+
+    fun setRecordingMode(mode: RecordingMode) {
+        prefs.edit().putString(KEY_RECORDING_MODE, mode.name).apply()
+    }
+
+    fun getRecordingMode(): RecordingMode {
+        val name = prefs.getString(KEY_RECORDING_MODE, RecordingMode.FAST.name)
+        return try {
+            RecordingMode.valueOf(name ?: RecordingMode.FAST.name)
+        } catch (_: Exception) {
+            RecordingMode.FAST
         }
     }
 

@@ -167,6 +167,73 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Recording Mode Section (Fast / Precise) -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎤 حالت ضبط"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/recordingModeDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="حالت فعلی: سریع (ارسال خودکار)"
+                        android:textColor="#4CAF50"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="در حالت سریع، بعد از تشخیص گفتار پیام بلافاصله ارسال می‌شود. در حالت دقیق، ابتدا متن را می‌بینید و سپس خودتان ارسال می‌کنید."
+                        android:alpha="0.7" />
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/recordingModeToggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnModeFast"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="سریع (ارسال خودکار)" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnModePrecise"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="دقیق (تأیید دستی)" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Offline Model Section (hidden) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/offlineModelCard"

@@ -293,6 +293,9 @@ dependencies {
     // SLF4J for logging
     implementation 'org.slf4j:slf4j-simple:1.7.25'
     
+    // ONNX Runtime for offline Haaniye TTS
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.16.0'
+    
     // OpenStreetMap (OSM) - Alternative navigation
     implementation 'org.osmdroid:osmdroid-android:6.1.17'
     implementation 'org.osmdroid:osmdroid-mapsforge:6.1.17'
