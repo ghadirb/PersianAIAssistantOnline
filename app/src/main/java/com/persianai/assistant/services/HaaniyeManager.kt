@@ -141,7 +141,7 @@ object HaaniyeManager {
             'ژ' to 'ʒ', 'س' to 's', 'ش' to 'ʃ', 'ص' to 's', 'ض' to 'z',
             'ط' to 't', 'ظ' to 'z', 'ع' to 'ʔ', 'غ' to 'q', 'ق' to 'q',
             'ف' to 'f', 'ک' to 'k', 'گ' to 'ɡ', 'ل' to 'l', 'م' to 'm',
-            'ن' to 'n', 'و' to 'u', 'ه' to 'h', 'ی' to 'i', 'ء' to 'ʔ'.first()
+            'ن' to 'n', 'و' to 'u', 'ه' to 'h', 'ی' to 'i', 'ء' to 'ʔ'
         )
         val tokens = mutableListOf<Int>()
         // start token '^' -> id 1, pad '_' -> id 0, end '$' -> id 2
