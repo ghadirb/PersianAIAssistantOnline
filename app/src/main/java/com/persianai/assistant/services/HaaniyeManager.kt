@@ -5,6 +5,8 @@ import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
+import java.nio.FloatBuffer
+import java.nio.LongBuffer
 import java.nio.ByteOrder
 import kotlin.math.max
 import kotlin.math.min
@@ -136,9 +138,9 @@ object HaaniyeManager {
             'ا' to 'a', 'آ' to 'a', 'ب' to 'b', 'پ' to 'p', 'ت' to 't', 'ث' to 's',
             'ج' to 'j', 'چ' to 't', // t + ʃ approximated as 't'
             'ح' to 'h', 'خ' to 'x', 'د' to 'd', 'ذ' to 'z', 'ر' to 'r', 'ز' to 'z',
-            'ژ' to 'ʒ'.first(), 'س' to 's', 'ش' to 'ʃ'.first(), 'ص' to 's', 'ض' to 'z',
-            'ط' to 't', 'ظ' to 'z', 'ع' to 'ʔ'.first(), 'غ' to 'q', 'ق' to 'q',
-            'ف' to 'f', 'ک' to 'k', 'گ' to 'ɡ'.first(), 'ل' to 'l', 'م' to 'm',
+            'ژ' to 'ʒ', 'س' to 's', 'ش' to 'ʃ', 'ص' to 's', 'ض' to 'z',
+            'ط' to 't', 'ظ' to 'z', 'ع' to 'ʔ', 'غ' to 'q', 'ق' to 'q',
+            'ف' to 'f', 'ک' to 'k', 'گ' to 'ɡ', 'ل' to 'l', 'م' to 'm',
             'ن' to 'n', 'و' to 'u', 'ه' to 'h', 'ی' to 'i', 'ء' to 'ʔ'.first()
         )
         val tokens = mutableListOf<Int>()
@@ -164,31 +166,35 @@ object HaaniyeManager {
             val inputLen = ids.size
 
             val inputs = mutableMapOf<String, OnnxTensor>()
-            session.inputNames.forEach { name ->
+            session.inputInfo.keys.forEach { name ->
                 when (name) {
                     "input" -> {
                         val shape = longArrayOf(1, inputLen.toLong())
-                        inputs[name] = OnnxTensor.createTensor(env, ids.map { it.toLong() }.toLongArray(), shape)
+                        val buf = LongBuffer.wrap(ids.map { it.toLong() }.toLongArray())
+                        inputs[name] = OnnxTensor.createTensor(env, buf, shape)
                     }
                     "input_lengths" -> {
-                        inputs[name] = OnnxTensor.createTensor(env, longArrayOf(inputLen.toLong()))
+                        val buf = LongBuffer.wrap(longArrayOf(inputLen.toLong()))
+                        inputs[name] = OnnxTensor.createTensor(env, buf, longArrayOf(1))
                     }
                     "scales" -> {
                         // noise_scale, length_scale, noise_w
-                        inputs[name] = OnnxTensor.createTensor(env, floatArrayOf(0.333f, 1.0f, 0.333f))
+                        val buf = FloatBuffer.wrap(floatArrayOf(0.333f, 1.0f, 0.333f))
+                        inputs[name] = OnnxTensor.createTensor(env, buf, longArrayOf(1, 3))
                     }
                     "sid" -> {
-                        inputs[name] = OnnxTensor.createTensor(env, longArrayOf(0))
+                        val buf = LongBuffer.wrap(longArrayOf(0))
+                        inputs[name] = OnnxTensor.createTensor(env, buf, longArrayOf(1))
                     }
                 }
             }
 
             val result = session.run(inputs)
-            val outName = session.outputNames.firstOrNull() ?: return null
-            val output = result[outName]
-            val audioFloats = (output?.value as? Array<FloatArray>)
-                ?.firstOrNull()
-                ?: (output?.value as? FloatArray)
+            val outName = session.outputInfo.keys.firstOrNull() ?: return null
+            val outputTensor = result[outName] as? OnnxTensor ?: return null
+            val audioFloats = (outputTensor.floatBuffer?.array())
+                ?: ((outputTensor.value as? Array<FloatArray>)?.firstOrNull())
+                ?: (outputTensor.value as? FloatArray)
                 ?: return null
 
             val pcm = floatsToPcm16(audioFloats)
