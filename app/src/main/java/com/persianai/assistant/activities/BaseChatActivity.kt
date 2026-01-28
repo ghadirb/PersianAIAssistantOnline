@@ -403,10 +403,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.w("BaseChatActivity", "VoiceActionButton wiring skipped: ${e.message}")
         }
-    } catch (e: Exception) {
-        android.util.Log.w("BaseChatActivity", "VoiceActionButton not present or wiring failed", e)
     }
-}
 
     private fun startVoiceConversationDialog() {
         try {
