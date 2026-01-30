@@ -367,6 +367,22 @@ class SplashActivity : AppCompatActivity() {
     }
 
     /**
+     * درخواست runtime مجوز اعلان برای heads-up/full-screen در Android 13+
+     */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    2001
+                )
+            }
+        }
+    }
+
+    /**
      * خواندن فایل رمزشده از مسیرهای محلی (برای مواقع بدون اینترنت یا اندرویدهای قدیمی)
      */
     private fun readLocalEncryptedKeys(): String {
