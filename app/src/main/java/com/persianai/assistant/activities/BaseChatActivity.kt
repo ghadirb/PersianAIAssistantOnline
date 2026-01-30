@@ -34,11 +34,14 @@ import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.persianai.assistant.utils.AutoProvisioningManager
+import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.services.VoiceRecordingHelper
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.core.AIIntentRequest
 import com.persianai.assistant.core.voice.SpeechToTextPipeline
+import com.persianai.assistant.ai.SimpleOfflineResponder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -61,6 +64,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     protected var aiClient: AIClient? = null
     protected var currentModel: AIModel = AIModel.TINY_LLAMA_OFFLINE
     protected val messages = mutableListOf<ChatMessage>()
+    protected lateinit var modelDownloadManager: ModelDownloadManager
     private lateinit var speechRecognizer: SpeechRecognizer
     private var voiceRecorderView: VoiceRecorderView? = null
     protected lateinit var voiceHelper: VoiceRecordingHelper
@@ -117,6 +121,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefsManager = PreferencesManager(this)
+        modelDownloadManager = ModelDownloadManager(this)
         // اجبار موقت به حالت آفلاین برای پایداری STT/چت
         prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
         ttsHelper = TTSHelper(this)
@@ -157,19 +162,56 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         try {
+            menuInflater.inflate(R.menu.assistant_menu, menu)
             if (menu.findItem(MENU_ID_VOICE_CONVERSATION) == null) {
                 menu.add(Menu.NONE, MENU_ID_VOICE_CONVERSATION, Menu.NONE, "🎙️ مکالمه صوتی با مدل")
                     .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
             }
         } catch (_: Exception) {
         }
-        return super.onCreateOptionsMenu(menu)
+        return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             MENU_ID_VOICE_CONVERSATION -> {
                 startVoiceConversationDialog()
+                true
+            }
+            R.id.action_calendar -> {
+                startActivity(Intent(this, CalendarActivity::class.java))
+                true
+            }
+            R.id.action_accounting -> {
+                startActivity(Intent(this, AccountingActivity::class.java))
+                true
+            }
+            R.id.action_reminders -> {
+                startActivity(Intent(this, RemindersActivity::class.java))
+                true
+            }
+            R.id.action_voice_nav -> {
+                startActivity(Intent(this, VoiceNavigationAssistantActivity::class.java))
+                true
+            }
+            R.id.action_psychology -> {
+                startActivity(Intent(this, PsychologyChatActivity::class.java))
+                true
+            }
+            R.id.action_career -> {
+                startActivity(Intent(this, CareerChatActivity::class.java))
+                true
+            }
+            R.id.action_cultural -> {
+                startActivity(Intent(this, CulturalChatActivity::class.java))
+                true
+            }
+            R.id.action_refresh_keys -> {
+                refreshAPIKeys()
+                true
+            }
+            R.id.action_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -636,18 +678,38 @@ abstract class BaseChatActivity : AppCompatActivity() {
             val online = tryOnline()
             if (!online.isNullOrBlank()) return@withContext online
 
+            val offline = offlineRespond(text)
+            if (!offline.isNullOrBlank()) return@withContext offline
             return@withContext "❌ خطا در پردازش درخواست"
         }
 
         // OFFLINE: strictly offline
         if (workingMode != PreferencesManager.WorkingMode.OFFLINE && !canUseOnline) {
+            val offline = offlineRespond(text)
+            if (!offline.isNullOrBlank()) return@withContext offline
             return@withContext "⚠️ پاسخ آنلاین فعال نیست. لطفاً در تنظیمات کلید API معتبر وارد کنید یا یک کلید فعال را انتخاب کنید."
         }
 
+        val offline = offlineRespond(text)
+        if (!offline.isNullOrBlank()) return@withContext offline
         return@withContext "❌ خطا در پردازش درخواست"
     }
 
-    private fun offlineRespond(text: String): String? = null
+    private fun offlineRespond(text: String): String? {
+        // 1) دامنه اختصاصی فرزند کلاس
+        offlineDomainRespond(text)?.let { return it }
+
+        // 2) پاسخ ساده آفلاین (بدون GGUF)
+        SimpleOfflineResponder.respond(this, text)?.let { return it }
+
+        // 3) اگر مدل GGUF دانلود شده ولی ران‌تایم موجود نیست، مسیر را اعلام کنیم
+        val modelPath = findOfflineModelPath()
+        if (!modelPath.isNullOrBlank()) {
+            return "⚠️ مدل آفلاین دانلود شده ولی موتور GGUF در این دستگاه در دسترس نیست.\nمسیر فایل: $modelPath"
+        }
+
+        return null
+    }
 
     protected open fun offlineDomainRespond(text: String): String? = null
 
@@ -655,7 +717,19 @@ abstract class BaseChatActivity : AppCompatActivity() {
      * یافتن مسیر مدل tinyllama دانلود‌شده (دستی یا از طریق OfflineModelManager)
      */
     private fun findOfflineModelPath(): String? {
-        return null
+        return try {
+            // اولویت با مدل انتخاب‌شده کاربر؛ در غیر اینصورت هر مدل دانلودشده
+            val preferred = prefsManager.getOfflineModelType()
+            val info = modelDownloadManager.findDownloadedModel(preferred) ?: modelDownloadManager.findDownloadedModel()
+            if (info != null) {
+                val file = modelDownloadManager.getModelFile(info)
+                if (file.exists()) file.absolutePath else null
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     protected open fun shouldUseOnlinePriority(): Boolean = false
@@ -677,6 +751,23 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     protected open fun getModuleIdForPrompt(): String {
         return this::class.java.simpleName
+    }
+
+    protected fun refreshAPIKeys() {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@BaseChatActivity, "در حال به‌روزرسانی کلیدها...", Toast.LENGTH_SHORT).show()
+                val result = AutoProvisioningManager.autoProvision(this@BaseChatActivity)
+                result.onSuccess {
+                    Toast.makeText(this@BaseChatActivity, "✅ ${it.count { k -> k.isActive }} کلید فعال شد", Toast.LENGTH_SHORT).show()
+                    setupAIClient()
+                }.onFailure { e ->
+                    Toast.makeText(this@BaseChatActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@BaseChatActivity, "❌ خطا: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun buildSystemPromptForOnlineRequest(): String {
@@ -722,6 +813,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
         // Persist message into current conversation
         try {
             currentConversation.messages.add(message)
+            // نام‌گذاری خودکار پس از اولین پیام کاربر
+            if (message.role == MessageRole.USER && currentConversation.title == "چت جدید") {
+                currentConversation.title = currentConversation.generateTitle()
+            }
             lifecycleScope.launch {
                 try {
                     conversationStorage.saveConversation(currentConversation)

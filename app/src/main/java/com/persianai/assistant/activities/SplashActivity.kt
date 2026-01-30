@@ -68,8 +68,8 @@ class SplashActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("SplashActivity", "Error initializing keys", e)
             } finally {
-                // همیشه به داشبورد برو
-                navigateToMain()
+                // مسیر شروع بر اساس ترجیح کاربر (داشبورد یا دستیار)
+                navigateToStartDestination()
             }
         }
     }
@@ -384,7 +384,7 @@ class SplashActivity : AppCompatActivity() {
         throw Exception("فایل محلی encrypted_keys.b64.txt یافت نشد")
     }
 
-    private fun navigateToMain() {
+    private fun navigateToStartDestination() {
         val incoming = intent
         if (incoming != null && (Intent.ACTION_SEND == incoming.action || Intent.ACTION_VIEW == incoming.action)) {
             try {
@@ -397,8 +397,14 @@ class SplashActivity : AppCompatActivity() {
             }
         }
 
-        val intent = Intent(this, HomeActivity::class.java)
-        startActivity(intent)
+        val prefs = PreferencesManager(this)
+        val dest = prefs.getStartDestination()
+        val target = when (dest) {
+            PreferencesManager.StartDestination.DASHBOARD -> HomeActivity::class.java
+            PreferencesManager.StartDestination.ASSISTANT -> AIChatActivity::class.java
+        }
+        val i = Intent(this, target)
+        startActivity(i)
         finish()
     }
 }

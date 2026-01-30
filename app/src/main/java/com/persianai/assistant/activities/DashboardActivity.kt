@@ -31,6 +31,7 @@ import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.NotificationHelper
+import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.PersianDateConverter
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.SharedDataManager

@@ -178,9 +178,9 @@ object HaaniyeManager {
                         inputs[name] = OnnxTensor.createTensor(env, buf, longArrayOf(1))
                     }
                     "scales" -> {
-                        // noise_scale, length_scale, noise_w
+                        // noise_scale, length_scale, noise_w (rank-1 vector of size 3)
                         val buf = FloatBuffer.wrap(floatArrayOf(0.333f, 1.0f, 0.333f))
-                        inputs[name] = OnnxTensor.createTensor(env, buf, longArrayOf(1, 3))
+                        inputs[name] = OnnxTensor.createTensor(env, buf, longArrayOf(3))
                     }
                     "sid" -> {
                         val buf = LongBuffer.wrap(longArrayOf(0))
@@ -192,10 +192,25 @@ object HaaniyeManager {
             val result = session.run(inputs)
             val outName = session.outputInfo.keys.firstOrNull() ?: return null
             val outputTensor = result[outName] as? OnnxTensor ?: return null
-            val audioFloats = (outputTensor.floatBuffer?.array())
-                ?: ((outputTensor.value as? Array<FloatArray>)?.firstOrNull())
-                ?: (outputTensor.value as? FloatArray)
-                ?: return null
+
+            val audioFloats: FloatArray? = when (val v = outputTensor.value) {
+                is FloatArray -> v
+                is Array<*> -> (v.firstOrNull() as? FloatArray)
+                else -> {
+                    val fb = outputTensor.floatBuffer
+                    fb?.let {
+                        val arr = FloatArray(it.remaining())
+                        it.get(arr)
+                        arr
+                    }
+                }
+            }
+            if (audioFloats == null || audioFloats.isEmpty()) {
+                Log.w(TAG, "synthesizeToFile: empty audio output for text length=$inputLen")
+                result.close()
+                inputs.values.forEach { it.close() }
+                return null
+            }
 
             val pcm = floatsToPcm16(audioFloats)
             val wavFile = File(context.cacheDir, "haaniye_${System.currentTimeMillis()}.wav")

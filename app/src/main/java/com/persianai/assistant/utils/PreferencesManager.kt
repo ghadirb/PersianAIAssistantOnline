@@ -36,6 +36,7 @@ class PreferencesManager(context: Context) {
 
         private const val KEY_PERSISTENT_STATUS_NOTIFICATION = "persistent_status_notification"
         private const val KEY_PERSISTENT_NOTIFICATION_ACTIONS = "persistent_notification_actions"
+        private const val KEY_START_DESTINATION = "start_destination"
 
         // کاربر بتواند مسیر پوشه مدل‌ها را دستی انتخاب کند
         private const val KEY_CUSTOM_VOSK_DIR = "custom_vosk_dir"
@@ -86,6 +87,21 @@ JSON ONLY."""
         } else {
             val enc = android.util.Base64.encodeToString(key.trim().toByteArray(Charsets.UTF_8), base64Flags)
             prefs.edit().putString(KEY_PROVISIONING_KEY, enc).apply()
+        }
+    }
+
+    fun hasStartDestinationSet(): Boolean = prefs.contains(KEY_START_DESTINATION)
+
+    fun setStartDestination(dest: StartDestination) {
+        prefs.edit().putString(KEY_START_DESTINATION, dest.name).apply()
+    }
+
+    fun getStartDestination(): StartDestination {
+        val name = prefs.getString(KEY_START_DESTINATION, StartDestination.DASHBOARD.name)
+        return try {
+            StartDestination.valueOf(name ?: StartDestination.DASHBOARD.name)
+        } catch (_: Exception) {
+            StartDestination.DASHBOARD
         }
     }
 
@@ -209,6 +225,11 @@ JSON ONLY."""
         AUTO,
         SMART_ROUTE, // OpenRouter بدون نام بردن
         OPENAI_ONLY
+    }
+
+    enum class StartDestination {
+        DASHBOARD,
+        ASSISTANT
     }
 
     fun setProviderPreference(pref: ProviderPreference) {
