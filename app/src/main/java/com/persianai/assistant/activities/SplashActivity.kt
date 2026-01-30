@@ -75,6 +75,13 @@ class SplashActivity : AppCompatActivity() {
     }
 
     /**
+     * سازگاری با فراخوانی‌های قدیمی؛ اکنون به مقصد شروع ترجیحی هدایت می‌شود
+     */
+    private fun navigateToMain() {
+        navigateToStartDestination()
+    }
+
+    /**
      * تلاش خودکار برای دانلود و فعال‌سازی کلیدها با رمز پیش‌فرض ۱۳۴۵
      * بدون نمایش دیالوگ؛ در صورت موفقیت مستقیم به Main می‌رود.
      */
@@ -346,12 +353,7 @@ class SplashActivity : AppCompatActivity() {
             append(", hf=" + apiPrefs.getString("hf_api_key", "")?.take(6))
         }
         android.util.Log.i("SplashActivity", "syncApiPrefs applied -> $applied")
-    }
 
-    /**
-     * درخواست runtime مجوز اعلان برای heads-up/full-screen در Android 13+
-     */
-    private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             if (!granted) {
