@@ -185,11 +185,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
                 true
             }
             R.id.action_accounting -> {
-                startActivity(Intent(this, AccountingActivity::class.java))
+                startActivity(Intent(this, AccountingAdvancedActivity::class.java))
                 true
             }
             R.id.action_reminders -> {
-                startActivity(Intent(this, RemindersActivity::class.java))
+                startActivity(Intent(this, AdvancedRemindersActivity::class.java))
                 true
             }
             R.id.action_voice_nav -> {
@@ -225,6 +225,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
             val edit = getMessageInput()
             edit.setText(text)
             edit.setSelection(edit.text?.length ?: 0)
+            edit.requestFocus()
+            getSendButton().isEnabled = true
             try {
                 val warn = findViewById<android.widget.TextView?>(R.id.sttWarning)
                 warn?.text = "تشخیص گفتار ممکن است خطا داشته باشد. در صورت نیاز، متن را اصلاح کنید."
