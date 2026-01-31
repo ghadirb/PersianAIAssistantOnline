@@ -113,7 +113,7 @@ class SettingsActivity : AppCompatActivity() {
             showModelChoiceDialog()
         }
         binding.downloadModelButton.setOnClickListener {
-            startRecommendedModelDownload()
+            startSelectedModelDownload()
         }
         binding.deleteModelButton.setOnClickListener {
             deleteCurrentModel()
@@ -353,6 +353,17 @@ class SettingsActivity : AppCompatActivity() {
         binding.offlineModelStatus.text = "⬇️ در حال دانلود..."
     }
 
+    /**
+     * دانلود بر اساس مدل انتخاب‌شده کاربر (نه فقط پیشنهادی)
+     */
+    private fun startSelectedModelDownload() {
+        val selected = prefsManager.getOfflineModelType()
+        val info = modelDownloadManager.getModelInfo(selected)
+        val id = modelDownloadManager.enqueueDownload(info)
+        Toast.makeText(this, "دانلود '${info.name}' شروع شد (آی‌دی: $id)", Toast.LENGTH_LONG).show()
+        binding.offlineModelStatus.text = "⬇️ در حال دانلود..."
+    }
+
     private fun deleteCurrentModel() {
         val info = modelDownloadManager.findDownloadedModel(prefsManager.getOfflineModelType())
             ?: modelDownloadManager.getModelInfo(prefsManager.getOfflineModelType())
@@ -375,6 +386,7 @@ class SettingsActivity : AppCompatActivity() {
                 prefsManager.setOfflineModelType(type)
                 val info = modelDownloadManager.getModelInfo(type)
                 binding.offlineModelType.text = "${info.name} (${info.sizeHint})"
+                updateOfflineModelSection()
                 dialog.dismiss()
             }
             .setNegativeButton("بستن", null)

@@ -19,6 +19,7 @@ import com.persianai.assistant.utils.DefaultApiKeys
 import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
+import com.persianai.assistant.utils.ModelDownloadManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,8 +69,8 @@ class SplashActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("SplashActivity", "Error initializing keys", e)
             } finally {
-                // مسیر شروع بر اساس ترجیح کاربر (داشبورد یا دستیار)
-                navigateToStartDestination()
+                // مسیر شروع بر اساس ترجیح کاربر (داشبورد یا دستیار) + پیشنهاد دانلود مدل آفلاین
+                showOfflineModelPromptIfNeededThenNavigate()
             }
         }
     }
@@ -424,5 +425,52 @@ class SplashActivity : AppCompatActivity() {
         val i = Intent(this, target)
         startActivity(i)
         finish()
+    }
+
+    /**
+     * پیشنهاد دانلود مدل آفلاین پیشنهادی بر اساس RAM دستگاه
+     * فقط یک‌بار نشان داده می‌شود (offline_prompt_shown)
+     */
+    private fun showOfflineModelPromptIfNeededThenNavigate() {
+        val prefs = PreferencesManager(this)
+        val mdm = ModelDownloadManager(this)
+
+        val alreadyDownloaded = mdm.findDownloadedModel(prefs.getOfflineModelType()) != null
+        if (prefs.isOfflineModelDownloaded() || alreadyDownloaded) {
+            prefs.setOfflineModelDownloaded(alreadyDownloaded)
+            navigateToStartDestination()
+            return
+        }
+
+        if (prefs.isOfflinePromptShown()) {
+            navigateToStartDestination()
+            return
+        }
+
+        val recommendedType = ModelDownloadManager.detectRecommendedModel(this)
+        val info = mdm.getModelInfo(recommendedType)
+        val title = "دانلود مدل آفلاین پیشنهادی"
+        val message = "بر اساس سخت‌افزار گوشی، مدل پیشنهادی: ${info.name} (${info.sizeHint}).\nمی‌خواهید الان دانلود شود؟"
+
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("دانلود ${info.name}") { _, _ ->
+                prefs.setOfflinePromptShown(true)
+                prefs.setOfflineModelType(recommendedType)
+                prefs.setOfflineModelDownloaded(false)
+                val id = mdm.enqueueDownload(info)
+                Toast.makeText(this, "دانلود '${info.name}' شروع شد (آی‌دی: $id)", Toast.LENGTH_LONG).show()
+                navigateToStartDestination()
+            }
+            .setNegativeButton("بعداً") { _, _ ->
+                prefs.setOfflinePromptShown(true)
+                navigateToStartDestination()
+            }
+            .setOnCancelListener {
+                prefs.setOfflinePromptShown(true)
+                navigateToStartDestination()
+            }
+            .show()
     }
 }

@@ -33,9 +33,11 @@ class PreferencesManager(context: Context) {
         private const val KEY_PARENTAL_ENABLED = "parental_enabled"
         private const val KEY_PARENTAL_KEYWORDS = "parental_keywords"
         private const val KEY_RECORDING_MODE = "recording_mode"
-
+        private const val KEY_ACCESSIBILITY_ENABLED = "accessibility_enabled"
         private const val KEY_PERSISTENT_STATUS_NOTIFICATION = "persistent_status_notification"
         private const val KEY_PERSISTENT_NOTIFICATION_ACTIONS = "persistent_notification_actions"
+        private const val KEY_OFFLINE_PROMPT_SHOWN = "offline_prompt_shown"
+        private const val KEY_OFFLINE_MODEL_TYPE = "offline_model_type"
         private const val KEY_START_DESTINATION = "start_destination"
 
         // کاربر بتواند مسیر پوشه مدل‌ها را دستی انتخاب کند
@@ -97,11 +99,11 @@ JSON ONLY."""
     }
 
     fun getStartDestination(): StartDestination {
-        val name = prefs.getString(KEY_START_DESTINATION, StartDestination.DASHBOARD.name)
+        val name = prefs.getString(KEY_START_DESTINATION, StartDestination.ASSISTANT.name)
         return try {
-            StartDestination.valueOf(name ?: StartDestination.DASHBOARD.name)
+            StartDestination.valueOf(name ?: StartDestination.ASSISTANT.name)
         } catch (_: Exception) {
-            StartDestination.DASHBOARD
+            StartDestination.ASSISTANT
         }
     }
 
@@ -301,7 +303,15 @@ JSON ONLY."""
     fun isOfflineModelDownloaded(): Boolean {
         return prefs.getBoolean(KEY_OFFLINE_MODEL_DOWNLOADED, false)
     }
-    
+
+    fun setOfflinePromptShown(shown: Boolean) {
+        prefs.edit().putBoolean(KEY_OFFLINE_PROMPT_SHOWN, shown).apply()
+    }
+
+    fun isOfflinePromptShown(): Boolean {
+        return prefs.getBoolean(KEY_OFFLINE_PROMPT_SHOWN, false)
+    }
+
     fun isParentalControlEnabled(): Boolean {
         return prefs.getBoolean(KEY_PARENTAL_ENABLED, false)
     }
@@ -345,9 +355,9 @@ JSON ONLY."""
     
     // Offline Model Type
     enum class OfflineModelType(val displayName: String, val size: String, val description: String) {
-        BASIC("ساده (پارسر)", "5 MB", "فقط دستورات ساده - بدون هوش مصنوعی"),
-        LITE("سبک (Gemini Nano)", "200 MB", "پاسخ به سوالات ساده و محاسبات"),
-        FULL("کامل (Llama 3.1)", "2 GB", "قدرتمند مثل ChatGPT - نیاز به موبایل قوی")
+        BASIC("TinyLlama 1.1B", "≈410 MB", "سبک و مناسب اکثر گوشی‌ها"),
+        LITE("Qwen2.5 0.5B", "≈550 MB", "کیفیت متوسط؛ نیازمند RAM بیشتر"),
+        FULL("Qwen2.5 1.5B", "≈1.0 GB", "قدرت بالاتر؛ مناسب گوشی‌های با RAM بالاتر")
     }
     
     fun setOfflineModelType(type: OfflineModelType) {
