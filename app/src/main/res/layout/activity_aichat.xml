@@ -6,21 +6,23 @@
     android:orientation="vertical"
     android:background="#F5F5F5">
 
-    <!-- Header -->
-    <com.google.android.material.card.MaterialCardView
+    <!-- App bar with overflow menu (سه نقطه) -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardElevation="4dp"
-        app:cardCornerRadius="0dp">
-        
+        android:minHeight="?attr/actionBarSize"
+        android:background="@color/primaryColor"
+        app:popupTheme="@style/ThemeOverlay.MaterialComponents.Light">
+
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="match_parent"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="16dp"
-            android:background="@color/primaryColor">
-            
+            android:paddingStart="16dp"
+            android:paddingEnd="12dp">
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -44,7 +46,96 @@
                 android:visibility="gone"
                 android:background="@drawable/bg_badge_advanced" />
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <!-- Quick shortcuts to dashboard sections -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="4dp"
+            android:paddingTop="4dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:dividerPadding="6dp"
+            android:showDividers="none">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCalendar"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="تقویم"
+                android:icon="@android:drawable/ic_menu_month"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAccounting"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="حسابداری"
+                android:icon="@android:drawable/ic_menu_agenda"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReminders"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="یادآورها"
+                android:icon="@android:drawable/ic_menu_recent_history"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnVoiceNav"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="مسیریاب"
+                android:icon="@android:drawable/ic_btn_speak_now"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSettings"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="تنظیمات"
+                android:icon="@drawable/ic_settings"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- Chat Messages -->
     <androidx.recyclerview.widget.RecyclerView

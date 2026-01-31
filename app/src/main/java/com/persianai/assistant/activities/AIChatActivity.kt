@@ -1,5 +1,6 @@
 package com.persianai.assistant.activities
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -22,6 +23,10 @@ class AIChatActivity : BaseChatActivity() {
         chatBinding = ActivityAichatBinding.inflate(layoutInflater)
         binding = chatBinding
         setContentView(chatBinding.root)
+
+        // Toolbar for overflow (سه نقطه) menu parity with dashboard
+        setSupportActionBar(chatBinding.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
         
         forceOnlineAnalysis = intent.getBooleanExtra("forceOnlineAnalysis", false)
         updateAdvancedBadge()
@@ -41,6 +46,23 @@ class AIChatActivity : BaseChatActivity() {
         
         // ✅ Setup voice button with unified listener
         setupVoiceButton()
+
+        // دسترسی سریع به بخش‌های داشبورد
+        chatBinding.btnCalendar.setOnClickListener {
+            startActivity(Intent(this, CalendarActivity::class.java))
+        }
+        chatBinding.btnAccounting.setOnClickListener {
+            startActivity(Intent(this, AccountingActivity::class.java))
+        }
+        chatBinding.btnReminders.setOnClickListener {
+            startActivity(Intent(this, RemindersActivity::class.java))
+        }
+        chatBinding.btnVoiceNav.setOnClickListener {
+            startActivity(Intent(this, VoiceNavigationAssistantActivity::class.java))
+        }
+        chatBinding.btnSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
     
     private fun checkAndShowApiKeyWarning() {
