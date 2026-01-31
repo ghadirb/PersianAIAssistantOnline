@@ -47,6 +47,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import android.util.Log
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -702,6 +704,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
         // 2) پاسخ ساده آفلاین (بدون GGUF)
         SimpleOfflineResponder.respond(this, text)?.let { return it }
 
+        // 2.5) جستجوی سبک وب با DuckDuckGo (بدون کلید) در صورت اتصال اینترنت
+        tryDuckDuckGo(text)?.let { return it }
+
         // 3) اگر مدل GGUF دانلود شده ولی ران‌تایم موجود نیست، مسیر را اعلام کنیم
         val modelPath = findOfflineModelPath()
         if (!modelPath.isNullOrBlank()) {
@@ -743,6 +748,49 @@ abstract class BaseChatActivity : AppCompatActivity() {
         val intro = getIntroMessage()?.trim().orEmpty()
         if (intro.isBlank()) return
         addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = intro))
+    }
+
+    /**
+     * جستجوی سبک با DuckDuckGo Instant Answer API (بدون نیاز به کلید)
+     */
+    private fun tryDuckDuckGo(query: String): String? {
+        return try {
+            if (!isNetworkAvailable()) return null
+            val url = "https://api.duckduckgo.com/?q=" +
+                java.net.URLEncoder.encode(query, "UTF-8") +
+                "&format=json&no_redirect=1&no_html=1"
+            val req = Request.Builder().url(url).get().build()
+            httpClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return null
+                val body = resp.body?.string() ?: return null
+                val obj = JSONObject(body)
+                val abstractText = obj.optString("AbstractText").takeIf { it.isNotBlank() }
+                val heading = obj.optString("Heading").takeIf { it.isNotBlank() }
+                val firstRelated = obj.optJSONArray("RelatedTopics")?.let { arr ->
+                    if (arr.length() > 0) {
+                        arr.optJSONObject(0)?.optString("Text")?.takeIf { it.isNotBlank() }
+                    } else null
+                }
+                val candidate = abstractText ?: firstRelated
+                return if (!candidate.isNullOrBlank()) {
+                    val title = heading ?: "نتیجه جستجو"
+                    "🔎 $title:\n$candidate"
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        return try {
+            val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (_: Exception) {
+            false
+        }
     }
 
     protected open fun getSystemPrompt(): String {

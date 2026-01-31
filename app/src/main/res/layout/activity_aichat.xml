@@ -84,11 +84,11 @@
                 android:layout_marginEnd="6dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnAccounting"
+                android:id="@+id/btnAccountingAdvanced"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="حسابداری"
+                android:text="حسابداری پیشرفته"
                 android:icon="@android:drawable/ic_menu_agenda"
                 app:iconPadding="6dp"
                 app:iconTint="@color/primaryColor"
@@ -97,11 +97,11 @@
                 android:layout_marginEnd="6dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnReminders"
+                android:id="@+id/btnRemindersAdvanced"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="یادآورها"
+                android:text="یادآورها (پیشرفته)"
                 android:icon="@android:drawable/ic_menu_recent_history"
                 app:iconPadding="6dp"
                 app:iconTint="@color/primaryColor"
@@ -116,6 +116,45 @@
                 android:layout_height="wrap_content"
                 android:text="مسیریاب"
                 android:icon="@android:drawable/ic_btn_speak_now"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPsychology"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="مشاور روان"
+                android:icon="@android:drawable/ic_menu_help"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCareer"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="مشاور مسیر"
+                android:icon="@android:drawable/ic_menu_myplaces"
+                app:iconPadding="6dp"
+                app:iconTint="@color/primaryColor"
+                app:cornerRadius="12dp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="6dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCultural"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="پیشنهاد فرهنگی"
+                android:icon="@android:drawable/ic_menu_info_details"
                 app:iconPadding="6dp"
                 app:iconTint="@color/primaryColor"
                 app:cornerRadius="12dp"
