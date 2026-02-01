@@ -243,6 +243,11 @@ abstract class BaseChatActivity : AppCompatActivity() {
         }
     }
 
+    private fun reuseUserMessage(message: ChatMessage) {
+        if (message.role != MessageRole.USER) return
+        applyTranscriptToInput(message.content)
+    }
+
     protected abstract fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView
     protected abstract fun getMessageInput(): com.google.android.material.textfield.TextInputEditText
     protected abstract fun getSendButton(): View
