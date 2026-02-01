@@ -11,27 +11,48 @@ import java.io.File
 
 class ModelDownloadManager(private val context: Context) {
 
-    data class ModelInfo(val type: PreferencesManager.OfflineModelType, val name: String, val url: String, val fileName: String, val sizeHint: String)
+    data class ModelInfo(
+        val type: PreferencesManager.OfflineModelType,
+        val name: String,
+        val urls: List<String>,
+        val fileName: String,
+        val sizeHint: String
+    )
 
     companion object {
         val qwen15 = ModelInfo(
             PreferencesManager.OfflineModelType.FULL,
             "Qwen2.5 1.5B Instruct",
-            "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+            listOf(
+                // آروان
+                "https://s3.ir-thr-at1.arvanstorage.ir/offline-models/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+                // ابر همراهی
+                "https://abrehamrahi.ir/o/public/cEWY6DQO/",
+                // نسخه اصلی HuggingFace به عنوان بکاپ جهانی
+                "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+            ),
             "qwen2.5-1.5b-instruct-q4_k_m.gguf",
             "≈1.0 GB"
         )
         val qwen05 = ModelInfo(
             PreferencesManager.OfflineModelType.LITE,
             "Qwen2.5 0.5B Instruct",
-            "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+            listOf(
+                "https://s3.ir-thr-at1.arvanstorage.ir/offline-models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+                "https://abrehamrahi.ir/o/public/KvKzTzPA/",
+                "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+            ),
             "qwen2.5-0.5b-instruct-q4_k_m.gguf",
             "≈550 MB"
         )
         val tinyLlama = ModelInfo(
             PreferencesManager.OfflineModelType.BASIC,
             "TinyLlama 1.1B Chat",
-            "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+            listOf(
+                "https://offline-models.s3.ir-thr-at1.arvanstorage.ir/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+                "https://abrehamrahi.ir/o/public/526t7DEh/",
+                "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+            ),
             "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
             "≈410 MB"
         )
@@ -80,16 +101,25 @@ class ModelDownloadManager(private val context: Context) {
      * دانلود مدل به صورت پس‌زمینه با DownloadManager
      */
     fun enqueueDownload(info: ModelInfo): Long {
-        val request = DownloadManager.Request(Uri.parse(info.url))
-            .setTitle("دانلود ${info.name}")
-            .setDescription("حجم ${info.sizeHint}")
-            .setDestinationUri(Uri.fromFile(File(getModelDir(), info.fileName)))
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-
         val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        return dm.enqueue(request)
+        var lastError: Exception? = null
+        for (url in info.urls) {
+            try {
+                val request = DownloadManager.Request(Uri.parse(url))
+                    .setTitle("دانلود ${info.name}")
+                    .setDescription("حجم ${info.sizeHint}")
+                    .setDestinationUri(Uri.fromFile(File(getModelDir(), info.fileName)))
+                    .setAllowedOverMetered(true)
+                    .setAllowedOverRoaming(true)
+                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+
+                return dm.enqueue(request)
+            } catch (e: Exception) {
+                lastError = e
+                // Try next mirror
+            }
+        }
+        throw lastError ?: IllegalStateException("No valid URL for ${info.name}")
     }
 
     fun deleteModel(info: ModelInfo) {
