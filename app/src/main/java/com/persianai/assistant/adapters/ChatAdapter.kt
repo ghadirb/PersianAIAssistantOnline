@@ -14,7 +14,10 @@ import java.util.*
 /**
  * Adapter برای نمایش پیام‌های چت
  */
-class ChatAdapter(private val messages: List<ChatMessage>) :
+class ChatAdapter(
+    private val messages: List<ChatMessage>,
+    private val onUserMessageLongPress: ((ChatMessage) -> Unit)? = null
+) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -63,6 +66,10 @@ class ChatAdapter(private val messages: List<ChatMessage>) :
         fun bind(message: ChatMessage) {
             messageText.text = message.content
             timeText.text = dateFormat.format(Date(message.timestamp))
+            itemView.setOnLongClickListener {
+                onUserMessageLongPress?.invoke(message)
+                true
+            }
         }
     }
 

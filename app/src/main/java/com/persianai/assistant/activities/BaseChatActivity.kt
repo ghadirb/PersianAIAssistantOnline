@@ -277,7 +277,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        chatAdapter = ChatAdapter(messages)
+        chatAdapter = ChatAdapter(messages) { message ->
+            reuseUserMessage(message)
+        }
         getRecyclerView().apply {
             layoutManager = LinearLayoutManager(this@BaseChatActivity).apply {
                 stackFromEnd = true

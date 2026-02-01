@@ -366,13 +366,15 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 return@withContext Result.failure(IllegalArgumentException("Invalid audio file"))
             }
 
-            val model = ensureVoskModel() ?: return@withContext Result.failure(IllegalStateException("Vosk model not loaded"))
-            val pcm = decodeToPcm(audioFile)
-                ?: return@withContext Result.failure(IllegalStateException("Failed to decode audio to PCM"))
+            val model = ensureVoskModel()
+                ?: return@withContext Result.failure(IllegalStateException("Vosk model not loaded"))
 
-            val mono16k = resampleToMono16k(pcm.data, pcm.sampleRate, pcm.channels)
-            if (mono16k.isEmpty()) {
-                return@withContext Result.failure(IllegalStateException("PCM buffer empty after resample"))
+            // Fast-path: recorded WAV is already 16k mono PCM16
+            val mono16k = readWavPcm16Mono(audioFile)
+                ?: decodeToPcm(audioFile)?.let { resampleToMono16k(it.data, it.sampleRate, it.channels) }
+
+            if (mono16k == null || mono16k.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("PCM buffer empty"))
             }
 
             Log.d(TAG, "🎧 Running Vosk recognizer on ${mono16k.size} samples")
@@ -481,9 +483,12 @@ class NewHybridVoiceRecorder(private val context: Context) {
         if (voskModel != null) return voskModel
         try {
             val targetDir = File(context.filesDir, voskAssetsDir)
-            if (!targetDir.exists()) {
+            if (!targetDir.exists() || targetDir.listFiles().isNullOrEmpty()) {
                 copyAssetsRecursively(voskAssetsDir, targetDir)
             }
+            // sanity: require at least one file inside
+            val hasFiles = targetDir.walkTopDown().any { it.isFile }
+            if (!hasFiles) throw IllegalStateException("Vosk assets missing")
             voskModel = Model(targetDir.absolutePath)
             Log.d(TAG, "✅ Vosk model loaded from ${targetDir.absolutePath}")
         } catch (e: Exception) {
@@ -491,6 +496,37 @@ class NewHybridVoiceRecorder(private val context: Context) {
             voskModel = null
         }
         return voskModel
+    }
+
+    /**
+     * Fast-path reader for our own WAV output (PCM16, mono, 16k). Returns null when format differs.
+     */
+    private fun readWavPcm16Mono(file: File): ShortArray? {
+        return try {
+            RandomAccessFile(file, "r").use { raf ->
+                if (raf.length() < 44) return null
+                val header = ByteArray(44)
+                raf.readFully(header)
+                val buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
+                buffer.position(22)
+                val channels = buffer.short.toInt()
+                val sampleRate = buffer.int
+                buffer.position(34)
+                val bitsPerSample = buffer.short.toInt()
+                if (channels != 1 || sampleRate != 16000 || bitsPerSample != 16) return null
+                val dataSize = (raf.length() - 44).toInt()
+                if (dataSize <= 0 || dataSize % 2 != 0) return null
+                val bytes = ByteArray(dataSize)
+                raf.seek(44)
+                raf.readFully(bytes)
+                val shorts = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                val out = ShortArray(shorts.remaining())
+                shorts.get(out)
+                out
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun copyAssetsRecursively(assetPath: String, outDir: File) {
