@@ -1,6 +1,7 @@
 package com.persianai.assistant.core.voice
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import java.io.File
 import java.io.RandomAccessFile
@@ -101,13 +102,14 @@ class WhisperSttEngine(private val context: Context) {
 
     private fun loadLibrariesIfPresent(): Boolean {
         if (libsLoaded.get()) return true
-        val abi = "arm64-v8a" // primary target; can be extended
-        val libDir = File(context.filesDir, "whisper_native/$abi")
-        val core = File(libDir, "libwhisper.so")
-        val jni = File(libDir, "libwhisper_jni.so")
-        // Try absolute path load first (in case we copied at runtime)
-        if (core.exists() && jni.exists()) {
+
+        fun tryLoadFrom(libDir: File): Boolean {
+            val ggml = File(libDir, "libggml.so")
+            val core = File(libDir, "libwhisper.so")
+            val jni = File(libDir, "libwhisper_jni.so")
+            if (!ggml.exists() || !core.exists() || !jni.exists()) return false
             return try {
+                System.load(ggml.absolutePath)
                 System.load(core.absolutePath)
                 System.load(jni.absolutePath)
                 libsLoaded.set(true)
@@ -118,8 +120,19 @@ class WhisperSttEngine(private val context: Context) {
                 false
             }
         }
-        // Fallback to bundled jniLibs (System.loadLibrary)
+
+        // Try filesDir copies for any supported ABI (if caller pre-copied).
+        val supportedAbis = Build.SUPPORTED_ABIS.toList()
+        val candidateAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        for (abi in candidateAbis) {
+            if (!supportedAbis.contains(abi)) continue
+            val dir = File(context.filesDir, "whisper_native/$abi")
+            if (tryLoadFrom(dir)) return true
+        }
+
+        // Fallback to bundled jniLibs (System.loadLibrary) with explicit load order.
         return try {
+            System.loadLibrary("ggml")
             System.loadLibrary("whisper")
             System.loadLibrary("whisper_jni")
             libsLoaded.set(true)
