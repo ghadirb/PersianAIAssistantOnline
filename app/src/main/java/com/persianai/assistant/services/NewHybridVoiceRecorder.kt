@@ -109,7 +109,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("Recording already in progress"))
             }
 
-            if (!hasRecordPermission()) {
+            if (!hasRequiredPermissions()) {
                 return@withContext Result.failure(SecurityException("Required permissions not granted"))
             }
 

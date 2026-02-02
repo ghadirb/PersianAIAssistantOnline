@@ -38,7 +38,7 @@ class WhisperSttEngine(private val context: Context) {
     private var ctxPtr: Long = 0L
 
     fun isAvailable(): Boolean {
-        val model = modelFile() ?: return false
+        val model = ensureModelAvailable() ?: return false
         return loadLibrariesIfPresent() && model.exists()
     }
 
@@ -58,7 +58,7 @@ class WhisperSttEngine(private val context: Context) {
      */
     fun transcribe(audioFile: File): Result<String> {
         return try {
-            val model = modelFile()
+            val model = ensureModelAvailable()
                 ?: return Result.failure(IllegalStateException("Whisper model not found"))
             if (!loadLibrariesIfPresent()) {
                 return Result.failure(IllegalStateException("Whisper native libs not found"))
@@ -105,26 +105,50 @@ class WhisperSttEngine(private val context: Context) {
         val libDir = File(context.filesDir, "whisper_native/$abi")
         val core = File(libDir, "libwhisper.so")
         val jni = File(libDir, "libwhisper_jni.so")
-        if (!core.exists() || !jni.exists()) {
-            Log.w(TAG, "Whisper native libs not found at ${libDir.absolutePath}")
-            return false
+        // Try absolute path load first (in case we copied at runtime)
+        if (core.exists() && jni.exists()) {
+            return try {
+                System.load(core.absolutePath)
+                System.load(jni.absolutePath)
+                libsLoaded.set(true)
+                Log.d(TAG, "✅ Whisper native libs loaded from ${libDir.absolutePath}")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed loading Whisper libs from ${libDir.absolutePath}: ${e.message}", e)
+                false
+            }
         }
+        // Fallback to bundled jniLibs (System.loadLibrary)
         return try {
-            System.load(core.absolutePath)
-            System.load(jni.absolutePath)
+            System.loadLibrary("whisper")
+            System.loadLibrary("whisper_jni")
             libsLoaded.set(true)
-            Log.d(TAG, "✅ Whisper native libs loaded from ${libDir.absolutePath}")
+            Log.d(TAG, "✅ Whisper native libs loaded from bundled jniLibs")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed loading Whisper libs: ${e.message}", e)
+            Log.w(TAG, "Whisper native libs not found or failed to load: ${e.message}")
             false
         }
     }
 
-    private fun modelFile(): File? {
+    private fun ensureModelAvailable(): File? {
         val dir = File(context.filesDir, "whisper_models")
         val f = File(dir, "whisper-tiny-q5_1.gguf")
-        return if (f.exists()) f else null
+        if (f.exists()) return f
+        return try {
+            // Try to copy from assets if present
+            dir.mkdirs()
+            context.assets.open("whisper_models/whisper-tiny-q5_1.gguf").use { input ->
+                f.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            Log.d(TAG, "✅ Whisper model copied from assets to ${f.absolutePath}")
+            f
+        } catch (e: Exception) {
+            Log.w(TAG, "Whisper model not found in assets or copy failed: ${e.message}")
+            null
+        }
     }
 
     private fun readWavPcm16Mono(file: File): ShortArray? {
