@@ -27,8 +27,12 @@ class TTSHelper(private val context: Context) {
                 
                 if (result == TextToSpeech.LANG_MISSING_DATA || 
                     result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    Log.e(TAG, "Persian language not supported, trying English")
-                    tts?.setLanguage(Locale.US)
+                    Log.e(TAG, "Persian language not supported on this device; disabling Android TTS")
+                    // If Persian is unavailable, rely solely on Haaniye and skip Android TTS
+                    tts?.shutdown()
+                    tts = null
+                    isInitialized = false
+                    return@TextToSpeech
                 }
 
                 // تنظیمات صدا

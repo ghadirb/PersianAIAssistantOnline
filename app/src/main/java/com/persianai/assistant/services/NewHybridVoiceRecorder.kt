@@ -103,16 +103,16 @@ class NewHybridVoiceRecorder(private val context: Context) {
     suspend fun startRecording(): Result<Unit> = withContext(Dispatchers.Main) {
         try {
             Log.d(TAG, "🎤 Starting new hybrid recording...")
-            
-            // Check permissions first
-            if (!hasRequiredPermissions()) {
-                Log.e(TAG, "❌ Missing required permissions")
+
+            if (isRecording.get()) {
+                Log.w(TAG, "⚠️ Recording already in progress")
+                return@withContext Result.failure(IllegalStateException("Recording already in progress"))
+            }
+
+            if (!hasRecordPermission()) {
                 return@withContext Result.failure(SecurityException("Required permissions not granted"))
             }
-            
-            // Stop any existing recording
-            stopRecording()
-            
+
             // Create recording directory
             val recordingDir = File(context.cacheDir, "recordings").apply {
                 if (!exists()) mkdirs()
@@ -230,7 +230,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 Log.w(TAG, "⚠️ No recording in progress")
                 return@withContext Result.failure(IllegalStateException("No recording in progress"))
             }
-            
+
             Log.d(TAG, "🛑 Stopping recording...")
             
             // Stop amplitude monitoring

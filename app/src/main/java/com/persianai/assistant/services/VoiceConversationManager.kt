@@ -271,8 +271,8 @@ class VoiceConversationManager(
             
             // Listen for voice activity
             var hasSpeech = false
-            val maxRecordingTime = 30000L // 30 seconds max
-            val silenceStopMs = 1200L
+            val maxRecordingTime = 45000L // allow longer phrases
+            val silenceStopMs = 2500L // wait longer before cutting off
             val startTime = System.currentTimeMillis()
             lastVoiceTime = 0L
             
