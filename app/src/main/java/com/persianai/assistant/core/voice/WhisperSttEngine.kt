@@ -39,8 +39,16 @@ class WhisperSttEngine(private val context: Context) {
     private var ctxPtr: Long = 0L
 
     fun isAvailable(): Boolean {
-        val model = ensureModelAvailable() ?: return false
-        return loadLibrariesIfPresent() && model.exists()
+        return try {
+            val model = ensureModelAvailable() ?: return false
+            loadLibrariesIfPresent() && model.exists()
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "Whisper native libs missing: ${e.message}")
+            false
+        } catch (e: Exception) {
+            Log.w(TAG, "Whisper availability check failed: ${e.message}")
+            false
+        }
     }
 
     fun close() {
@@ -101,6 +109,19 @@ class WhisperSttEngine(private val context: Context) {
     }
 
     private fun loadLibrariesIfPresent(): Boolean {
+        if (libsLoaded.get()) return true
+        return try {
+            loadLibrariesInternal()
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "Whisper native libs missing: ${e.message}")
+            false
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed loading Whisper native libs: ${e.message}", e)
+            false
+        }
+    }
+
+    private fun loadLibrariesInternal(): Boolean {
         if (libsLoaded.get()) return true
 
         fun tryLoadFrom(libDir: File): Boolean {

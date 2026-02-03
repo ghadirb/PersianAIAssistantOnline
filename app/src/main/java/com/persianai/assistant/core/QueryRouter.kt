@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.ai.AdvancedPersianAssistant
+import com.persianai.assistant.ai.SimpleOfflineResponder
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.ChatMessage
@@ -51,9 +52,10 @@ class QueryRouter(private val context: Context) {
             // Step 2: If offline-only or no keys, respond offline immediately
             if (workingMode == PreferencesManager.WorkingMode.OFFLINE || activeKeys.isEmpty()) {
                 val offline = offlineAssistant.processRequest(query)
+                val response = resolveOfflineResponse(query, offline, workingMode)
                 return@withContext QueryResult(
                     success = true,
-                    response = offline.text,
+                    response = response,
                     source = "offline",
                     actionExecuted = false,
                     model = "offline-assistant"
@@ -77,9 +79,10 @@ class QueryRouter(private val context: Context) {
             // Step 4: Fallback offline if online failed
             Log.w(TAG, "❌ Online model failed, falling back to offline assistant")
             val offline = offlineAssistant.processRequest(query)
+            val response = resolveOfflineResponse(query, offline, workingMode)
             return@withContext QueryResult(
                 success = true,
-                response = offline.text,
+                response = response,
                 source = "offline",
                 actionExecuted = false,
                 model = "offline-assistant"
@@ -146,6 +149,24 @@ class QueryRouter(private val context: Context) {
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Online model failed: ${e.message}")
             null
+        }
+    }
+
+    private fun resolveOfflineResponse(
+        query: String,
+        offline: AdvancedPersianAssistant.AssistantResponse,
+        workingMode: PreferencesManager.WorkingMode
+    ): String {
+        if (offline.actionType == AdvancedPersianAssistant.ActionType.NEEDS_AI) {
+            val simple = SimpleOfflineResponder.respond(context, query)
+            if (!simple.isNullOrBlank()) return simple
+            if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+                return "⚠️ این درخواست نیاز به مدل آنلاین دارد و در حالت آفلاین قابل پاسخ نیست."
+            }
+        }
+        return offline.text.ifBlank {
+            SimpleOfflineResponder.respond(context, query)
+                ?: "⚠️ فعلاً پاسخ آفلاین در دسترس نیست."
         }
     }
 }
