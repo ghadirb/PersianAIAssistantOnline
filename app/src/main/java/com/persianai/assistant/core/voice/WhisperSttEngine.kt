@@ -39,8 +39,13 @@ class WhisperSttEngine(private val context: Context) {
     private var ctxPtr: Long = 0L
 
     fun isAvailable(): Boolean {
-        val model = ensureModelAvailable() ?: return false
-        return loadLibrariesIfPresent() && model.exists()
+        return try {
+            val model = ensureModelAvailable() ?: return false
+            loadLibrariesIfPresent() && model.exists()
+        } catch (e: Throwable) {
+            Log.w(TAG, "Whisper availability check failed: ${e.message}")
+            false
+        }
     }
 
     fun close() {
@@ -97,55 +102,63 @@ class WhisperSttEngine(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Whisper transcribe error: ${e.message}", e)
             Result.failure(e)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Whisper transcribe fatal error: ${e.message}", e)
+            Result.failure(IllegalStateException("Whisper failed to initialize", e))
         }
     }
 
     private fun loadLibrariesIfPresent(): Boolean {
         if (libsLoaded.get()) return true
+        return try {
 
-        fun tryLoadFrom(libDir: File): Boolean {
-            val ggmlCandidates = listOf("libggml-cpu.so", "libggml.so")
-            val core = File(libDir, "libwhisper.so")
-            val jni = File(libDir, "libwhisper_jni.so")
-            if (!core.exists() || !jni.exists()) return false
-            val ggml = ggmlCandidates.map { File(libDir, it) }.firstOrNull { it.exists() } ?: return false
-            return try {
-                System.load(ggml.absolutePath)
-                System.load(core.absolutePath)
-                System.load(jni.absolutePath)
-                libsLoaded.set(true)
-                Log.d(TAG, "✅ Whisper native libs loaded from ${libDir.absolutePath} (${ggml.name})")
-                true
-            } catch (e: Throwable) {
-                Log.e(TAG, "Failed loading Whisper libs from ${libDir.absolutePath}: ${e.message}", e)
-                false
+            fun tryLoadFrom(libDir: File): Boolean {
+                val ggmlCandidates = listOf("libggml-cpu.so", "libggml.so")
+                val core = File(libDir, "libwhisper.so")
+                val jni = File(libDir, "libwhisper_jni.so")
+                if (!core.exists() || !jni.exists()) return false
+                val ggml = ggmlCandidates.map { File(libDir, it) }.firstOrNull { it.exists() } ?: return false
+                return try {
+                    System.load(ggml.absolutePath)
+                    System.load(core.absolutePath)
+                    System.load(jni.absolutePath)
+                    libsLoaded.set(true)
+                    Log.d(TAG, "✅ Whisper native libs loaded from ${libDir.absolutePath} (${ggml.name})")
+                    true
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Failed loading Whisper libs from ${libDir.absolutePath}: ${e.message}", e)
+                    false
+                }
             }
-        }
 
-        // Try filesDir copies for any supported ABI (if caller pre-copied).
-        val supportedAbis = Build.SUPPORTED_ABIS.toList()
-        val candidateAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        for (abi in candidateAbis) {
-            if (!supportedAbis.contains(abi)) continue
-            val dir = File(context.filesDir, "whisper_native/$abi")
-            if (tryLoadFrom(dir)) return true
-        }
-
-        // Fallback to bundled jniLibs (System.loadLibrary) with explicit load order.
-        val ggmlLibNames = listOf("ggml-cpu", "ggml")
-        for (ggmlName in ggmlLibNames) {
-            try {
-                System.loadLibrary(ggmlName)
-                System.loadLibrary("whisper")
-                System.loadLibrary("whisper_jni")
-                libsLoaded.set(true)
-                Log.d(TAG, "✅ Whisper native libs loaded from bundled jniLibs ($ggmlName)")
-                return true
-            } catch (e: Throwable) {
-                Log.w(TAG, "Whisper native libs not found or failed to load ($ggmlName): ${e.message}")
+            // Try filesDir copies for any supported ABI (if caller pre-copied).
+            val supportedAbis = Build.SUPPORTED_ABIS.toList()
+            val candidateAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            for (abi in candidateAbis) {
+                if (!supportedAbis.contains(abi)) continue
+                val dir = File(context.filesDir, "whisper_native/$abi")
+                if (tryLoadFrom(dir)) return true
             }
+
+            // Fallback to bundled jniLibs (System.loadLibrary) with explicit load order.
+            val ggmlLibNames = listOf("ggml-cpu", "ggml")
+            for (ggmlName in ggmlLibNames) {
+                try {
+                    System.loadLibrary(ggmlName)
+                    System.loadLibrary("whisper")
+                    System.loadLibrary("whisper_jni")
+                    libsLoaded.set(true)
+                    Log.d(TAG, "✅ Whisper native libs loaded from bundled jniLibs ($ggmlName)")
+                    return true
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Whisper native libs not found or failed to load ($ggmlName): ${e.message}")
+                }
+            }
+            false
+        } catch (e: Throwable) {
+            Log.w(TAG, "Whisper native libs load failed: ${e.message}")
+            false
         }
-        return false
     }
 
     private fun ensureModelAvailable(): File? {
