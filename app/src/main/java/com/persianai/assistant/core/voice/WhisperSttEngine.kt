@@ -104,18 +104,19 @@ class WhisperSttEngine(private val context: Context) {
         if (libsLoaded.get()) return true
 
         fun tryLoadFrom(libDir: File): Boolean {
-            val ggml = File(libDir, "libggml.so")
+            val ggmlCandidates = listOf("libggml-cpu.so", "libggml.so")
             val core = File(libDir, "libwhisper.so")
             val jni = File(libDir, "libwhisper_jni.so")
-            if (!ggml.exists() || !core.exists() || !jni.exists()) return false
+            if (!core.exists() || !jni.exists()) return false
+            val ggml = ggmlCandidates.map { File(libDir, it) }.firstOrNull { it.exists() } ?: return false
             return try {
                 System.load(ggml.absolutePath)
                 System.load(core.absolutePath)
                 System.load(jni.absolutePath)
                 libsLoaded.set(true)
-                Log.d(TAG, "✅ Whisper native libs loaded from ${libDir.absolutePath}")
+                Log.d(TAG, "✅ Whisper native libs loaded from ${libDir.absolutePath} (${ggml.name})")
                 true
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Failed loading Whisper libs from ${libDir.absolutePath}: ${e.message}", e)
                 false
             }
@@ -131,17 +132,20 @@ class WhisperSttEngine(private val context: Context) {
         }
 
         // Fallback to bundled jniLibs (System.loadLibrary) with explicit load order.
-        return try {
-            System.loadLibrary("ggml")
-            System.loadLibrary("whisper")
-            System.loadLibrary("whisper_jni")
-            libsLoaded.set(true)
-            Log.d(TAG, "✅ Whisper native libs loaded from bundled jniLibs")
-            true
-        } catch (e: Exception) {
-            Log.w(TAG, "Whisper native libs not found or failed to load: ${e.message}")
-            false
+        val ggmlLibNames = listOf("ggml-cpu", "ggml")
+        for (ggmlName in ggmlLibNames) {
+            try {
+                System.loadLibrary(ggmlName)
+                System.loadLibrary("whisper")
+                System.loadLibrary("whisper_jni")
+                libsLoaded.set(true)
+                Log.d(TAG, "✅ Whisper native libs loaded from bundled jniLibs ($ggmlName)")
+                return true
+            } catch (e: Throwable) {
+                Log.w(TAG, "Whisper native libs not found or failed to load ($ggmlName): ${e.message}")
+            }
         }
+        return false
     }
 
     private fun ensureModelAvailable(): File? {
