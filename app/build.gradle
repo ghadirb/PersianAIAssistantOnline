@@ -65,6 +65,32 @@ task copyVosk(type: Copy) {
     }
 }
 
+// Copy libc++_shared.so from locally installed NDK into jniLibs (needed for Whisper ggml deps)
+def ndkRoot = System.getenv('ANDROID_NDK_HOME') ?: System.getenv('ANDROID_NDK_ROOT') ?: System.getenv('NDK_HOME')
+task copyLibcxxShared {
+    doLast {
+        if (!ndkRoot || !file(ndkRoot).exists()) {
+            println "NDK not found (set ANDROID_NDK_HOME). Skipping libc++_shared copy; Whisper may crash without it."
+            return
+        }
+        def abis = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+        abis.each { abi ->
+            def src = file("${ndkRoot}/sources/cxx-stl/llvm-libc++/libs/${abi}/libc++_shared.so")
+            if (!src.exists()) {
+                println "Missing libc++_shared for ${abi} at ${src}"
+                return
+            }
+            def dstDir = file("$projectDir/src/main/jniLibs/${abi}")
+            dstDir.mkdirs()
+            copy {
+                from src
+                into dstDir
+            }
+            println "Copied libc++_shared.so for ${abi} from ${ndkRoot}"
+        }
+    }
+}
+
 preBuild.dependsOn copyHaaniye
 preBuild.dependsOn copyCoqui
 if (System.getenv('INCLUDE_VOSK_ASSETS') == 'true') {
@@ -72,6 +98,7 @@ if (System.getenv('INCLUDE_VOSK_ASSETS') == 'true') {
 } else {
     println "Skipping copyVosk (set INCLUDE_VOSK_ASSETS=true to embed model; otherwise runtime download keeps APK smaller)"
 }
+preBuild.dependsOn copyLibcxxShared
 
 // If PREBUILT_LIBS_URL is provided in CI environment, run fetch script to populate prebuilt_libs
 def prebuiltUrl = System.getenv('PREBUILT_LIBS_URL')
