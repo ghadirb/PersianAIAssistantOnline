@@ -68,18 +68,23 @@ task copyVosk(type: Copy) {
 }
 
 // Copy libc++_shared.so from locally installed NDK into jniLibs (needed for Whisper ggml deps)
-// Prefer the AGP-provided ndkDirectory (respects android.ndkVersion) and fall back to env vars.
+// Resolve NDK path without touching android.ndkDirectory during configuration (some environments throw if NDK missing).
 def ndkRoot = {
-    def fromAndroid = project.android?.ndkDirectory
-    if (fromAndroid != null && fromAndroid.exists()) return fromAndroid.absolutePath
     def fromEnv = System.getenv('ANDROID_NDK_HOME') ?: System.getenv('ANDROID_NDK_ROOT') ?: System.getenv('NDK_HOME')
-    return fromEnv
+    if (fromEnv) return fromEnv
+    // Fallback to AGP ndkDirectory only if available and non-null (after plugin wiring)
+    def androidExt = project.extensions.findByName("android")
+    if (androidExt != null && androidExt.hasProperty("ndkDirectory")) {
+        def dir = androidExt.ndkDirectory
+        if (dir != null && dir.exists()) return dir.absolutePath
+    }
+    return null
 }.call()
 
 task copyLibcxxShared {
     doLast {
         if (!ndkRoot || !file(ndkRoot).exists()) {
-            throw new GradleException("NDK not found (android.ndkDirectory or ANDROID_NDK_HOME). libc++_shared.so cannot be copied; Whisper will crash. Install NDK ${android.ndkVersion} via sdkmanager.")
+            throw new GradleException("NDK not found (set ANDROID_NDK_HOME or install ndkVersion=${android.ndkVersion}). libc++_shared.so cannot be copied; Whisper will crash.")
         }
 
         // NDK r25+ keeps libs under toolchains/llvm/prebuilt/<host>/sysroot/usr/lib/<triple>/
