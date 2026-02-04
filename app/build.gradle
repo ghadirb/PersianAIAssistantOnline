@@ -27,14 +27,16 @@ if (enableNativeBuild) {
 def haaniyeHost = System.getenv('HAANIYE_HOST_PATH') ?: file(rootDir.toString() + '/haaniye').toString()
 task copyHaaniye(type: Copy) {
     def src = file(haaniyeHost)
+    def altSrc = file("$projectDir/src/main/assets/haaniye") // if user already placed model here
+
     if (src.exists()) {
         from src
-        into "$projectDir/src/main/assets/tts/haaniye"
+    } else if (altSrc.exists()) {
+        from altSrc
     } else {
-        doFirst {
-            println "Haaniye host path not found: ${haaniyeHost} — skipping copyHaaniye"
-        }
+        doFirst { println "Haaniye host path not found at ${haaniyeHost} or ${altSrc} — skipping copyHaaniye" }
     }
+    into "$projectDir/src/main/assets/tts/haaniye"
 }
 
 // Copy offline Coqui TTS model into app assets if developer provided it under project root or via env var
@@ -73,21 +75,58 @@ task copyLibcxxShared {
             println "NDK not found (set ANDROID_NDK_HOME). Skipping libc++_shared copy; Whisper may crash without it."
             return
         }
+
+        // NDK r25+ keeps libs under toolchains/llvm/prebuilt/<host>/sysroot/usr/lib/<triple>/
+        def hostTags = ["linux-x86_64", "windows-x86_64", "darwin-x86_64", "darwin-arm64"]
+        def abiTriples = [
+                "arm64-v8a": "aarch64-linux-android",
+                "armeabi-v7a": "arm-linux-androideabi",
+                "x86_64"   : "x86_64-linux-android"
+        ]
         def abis = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+
         abis.each { abi ->
-            def src = file("${ndkRoot}/sources/cxx-stl/llvm-libc++/libs/${abi}/libc++_shared.so")
-            if (!src.exists()) {
-                println "Missing libc++_shared for ${abi} at ${src}"
+            File src = null
+            // Try modern path
+            hostTags.each { host ->
+                def candidate = file("${ndkRoot}/toolchains/llvm/prebuilt/${host}/sysroot/usr/lib/${abiTriples[abi]}/libc++_shared.so")
+                if (candidate.exists()) {
+                    src = candidate
+                }
+            }
+            // Fallback to legacy path (older NDKs)
+            if (src == null) {
+                def legacy = file("${ndkRoot}/sources/cxx-stl/llvm-libc++/libs/${abi}/libc++_shared.so")
+                if (legacy.exists()) src = legacy
+            }
+
+            if (src == null || !src.exists()) {
+                println "Missing libc++_shared for ${abi} under ${ndkRoot}"
                 return
             }
+
             def dstDir = file("$projectDir/src/main/jniLibs/${abi}")
             dstDir.mkdirs()
             copy {
                 from src
                 into dstDir
             }
-            println "Copied libc++_shared.so for ${abi} from ${ndkRoot}"
+            println "Copied libc++_shared.so for ${abi} from ${src}"
         }
+    }
+}
+
+task verifyLibcxxShared {
+    dependsOn copyLibcxxShared
+    doLast {
+        def abis = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+        abis.each { abi ->
+            def f = file("$projectDir/src/main/jniLibs/${abi}/libc++_shared.so")
+            if (!f.exists() || f.length() == 0L) {
+                throw new GradleException("libc++_shared.so missing for ${abi} (needed for Whisper). Ensure ANDROID_NDK_HOME is set to a valid NDK.")
+            }
+        }
+        println "✅ Verified libc++_shared.so exists for all ABIs"
     }
 }
 
@@ -98,6 +137,7 @@ if (System.getenv('INCLUDE_VOSK_ASSETS') == 'true') {
 } else {
     println "Skipping copyVosk (set INCLUDE_VOSK_ASSETS=true to embed model; otherwise runtime download keeps APK smaller)"
 }
+preBuild.dependsOn verifyLibcxxShared
 preBuild.dependsOn copyLibcxxShared
 
 // If PREBUILT_LIBS_URL is provided in CI environment, run fetch script to populate prebuilt_libs

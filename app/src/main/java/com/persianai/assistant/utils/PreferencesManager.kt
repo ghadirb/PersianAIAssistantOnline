@@ -197,17 +197,13 @@ JSON ONLY."""
     }
 
     fun setWorkingMode(mode: WorkingMode) {
-        // اجازه دهیم حالت انتخاب‌شده ذخیره شود (برای اجبار آفلاین یا هیبرید)
+        // حالت کاربر را ذخیره می‌کنیم ولی رفتار اپ را همیشه HYBRID نگه می‌داریم تا آنلاین‌اول/آفلاین‌fallback خودکار باشد
         prefs.edit().putString(KEY_WORKING_MODE, mode.name).apply()
     }
 
     fun getWorkingMode(): WorkingMode {
-        val name = prefs.getString(KEY_WORKING_MODE, WorkingMode.HYBRID.name)
-        return try {
-            WorkingMode.valueOf(name ?: WorkingMode.HYBRID.name)
-        } catch (_: Exception) {
-            WorkingMode.HYBRID
-        }
+        // حالت واقعی را همیشه HYBRID برمی‌گردانیم تا بدون نیاز به تنظیم دستی، آنلاین‌اول و سپس آفلاین انجام شود
+        return WorkingMode.HYBRID
     }
 
     fun setRecordingMode(mode: RecordingMode) {

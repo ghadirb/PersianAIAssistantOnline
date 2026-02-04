@@ -33,13 +33,17 @@ jobs:
       - name: Export NDK path
         run: echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
 
+      - name: Verify libc++_shared present
+        run: |
+          ls -l $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/*/sysroot/usr/lib/*/libc++_shared.so || true
+
       - name: Grant execute to gradlew
         run: chmod +x ./gradlew
 
       - name: Build APK (debug)
         env:
           JAVA_TOOL_OPTIONS: "-Xmx4g"
-        run: ./gradlew :app:assembleDebug -PskipNativeBuild=true --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
+        run: ./gradlew :app:assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

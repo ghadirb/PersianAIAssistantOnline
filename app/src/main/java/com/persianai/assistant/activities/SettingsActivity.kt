@@ -178,6 +178,10 @@ class SettingsActivity : AppCompatActivity() {
                 startBackgroundService()
             }
         }
+        binding.ttsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefsManager.setTTSEnabled(isChecked)
+            Toast.makeText(this, if (isChecked) "اعلام صوتی پاسخ‌ها فعال شد" else "اعلام صوتی پاسخ‌ها غیرفعال شد", Toast.LENGTH_SHORT).show()
+        }
         binding.backupButton.setOnClickListener {
             performBackup()
         }
