@@ -45,6 +45,10 @@ jobs:
           JAVA_TOOL_OPTIONS: "-Xmx4g"
         run: ./gradlew :app:assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
 
+      - name: Assert libc++_shared packaged
+        run: |
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep "libc++_shared" || (echo "libc++_shared.so missing in APK" && exit 1)
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

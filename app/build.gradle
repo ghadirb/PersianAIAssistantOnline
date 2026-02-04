@@ -68,12 +68,18 @@ task copyVosk(type: Copy) {
 }
 
 // Copy libc++_shared.so from locally installed NDK into jniLibs (needed for Whisper ggml deps)
-def ndkRoot = System.getenv('ANDROID_NDK_HOME') ?: System.getenv('ANDROID_NDK_ROOT') ?: System.getenv('NDK_HOME')
+// Prefer the AGP-provided ndkDirectory (respects android.ndkVersion) and fall back to env vars.
+def ndkRoot = {
+    def fromAndroid = project.android?.ndkDirectory
+    if (fromAndroid != null && fromAndroid.exists()) return fromAndroid.absolutePath
+    def fromEnv = System.getenv('ANDROID_NDK_HOME') ?: System.getenv('ANDROID_NDK_ROOT') ?: System.getenv('NDK_HOME')
+    return fromEnv
+}.call()
+
 task copyLibcxxShared {
     doLast {
         if (!ndkRoot || !file(ndkRoot).exists()) {
-            println "NDK not found (set ANDROID_NDK_HOME). Skipping libc++_shared copy; Whisper may crash without it."
-            return
+            throw new GradleException("NDK not found (android.ndkDirectory or ANDROID_NDK_HOME). libc++_shared.so cannot be copied; Whisper will crash. Install NDK ${android.ndkVersion} via sdkmanager.")
         }
 
         // NDK r25+ keeps libs under toolchains/llvm/prebuilt/<host>/sysroot/usr/lib/<triple>/
@@ -83,7 +89,7 @@ task copyLibcxxShared {
                 "armeabi-v7a": "arm-linux-androideabi",
                 "x86_64"   : "x86_64-linux-android"
         ]
-        def abis = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+        def abis = ["arm64-v8a", "armeabi-v7a"]
 
         abis.each { abi ->
             File src = null
@@ -101,8 +107,7 @@ task copyLibcxxShared {
             }
 
             if (src == null || !src.exists()) {
-                println "Missing libc++_shared for ${abi} under ${ndkRoot}"
-                return
+                throw new GradleException("Missing libc++_shared.so for ${abi} under ${ndkRoot}. Install NDK ${android.ndkVersion} and ensure toolchains/llvm/prebuilt/<host>/sysroot/usr/lib/... exists.")
             }
 
             def dstDir = file("$projectDir/src/main/jniLibs/${abi}")
@@ -119,7 +124,7 @@ task copyLibcxxShared {
 task verifyLibcxxShared {
     dependsOn copyLibcxxShared
     doLast {
-        def abis = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+        def abis = ["arm64-v8a", "armeabi-v7a"]
         abis.each { abi ->
             def f = file("$projectDir/src/main/jniLibs/${abi}/libc++_shared.so")
             if (!f.exists() || f.length() == 0L) {
