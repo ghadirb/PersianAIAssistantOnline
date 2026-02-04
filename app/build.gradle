@@ -142,11 +142,8 @@ task verifyLibcxxShared {
 
 preBuild.dependsOn copyHaaniye
 preBuild.dependsOn copyCoqui
-if (System.getenv('INCLUDE_VOSK_ASSETS') == 'true') {
-    preBuild.dependsOn copyVosk
-} else {
-    println "Skipping copyVosk (set INCLUDE_VOSK_ASSETS=true to embed model; otherwise runtime download keeps APK smaller)"
-}
+// Always package Vosk offline STT assets so runtime never downloads/fails
+preBuild.dependsOn copyVosk
 preBuild.dependsOn verifyLibcxxShared
 preBuild.dependsOn copyLibcxxShared
 
