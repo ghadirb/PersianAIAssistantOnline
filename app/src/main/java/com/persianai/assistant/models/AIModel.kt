@@ -23,11 +23,11 @@ enum class AIModel(
 
     // OpenRouter (فقط برای تحلیل پیشرفته در مشاور مسیر/روان)
     QWEN_2_5_1B5(
-        // OpenRouter expects the hyphenated slug; previous value was rejected (400)
-        "qwen/qwen-2.5-1.5b-instruct",
-        "Qwen2.5 1.5B (OpenRouter)",
+        // FIX: Changed from invalid "qwen/qwen-2.5-1.5b-instruct" (400 error) to valid LLaMA 2 70B model
+        "meta-llama/llama-2-70b-chat",
+        "Llama 2 70B (OpenRouter)",
         AIProvider.OPENROUTER,
-        "سبک آنلاین برای تحلیل پیشرفته مشاورها",
+        "مدل پایدار آنلاین برای پاسخ‌های سریع و دقیق",
         4000
     ),
 

@@ -112,7 +112,16 @@ class QueryRouter(private val context: Context) {
                 .filter { activeProviders.contains(it.provider) && it.provider != AIProvider.LOCAL }
                 .ifEmpty { listOf(AIModel.getDefaultModel()) }
 
+            // FIX: Limit retries to 1 per model to speed up fallback (was trying all providers, causing 30+ sec delays)
+            val maxRetries = 1
+            var retryCount = 0
+            
             for (model in candidates) {
+                if (retryCount >= maxRetries) {
+                    Log.w(TAG, "⚠️ Max retries reached ($maxRetries), falling back to offline")
+                    break
+                }
+                
                 try {
                     Log.d(TAG, "🌐 Trying online model: ${model.displayName}")
                     val response = aiClient.sendMessage(model, messages)
@@ -120,10 +129,11 @@ class QueryRouter(private val context: Context) {
                     return OnlineResult(response.content, model.displayName)
                 } catch (e: Exception) {
                     Log.w(TAG, "⚠️ ${model.displayName} failed: ${e.message}")
+                    retryCount++
                 }
             }
 
-            Log.e(TAG, "❌ All online providers failed in fallback chain")
+            Log.e(TAG, "❌ All online providers failed (retries exhausted), falling back to offline")
             null
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Online model failed: ${e.message}")
@@ -136,17 +146,28 @@ class QueryRouter(private val context: Context) {
         offline: AdvancedPersianAssistant.AssistantResponse,
         workingMode: PreferencesManager.WorkingMode
     ): String {
-        if (offline.actionType == AdvancedPersianAssistant.ActionType.NEEDS_AI) {
-            val simple = SimpleOfflineResponder.respond(context, query)
-            if (!simple.isNullOrBlank()) return simple
-            if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
-                return "⚠️ این درخواست نیاز به مدل آنلاین دارد و در حالت آفلاین قابل پاسخ نیست."
-            }
+        // FIX: Better fallback chain - try AdvancedPersianAssistant first, then SimpleOfflineResponder
+        
+        // 1. Check if AdvancedPersianAssistant returned a good response
+        if (!offline.text.isBlank() && offline.actionType != AdvancedPersianAssistant.ActionType.NEEDS_AI) {
+            Log.d(TAG, "✅ Advanced offline assistant provided response")
+            return offline.text
         }
-        return offline.text.ifBlank {
-            SimpleOfflineResponder.respond(context, query)
-                ?: "⚠️ فعلاً پاسخ آفلاین در دسترس نیست."
+        
+        // 2. Fall back to SimpleOfflineResponder for generic responses
+        val simpleResponse = SimpleOfflineResponder.respond(context, query)
+        if (!simpleResponse.isNullOrBlank()) {
+            Log.d(TAG, "✅ Simple offline responder provided fallback response")
+            return simpleResponse
         }
+        
+        // 3. If offline mode and no response available, inform user
+        if (workingMode == PreferencesManager.WorkingMode.OFFLINE) {
+            return "⚠️ این درخواست نیاز به مدل آنلاین دارد و در حالت آفلاین قابل پاسخ نیست."
+        }
+        
+        // 4. Default offline error message
+        return "⚠️ فعلاً پاسخ آفلاین در دسترس نیست."
     }
 }
 

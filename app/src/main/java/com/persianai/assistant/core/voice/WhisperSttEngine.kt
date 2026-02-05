@@ -103,10 +103,11 @@ class WhisperSttEngine(private val context: Context) {
             // Guard: 32-bit ARM builds of ggml/whisper crash with missing std::length_error
             // due to libstdc++/libc++ ABI mismatch. Skip loading on pure armeabi-v7a devices
             // so we fall back to Vosk/online instead of crashing.
-            val isArm32 = Build.SUPPORTED_64_BIT_ABIS.isEmpty() &&
-                    Build.SUPPORTED_ABIS.any { it.equals("armeabi-v7a", ignoreCase = true) }
-            if (isArm32) {
-                Log.w(TAG, "Skipping Whisper native load on 32-bit ARM (known libc++ symbol crash); falling back to other STT engines.")
+            // ✅ FIXED: Proper detection - 32-bit only if ARM64 NOT present
+            val is32BitOnly = Build.SUPPORTED_ABIS.contains("armeabi-v7a") && 
+                              !Build.SUPPORTED_ABIS.contains("arm64-v8a")
+            if (is32BitOnly) {
+                Log.w(TAG, "32-bit ARM device; skipping Whisper JNI to prevent libc++ symbol crash. Falling back to Vosk STT.")
                 return false
             }
 
