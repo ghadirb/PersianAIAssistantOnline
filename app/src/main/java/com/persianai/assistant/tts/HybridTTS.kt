@@ -1,9 +1,8 @@
 package com.persianai.assistant.tts
-
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
-import com.persianai.assistant.utils.IviraIntegrationManager
+import com.persianai.assistant.integration.IviraIntegrationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

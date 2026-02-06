@@ -31,7 +31,7 @@ import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.*
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
-import com.persianai.assistant.utils.IviraIntegrationManager
+import com.persianai.assistant.integration.IviraIntegrationManager
 import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.services.AIAssistantService
 import com.persianai.assistant.core.AIIntentController

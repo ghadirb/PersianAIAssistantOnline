@@ -20,7 +20,7 @@ import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.ModelDownloadManager
-import com.persianai.assistant.utils.IviraIntegrationManager
+import com.persianai.assistant.integration.IviraIntegrationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

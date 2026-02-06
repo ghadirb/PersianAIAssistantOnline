@@ -6,12 +6,10 @@ import com.persianai.assistant.services.NewHybridVoiceRecorder
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.core.voice.WhisperSttEngine
 import com.persianai.assistant.api.IviraAPIClient
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 class SpeechToTextPipeline(private val context: Context) {
 
@@ -31,14 +29,14 @@ class SpeechToTextPipeline(private val context: Context) {
 
             // 1) تلاش آنلاین Ivira STT (Awasho → Avangardi)؛ در صورت خطا/خالی به مرحله بعد
             runCatching {
-                val text = suspendCoroutine<String> { cont ->
-                    iviraClient.speechToText(
-                        audioFile = audioFile,
-                        model = null,
-                        onSuccess = { cont.resume(it) },
-                        onError = { cont.resumeWithException(Exception(it)) }
-                    )
-                }.trim()
+                val deferred = CompletableDeferred<String>()
+                iviraClient.speechToText(
+                    audioFile = audioFile,
+                    model = null,
+                    onSuccess = { deferred.complete(it) },
+                    onError = { deferred.completeExceptionally(Exception(it)) }
+                )
+                val text = deferred.await().trim()
                 if (text.isNotBlank()) {
                     return@withContext Result.success(text)
                 }

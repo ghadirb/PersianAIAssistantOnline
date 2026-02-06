@@ -36,7 +36,7 @@ import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.ModelDownloadManager
-import com.persianai.assistant.utils.IviraIntegrationManager
+import com.persianai.assistant.integration.IviraIntegrationManager
 import com.persianai.assistant.services.VoiceRecordingHelper
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.persianai.assistant.core.AIIntentController

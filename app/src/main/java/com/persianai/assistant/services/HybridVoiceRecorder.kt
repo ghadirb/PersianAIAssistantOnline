@@ -3,7 +3,7 @@ package com.persianai.assistant.services
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import com.persianai.assistant.utils.IviraIntegrationManager
+import com.persianai.assistant.integration.IviraIntegrationManager
 import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient

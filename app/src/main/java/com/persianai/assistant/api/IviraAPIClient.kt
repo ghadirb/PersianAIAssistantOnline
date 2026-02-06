@@ -40,7 +40,7 @@ class IviraAPIClient(private val context: Context) {
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
-            val models = if (model != null) {
+            val models: List<String> = if (model != null) {
                 listOf(model)
             } else {
                 tokenManager.getTextModelInPriority()
@@ -137,7 +137,7 @@ class IviraAPIClient(private val context: Context) {
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
-            val models = if (model != null) {
+            val models: List<String> = if (model != null) {
                 listOf(model)
             } else {
                 tokenManager.getTTSModelInPriority()
@@ -217,7 +217,7 @@ class IviraAPIClient(private val context: Context) {
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
-            val models = if (model != null) {
+            val models: List<String> = if (model != null) {
                 listOf(model)
             } else {
                 tokenManager.getSTTModelInPriority()

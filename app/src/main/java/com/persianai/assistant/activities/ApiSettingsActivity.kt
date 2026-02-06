@@ -17,7 +17,7 @@ import com.persianai.assistant.R
 import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
-import com.persianai.assistant.utils.IviraIntegrationManager
+import com.persianai.assistant.integration.IviraIntegrationManager
 import com.persianai.assistant.ai.PuterBridge
 import kotlinx.coroutines.*
 
@@ -238,22 +238,18 @@ class ApiSettingsActivity : AppCompatActivity() {
     private fun updateIviraStatus() {
         try {
             val status = iviraManager.getTokenStatusForSettings()
-            val fullStatus = iviraManager.getTokensStatus()
-            
-            // Update text
+            val models = iviraManager.getAvailableTokensInfo()
+
             val statusMessage = buildString {
                 append("🌐 وضعیت Ivira: $status\n\n")
-                
-                @Suppress("UNCHECKED_CAST")
-                val models = fullStatus["models"] as? Map<String, Boolean> ?: emptyMap()
-                
+
                 append("📝 مدل‌های متن:\n")
                 append("  • Vira: ${if (models["vira"] == true) "✅" else "❌"}\n")
-                append("  • GPT-5 Mini: ${if (models["gpt5-mini"] == true) "✅" else "❌"}\n")
-                append("  • GPT-5 Nano: ${if (models["gpt5-nano"] == true) "✅" else "❌"}\n")
+                append("  • GPT-5 Mini: ${if (models["gpt-5-mini"] == true) "✅" else "❌"}\n")
+                append("  • GPT-5 Nano: ${if (models["gpt-5-nano"] == true) "✅" else "❌"}\n")
                 append("  • Gemma 3: ${if (models["gemma3-27b"] == true) "✅" else "❌"}\n")
                 append("\n")
-                
+
                 append("🔊 مدل‌های صوتی:\n")
                 append("  • Avangardi (TTS): ${if (models["avangardi"] == true) "✅" else "❌"}\n")
                 append("  • Awasho (STT/TTS): ${if (models["awasho"] == true) "✅" else "❌"}\n")
