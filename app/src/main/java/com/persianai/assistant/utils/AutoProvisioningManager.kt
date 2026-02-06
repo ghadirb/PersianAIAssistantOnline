@@ -15,23 +15,24 @@ object AutoProvisioningManager {
     
     private const val TAG = "AutoProvisioning"
     private const val DEFAULT_PASSWORD = "12345"
-    // بدون هش کامیت تا با ویرایش محتوا نیاز به بیلد جدید نباشد
+    // منبع کلیدها (بدون وابستگی به گیت‌هاب؛ رمزگذاری‌شده)
+
     private const val GIST_KEYS_URL =
-        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/keys.txt"
-    
+        "https://abrehamrahi.ir/o/public/UfAv7lIC/"
+
     /**
-     * بارگذاری و فعال‌سازی کلیدها از gist (بدون تکیه بر وضعیت قبلی)
+     * بارگذاری و فعال‌سازی کلیدها از لینک رمزگذاری‌شده (بدون تکیه بر وضعیت قبلی)
      */
     suspend fun autoProvision(context: Context): Result<List<APIKey>> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🔄 شروع بارگذاری خودکار کلیدها (بازنویسی‌شده)...")
 
-            // 1) دانلود از gist
+            // 1) دانلود از منبع رمزگذاری‌شده
             val encryptedData = runCatching {
-                Log.d(TAG, "📥 دانلود فایل رمزشده از gist: $GIST_KEYS_URL")
+                Log.d(TAG, "📥 دانلود فایل رمزشده از: $GIST_KEYS_URL")
                 DriveHelper.downloadFromUrl(GIST_KEYS_URL)
             }.getOrElse { e ->
-                Log.e(TAG, "❌ خطا در دانلود از gist: ${e.message}")
+                Log.e(TAG, "❌ خطا در دانلود: ${e.message}")
                 return@withContext Result.failure(e)
             }
 

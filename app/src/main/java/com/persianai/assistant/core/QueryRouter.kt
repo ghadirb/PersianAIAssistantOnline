@@ -5,14 +5,22 @@ import android.util.Log
 import com.persianai.assistant.ai.AIClient
 import com.persianai.assistant.ai.AdvancedPersianAssistant
 import com.persianai.assistant.ai.SimpleOfflineResponder
+import com.persianai.assistant.api.IviraAPIClient
+import com.persianai.assistant.utils.IviraTokenManager
 import com.persianai.assistant.models.APIKey
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
+import com.persianai.assistant.offline.LocalLlamaRunner
+import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.utils.PreferencesManager
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * Query Router مرکزی
@@ -26,6 +34,10 @@ class QueryRouter(private val context: Context) {
     private val actionExecutor = ActionExecutor(context)
     private val prefs = PreferencesManager(context)
     private val offlineAssistant = AdvancedPersianAssistant(context)
+    private val modelDownloadManager = ModelDownloadManager(context)
+    private val localLlama = LocalLlamaRunner()
+    private val iviraClient = IviraAPIClient(context)
+    private val iviraTokenManager = IviraTokenManager(context)
 
     suspend fun routeQuery(query: String): QueryResult = withContext(Dispatchers.IO) {
         try {
@@ -47,8 +59,97 @@ class QueryRouter(private val context: Context) {
                 )
             }
 
-            // 2) حالت آفلاین یا بدون کلید → آفلاین سریع
+    /**
+     * تلاش با توکن‌های Ivira (اولویت: Vira → GPT5 Mini → GPT5 Nano → Gemma3-27B)
+     */
+    private suspend fun tryIviraOnline(query: String): QueryResult? {
+        return try {
+            if (!iviraTokenManager.hasTokens()) {
+                Log.d(TAG, "Ivira tokens not available")
+                return null
+            }
+            val responseText = suspendCoroutine<String> { cont ->
+                iviraClient.sendMessage(
+                    message = query,
+                    model = null,
+                    onResponse = { cont.resume(it) },
+                    onError = { cont.resumeWithException(Exception(it)) }
+                )
+            }
+            Log.d(TAG, "✅ Ivira response received")
+            QueryResult(
+                success = true,
+                response = responseText,
+                source = "online",
+                actionExecuted = false,
+                model = "Ivira"
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Ivira online failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Try running downloaded GGUF model via local_llama (if native backend is present).
+     */
+    private fun tryLocalModel(query: String): String? {
+        return try {
+            if (!localLlama.isAvailable()) {
+                Log.w(TAG, "Local llama backend not available (native stub or missing build)")
+                return null
+            }
+            val modelFile = findOfflineModelPath() ?: run {
+                Log.w(TAG, "No downloaded offline model found")
+                return null
+            }
+            val res = localLlama.infer(query, modelFile.absolutePath, maxTokens = 256).getOrNull()
+            if (res.isNullOrBlank()) {
+                Log.w(TAG, "Local model returned empty response")
+                null
+            } else {
+                Log.d(TAG, "✅ Local GGUF response obtained")
+                res
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Local model inference failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Locate downloaded GGUF model based on user selection or any available model.
+     */
+    private fun findOfflineModelPath(): File? {
+        return try {
+            val preferred = prefs.getOfflineModelType()
+            val info = modelDownloadManager.findDownloadedModel(preferred)
+                ?: modelDownloadManager.findDownloadedModel()
+            if (info != null) {
+                val f = modelDownloadManager.getModelFile(info)
+                if (f.exists()) f else null
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+            // 2) تلاش آنلاین Ivira (token-based) پیش از کلیدهای سنتی
+            val iviraResult = tryIviraOnline(query)
+            if (iviraResult != null) return@withContext iviraResult
+
+            // 3) حالت آفلاین یا بدون کلید → اول تلاش با مدل آفلاین GGUF (در صورت موجود) سپس پاسخ ساده
             if (workingMode == PreferencesManager.WorkingMode.OFFLINE || activeKeys.isEmpty()) {
+                val local = tryLocalModel(query)
+                if (local != null) {
+                    return@withContext QueryResult(
+                        success = true,
+                        response = local,
+                        source = "offline",
+                        actionExecuted = false,
+                        model = "local-gguf"
+                    )
+                }
                 val offline = offlineAssistant.processRequest(query)
                 val response = resolveOfflineResponse(query, offline, workingMode)
                 return@withContext QueryResult(
@@ -60,7 +161,7 @@ class QueryRouter(private val context: Context) {
                 )
             }
 
-            // 3) تلاش آنلاین (online-first برای HYBRID/ONLINE)
+            // 4) تلاش آنلاین (online-first برای HYBRID/ONLINE)
             val onlineResult = tryOnlineModel(query, activeKeys)
             if (onlineResult != null) {
                 return@withContext QueryResult(
@@ -72,8 +173,18 @@ class QueryRouter(private val context: Context) {
                 )
             }
 
-            // 4) بازگشت به آفلاین در صورت شکست آنلاین
+            // 5) بازگشت به آفلاین در صورت شکست آنلاین: ابتدا GGUF محلی سپس پاسخ ساده
             Log.w(TAG, "❌ Online model failed, falling back to offline assistant")
+            val local = tryLocalModel(query)
+            if (local != null) {
+                return@withContext QueryResult(
+                    success = true,
+                    response = local,
+                    source = "offline",
+                    actionExecuted = false,
+                    model = "local-gguf"
+                )
+            }
             val offline = offlineAssistant.processRequest(query)
             val response = resolveOfflineResponse(query, offline, workingMode)
             return@withContext QueryResult(

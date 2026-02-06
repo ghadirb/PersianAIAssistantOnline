@@ -3,6 +3,7 @@ package com.persianai.assistant.services
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.persianai.assistant.utils.IviraIntegrationManager
 import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -14,8 +15,11 @@ import kotlin.math.min
 
 /**
  * سیستم ضبط صدای ترکیبی (Offline + Online)
- * - Offline: استفاده از مدل Haaniye برای تحلیل فوری
- * - Online: آپلود به سرورهای aimlapi یا Qwen2.5 برای تحلیل پیشرفته
+ * 
+ * اولویت:
+ * 1. Ivira STT (Awasho → Avangardi)
+ * 2. آفلاین STT (Haaniye)
+ * 3. Fallback
  */
 class HybridVoiceRecorder(
     private val context: Context,
@@ -24,6 +28,7 @@ class HybridVoiceRecorder(
     
     private val TAG = "HybridVoiceRecorder"
     private val engine = UnifiedVoiceEngine(context)
+    private val iviraManager = IviraIntegrationManager(context)
     private var audioFile: File? = null
     private var isRecording = false
     private var recordingStartTime = 0L
@@ -38,7 +43,7 @@ class HybridVoiceRecorder(
     }
     
     /**
-     * شروع ضبط صدا با محافظت کاملی
+     * شروع ضبط صدا
      */
     fun startRecording() {
         coroutineScope.launch {
@@ -53,7 +58,6 @@ class HybridVoiceRecorder(
                     recordingStartTime = System.currentTimeMillis()
                     isRecording = true
                     listener?.onRecordingStarted()
-                    // Start amplitude monitoring loop
                     startAmplitudeMonitoring()
                 } else {
                     val err = result.exceptionOrNull()?.message ?: "Unknown error"
@@ -98,7 +102,7 @@ class HybridVoiceRecorder(
     }
     
     /**
-     * لغو ضبط و حذف فایل
+     * لغو ضبط
      */
     fun cancelRecording() {
         coroutineScope.launch {
@@ -120,7 +124,7 @@ class HybridVoiceRecorder(
     }
     
     /**
-     * نظارت بر Amplitude (شدت صدا)
+     * نظارت بر Amplitude
      */
     private fun startAmplitudeMonitoring() {
         coroutineScope.launch {
@@ -137,21 +141,67 @@ class HybridVoiceRecorder(
     }
     
     /**
-     * تحلیل Offline (استفاده از Haaniye)
+     * تحلیل صدا با اولویت Ivira
      */
-    suspend fun analyzeOffline(audioFile: File): String? = withContext(Dispatchers.IO) {
+    suspend fun analyzeAudio(audioFile: File): String? = withContext(Dispatchers.IO) {
         return@withContext try {
-            Log.d(TAG, "🔍 Analyzing with offline model (Haaniye)...")
+            Log.d(TAG, "🔍 Analyzing audio...")
             
-            // Check if audio file exists
             if (!audioFile.exists() || audioFile.length() == 0L) {
                 Log.w(TAG, "⚠️ Audio file doesn't exist or is empty")
                 return@withContext null
             }
             
-            // For now, return placeholder text
-            // In production, implement Haaniye model loading here
-            "تحلیل آفلاین: فایل صوتی شناسایی شد (${audioFile.length()} بایت)"
+            var result: String? = null
+            
+            // اولویت 1: Ivira STT
+            iviraManager.processWithIviraPriority(
+                operation = "stt",
+                input = audioFile,
+                onSuccess = { text, modelUsed ->
+                    Log.d(TAG, "✅ Recognized by $modelUsed: $text")
+                    result = text
+                },
+                onError = { error ->
+                    Log.w(TAG, "⚠️ Ivira STT failed: $error")
+                    // Fallback خواهد بود
+                }
+            )
+            
+            // اگر Ivira موفق بود، بازگردان نتیجه
+            if (!result.isNullOrBlank()) {
+                return@withContext result
+            }
+            
+            // اولویت 2: آفلاین تحلیل
+            result = analyzeOffline(audioFile)
+            if (!result.isNullOrBlank()) {
+                return@withContext result
+            }
+            
+            Log.e(TAG, "❌ All analysis methods failed")
+            null
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error analyzing audio", e)
+            null
+        }
+    }
+    
+    /**
+     * تحلیل Offline (Placeholder)
+     */
+    suspend fun analyzeOffline(audioFile: File): String? = withContext(Dispatchers.IO) {
+        return@withContext try {
+            Log.d(TAG, "🔍 Analyzing with offline model...")
+            
+            if (!audioFile.exists() || audioFile.length() == 0L) {
+                Log.w(TAG, "⚠️ Audio file doesn't exist")
+                return@withContext null
+            }
+            
+            // Placeholder: در آینده می‌توان Haaniye را اضافه کرد
+            "تحلیل آفلاین: فایل صوتی شناسایی شد"
             
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in offline analysis", e)
@@ -160,102 +210,18 @@ class HybridVoiceRecorder(
     }
     
     /**
-     * تحلیل Online (aimlapi / Qwen2.5)
-     */
-    suspend fun analyzeOnline(audioFile: File): String? = withContext(Dispatchers.IO) {
-        return@withContext try {
-            Log.d(TAG, "🌐 Uploading to online model...")
-            
-            // Check if audio file exists
-            if (!audioFile.exists() || audioFile.length() == 0L) {
-                Log.w(TAG, "⚠️ Audio file doesn't exist or is empty")
-                return@withContext null
-            }
-            
-            val httpClient = OkHttpClient()
-            
-            // Try using aimlapi for speech recognition
-            val apiKey = "your-aimlapi-key" // TODO: Get from preferences
-            if (apiKey.isBlank() || apiKey == "your-aimlapi-key") {
-                Log.d(TAG, "⚠️ API key not configured, returning placeholder")
-                return@withContext "تحلیل آنلاین: نیازمند کلید API"
-            }
-            
-            // Upload audio file to aimlapi
-            val audioBytes = audioFile.readBytes()
-            val body = audioBytes.toRequestBody("audio/m4a".toMediaType())
-            
-            val request = Request.Builder()
-                .url("https://api.aimlapi.com/v1/audio/transcribe")
-                .addHeader("Authorization", "Bearer $apiKey")
-                .post(body)
-                .build()
-            
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "❌ API Error: ${response.code} ${response.message}")
-                    return@use "خطا در تحلیل آنلاین"
-                }
-                
-                val responseBody = response.body?.string() ?: return@use "پاسخ خالی"
-                
-                // Parse JSON response
-                try {
-                    val json = JSONObject(responseBody)
-                    val text = json.optString("result", json.optString("text", responseBody))
-                    Log.d(TAG, "✅ Online analysis result: $text")
-                    text
-                } catch (e: Exception) {
-                    Log.d(TAG, "⚠️ Could not parse JSON, returning raw response")
-                    responseBody
-                }
-            }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error in online analysis", e)
-            null
-        }
-    }
-    
-    /**
-     * تحلیل ترکیبی (Offline سپس Online)
+     * تحلیل Hybrid
      */
     suspend fun analyzeHybrid(audioFile: File): String? = withContext(Dispatchers.IO) {
         return@withContext try {
             Log.d(TAG, "⚡ Starting hybrid analysis...")
             
-            // Step 1: Offline analysis
-            val offlineResult = analyzeOffline(audioFile)
-            Log.d(TAG, "✅ Offline analysis done: $offlineResult")
+            // اولویت: Ivira → آفلاین
+            analyzeAudio(audioFile)
             
-            // Step 2: Parallel online analysis
-            val onlineResult = async { analyzeOnline(audioFile) }.await()
-            Log.d(TAG, "✅ Online analysis done: $onlineResult")
-            
-            // استفاده از بهترین نتیجه
-            offlineResult ?: onlineResult
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error in hybrid analysis", e)
             null
-        }
-    }
-    
-    /**
-     * پاکسازی منابع
-     */
-    private fun cleanup() {
-        try {
-            // Delegate cleanup to the engine (cancel asynchronously) and reset local state.
-            try {
-                coroutineScope.launch {
-                    try { engine.cancelRecording() } catch (_: Exception) {}
-                }
-            } catch (_: Exception) {}
-        } catch (e: Exception) {
-            // Ignore
-        } finally {
-            isRecording = false
-            audioFile = null
         }
     }
     

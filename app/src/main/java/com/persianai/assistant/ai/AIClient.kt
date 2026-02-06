@@ -79,8 +79,12 @@ class AIClient(private val apiKeys: List<APIKey>) {
         messages: List<ChatMessage>,
         systemPrompt: String? = null
     ): ChatMessage = withContext(Dispatchers.IO) {
-        
-        // دریافت تمام کلیدهای فعال برای این provider
+
+        // Ivira: اینجا مدیریت نمی‌شود (توکن‌محور در QueryRouter/IviraAPIClient)
+        if (model.provider == AIProvider.IVIRA) {
+            throw IllegalStateException("IVIRA توسط QueryRouter/IviraAPIClient مدیریت می‌شود، AIClient نباید مستقیماً فراخوانی شود")
+        }
+
         val priority = listOf(
             AIProvider.OPENAI,
             AIProvider.LIARA,
@@ -96,7 +100,6 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }.sortedBy { k ->
             priority.indexOf(k.provider).let { if (it == -1) Int.MAX_VALUE else it }
         }.filter {
-            // کلیدهای خاص برخی providerها را حذف کن (مثلاً hf_ برای OpenRouter)
             if (model.provider == AIProvider.OPENROUTER && it.key.startsWith("hf_")) {
                 false
             } else true
@@ -107,39 +110,34 @@ class AIClient(private val apiKeys: List<APIKey>) {
             throw IllegalStateException("هیچ کلید فعالی برای ${model.provider.name} یافت نشد - برای استفاده از ویژگی‌های آنلاین کلید اضافه کنید")
         }
 
-        // تلاش با کلیدهای مختلف تا موفق شویم
         var lastError: Exception? = null
         for (apiKey in availableKeys) {
             try {
                 android.util.Log.d("AIClient", "🔄 تلاش برای ارسال پیام با ${model.provider.name} key: ${apiKey.key.take(8)}...")
                 return@withContext when (model.provider) {
-                    AIProvider.AIML, AIProvider.GLADIA -> sendToOpenAI(model, messages, systemPrompt, apiKey) // سازگار با OpenAI
+                    AIProvider.AIML, AIProvider.GLADIA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA, AIProvider.AVALAI -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
+                    AIProvider.IVIRA -> throw IllegalStateException("IVIRA باید در QueryRouter/IviraAPIClient مدیریت شود")
                 }
             } catch (e: Exception) {
                 lastError = e
                 android.util.Log.w("AIClient", "⚠️ Key failed: ${e.message}")
-                
-                // اگر خطای permanent ہو تو کلید کو mark کریں
                 val errorMsg = e.message ?: ""
-                if (errorMsg.contains("401") ||  // Unauthorized
-                    errorMsg.contains("402") ||  // Insufficient credits
-                    errorMsg.contains("403") ||  // Forbidden - invalid key
-                    errorMsg.contains("400") ||  // Bad request
+                if (errorMsg.contains("401") ||
+                    errorMsg.contains("402") ||
+                    errorMsg.contains("403") ||
+                    errorMsg.contains("400") ||
                     errorMsg.contains("Invalid")
                 ) {
                     failedKeys.add(apiKey.key)
                     android.util.Log.d("AIClient", "🚫 Key marked as permanently failed: ${apiKey.key.take(8)}...")
                 }
-                
-                // ادامه به کلید بعدی
                 continue
             }
         }
-        
-        // اگر همه کلیدها ناموفق بودند
+
         android.util.Log.e("AIClient", "❌ All keys failed: ${lastError?.message}")
         throw lastError ?: Exception("خطای نامشخص در ارسال پیام")
     }

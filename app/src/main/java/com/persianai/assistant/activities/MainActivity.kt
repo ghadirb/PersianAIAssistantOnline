@@ -31,6 +31,7 @@ import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.*
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.persianai.assistant.utils.IviraIntegrationManager
 import com.persianai.assistant.ai.PuterBridge
 import com.persianai.assistant.services.AIAssistantService
 import com.persianai.assistant.core.AIIntentController
@@ -103,17 +104,29 @@ class MainActivity : AppCompatActivity() {
             installmentManager = InstallmentManager(this)
             conversationStorage = com.persianai.assistant.storage.ConversationStorage(this)
             
+            // ✅ بارگذاری توکن‌های Ivira (اولویت)
+            val iviraManager = IviraIntegrationManager(this)
+            lifecycleScope.launch {
+                android.util.Log.d("MainActivity", "🔄 Initializing Ivira tokens...")
+                val tokensLoaded = iviraManager.initializeIviraTokens()
+                if (tokensLoaded) {
+                    android.util.Log.d("MainActivity", "✅ Ivira tokens loaded successfully")
+                } else {
+                    android.util.Log.w("MainActivity", "⚠️ Ivira tokens failed to load, using fallback")
+                }
+            }
+            
             // Setup Voice Recording Helper
             voiceHelper = VoiceRecordingHelper(this)
             setupVoiceRecording()
             
-            // بارگذاری خودکار کلیدهای API
+            // بارگذاری خودکار کلیدهای API (fallback)
             lifecycleScope.launch {
                 try {
                     val result = AutoProvisioningManager.autoProvision(this@MainActivity)
                     if (result.isSuccess) {
                         val keys = result.getOrNull() ?: emptyList()
-                        android.util.Log.d("MainActivity", "✅ ${keys.size} کلید API بارگذاری شد")
+                        android.util.Log.d("MainActivity", "✅ ${keys.size} کلید API بارگذاری شد (fallback)")
                         
                         // راه‌اندازی مجدد AIClient
                         setupAIClient()

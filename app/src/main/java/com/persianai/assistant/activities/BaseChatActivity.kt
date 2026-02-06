@@ -36,6 +36,7 @@ import com.persianai.assistant.utils.TTSHelper
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.ModelDownloadManager
+import com.persianai.assistant.utils.IviraIntegrationManager
 import com.persianai.assistant.services.VoiceRecordingHelper
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.persianai.assistant.core.AIIntentController
@@ -597,26 +598,60 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // استعمال کریں QueryRouter - مرکزی routing system
-                val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
-                val result = router.routeQuery(text)
+                // ✅ اولویت: Ivira Integration Manager
+                val iviraManager = IviraIntegrationManager(this@BaseChatActivity)
                 
-                Log.d("BaseChatActivity", "Query routed via: ${result.source} (Model: ${result.model})")
+                Log.d("BaseChatActivity", "💬 Processing message with Ivira priority...")
                 
-                val responseMessage = ChatMessage(
-                    role = MessageRole.ASSISTANT,
-                    content = result.response,
-                    timestamp = System.currentTimeMillis(),
-                    isError = !result.success
+                var responseContent: String? = null
+                var modelUsed = "Unknown"
+                
+                // سعی برای استفاده از Ivira
+                iviraManager.processWithIviraPriority(
+                    operation = "chat",
+                    input = text,
+                    onSuccess = { response, model ->
+                        responseContent = response
+                        modelUsed = model
+                        Log.d("BaseChatActivity", "✅ Response from $model")
+                    },
+                    onError = { error ->
+                        Log.w("BaseChatActivity", "⚠️ Ivira failed: $error")
+                        // Fallback: استفاده از QueryRouter
+                        lifecycleScope.launch {
+                            try {
+                                val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
+                                val result = router.routeQuery(text)
+                                responseContent = result.response
+                                modelUsed = "QueryRouter"
+                                Log.d("BaseChatActivity", "✅ Fallback via QueryRouter")
+                            } catch (e: Exception) {
+                                Log.e("BaseChatActivity", "❌ QueryRouter also failed: ${e.message}")
+                                responseContent = "❌ خطا: ${e.message}"
+                            }
+                        }
+                    }
                 )
-                addMessage(responseMessage)
                 
-                // اگر action execute ہوا تو لاگ کریں
-                if (result.actionExecuted) {
-                    Log.d("BaseChatActivity", "✅ Action executed automatically")
+                // اگر پاسخ دریافت شد
+                if (!responseContent.isNullOrBlank()) {
+                    val responseMessage = ChatMessage(
+                        role = MessageRole.ASSISTANT,
+                        content = "$responseContent\n📝 [مدل: $modelUsed]",
+                        timestamp = System.currentTimeMillis()
+                    )
+                    addMessage(responseMessage)
+                } else {
+                    val errorMessage = ChatMessage(
+                        role = MessageRole.ASSISTANT,
+                        content = "❌ خطا: نتوانستم پاسخ دریافت کنم",
+                        timestamp = System.currentTimeMillis(),
+                        isError = true
+                    )
+                    addMessage(errorMessage)
                 }
             } catch (e: Exception) {
-                Log.e("BaseChatActivity", "❌ Error in query routing: ${e.message}", e)
+                Log.e("BaseChatActivity", "❌ Error in sendMessage: ${e.message}", e)
                 val errorMessage = ChatMessage(
                     role = MessageRole.ASSISTANT,
                     content = "❌ خطا: ${e.message}",

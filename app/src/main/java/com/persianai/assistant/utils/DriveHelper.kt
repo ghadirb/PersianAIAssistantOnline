@@ -15,7 +15,7 @@ object DriveHelper {
     private const val DRIVE_DOWNLOAD_URL = "https://drive.google.com/uc?export=download&id="
     private const val ENCRYPTED_KEYS_FILE_ID = "17iwkjyGcxJeDgwQWEcsOdfbOxOah_0u0"
     private const val GIST_KEYS_URL =
-        "https://gist.githubusercontent.com/ghadirb/626a804df3009e49045a2948dad89fe5/raw/5ec50251e01128e0ad8d380350a2002d5c5b585f/keys.txt"
+        "https://abrehamrahi.ir/o/public/UfAv7lIC/"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)

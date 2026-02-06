@@ -17,13 +17,20 @@ import com.persianai.assistant.R
 import com.persianai.assistant.api.AIModelManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
+import com.persianai.assistant.utils.IviraIntegrationManager
 import com.persianai.assistant.ai.PuterBridge
 import kotlinx.coroutines.*
 
 class ApiSettingsActivity : AppCompatActivity() {
     
     private lateinit var modelManager: AIModelManager
+    private lateinit var iviraManager: IviraIntegrationManager
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    
+    // Ivira Components
+    private lateinit var iviraSection: LinearLayout
+    private lateinit var iviraStatusText: TextView
+    private lateinit var iviraReloadButton: Button
     
     // UI Components
     private lateinit var openAICard: CardView
@@ -77,10 +84,13 @@ class ApiSettingsActivity : AppCompatActivity() {
         }
         
         modelManager = AIModelManager(this)
+        iviraManager = IviraIntegrationManager(this)
         prefsManager = PreferencesManager(this)
         initializeViews()
+        initializeIviraSection()
         loadSavedKeys()
         updateAvailableModels()
+        updateIviraStatus()
     }
     
     private fun initializeViews() {
@@ -174,6 +184,101 @@ class ApiSettingsActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * ✅ مقداردهی بخش Ivira در تنظیمات
+     */
+    private fun initializeIviraSection() {
+        try {
+            iviraSection = findViewById<LinearLayout?>(R.id.iviraSection) ?: return
+            iviraStatusText = findViewById<TextView?>(R.id.iviraStatusText) ?: return
+            iviraReloadButton = findViewById<Button?>(R.id.iviraReloadButton) ?: return
+            
+            // Setup reload button
+            iviraReloadButton.setOnClickListener {
+                reloadIviraTokens()
+            }
+            
+            android.util.Log.d("ApiSettings", "Ivira section initialized")
+        } catch (e: Exception) {
+            android.util.Log.w("ApiSettings", "Ivira section not available: ${e.message}")
+        }
+    }
+    
+    /**
+     * ✅ بارگذاری مجدد توکن‌های Ivira
+     */
+    private fun reloadIviraTokens() {
+        android.util.Log.d("ApiSettings", "🔄 Reloading Ivira tokens...")
+        
+        iviraReloadButton.isEnabled = false
+        iviraReloadButton.text = "در حال بارگذاری..."
+        
+        scope.launch {
+            val result = iviraManager.reloadTokensManually()
+            
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    android.util.Log.d("ApiSettings", "✅ Tokens reloaded")
+                    showToast("✅ توکن‌های Ivira بارگذاری شدند")
+                    updateIviraStatus()
+                } else {
+                    android.util.Log.e("ApiSettings", "❌ Failed to reload tokens: ${result.exceptionOrNull()?.message}")
+                    showToast("❌ خطا در بارگذاری توکن‌ها: ${result.exceptionOrNull()?.message}")
+                }
+                
+                iviraReloadButton.isEnabled = true
+                iviraReloadButton.text = "بارگذاری مجدد توکن‌ها"
+            }
+        }
+    }
+    
+    /**
+     * ✅ به‌روزرسانی وضعیت Ivira
+     */
+    private fun updateIviraStatus() {
+        try {
+            val status = iviraManager.getTokenStatusForSettings()
+            val fullStatus = iviraManager.getTokensStatus()
+            
+            // Update text
+            val statusMessage = buildString {
+                append("🌐 وضعیت Ivira: $status\n\n")
+                
+                @Suppress("UNCHECKED_CAST")
+                val models = fullStatus["models"] as? Map<String, Boolean> ?: emptyMap()
+                
+                append("📝 مدل‌های متن:\n")
+                append("  • Vira: ${if (models["vira"] == true) "✅" else "❌"}\n")
+                append("  • GPT-5 Mini: ${if (models["gpt5-mini"] == true) "✅" else "❌"}\n")
+                append("  • GPT-5 Nano: ${if (models["gpt5-nano"] == true) "✅" else "❌"}\n")
+                append("  • Gemma 3: ${if (models["gemma3-27b"] == true) "✅" else "❌"}\n")
+                append("\n")
+                
+                append("🔊 مدل‌های صوتی:\n")
+                append("  • Avangardi (TTS): ${if (models["avangardi"] == true) "✅" else "❌"}\n")
+                append("  • Awasho (STT/TTS): ${if (models["awasho"] == true) "✅" else "❌"}\n")
+            }
+            
+            iviraStatusText.text = statusMessage
+            
+            // Change text color based on status
+            if (fullStatus["count"] as? Int == 6) {
+                iviraStatusText.setTextColor(getColor(android.R.color.holo_green_dark))
+            } else {
+                iviraStatusText.setTextColor(getColor(android.R.color.holo_orange_dark))
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("ApiSettings", "Error updating Ivira status: ${e.message}")
+        }
+    }
+    
+    /**
+     * ✅ نمایش Toast
+     */
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
     private fun setupApiCard(
         keyInput: TextInputEditText,
         testButton: Button,

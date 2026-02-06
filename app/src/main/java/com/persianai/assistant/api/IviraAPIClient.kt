@@ -1,0 +1,318 @@
+package com.persianai.assistant.api
+
+import android.content.Context
+import android.util.Log
+import com.persianai.assistant.utils.IviraTokenManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+/**
+ * Ivira API Integration
+ * پیام متنی، صدا تبدیل به متن، و متن تبدیل به صدا
+ */
+class IviraAPIClient(private val context: Context) {
+    
+    companion object {
+        private const val TAG = "IviraAPIClient"
+    }
+    
+    private val tokenManager = IviraTokenManager(context)
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+    
+    /**
+     * ارسال پیام متنی به مدل‌های Ivira
+     * اولویت: Vira → GPT-5 Mini → GPT-5 Nano → Gemma 3
+     */
+    suspend fun sendMessage(
+        message: String,
+        model: String? = null,
+        onResponse: (String) -> Unit,
+        onError: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        try {
+            val models = if (model != null) {
+                listOf(model)
+            } else {
+                tokenManager.getTextModelInPriority()
+            }
+            
+            if (models.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    onError("❌ هیچ توکن Ivira موجود نیست")
+                }
+                return@withContext
+            }
+            
+            var lastError: String? = null
+            
+            // سعی برای هر مدل
+            for (currentModel in models) {
+                try {
+                    val token = tokenManager.getToken(currentModel)
+                        ?: continue
+                    
+                    Log.d(TAG, "🔄 Trying model: $currentModel")
+                    
+                    val requestBody = JSONObject().apply {
+                        put("model", currentModel)
+                        put("messages", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("role", "system")
+                                put("content", "تو یک دستیار هوشمند و مفید است. پاسخ را به زبان فارسی بده.")
+                            })
+                            put(JSONObject().apply {
+                                put("role", "user")
+                                put("content", message)
+                            })
+                        })
+                        put("max_tokens", 2048)
+                        put("temperature", 0.7)
+                    }
+                    
+                    val request = Request.Builder()
+                        .url(IviraTokenManager.IVIRA_API_URL)
+                        .addHeader("Content-Type", "application/json")
+                        .addHeader("Authorization", "Bearer $token")
+                        .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+                        .build()
+                    
+                    httpClient.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val responseBody = response.body?.string()
+                            if (!responseBody.isNullOrEmpty()) {
+                                val json = JSONObject(responseBody)
+                                val content = json.getJSONArray("choices")
+                                    .getJSONObject(0)
+                                    .getJSONObject("message")
+                                    .getString("content")
+                                
+                                Log.d(TAG, "✅ Got response from $currentModel")
+                                withContext(Dispatchers.Main) {
+                                    onResponse(content)
+                                }
+                                return@withContext
+                            }
+                        } else {
+                            lastError = "خطا از $currentModel: ${response.code}"
+                            Log.w(TAG, "❌ Error from $currentModel: ${response.code}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error with model $currentModel: ${e.message}")
+                    lastError = e.message
+                    continue
+                }
+            }
+            
+            // اگر تمام مدل‌ها ناموفق بودند
+            withContext(Dispatchers.Main) {
+                onError(lastError ?: "❌ تمام مدل‌ها ناموفق بودند")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending message", e)
+            withContext(Dispatchers.Main) {
+                onError("خطا: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * تبدیل متن به صدا (TTS) با Avangardi/Awasho
+     */
+    suspend fun textToSpeech(
+        text: String,
+        model: String? = null,
+        onSuccess: (ByteArray) -> Unit,
+        onError: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        try {
+            val models = if (model != null) {
+                listOf(model)
+            } else {
+                tokenManager.getTTSModelInPriority()
+            }
+            
+            if (models.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    onError("❌ هیچ مدل TTS موجود نیست")
+                }
+                return@withContext
+            }
+            
+            var lastError: String? = null
+            
+            for (currentModel in models) {
+                try {
+                    val token = tokenManager.getToken(currentModel)
+                        ?: continue
+                    
+                    Log.d(TAG, "🔊 TTS with model: $currentModel")
+                    
+                    val requestBody = JSONObject().apply {
+                        put("model", currentModel)
+                        put("input", text)
+                        put("voice", "fa")  // Persian voice
+                        put("language", "fa")
+                    }
+                    
+                    val request = Request.Builder()
+                        .url(IviraTokenManager.IVIRA_TTS_URL)
+                        .addHeader("Content-Type", "application/json")
+                        .addHeader("Authorization", "Bearer $token")
+                        .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+                        .build()
+                    
+                    httpClient.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val audioBytes = response.body?.bytes()
+                            if (audioBytes != null) {
+                                Log.d(TAG, "✅ Got audio from $currentModel")
+                                withContext(Dispatchers.Main) {
+                                    onSuccess(audioBytes)
+                                }
+                                return@withContext
+                            }
+                        } else {
+                            lastError = "خطا: ${response.code}"
+                            Log.w(TAG, "TTS Error: ${response.code}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "TTS Error with $currentModel: ${e.message}")
+                    lastError = e.message
+                    continue
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                onError(lastError ?: "❌ خطا در تبدیل متن به صدا")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in TTS", e)
+            withContext(Dispatchers.Main) {
+                onError("خطا: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * تبدیل صدا به متن (STT) با Awasho
+     */
+    suspend fun speechToText(
+        audioFile: java.io.File,
+        model: String? = null,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        try {
+            val models = if (model != null) {
+                listOf(model)
+            } else {
+                tokenManager.getSTTModelInPriority()
+            }
+            
+            if (models.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    onError("❌ هیچ مدل STT موجود نیست")
+                }
+                return@withContext
+            }
+            
+            var lastError: String? = null
+            
+            for (currentModel in models) {
+                try {
+                    val token = tokenManager.getToken(currentModel)
+                        ?: continue
+                    
+                    Log.d(TAG, "🎤 STT with model: $currentModel")
+                    
+                    val requestBody = MultipartBody.Builder()
+                        .setType(MultipartBody.FORM)
+                        .addFormDataPart(
+                            "file",
+                            audioFile.name,
+                            RequestBody.create("audio/*".toMediaType(), audioFile)
+                        )
+                        .addFormDataPart("model", currentModel)
+                        .addFormDataPart("language", "fa")
+                        .build()
+                    
+                    val request = Request.Builder()
+                        .url(IviraTokenManager.IVIRA_STT_URL)
+                        .addHeader("Authorization", "Bearer $token")
+                        .post(requestBody)
+                        .build()
+                    
+                    httpClient.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val responseBody = response.body?.string()
+                            if (!responseBody.isNullOrEmpty()) {
+                                val json = JSONObject(responseBody)
+                                val text = json.getString("text")
+                                
+                                Log.d(TAG, "✅ STT success with $currentModel")
+                                withContext(Dispatchers.Main) {
+                                    onSuccess(text)
+                                }
+                                return@withContext
+                            }
+                        } else {
+                            lastError = "خطا: ${response.code}"
+                            Log.w(TAG, "STT Error: ${response.code}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "STT Error with $currentModel: ${e.message}")
+                    lastError = e.message
+                    continue
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                onError(lastError ?: "❌ خطا در تبدیل صدا به متن")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in STT", e)
+            withContext(Dispatchers.Main) {
+                onError("خطا: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * بررسی وجود توکن‌ها
+     */
+    fun hasTokens(): Boolean = tokenManager.hasTokens()
+    
+    /**
+     * دریافت اطلاعات توکن‌های موجود
+     */
+    fun getAvailableTokensInfo(): Map<String, Boolean> {
+        val models = listOf(
+            IviraTokenManager.MODEL_VIRA,
+            IviraTokenManager.MODEL_GPT5_MINI,
+            IviraTokenManager.MODEL_GPT5_NANO,
+            IviraTokenManager.MODEL_GEMMA3_27B,
+            IviraTokenManager.MODEL_AVANGARDI,
+            IviraTokenManager.MODEL_AWASHO
+        )
+        
+        return models.associateWith { model ->
+            tokenManager.getToken(model) != null
+        }
+    }
+}

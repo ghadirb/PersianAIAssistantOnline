@@ -20,6 +20,7 @@ import com.persianai.assistant.utils.DriveHelper
 import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.ModelDownloadManager
+import com.persianai.assistant.utils.IviraIntegrationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,18 +52,33 @@ class SplashActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val prefsManager = PreferencesManager(this@SplashActivity)
             try {
-                // همیشه از gist تازه بارگذاری کن تا وضعیت کلیدها همگام شود
+                // ✅ مرحله 1: بارگذاری توکن‌های Ivira (اولویت اول)
+                android.util.Log.d("SplashActivity", "🔄 Initializing Ivira tokens...")
+                val iviraManager = IviraIntegrationManager(this@SplashActivity)
+                val iviraLoaded = iviraManager.initializeIviraTokens()
+                
+                if (iviraLoaded) {
+                    android.util.Log.i("SplashActivity", "✅ Ivira tokens loaded successfully")
+                    val status = iviraManager.getTokensStatus()
+                    android.util.Log.d("SplashActivity", "📊 Ivira status: $status")
+                } else {
+                    android.util.Log.w("SplashActivity", "⚠️ Ivira tokens failed, using fallback")
+                }
+                
+                // ✅ مرحله 2: بارگذاری خودکار کلیدهای API (fallback)
+                android.util.Log.d("SplashActivity", "🔄 Auto-provisioning API keys as fallback...")
                 try {
                     val res = com.persianai.assistant.utils.AutoProvisioningManager.autoProvision(this@SplashActivity)
                     if (res.isSuccess) {
                         val keys = res.getOrNull().orEmpty()
-                        android.util.Log.i("SplashActivity", "AutoProvision success: ${keys.size} keys; active=${keys.count { it.isActive }}")
+                        android.util.Log.i("SplashActivity", "AutoProvision success: ${keys.size} keys (fallback); active=${keys.count { it.isActive }}")
                     } else {
                         android.util.Log.w("SplashActivity", "AutoProvision failed: ${res.exceptionOrNull()?.message}")
                     }
                 } catch (e: Exception) {
                     android.util.Log.w("SplashActivity", "AutoProvision exception: ${e.message}", e)
                 }
+                
                 // همگام‌سازی با SharedPreferences
                 syncApiPrefs(prefsManager)
                 android.util.Log.i("SplashActivity", "Keys applied (${prefsManager.getAPIKeys().size})")

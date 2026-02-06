@@ -81,6 +81,36 @@ enum class AIModel(
         "مدل پشتیبان متن‌باز و چندزبانه",
         4000
     ),
+    // Ivira (token-based, خارج از prefs APIKey)
+    IVIRA_VIRA(
+        "vira",
+        "Vira (Ivira)",
+        AIProvider.IVIRA,
+        "مدل زبانی ترکیبی ویرا (اولویت اول)",
+        32000
+    ),
+    IVIRA_GPT5_MINI(
+        "gpt-5-mini",
+        "GPT-5 Mini (Ivira)",
+        AIProvider.IVIRA,
+        "مدل GPT-5 Mini از Ivira",
+        32000
+    ),
+    IVIRA_GPT5_NANO(
+        "gpt-5-nano",
+        "GPT-5 Nano (Ivira)",
+        AIProvider.IVIRA,
+        "مدل GPT-5 Nano از Ivira",
+        32000
+    ),
+    IVIRA_GEMMA3_27B(
+        "gemma3-27b",
+        "Gemma 3 27B (Ivira)",
+        AIProvider.IVIRA,
+        "مدل Gemma 3 27B از Ivira",
+        32000
+    ),
+
     GPT_4O(
         "gpt-4o",
         "GPT-4o",
@@ -151,6 +181,7 @@ enum class AIProvider {
     OPENROUTER,
     LIARA,
     AVALAI,
+    IVIRA,
     LOCAL
 }
 
