@@ -175,6 +175,69 @@ class QueryRouter(private val context: Context) {
         }
     }
 
+    private suspend fun tryIviraOnline(query: String): QueryResult? {
+        return try {
+            if (!iviraTokenManager.hasTokens()) {
+                Log.d(TAG, "ℹ️ No Ivira tokens available")
+                return null
+            }
+
+            var result: QueryResult? = null
+            val deferred = CompletableDeferred<String?>()
+
+            iviraClient.sendMessage(
+                message = query,
+                onResponse = { response ->
+                    Log.d(TAG, "✅ Ivira online response received")
+                    deferred.complete(response)
+                },
+                onError = { error ->
+                    Log.w(TAG, "❌ Ivira error: $error")
+                    deferred.complete(null)
+                }
+            )
+
+            val response = deferred.await()
+            if (response != null) {
+                result = QueryResult(
+                    success = true,
+                    response = response,
+                    source = "ivira",
+                    actionExecuted = false,
+                    model = "ivira-online"
+                )
+            }
+
+            result
+        } catch (e: Exception) {
+            Log.w(TAG, "⚠️ Ivira online failed: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun tryLocalModel(query: String): String? {
+        return try {
+            val modelDir = File(context.filesDir, "models")
+            if (!modelDir.exists() || modelDir.listFiles().isNullOrEmpty()) {
+                Log.d(TAG, "ℹ️ No local models available")
+                return null
+            }
+
+            Log.d(TAG, "🏠 Trying local GGUF model")
+            // Try to use localLlama runner
+            val result = localLlama.run(query, modelDir.absolutePath)
+            if (!result.isNullOrBlank()) {
+                Log.d(TAG, "✅ Local model response received")
+                return result
+            }
+
+            null
+        } catch (e: Exception) {
+            Log.w(TAG, "⚠️ Local model failed: ${e.message}")
+            null
+        }
+    }
+
     private fun resolveOfflineResponse(
         query: String,
         offline: AdvancedPersianAssistant.AssistantResponse,

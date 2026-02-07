@@ -37,6 +37,7 @@ import com.persianai.assistant.utils.PreferencesManager.ProviderPreference
 import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.integration.IviraIntegrationManager
+import com.persianai.assistant.utils.IviraProcessingHelper
 import com.persianai.assistant.services.VoiceRecordingHelper
 import com.persianai.assistant.services.UnifiedVoiceEngine
 import com.persianai.assistant.core.AIIntentController
@@ -599,39 +600,35 @@ abstract class BaseChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 // ✅ اولویت: Ivira Integration Manager
-                val iviraManager = IviraIntegrationManager(this@BaseChatActivity)
-                
                 Log.d("BaseChatActivity", "💬 Processing message with Ivira priority...")
                 
                 var responseContent: String? = null
                 var modelUsed = "Unknown"
                 
                 // سعی برای استفاده از Ivira
-                iviraManager.processWithIviraPriority(
-                    operation = "chat",
-                    input = text,
-                    onSuccess = { response, model ->
-                        responseContent = response
-                        modelUsed = model
-                        Log.d("BaseChatActivity", "✅ Response from $model")
-                    },
-                    onError = { error ->
-                        Log.w("BaseChatActivity", "⚠️ Ivira failed: $error")
-                        // Fallback: استفاده از QueryRouter
-                        lifecycleScope.launch {
-                            try {
-                                val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
-                                val result = router.routeQuery(text)
-                                responseContent = result.response
-                                modelUsed = "QueryRouter"
-                                Log.d("BaseChatActivity", "✅ Fallback via QueryRouter")
-                            } catch (e: Exception) {
-                                Log.e("BaseChatActivity", "❌ QueryRouter also failed: ${e.message}")
-                                responseContent = "❌ خطا: ${e.message}"
-                            }
-                        }
-                    }
+                responseContent = IviraProcessingHelper.processWithIviraPriority(
+                    context = this@BaseChatActivity,
+                    userMessage = text,
+                    conversationHistory = messages
                 )
+                
+                if (!responseContent.isNullOrBlank()) {
+                    modelUsed = "Ivira"
+                    Log.d("BaseChatActivity", "✅ Response from $modelUsed")
+                } else {
+                    Log.w("BaseChatActivity", "⚠️ Ivira failed, falling back to QueryRouter")
+                    // Fallback: استفاده از QueryRouter
+                    try {
+                        val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
+                        val result = router.routeQuery(text)
+                        responseContent = result.response
+                        modelUsed = "QueryRouter"
+                        Log.d("BaseChatActivity", "✅ Fallback via QueryRouter")
+                    } catch (e: Exception) {
+                        Log.e("BaseChatActivity", "❌ QueryRouter also failed: ${e.message}")
+                        responseContent = "❌ خطا: ${e.message}"
+                    }
+                }
                 
                 // اگر پاسخ دریافت شد
                 if (!responseContent.isNullOrBlank()) {

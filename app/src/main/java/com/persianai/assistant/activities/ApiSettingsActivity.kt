@@ -258,7 +258,8 @@ class ApiSettingsActivity : AppCompatActivity() {
             iviraStatusText.text = statusMessage
             
             // Change text color based on status
-            if (fullStatus["count"] as? Int == 6) {
+            val count = models.count { it.value == true }
+            if (count == 6) {
                 iviraStatusText.setTextColor(getColor(android.R.color.holo_green_dark))
             } else {
                 iviraStatusText.setTextColor(getColor(android.R.color.holo_orange_dark))

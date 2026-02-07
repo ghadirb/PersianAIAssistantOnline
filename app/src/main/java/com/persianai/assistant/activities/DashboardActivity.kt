@@ -687,6 +687,9 @@ class DashboardActivity : AppCompatActivity() {
                 AIProvider.LOCAL -> {
                     // مدل آفلاین کلید ندارد
                 }
+                AIProvider.IVIRA -> {
+                    // Ivira uses token manager, not string keys
+                }
             }
         }
 

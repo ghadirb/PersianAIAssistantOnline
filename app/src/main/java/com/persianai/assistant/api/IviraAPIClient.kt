@@ -87,24 +87,22 @@ class IviraAPIClient(private val context: Context) {
                         .build()
                     
                     httpClient.newCall(request).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val responseBody = response.body?.string()
-                            if (!responseBody.isNullOrEmpty()) {
-                                val json = JSONObject(responseBody)
-                                val content = json.getJSONArray("choices")
-                                    .getJSONObject(0)
-                                    .getJSONObject("message")
-                                    .getString("content")
-                                
-                                Log.d(TAG, "✅ Got response from $currentModel")
-                                withContext(Dispatchers.Main) {
-                                    onResponse(content)
-                                }
-                                return@withContext
+                        val responseBody = response.body?.string()
+                        if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
+                            val json = JSONObject(responseBody)
+                            val content = json.getJSONArray("choices")
+                                .getJSONObject(0)
+                                .getJSONObject("message")
+                                .getString("content")
+                            
+                            Log.d(TAG, "✅ Got response from $currentModel")
+                            withContext(Dispatchers.Main) {
+                                onResponse(content)
                             }
+                            return@withContext
                         } else {
-                            lastError = "خطا از $currentModel: ${response.code}"
-                            Log.w(TAG, "❌ Error from $currentModel: ${response.code}")
+                            lastError = "خطا: پاسخ خالی از $currentModel"
+                            Log.w(TAG, "Empty response from $currentModel")
                         }
                     }
                 } catch (e: Exception) {
@@ -174,18 +172,16 @@ class IviraAPIClient(private val context: Context) {
                         .build()
                     
                     httpClient.newCall(request).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val audioBytes = response.body?.bytes()
-                            if (audioBytes != null) {
-                                Log.d(TAG, "✅ Got audio from $currentModel")
-                                withContext(Dispatchers.Main) {
-                                    onSuccess(audioBytes)
-                                }
-                                return@withContext
+                        val audioBytes = response.body?.bytes()
+                        if (response.isSuccessful && audioBytes != null) {
+                            Log.d(TAG, "✅ Got audio from $currentModel")
+                            withContext(Dispatchers.Main) {
+                                onSuccess(audioBytes)
                             }
+                            return@withContext
                         } else {
-                            lastError = "خطا: ${response.code}"
-                            Log.w(TAG, "TTS Error: ${response.code}")
+                            lastError = "خطا: صدا خالی از $currentModel"
+                            Log.w(TAG, "Empty audio from $currentModel")
                         }
                     }
                 } catch (e: Exception) {
@@ -257,21 +253,19 @@ class IviraAPIClient(private val context: Context) {
                         .build()
                     
                     httpClient.newCall(request).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val responseBody = response.body?.string()
-                            if (!responseBody.isNullOrEmpty()) {
-                                val json = JSONObject(responseBody)
-                                val text = json.getString("text")
-                                
-                                Log.d(TAG, "✅ STT success with $currentModel")
-                                withContext(Dispatchers.Main) {
-                                    onSuccess(text)
-                                }
-                                return@withContext
+                        val responseBody = response.body?.string()
+                        if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
+                            val json = JSONObject(responseBody)
+                            val text = json.getString("text")
+                            
+                            Log.d(TAG, "✅ STT success with $currentModel")
+                            withContext(Dispatchers.Main) {
+                                onSuccess(text)
                             }
+                            return@withContext
                         } else {
-                            lastError = "خطا: ${response.code}"
-                            Log.w(TAG, "STT Error: ${response.code}")
+                            lastError = "خطا: متن خالی از $currentModel"
+                            Log.w(TAG, "Empty text from $currentModel")
                         }
                     }
                 } catch (e: Exception) {

@@ -3,6 +3,7 @@ import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.persianai.assistant.integration.IviraIntegrationManager
+import com.persianai.assistant.utils.IviraProcessingHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -77,25 +78,21 @@ class HybridTTS(
         
         // اولویت: Ivira TTS
         scope.launch {
-            var synthesized = false
-            
-            // سعی برای استفاده از Ivira
-            iviraManager.processWithIviraPriority(
-                operation = "tts",
-                input = text,
-                onSuccess = { _, modelUsed ->
-                    Log.d(TAG, "✅ Synthesized with $modelUsed (Ivira)")
-                    synthesized = true
+            try {
+                val audioBytes = IviraProcessingHelper.processTTSWithIviraPriority(context, text)
+                
+                if (audioBytes != null && audioBytes.isNotEmpty()) {
+                    Log.d(TAG, "✅ Synthesized with Ivira TTS: ${audioBytes.size} bytes")
+                    // در آینده: playAudio(audioBytes)
                     onSuccess?.invoke()
-                },
-                onError = { error ->
-                    Log.w(TAG, "⚠️ Ivira TTS failed: $error")
-                    // Fallback to Google TTS
-                    if (!synthesized) {
-                        fallbackToGoogleTTS(text, onSuccess, onError)
-                    }
+                } else {
+                    Log.w(TAG, "⚠️ Ivira TTS returned empty, falling back to Google TTS")
+                    fallbackToGoogleTTS(text, onSuccess, onError)
                 }
-            )
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Ivira TTS error: ${e.message}", e)
+                fallbackToGoogleTTS(text, onSuccess, onError)
+            }
         }
     }
     

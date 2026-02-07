@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.persianai.assistant.integration.IviraIntegrationManager
+import com.persianai.assistant.utils.IviraProcessingHelper
 import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -152,31 +153,21 @@ class HybridVoiceRecorder(
                 return@withContext null
             }
             
-            var result: String? = null
-            
             // اولویت 1: Ivira STT
-            iviraManager.processWithIviraPriority(
-                operation = "stt",
-                input = audioFile,
-                onSuccess = { text, modelUsed ->
-                    Log.d(TAG, "✅ Recognized by $modelUsed: $text")
-                    result = text
-                },
-                onError = { error ->
-                    Log.w(TAG, "⚠️ Ivira STT failed: $error")
-                    // Fallback خواهد بود
-                }
+            val result = IviraProcessingHelper.processVoiceWithIviraPriority(
+                context = context,
+                audioPath = audioFile.absolutePath
             )
             
-            // اگر Ivira موفق بود، بازگردان نتیجه
             if (!result.isNullOrBlank()) {
+                Log.d(TAG, "✅ Recognized by Ivira: $result")
                 return@withContext result
             }
             
             // اولویت 2: آفلاین تحلیل
-            result = analyzeOffline(audioFile)
-            if (!result.isNullOrBlank()) {
-                return@withContext result
+            val offlineResult = analyzeOffline(audioFile)
+            if (!offlineResult.isNullOrBlank()) {
+                return@withContext offlineResult
             }
             
             Log.e(TAG, "❌ All analysis methods failed")
