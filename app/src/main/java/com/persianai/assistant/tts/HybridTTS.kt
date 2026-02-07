@@ -10,14 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.*
 
-/**
- * Hybrid TTS Engine
- * 
- * اولویت:
- * 1. Ivira TTS (Avangardi → Awasho)
- * 2. Google TTS (آنلاین/آفلاین)
- * 3. System TTS (Fallback)
- */
 class HybridTTS(
     private val context: Context,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
@@ -40,13 +32,10 @@ class HybridTTS(
         try {
             googleTTS = TextToSpeech(context) { status ->
                 if (status == TextToSpeech.SUCCESS) {
-                    // Try Persian
                     var result = googleTTS?.setLanguage(Locale("fa", "IR"))
                     
-                    // Fallback to English if Persian not available
                     if (result == TextToSpeech.LANG_MISSING_DATA || 
                         result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                        Log.w(TAG, "⚠️ Persian not available, trying English")
                         result = googleTTS?.setLanguage(Locale.ENGLISH)
                     }
                     
@@ -56,50 +45,42 @@ class HybridTTS(
                     if (isReady) {
                         googleTTS?.setPitch(1.0f)
                         googleTTS?.setSpeechRate(0.9f)
-                        Log.d(TAG, "✅ Google TTS Ready")
-                    } else {
-                        Log.e(TAG, "❌ TTS Failed")
+                        Log.d(TAG, "TTS Ready")
                     }
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing Google TTS", e)
+            Log.e(TAG, "Error", e)
         }
     }
     
-    /**
-     * تبدیل متن به صدا با اولویت Ivira
-     */
     fun speak(
         text: String,
         onSuccess: (() -> Unit)? = null,
         onError: ((String) -> Unit)? = null
     ) {
-        Log.d(TAG, "🔊 Speaking: $text")
+        Log.d(TAG, "Speaking")
         
-        // اولویت: Ivira TTS
         scope.launch {
             try {
-                val audioBytes = IviraProcessingHelper.processTTSWithIviraPriority(context, text)
+                val audioBytes = IviraProcessingHelper.processTTSWithIviraPriority(
+                    context = context,
+                    text = text,
+                    onResult = { onSuccess?.invoke() },
+                    onError = { fallbackToGoogleTTS(text, onSuccess, onError) }
+                )
                 
                 if (audioBytes != null && audioBytes.isNotEmpty()) {
-                    Log.d(TAG, "✅ Synthesized with Ivira TTS: ${audioBytes.size} bytes")
-                    // در آینده: playAudio(audioBytes)
                     onSuccess?.invoke()
                 } else {
-                    Log.w(TAG, "⚠️ Ivira TTS returned empty, falling back to Google TTS")
                     fallbackToGoogleTTS(text, onSuccess, onError)
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ Ivira TTS error: ${e.message}", e)
                 fallbackToGoogleTTS(text, onSuccess, onError)
             }
         }
     }
     
-    /**
-     * Fallback به Google TTS
-     */
     private fun fallbackToGoogleTTS(
         text: String,
         onSuccess: (() -> Unit)? = null,
@@ -107,28 +88,23 @@ class HybridTTS(
     ) {
         try {
             if (!isReady || googleTTS == null) {
-                Log.e(TAG, "❌ Google TTS not ready")
-                onError?.invoke("سیستم TTS آماده نیست")
+                onError?.invoke("TTS not ready")
                 return
             }
             
-            Log.d(TAG, "🔄 Fallback to Google TTS: $text")
-            googleTTS?.speak(text, TextToSpeech.QUEUE_ADD, null, null)
+            googleTTS?.speak(text, TextToSpeech.QUEUE_ADD, null)
             onSuccess?.invoke()
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Google TTS error: ${e.message}", e)
-            onError?.invoke("خطا در تبدیل به صدا: ${e.message}")
+            Log.e(TAG, "Error", e)
+            onError?.invoke("TTS error")
         }
     }
     
-    /**
-     * دریافت وضعیت TTS
-     */
     fun getStatus(): String {
         return when {
-            !isReady && googleTTS == null -> "❌ سیستم TTS آماده نیست"
-            !isReady -> "⚠️ سیستم TTS ناقص"
-            else -> "✅ سیستم TTS آماده"
+            !isReady && googleTTS == null -> "Not available"
+            !isReady -> "Incomplete"
+            else -> "Ready"
         }
     }
     
@@ -136,9 +112,8 @@ class HybridTTS(
         try {
             googleTTS?.stop()
             googleTTS?.shutdown()
-            Log.d(TAG, "🛑 TTS shutdown")
         } catch (e: Exception) {
-            Log.e(TAG, "Error during shutdown", e)
+            Log.e(TAG, "Error", e)
         }
     }
 }
