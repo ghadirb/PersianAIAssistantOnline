@@ -8,6 +8,7 @@ import com.persianai.assistant.integration.IviraIntegrationManager
 import com.persianai.assistant.core.QueryRouter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Helper utility for Ivira API processing with fallback support
@@ -36,16 +37,26 @@ object IviraProcessingHelper {
             
             // Try Ivira first
             val iviraManager = IviraIntegrationManager(context)
-            if (iviraManager.hasValidTokens()) {
+            if (hasValidTokens(context)) {
                 Log.d(TAG, "Ivira tokens available, attempting...")
                 
-                val result = iviraManager.sendMessage(
-                    userMessage = userMessage,
-                    conversationHistory = conversationHistory
+                var result: String? = null
+                var success = false
+                
+                iviraManager.sendMessageViaIvira(
+                    message = userMessage,
+                    onSuccess = { response ->
+                        result = response
+                        success = true
+                        Log.d(TAG, "✅ Ivira response received: ${response.take(50)}...")
+                    },
+                    onError = { error ->
+                        Log.w(TAG, "⚠️ Ivira error: $error")
+                        success = false
+                    }
                 )
                 
-                if (result.isNotEmpty()) {
-                    Log.d(TAG, "✅ Ivira response received: ${result.take(50)}...")
+                if (success && !result.isNullOrEmpty()) {
                     return@withContext result
                 }
             }
@@ -75,13 +86,30 @@ object IviraProcessingHelper {
             Log.d(TAG, "Processing voice with Ivira priority")
             
             val iviraManager = IviraIntegrationManager(context)
-            if (iviraManager.hasValidTokens()) {
+            if (hasValidTokens(context)) {
                 Log.d(TAG, "Attempting Ivira STT...")
                 
-                val result = iviraManager.speechToText(audioPath)
-                if (result.isNotEmpty()) {
-                    Log.d(TAG, "✅ Ivira STT result: ${result.take(50)}...")
-                    return@withContext result
+                var result: String? = null
+                var success = false
+                
+                val audioFile = File(audioPath)
+                if (audioFile.exists()) {
+                    iviraManager.speechToTextViaIvira(
+                        audioFile = audioFile,
+                        onSuccess = { text ->
+                            result = text
+                            success = true
+                            Log.d(TAG, "✅ Ivira STT result: ${text.take(50)}...")
+                        },
+                        onError = { error ->
+                            Log.w(TAG, "⚠️ Ivira STT error: $error")
+                            success = false
+                        }
+                    )
+                    
+                    if (success && !result.isNullOrEmpty()) {
+                        return@withContext result
+                    }
                 }
             }
             
@@ -109,12 +137,26 @@ object IviraProcessingHelper {
             Log.d(TAG, "Processing TTS with Ivira priority")
             
             val iviraManager = IviraIntegrationManager(context)
-            if (iviraManager.hasValidTokens()) {
+            if (hasValidTokens(context)) {
                 Log.d(TAG, "Attempting Ivira TTS...")
                 
-                val result = iviraManager.textToSpeech(text)
-                if (result != null && result.isNotEmpty()) {
-                    Log.d(TAG, "✅ Ivira TTS result: ${result.size} bytes")
+                var result: ByteArray? = null
+                var success = false
+                
+                iviraManager.textToSpeechViaIvira(
+                    text = text,
+                    onSuccess = { audioBytes ->
+                        result = audioBytes
+                        success = true
+                        Log.d(TAG, "✅ Ivira TTS result: ${audioBytes.size} bytes")
+                    },
+                    onError = { error ->
+                        Log.w(TAG, "⚠️ Ivira TTS error: $error")
+                        success = false
+                    }
+                )
+                
+                if (success && result != null && result!!.isNotEmpty()) {
                     return@withContext result
                 }
             }
@@ -146,12 +188,26 @@ object IviraProcessingHelper {
     }
 
     /**
+     * Check if valid tokens exist
+     */
+    private fun hasValidTokens(context: Context): Boolean {
+        return try {
+            val iviraManager = IviraIntegrationManager(context)
+            val tokens = iviraManager.getIviraTokens()
+            tokens.isNotEmpty()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking valid tokens: ${e.message}")
+            false
+        }
+    }
+
+    /**
      * Check if Ivira is available and properly configured
      */
     fun isIviraAvailable(context: Context): Boolean {
         return try {
             val iviraManager = IviraIntegrationManager(context)
-            iviraManager.hasValidTokens()
+            iviraManager.isIviraReady()
         } catch (e: Exception) {
             Log.w(TAG, "Ivira availability check failed", e)
             false

@@ -1,4 +1,5 @@
 package com.persianai.assistant.tts
+
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
@@ -112,10 +113,8 @@ class HybridTTS(
             }
             
             Log.d(TAG, "🔄 Fallback to Google TTS: $text")
-            googleTTS?.speak(text, TextToSpeech.QUEUE_ADD, null) { utteranceId ->
-                Log.d(TAG, "✅ Google TTS completed")
-                onSuccess?.invoke()
-            }
+            googleTTS?.speak(text, TextToSpeech.QUEUE_ADD, null, null)
+            onSuccess?.invoke()
         } catch (e: Exception) {
             Log.e(TAG, "❌ Google TTS error: ${e.message}", e)
             onError?.invoke("خطا در تبدیل به صدا: ${e.message}")
