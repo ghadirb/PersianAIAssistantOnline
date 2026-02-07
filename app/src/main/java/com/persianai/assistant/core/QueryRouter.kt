@@ -223,9 +223,23 @@ class QueryRouter(private val context: Context) {
                 return null
             }
 
+            if (!localLlama.isAvailable()) {
+                Log.d(TAG, "ℹ️ Local llama backend is not available")
+                return null
+            }
+
+            val modelFile = modelDir.listFiles()
+                ?.firstOrNull { it.isFile && it.extension.equals("gguf", ignoreCase = true) }
+                ?: modelDir.listFiles()?.firstOrNull { it.isFile }
+
+            if (modelFile == null) {
+                Log.d(TAG, "ℹ️ No local model file found")
+                return null
+            }
+
             Log.d(TAG, "🏠 Trying local GGUF model")
             // Try to use localLlama runner
-            val result = localLlama.run(query, modelDir.absolutePath)
+            val result = localLlama.infer(query, modelFile.absolutePath).getOrNull()
             if (!result.isNullOrBlank()) {
                 Log.d(TAG, "✅ Local model response received")
                 return result

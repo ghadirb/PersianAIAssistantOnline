@@ -210,6 +210,13 @@ class IviraIntegrationManager(private val context: Context) {
     fun getAvailableTokensInfo(): Map<String, Boolean> {
         return apiClient.getAvailableTokensInfo()
     }
+
+    /**
+     * دریافت تمام توکن‌های ذخیره‌شده Ivira
+     */
+    fun getIviraTokens(): Map<String, String> {
+        return tokenManager.getAllTokens()
+    }
     
     /**
      * خاموش کردن و تمیز کردن
