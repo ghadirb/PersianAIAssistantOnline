@@ -26,13 +26,25 @@ index d63a0e7ea22f3c7952b6d14d9ef1e9da423293b9..61b2726e4a1d7e43cce9738202f18cbd
              if (!modelDir.exists() || modelDir.listFiles().isNullOrEmpty()) {
                  Log.d(TAG, "ℹ️ No local models available")
                  return null
-             }
- 
-             Log.d(TAG, "🏠 Trying local GGUF model")
--            // Try to use localLlama runner
--            val result = localLlama.run(query, modelDir.absolutePath)
--            if (!result.isNullOrBlank()) {
-+            if (!localLlama.isAvailable()) {
+            Log.d(TAG, "🏠 Trying local GGUF model")
+            if (!localLlama.isAvailable()) {
+                Log.d(TAG, "ℹ️ Local llama backend not available")
+                return null
+            }
+
+            val modelFile = modelDir.listFiles()
+                ?.firstOrNull { it.extension.equals("gguf", ignoreCase = true) }
+                ?: run {
+                    Log.d(TAG, "ℹ️ No GGUF model file found in ${modelDir.absolutePath}")
+                    return null
+                }
+
+            val result = localLlama.infer(query, modelFile.absolutePath)
+            val response = result.getOrNull()
+            if (!response.isNullOrBlank()) {
+                Log.d(TAG, "✅ Local model response received")
+                return response
+            }
 +                Log.d(TAG, "ℹ️ Local llama backend not available")
 +                return null
 +            }
