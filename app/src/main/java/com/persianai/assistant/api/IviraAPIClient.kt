@@ -235,37 +235,55 @@ class IviraAPIClient(private val context: Context) {
                     
                     Log.d(TAG, "🎤 STT with model: $currentModel")
                     
+                    // Avanegar STT uses different format
                     val requestBody = MultipartBody.Builder()
                         .setType(MultipartBody.FORM)
                         .addFormDataPart(
-                            "file",
+                            "audio",
                             audioFile.name,
                             RequestBody.create("audio/*".toMediaType(), audioFile)
                         )
-                        .addFormDataPart("model", currentModel)
-                        .addFormDataPart("language", "fa")
+                        .addFormDataPart("model", "default")
+                        .addFormDataPart("srt", "false")
+                        .addFormDataPart("inverseNormalizer", "false")
+                        .addFormDataPart("timestamp", "false")
+                        .addFormDataPart("spokenPunctuation", "false")
+                        .addFormDataPart("punctuation", "false")
+                        .addFormDataPart("numSpeakers", "0")
+                        .addFormDataPart("diarize", "false")
                         .build()
                     
                     val request = Request.Builder()
                         .url(IviraTokenManager.IVIRA_STT_URL)
-                        .addHeader("Authorization", "Bearer $token")
+                        .addHeader("gateway-token", token)
+                        .addHeader("accept", "application/json")
                         .post(requestBody)
                         .build()
                     
                     httpClient.newCall(request).execute().use { response ->
                         val responseBody = response.body?.string()
+                        Log.d(TAG, "Response: $responseBody")
                         if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
                             val json = JSONObject(responseBody)
-                            val text = json.getString("text")
-                            
-                            Log.d(TAG, "✅ STT success with $currentModel")
-                            withContext(Dispatchers.Main) {
-                                onSuccess(text)
+                            // Parse Avanegar response format
+                            if (json.has("data") && json.getJSONObject("data").has("data")) {
+                                val data = json.getJSONObject("data").getJSONObject("data")
+                                if (data.has("aiResponse") && data.getJSONObject("aiResponse").has("result")) {
+                                    val result = data.getJSONObject("aiResponse").getJSONObject("result")
+                                    val text = result.getString("text")
+                                    
+                                    Log.d(TAG, "✅ STT success with $currentModel")
+                                    withContext(Dispatchers.Main) {
+                                        onSuccess(text)
+                                    }
+                                    return@withContext
+                                }
                             }
-                            return@withContext
+                            lastError = "خطا: فرمت پاسخ نامعتبر از $currentModel"
+                            Log.w(TAG, "Invalid response format from $currentModel")
                         } else {
-                            lastError = "خطا: متن خالی از $currentModel"
-                            Log.w(TAG, "Empty text from $currentModel")
+                            lastError = "خطا: کد ${response.code} از $currentModel"
+                            Log.w(TAG, "HTTP error ${response.code} from $currentModel")
                         }
                     }
                 } catch (e: Exception) {

@@ -26,8 +26,8 @@ class IviraTokenManager(private val context: Context) {
         
         // Ivira API Endpoints
         const val IVIRA_API_URL = "https://api.ivira.ai/v1/chat/completions"
-        const val IVIRA_TTS_URL = "https://api.ivira.ai/v1/audio/speech"
-        const val IVIRA_STT_URL = "https://api.ivira.ai/v1/audio/transcriptions"
+        const val IVIRA_TTS_URL = "https://partai.gw.isahab.ir/avasho/avasho/request"
+        const val IVIRA_STT_URL = "https://partai.gw.isahab.ir/avanegar/avanegar/request"
         
         // Models Priority
         const val MODEL_VIRA = "vira"  // مدل زبانی ترکیبی ویرا (اولویت)
