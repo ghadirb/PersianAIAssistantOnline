@@ -15,37 +15,36 @@ object IviraProcessingHelper {
     suspend fun processWithIviraPriority(
         context: Context,
         userMessage: String,
-        conversationHistory: List<ChatMessage> = emptyList(),
-        onResult: (String) -> Unit,
-        onError: (String) -> Unit
-    ): Boolean = withContext(Dispatchers.IO) {
+        conversationHistory: List<ChatMessage> = emptyList()
+    ): String? = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Processing message")
+            Log.d(TAG, "Processing message with Ivira priority")
             
             val iviraManager = IviraIntegrationManager(context)
             if (hasValidTokens(context)) {
-                var success = false
+                var result: String? = null
+                var succeeded = false
                 iviraManager.sendMessageViaIvira(
                     message = userMessage,
                     onSuccess = { response ->
-                        onResult(response)
-                        success = true
+                        result = response
+                        succeeded = true
                     },
                     onError = { error ->
-                        onError(error)
-                        success = false
+                        Log.w(TAG, "Ivira error: $error")
+                        succeeded = false
                     }
                 )
-                if (success) return@withContext true
+                if (succeeded && !result.isNullOrBlank()) {
+                    return@withContext result
+                }
             }
             
             val fallback = processFallbackLocal(userMessage)
-            onResult(fallback)
-            return@withContext true
+            return@withContext fallback
         } catch (e: Exception) {
             Log.e(TAG, "Error", e)
-            onResult(processFallbackLocal(userMessage))
-            return@withContext false
+            return@withContext processFallbackLocal(userMessage)
         }
     }
 

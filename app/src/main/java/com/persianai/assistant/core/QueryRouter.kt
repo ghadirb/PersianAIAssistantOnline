@@ -16,11 +16,9 @@ import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.IviraTokenManager
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * Query Router مرکزی
@@ -142,14 +140,14 @@ class QueryRouter(private val context: Context) {
                 Log.d(TAG, "Ivira tokens not available")
                 return null
             }
-            val responseText = suspendCoroutine<String> { cont ->
-                iviraClient.sendMessage(
-                    message = query,
-                    model = null,
-                    onResponse = { cont.resume(it) },
-                    onError = { cont.resumeWithException(Exception(it)) }
-                )
-            }
+            val deferred = CompletableDeferred<String>()
+            iviraClient.sendMessage(
+                message = query,
+                model = null,
+                onResponse = { deferred.complete(it) },
+                onError = { deferred.completeExceptionally(Exception(it)) }
+            )
+            val responseText = deferred.await()
             Log.d(TAG, "✅ Ivira response received")
             QueryResult(
                 success = true,
@@ -167,7 +165,7 @@ class QueryRouter(private val context: Context) {
     /**
      * Try running downloaded GGUF model via local_llama (if native backend is present).
      */
-    private fun tryLocalModel(query: String): String? {
+    private suspend fun tryLocalModel(query: String): String? {
         return try {
             if (!localLlama.isAvailable()) {
                 Log.w(TAG, "Local llama backend not available (native stub or missing build)")

@@ -23,6 +23,48 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Ivira Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:id="@+id/iviraSection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🚀 Ivira (Token-based AI)"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#6A1B9A" />
+
+                    <TextView
+                        android:id="@+id/iviraStatusText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="وضعیت: بررسی نشده"
+                        android:textSize="14sp"
+                        android:textColor="#757575" />
+
+                    <Button
+                        android:id="@+id/iviraReloadButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="بارگذاری مجدد توکن‌ها" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- OpenAI Card -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/openAICard"
