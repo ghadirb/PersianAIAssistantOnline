@@ -30,7 +30,7 @@ class IviraTokenManager(private val context: Context) {
         const val IVIRA_STT_URL = "https://partai.gw.isahab.ir/avanegar/avanegar/request"
         
         // Models Priority
-        const val MODEL_VIRA = "vira"  // مدل زبانی ترکیبی ویرا (اولویت)
+        const val MODEL_VIRA = "compound-vira"  // مدل زبانی ترکیبی ویرا (نام واقعی روی سرور)
         const val MODEL_GPT5_MINI = "gpt-5-mini"  // GPT-5 Mini
         const val MODEL_GPT5_NANO = "gpt-5-nano"  // GPT-5 Nano
         const val MODEL_GEMMA3_27B = "gemma3-27b"  // Gemma 3 27B

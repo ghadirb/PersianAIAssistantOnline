@@ -21,11 +21,19 @@ class IviraIntegrationManager(private val context: Context) {
             Log.d(TAG, "Initializing Ivira tokens...")
             val storedTokens = getIviraTokens()
             if (storedTokens.isNotEmpty()) {
-                Log.d(TAG, "Found tokens")
+                Log.d(TAG, "Found Ivira tokens in prefs")
                 return@withContext true
             }
-            Log.w(TAG, "No Ivira tokens found")
-            return@withContext false
+
+            Log.w(TAG, "No Ivira tokens found in prefs; fetching from encrypted URL...")
+            val fetched = tokenManager.fetchEncryptedTokensFromUrl()
+            if (fetched.isSuccess && !fetched.getOrNull().isNullOrEmpty()) {
+                Log.d(TAG, "Fetched and saved Ivira tokens from remote")
+                return@withContext true
+            }
+
+            Log.w(TAG, "Ivira tokens unavailable after fetch attempt")
+            false
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing Ivira tokens", e)
             false
