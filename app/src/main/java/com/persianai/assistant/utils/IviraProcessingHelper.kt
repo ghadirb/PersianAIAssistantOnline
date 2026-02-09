@@ -49,6 +49,46 @@ object IviraProcessingHelper {
         }
     }
 
+    suspend fun processVoiceWithIviraPriority(
+        context: Context,
+        audioPath: String,
+        onError: (String) -> Unit = {}
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            val audioFile = File(audioPath)
+            if (!audioFile.exists() || audioFile.length() == 0L) {
+                onError("Audio file missing")
+                return@withContext null
+            }
+
+            val iviraManager = IviraIntegrationManager(context)
+            if (!hasValidTokens(context)) {
+                onError("Ivira tokens unavailable")
+                return@withContext null
+            }
+
+            var resultText: String? = null
+            var succeeded = false
+            iviraManager.speechToTextViaIvira(
+                audioFile = audioFile,
+                onSuccess = { text ->
+                    resultText = text
+                    succeeded = true
+                },
+                onError = { err ->
+                    onError(err)
+                    succeeded = false
+                }
+            )
+
+            if (succeeded) resultText else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing voice", e)
+            onError(e.message ?: "Error")
+            null
+        }
+    }
+
     suspend fun processTTSWithIviraPriority(
         context: Context,
         text: String,

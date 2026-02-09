@@ -194,6 +194,13 @@ class IviraTokenManager(private val context: Context) {
     }
     
     /**
+     * ذخیره یا به‌روزرسانی یک توکن
+     */
+    fun setToken(model: String, token: String) {
+        prefs.edit().putString("token_$model", token).apply()
+    }
+    
+    /**
      * چک کردن وجود توکن‌ها
      */
     fun hasTokens(): Boolean = getAllTokens().isNotEmpty()

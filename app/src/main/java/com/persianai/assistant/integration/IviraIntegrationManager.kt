@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.persianai.assistant.api.IviraAPIClient
 import com.persianai.assistant.utils.IviraTokenManager
-import com.persianai.assistant.utils.PreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -16,7 +15,6 @@ class IviraIntegrationManager(private val context: Context) {
     
     private val tokenManager = IviraTokenManager(context)
     private val apiClient = IviraAPIClient(context)
-    private val prefsManager = PreferencesManager(context)
     
     suspend fun initializeIviraTokens(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -36,7 +34,7 @@ class IviraIntegrationManager(private val context: Context) {
 
     fun getIviraTokens(): Map<String, String> {
         return try {
-            prefsManager.getIviraTokens()
+            tokenManager.getAllTokens()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to get Ivira tokens")
             emptyMap()
@@ -45,7 +43,7 @@ class IviraIntegrationManager(private val context: Context) {
 
     fun setIviraToken(key: String, value: String) {
         try {
-            prefsManager.setIviraToken(key, value)
+            tokenManager.setToken(key, value)
             Log.d(TAG, "Token set")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set Ivira token", e)
@@ -54,7 +52,7 @@ class IviraIntegrationManager(private val context: Context) {
 
     fun isIviraEnabled(): Boolean {
         return try {
-            prefsManager.isIviraEnabled()
+            tokenManager.hasTokens()
         } catch (e: Exception) {
             false
         }
