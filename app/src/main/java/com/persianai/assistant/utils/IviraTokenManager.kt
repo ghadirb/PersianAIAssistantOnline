@@ -117,8 +117,9 @@ class IviraTokenManager(private val context: Context) {
             
             // Parse tokens (each line is a token)
             val tokens = mutableMapOf<String, String>()
-            decryptedText.split("\n").forEachIndexed { index, token ->
-                if (token.isNotBlank()) {
+            decryptedText.split("\n").forEachIndexed { index, rawToken ->
+                val token = rawToken.trim()
+                if (token.isNotEmpty()) {
                     val modelName = getModelNameForToken(index)
                     tokens[modelName] = token
                     Log.d(TAG, "✅ Extracted token for $modelName")
