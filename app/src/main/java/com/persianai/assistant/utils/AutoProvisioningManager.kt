@@ -74,6 +74,7 @@ object AutoProvisioningManager {
                     inferredProvider == AIProvider.LIARA -> "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
                     inferredProvider == AIProvider.AIML -> "https://api.aimlapi.com/v1"
                     inferredProvider == AIProvider.GLADIA -> "https://api.gladia.io"
+                    inferredProvider == AIProvider.GAPGPT -> "https://api.gapgpt.app/v1"
                     inferredProvider == AIProvider.OPENROUTER && key.key.startsWith("hf_") ->
                         "https://router.huggingface.co/models/openai/whisper-large-v3"
                     inferredProvider == AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
@@ -151,6 +152,7 @@ object AutoProvisioningManager {
                 "aiml", "aimlapi" -> AIProvider.AIML
                 "gladia" -> AIProvider.GLADIA
                 "huggingface", "hf" -> AIProvider.OPENROUTER
+                "gapgpt" -> AIProvider.GAPGPT
                 else -> null
             }
             

@@ -622,8 +622,8 @@ abstract class BaseChatActivity : AppCompatActivity() {
                         val router = com.persianai.assistant.core.QueryRouter(this@BaseChatActivity)
                         val result = router.routeQuery(text)
                         responseContent = result.response
-                        modelUsed = "QueryRouter"
-                        Log.d("BaseChatActivity", "✅ Fallback via QueryRouter")
+                        modelUsed = "${result.model ?: "Unknown"} | منبع: ${result.source}"
+                        Log.d("BaseChatActivity", "✅ Fallback via QueryRouter: $modelUsed")
                     } catch (e: Exception) {
                         Log.e("BaseChatActivity", "❌ QueryRouter also failed: ${e.message}")
                         responseContent = "❌ خطا: ${e.message}"

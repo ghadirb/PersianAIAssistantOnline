@@ -10,22 +10,27 @@ import com.persianai.assistant.models.APIKey
 object ModelSelector {
     
     /**
-     * اولویت مدل‌ها برای موبایل‌های ضعیف (از سبک به سنگین)
+     * اولویت مدل‌ها برای موبایل‌های ضعیف (از ارزان/سبک به گران/سنگین)
+     * Ivira (token-based) در لایه‌ی بالاتر (QueryRouter) قبل از این لیست امتحان می‌شود.
      */
     private val LIGHTWEIGHT_MODELS_PRIORITY = listOf(
-        // --- اولویت اول: OpenRouter (کلید رایگان/مقرون‌به‌صرفه) ---
-        AIModel.QWEN_2_5_1B5,          // 1.5B - خیلی سبک
-        AIModel.LLAMA_3_2_1B,          // 1B quantized
-        AIModel.LLAMA_3_2_3B,          // 3B quantized
-        AIModel.MIXTRAL_8X7B,          // 8x7B MoE
-        AIModel.LLAMA_3_3_70B,         // قدرتمند رایگان
-        AIModel.DEEPSEEK_R1T2,         // استدلال قوی
-        AIModel.LLAMA_2_70B,           // پشتیبان
-        
-        // --- اولویت دوم: Liara (بعد از فعال‌سازی کاربر) ---
-        AIModel.GPT_4O_MINI,
-        
-        // --- سایر ارائه‌دهنده‌ها در انتها ---
+        // --- اولویت اصلی: مدل‌های ارزان/کارآمد برای چت روزمره ---
+        AIModel.IVIRA_GPT5_NANO,        // ارزان‌ترین Ivira برای چت
+        AIModel.GPT_4O_MINI,            // OpenAI GPT‑4o Mini
+        AIModel.LIARA_GPT_4O_MINI,      // Liara GPT‑4o Mini
+        AIModel.IVIRA_GPT5_MINI,        // Ivira GPT‑5 Mini
+        AIModel.GAPGPT_DEEPSEEK_V3,     // DeepSeek V3 از gapgpt.app
+
+        // --- مدل‌های تحلیلی/قوی‌تر (OpenRouter و سایرین) ---
+        AIModel.QWEN_2_5_1B5,
+        AIModel.LLAMA_3_2_1B,
+        AIModel.LLAMA_3_2_3B,
+        AIModel.MIXTRAL_8X7B,
+        AIModel.LLAMA_3_3_70B,
+        AIModel.DEEPSEEK_R1T2,
+        AIModel.LLAMA_2_70B,
+
+        // --- سایر مدل‌های عمومی ---
         AIModel.GPT_4O,
         AIModel.CLAUDE_HAIKU,
         AIModel.CLAUDE_SONNET,

@@ -67,6 +67,13 @@ enum class AIModel(
         "تمرکز بر استدلال و هزینه کم برای پاسخ‌های تحلیلی",
         8000
     ),
+    GAPGPT_DEEPSEEK_V3(
+        "gapgpt-deepseek-v3",
+        "DeepSeek V3 (gapgpt.app)",
+        AIProvider.GAPGPT,
+        "مدل DeepSeek V3 از gapgpt.app (اولویت بعد از مدل‌های ارزان‌تر لیارا)",
+        32000
+    ),
     MIXTRAL_8X7B(
         "mistralai/mixtral-8x7b-instruct",
         "Mixtral 8x7B (OpenRouter)",
@@ -83,7 +90,7 @@ enum class AIModel(
     ),
     // Ivira (token-based, خارج از prefs APIKey)
     IVIRA_VIRA(
-        "vira",
+        "compound-vira",
         "Vira (Ivira)",
         AIProvider.IVIRA,
         "مدل زبانی ترکیبی ویرا (اولویت اول)",
@@ -182,6 +189,7 @@ enum class AIProvider {
     LIARA,
     AVALAI,
     IVIRA,
+    GAPGPT,
     LOCAL
 }
 

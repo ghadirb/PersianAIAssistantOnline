@@ -6,6 +6,7 @@ import com.persianai.assistant.services.NewHybridVoiceRecorder
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.core.voice.WhisperSttEngine
 import com.persianai.assistant.api.IviraAPIClient
+import com.persianai.assistant.api.AIModelManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,6 +18,7 @@ class SpeechToTextPipeline(private val context: Context) {
     private val recorder = NewHybridVoiceRecorder(context)
     private val whisper = WhisperSttEngine(context)
     private val iviraClient = IviraAPIClient(context)
+    private val aiModelManager = AIModelManager(context)
 
     suspend fun transcribe(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
         try {
@@ -38,18 +40,37 @@ class SpeechToTextPipeline(private val context: Context) {
                 )
                 val text = deferred.await().trim()
                 if (text.isNotBlank()) {
+                    Log.d(TAG, "✅ STT via Ivira")
                     return@withContext Result.success(text)
                 }
             }.onFailure { e ->
                 Log.w(TAG, "Ivira STT failed: ${e.message}")
             }
 
-            // 2) تلاش برای Whisper (اگر کتابخانه و مدل موجود باشد) سپس بازگشت به Vosk
+            // 2) تلاش برای Liara/OpenAI Whisper (remote) در صورت وجود کلیدها
+            runCatching {
+                val deferred = CompletableDeferred<String>()
+                aiModelManager.transcribeAudio(
+                    audioFile = audioFile,
+                    onSuccess = { deferred.complete(it) },
+                    onError = { deferred.completeExceptionally(Exception(it)) }
+                )
+                val cloudText = deferred.await().trim()
+                if (cloudText.isNotBlank()) {
+                    Log.d(TAG, "✅ STT via Liara/OpenAI Whisper")
+                    return@withContext Result.success(cloudText)
+                }
+            }.onFailure { e ->
+                Log.w(TAG, "Cloud STT (Liara/OpenAI) failed: ${e.message}")
+            }
+
+            // 3) تلاش برای Whisper (اگر کتابخانه و مدل موجود باشد) سپس بازگشت به Vosk
             if (whisper.isAvailable()) {
                 Log.d(TAG, "📱 Offline transcription via Whisper (GGUF)")
                 val w = whisper.transcribe(audioFile)
                 val whisperText = w.getOrNull()?.trim()
                 if (!whisperText.isNullOrBlank()) {
+                    Log.d(TAG, "✅ STT via local Whisper")
                     return@withContext Result.success(whisperText)
                 } else {
                     Log.w(TAG, "Whisper failed or returned empty: ${w.exceptionOrNull()?.message}")
@@ -62,6 +83,7 @@ class SpeechToTextPipeline(private val context: Context) {
             val offline = recorder.analyzeOffline(audioFile)
             val offlineText = offline.getOrNull()?.trim()
             return@withContext if (!offlineText.isNullOrBlank()) {
+                Log.d(TAG, "✅ STT via Vosk offline")
                 Result.success(offlineText)
             } else {
                 Result.failure(Exception(offline.exceptionOrNull()?.message ?: "Offline STT not available"))

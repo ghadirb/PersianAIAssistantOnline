@@ -88,6 +88,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         val priority = listOf(
             AIProvider.OPENAI,
             AIProvider.LIARA,
+            AIProvider.GAPGPT,
             AIProvider.AVALAI,
             AIProvider.OPENROUTER,
             AIProvider.AIML,
@@ -166,6 +167,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 ?: "https://api.aimlapi.com/v1/chat/completions"
             AIProvider.GLADIA -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.gladia.io/v1/chat/completions"
+            AIProvider.GAPGPT -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://api.gapgpt.app/v1/chat/completions"
             else -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
         }
