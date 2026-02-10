@@ -117,7 +117,8 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 android.util.Log.d("AIClient", "🔄 تلاش برای ارسال پیام با ${model.provider.name} key: ${apiKey.key.take(8)}...")
                 return@withContext when (model.provider) {
                     AIProvider.AIML, AIProvider.GLADIA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
-                    AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA, AIProvider.AVALAI -> sendToOpenAI(model, messages, systemPrompt, apiKey)
+                    AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA, AIProvider.AVALAI, AIProvider.GAPGPT ->
+                        sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
                     AIProvider.IVIRA -> throw IllegalStateException("IVIRA باید در QueryRouter/IviraAPIClient مدیریت شود")

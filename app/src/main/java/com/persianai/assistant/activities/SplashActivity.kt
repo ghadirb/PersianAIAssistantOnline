@@ -352,6 +352,9 @@ class SplashActivity : AppCompatActivity() {
                 AIProvider.IVIRA -> {
                     // Ivira uses token manager, not string keys
                 }
+                AIProvider.GAPGPT -> {
+                    // فعلاً نیازی به سینک مستقیم در SharedPreferences قدیمی نیست
+                }
             }
         }
 
