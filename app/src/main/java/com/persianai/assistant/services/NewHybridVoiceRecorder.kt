@@ -379,8 +379,8 @@ class NewHybridVoiceRecorder(private val context: Context) {
 
             Log.d(TAG, "🎧 Running Vosk recognizer on ${mono16k.size} samples")
             Recognizer(model, 16000.0f).use { recognizer ->
-                val ok = recognizer.acceptWaveForm(shortArrayToByteArray(mono16k), mono16k.size * 2)
-                val json = if (ok) recognizer.result else recognizer.finalResult
+                recognizer.acceptWaveForm(shortArrayToByteArray(mono16k), mono16k.size * 2)
+                val json = recognizer.finalResult
                 val text = extractTextFromVoskJson(json)
                 if (text.isNullOrBlank()) {
                     Result.failure(IllegalStateException("Vosk returned empty text"))

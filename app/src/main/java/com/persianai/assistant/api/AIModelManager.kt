@@ -68,6 +68,7 @@ class AIModelManager(private val context: Context) {
         .build()
     
     private val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
+    private val prefsManager by lazy { PreferencesManager(context) }
     
     /**
      * دریافت لیست مدل‌های در دسترس (فقط OpenAI/GPT-4o-mini برای چت آنلاین)
@@ -289,11 +290,12 @@ class AIModelManager(private val context: Context) {
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val gapgptKey = prefs.getString("gapgpt_api_key", null)
-        val liaraKey = prefs.getString("liara_api_key", null)
-        val openAIKey = prefs.getString("openai_api_key", null)
+        val keys = prefsManager.getAPIKeys().filter { it.isActive && it.key.isNotBlank() }
+        val gapgptKeys = keys.filter { it.provider == AIProvider.GAPGPT }
+        val openAiKeys = keys.filter { it.provider == AIProvider.OPENAI }
+        val liaraKeys = keys.filter { it.provider == AIProvider.LIARA }
 
-        if (gapgptKey.isNullOrEmpty() && liaraKey.isNullOrEmpty() && openAIKey.isNullOrEmpty()) {
+        if (gapgptKeys.isEmpty() && liaraKeys.isEmpty() && openAiKeys.isEmpty()) {
             withContext(Dispatchers.Main) {
                 onError("❌ برای استفاده از تبدیل صدا به متن، کلید API مورد نیاز است")
             }
@@ -323,12 +325,22 @@ class AIModelManager(private val context: Context) {
                     .addFormDataPart("language", "fa")
                     .build()
 
-            // 1) تلاش با GAPGPT (اگر کلید وجود دارد)
-            if (!gapgptKey.isNullOrEmpty()) {
+            fun buildWhisperUrl(k: APIKey): String {
+                val base = (k.baseUrl?.trim()?.trimEnd('/') ?: when (k.provider) {
+                    AIProvider.GAPGPT -> GAPGPT_BASE_URL
+                    AIProvider.LIARA -> LIARA_BASE_URL
+                    else -> "https://api.openai.com/v1"
+                })
+                return "$base/audio/transcriptions"
+            }
+
+            val orderedKeys = gapgptKeys + openAiKeys + liaraKeys
+            for (k in orderedKeys) {
+                val url = buildWhisperUrl(k)
                 try {
                     val request = Request.Builder()
-                        .url(GAPGPT_WHISPER_URL)
-                        .addHeader("Authorization", "Bearer $gapgptKey")
+                        .url(url)
+                        .addHeader("Authorization", "Bearer ${k.key}")
                         .post(buildRequestBody())
                         .build()
 
@@ -336,59 +348,22 @@ class AIModelManager(private val context: Context) {
                         val responseBody = response.body?.string()
                         if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
                             val json = JSONObject(responseBody)
-                            val text = json.getString("text")
-                            withContext(Dispatchers.Main) {
-                                Log.d(TAG, "✅ STT via GAPGPT whisper-1")
-                                onSuccess(text)
+                            val text = json.optString("text").ifBlank {
+                                json.optString("generated_text")
                             }
-                            return@withContext
+                            if (text.isNotBlank()) {
+                                withContext(Dispatchers.Main) {
+                                    Log.d(TAG, "✅ STT via ${k.provider} whisper")
+                                    onSuccess(text)
+                                }
+                                return@withContext
+                            }
                         } else {
-                            Log.w(
-                                TAG,
-                                "GAPGPT STT failed: code=${response.code}, msg=${response.message}"
-                            )
+                            Log.w(TAG, "${k.provider} STT failed: url=$url code=${response.code} msg=${response.message}")
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "GAPGPT STT exception: ${e.message}", e)
-                }
-            }
-
-            // 2) تلاش با Liara یا OpenAI (رفتار قبلی)
-            val liaraOrOpenAIKey = liaraKey?.takeIf { it.isNotBlank() } ?: openAIKey
-            if (!liaraOrOpenAIKey.isNullOrEmpty()) {
-                val url = if (!liaraKey.isNullOrBlank()) LIARA_WHISPER_URL else OPENAI_WHISPER_URL
-                val request = Request.Builder()
-                    .url(url)
-                    .addHeader("Authorization", "Bearer $liaraOrOpenAIKey")
-                    .post(buildRequestBody())
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    val responseBody = response.body?.string()
-
-                    if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
-                        val json = JSONObject(responseBody)
-                        val text = json.getString("text")
-
-                        withContext(Dispatchers.Main) {
-                            Log.d(TAG, "✅ STT via Liara/OpenAI Whisper")
-                            onSuccess(text)
-                        }
-                        return@withContext
-                    } else {
-                        val errorMessage = when (response.code) {
-                            401 -> "❌ کلید OpenAI/Liara API نامعتبر است"
-                            413 -> "❌ فایل صوتی بیش از حد بزرگ است (حداکثر 25MB)"
-                            429 -> "⚠️ محدودیت استفاده از API - لطفاً کمی صبر کنید"
-                            else -> "خطا در تبدیل صدا: ${response.code}"
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            onError(errorMessage)
-                        }
-                        return@withContext
-                    }
+                    Log.w(TAG, "${k.provider} STT exception: ${e.message}", e)
                 }
             }
 

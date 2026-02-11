@@ -68,7 +68,7 @@ enum class AIModel(
         8000
     ),
     GAPGPT_DEEPSEEK_V3(
-        "gapgpt-deepseek-v3",
+        "deepseek/deepseek-chat-v3.1",
         "DeepSeek V3 (gapgpt.app)",
         AIProvider.GAPGPT,
         "مدل DeepSeek V3 از gapgpt.app (اولویت بعد از مدل‌های ارزان‌تر لیارا)",
@@ -133,7 +133,7 @@ enum class AIModel(
         128000
     ),
     LIARA_GPT_4O_MINI(
-        "gpt-4o-mini",
+        "openai/gpt-4o-mini",
         "GPT-4o Mini (Liara)",
         AIProvider.LIARA,
         "مدل سازگار با OpenAI از سرویس لیارا برای مکالمه",

@@ -127,12 +127,15 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 lastError = e
                 android.util.Log.w("AIClient", "⚠️ Key failed: ${e.message}")
                 val errorMsg = e.message ?: ""
-                if (errorMsg.contains("401") ||
-                    errorMsg.contains("402") ||
-                    errorMsg.contains("403") ||
-                    errorMsg.contains("400") ||
-                    errorMsg.contains("Invalid")
-                ) {
+                val shouldPermanentlyFail =
+                    errorMsg.contains("401") ||
+                        errorMsg.contains("402") ||
+                        errorMsg.contains("403") ||
+                        errorMsg.contains("invalid_api_key", ignoreCase = true) ||
+                        errorMsg.contains("incorrect api key", ignoreCase = true) ||
+                        errorMsg.contains("api key", ignoreCase = true) && errorMsg.contains("invalid", ignoreCase = true)
+
+                if (shouldPermanentlyFail) {
                     failedKeys.add(apiKey.key)
                     android.util.Log.d("AIClient", "🚫 Key marked as permanently failed: ${apiKey.key.take(8)}...")
                 }

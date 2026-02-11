@@ -222,8 +222,8 @@ class QueryRouter(private val context: Context) {
             val preferredOrder = listOf(
                 // ارزان‌ترها و سازگار با OpenAI
                 AIModel.GPT_4O_MINI,
-                AIModel.LIARA_GPT_4O_MINI,
                 AIModel.GAPGPT_DEEPSEEK_V3,
+                AIModel.LIARA_GPT_4O_MINI,
 
                 // مدل‌های تحلیلی و قوی‌تر
                 AIModel.QWEN_2_5_1B5,
