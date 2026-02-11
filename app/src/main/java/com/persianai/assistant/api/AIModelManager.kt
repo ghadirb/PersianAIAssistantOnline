@@ -35,6 +35,10 @@ class AIModelManager(private val context: Context) {
         const val LIARA_API_URL = "$LIARA_BASE_URL/chat/completions"
         const val LIARA_WHISPER_URL = "$LIARA_BASE_URL/audio/transcriptions"
         
+        // GAPGPT base (OpenAI-compatible)
+        const val GAPGPT_BASE_URL = "https://api.gapgpt.app/v1"
+        const val GAPGPT_WHISPER_URL = "$GAPGPT_BASE_URL/audio/transcriptions"
+        
         // Model Names
         const val MODEL_GPT_35_TURBO = "gpt-3.5-turbo"
         const val MODEL_GPT_4 = "gpt-4"
@@ -278,23 +282,24 @@ class AIModelManager(private val context: Context) {
     }
     
     /**
-     * تبدیل صدا به متن با Whisper
+     * تبدیل صدا به متن با Whisper (اولویت: GAPGPT → Liara → OpenAI)
      */
     suspend fun transcribeAudio(
         audioFile: java.io.File,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
+        val gapgptKey = prefs.getString("gapgpt_api_key", null)
         val liaraKey = prefs.getString("liara_api_key", null)
         val openAIKey = prefs.getString("openai_api_key", null)
-        
-        if (liaraKey.isNullOrEmpty() && openAIKey.isNullOrEmpty()) {
+
+        if (gapgptKey.isNullOrEmpty() && liaraKey.isNullOrEmpty() && openAIKey.isNullOrEmpty()) {
             withContext(Dispatchers.Main) {
                 onError("❌ برای استفاده از تبدیل صدا به متن، کلید API مورد نیاز است")
             }
             return@withContext
         }
-        
+
         try {
             val mediaTypeStr = when (audioFile.extension.lowercase()) {
                 "m4a", "mp4" -> "audio/mp4"
@@ -304,45 +309,92 @@ class AIModelManager(private val context: Context) {
                 "mp3" -> "audio/mpeg"
                 else -> "application/octet-stream"
             }
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart(
-                    "file",
-                    audioFile.name,
-                    RequestBody.create(mediaTypeStr.toMediaType(), audioFile)
-                )
-                .addFormDataPart("model", "whisper-1")
-                .addFormDataPart("language", "fa")
-                .build()
-            
-            val request = Request.Builder()
-                .url(if (!liaraKey.isNullOrBlank()) LIARA_WHISPER_URL else OPENAI_WHISPER_URL)
-                .addHeader("Authorization", "Bearer ${liaraKey?.takeIf { it.isNotBlank() } ?: openAIKey}")
-                .post(requestBody)
-                .build()
-            
-            client.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string()
-                
-                if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
-                    val json = JSONObject(responseBody)
-                    val text = json.getString("text")
-                    
-                    withContext(Dispatchers.Main) {
-                        onSuccess(text)
+
+            // بدنه مشترک Multipart برای Whisper-compatible
+            fun buildRequestBody(): MultipartBody =
+                MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart(
+                        "file",
+                        audioFile.name,
+                        RequestBody.create(mediaTypeStr.toMediaType(), audioFile)
+                    )
+                    .addFormDataPart("model", "whisper-1")
+                    .addFormDataPart("language", "fa")
+                    .build()
+
+            // 1) تلاش با GAPGPT (اگر کلید وجود دارد)
+            if (!gapgptKey.isNullOrEmpty()) {
+                try {
+                    val request = Request.Builder()
+                        .url(GAPGPT_WHISPER_URL)
+                        .addHeader("Authorization", "Bearer $gapgptKey")
+                        .post(buildRequestBody())
+                        .build()
+
+                    client.newCall(request).execute().use { response ->
+                        val responseBody = response.body?.string()
+                        if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
+                            val json = JSONObject(responseBody)
+                            val text = json.getString("text")
+                            withContext(Dispatchers.Main) {
+                                Log.d(TAG, "✅ STT via GAPGPT whisper-1")
+                                onSuccess(text)
+                            }
+                            return@withContext
+                        } else {
+                            Log.w(
+                                TAG,
+                                "GAPGPT STT failed: code=${response.code}, msg=${response.message}"
+                            )
+                        }
                     }
-                } else {
-                    val errorMessage = when (response.code) {
-                        401 -> "❌ کلید OpenAI API نامعتبر است"
-                        413 -> "❌ فایل صوتی بیش از حد بزرگ است (حداکثر 25MB)"
-                        429 -> "⚠️ محدودیت استفاده از API - لطفاً کمی صبر کنید"
-                        else -> "خطا در تبدیل صدا: ${response.code}"
-                    }
-                    
-                    withContext(Dispatchers.Main) {
-                        onError(errorMessage)
+                } catch (e: Exception) {
+                    Log.w(TAG, "GAPGPT STT exception: ${e.message}", e)
+                }
+            }
+
+            // 2) تلاش با Liara یا OpenAI (رفتار قبلی)
+            val liaraOrOpenAIKey = liaraKey?.takeIf { it.isNotBlank() } ?: openAIKey
+            if (!liaraOrOpenAIKey.isNullOrEmpty()) {
+                val url = if (!liaraKey.isNullOrBlank()) LIARA_WHISPER_URL else OPENAI_WHISPER_URL
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization", "Bearer $liaraOrOpenAIKey")
+                    .post(buildRequestBody())
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
+                        val json = JSONObject(responseBody)
+                        val text = json.getString("text")
+
+                        withContext(Dispatchers.Main) {
+                            Log.d(TAG, "✅ STT via Liara/OpenAI Whisper")
+                            onSuccess(text)
+                        }
+                        return@withContext
+                    } else {
+                        val errorMessage = when (response.code) {
+                            401 -> "❌ کلید OpenAI/Liara API نامعتبر است"
+                            413 -> "❌ فایل صوتی بیش از حد بزرگ است (حداکثر 25MB)"
+                            429 -> "⚠️ محدودیت استفاده از API - لطفاً کمی صبر کنید"
+                            else -> "خطا در تبدیل صدا: ${response.code}"
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            onError(errorMessage)
+                        }
+                        return@withContext
                     }
                 }
+            }
+
+            // اگر به اینجا رسید، همه تلاش‌های آنلاین شکست خورده‌اند
+            withContext(Dispatchers.Main) {
+                onError("⚠️ تبدیل صدا به متن آنلاین (GAPGPT/Liara/OpenAI) ناموفق بود")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error transcribing audio", e)

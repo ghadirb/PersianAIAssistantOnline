@@ -29,25 +29,10 @@ class SpeechToTextPipeline(private val context: Context) {
             
             Log.d(TAG, "🎤 Starting transcription for: ${audioFile.absolutePath}")
 
-            // 1) تلاش آنلاین Ivira STT (Awasho → Avangardi)؛ در صورت خطا/خالی به مرحله بعد
-            runCatching {
-                val deferred = CompletableDeferred<String>()
-                iviraClient.speechToText(
-                    audioFile = audioFile,
-                    model = null,
-                    onSuccess = { deferred.complete(it) },
-                    onError = { deferred.completeExceptionally(Exception(it)) }
-                )
-                val text = deferred.await().trim()
-                if (text.isNotBlank()) {
-                    Log.d(TAG, "✅ STT via Ivira")
-                    return@withContext Result.success(text)
-                }
-            }.onFailure { e ->
-                Log.w(TAG, "Ivira STT failed: ${e.message}")
-            }
+            // 1) موقتاً Ivira STT غیرفعال شده تا خطاهای 404/HTML مزاحم نباشد
+            //    اکنون ابتدا فقط STT ابری (GAPGPT/Liara/OpenAI) استفاده می‌شود.
 
-            // 2) تلاش برای Liara/OpenAI Whisper (remote) در صورت وجود کلیدها
+            // 2) تلاش برای GAPGPT/Liara/OpenAI Whisper (remote) در صورت وجود کلیدها
             runCatching {
                 val deferred = CompletableDeferred<String>()
                 aiModelManager.transcribeAudio(
@@ -57,11 +42,11 @@ class SpeechToTextPipeline(private val context: Context) {
                 )
                 val cloudText = deferred.await().trim()
                 if (cloudText.isNotBlank()) {
-                    Log.d(TAG, "✅ STT via Liara/OpenAI Whisper")
+                    Log.d(TAG, "✅ STT via Cloud (GAPGPT/Liara/OpenAI)")
                     return@withContext Result.success(cloudText)
                 }
             }.onFailure { e ->
-                Log.w(TAG, "Cloud STT (Liara/OpenAI) failed: ${e.message}")
+                Log.w(TAG, "Cloud STT (GAPGPT/Liara/OpenAI) failed: ${e.message}")
             }
 
             // 3) تلاش برای Whisper (اگر کتابخانه و مدل موجود باشد) سپس بازگشت به Vosk

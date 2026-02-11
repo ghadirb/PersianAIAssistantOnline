@@ -6,11 +6,20 @@ import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.integration.IviraIntegrationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import org.json.JSONObject
 import java.io.File
 
 object IviraProcessingHelper {
 
     private const val TAG = "IviraProcessingHelper"
+    private val httpClient = OkHttpClient()
+
+    private const val GAPGPT_BASE_URL = "https://api.gapgpt.app/v1"
+    private const val GAPGPT_TTS_URL = "$GAPGPT_BASE_URL/audio/speech"
 
     suspend fun processWithIviraPriority(
         context: Context,
@@ -95,13 +104,36 @@ object IviraProcessingHelper {
         onError: (String) -> Unit = {}
     ): ByteArray? = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Processing TTS")
-            
+            Log.d(TAG, "Processing TTS (GAPGPT → Ivira → local)")
+
+            val prefs = context.getSharedPreferences("api_keys", Context.MODE_PRIVATE)
+            val gapgptKey = prefs.getString("gapgpt_api_key", null)
+
+            // 1) تلاش با GAPGPT gpt-4o-mini-tts
+            if (!gapgptKey.isNullOrNullOrEmpty()) {
+                try {
+                    val audioBytes = requestGapgptTts(
+                        apiKey = gapgptKey,
+                        text = text
+                    )
+                    if (audioBytes != null && audioBytes.isNotEmpty()) {
+                        Log.d(TAG, "✅ TTS via GAPGPT gpt-4o-mini-tts")
+                        onResult(audioBytes)
+                        return@withContext audioBytes
+                    } else {
+                        Log.w(TAG, "GAPGPT TTS returned empty audio")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "GAPGPT TTS failed: ${e.message}", e)
+                }
+            }
+
+            // 2) تلاش با Ivira (منطق قبلی)
             val iviraManager = IviraIntegrationManager(context)
             if (hasValidTokens(context)) {
                 var result: ByteArray? = null
                 var success = false
-                
+
                 iviraManager.textToSpeechViaIvira(
                     text = text,
                     onSuccess = { audioBytes ->
@@ -114,16 +146,19 @@ object IviraProcessingHelper {
                         success = false
                     }
                 )
-                
+
                 if (success && result != null) {
+                    Log.d(TAG, "✅ TTS via Ivira")
                     return@withContext result
                 }
             }
-            
-            onError("TTS not available")
+
+            // 3) اگر اینجا رسیدیم یعنی هیچ‌کدام موفق نشدند
+            onError("TTS not available (GAPGPT/Ivira)")
             return@withContext null
         } catch (e: Exception) {
-            Log.e(TAG, "Error", e)
+            Log.e(TAG, "Error in processTTSWithIviraPriority", e)
+            onError(e.message ?: "Error")
             return@withContext null
         }
     }
@@ -134,6 +169,43 @@ object IviraProcessingHelper {
             else -> "متأسفانه نمی‌تونم الان پاسخ بدم"
         }
     }
+
+    private fun requestGapgptTts(
+        apiKey: String,
+        text: String
+    ): ByteArray? {
+        // بدنه JSON مطابق OpenAI /audio/speech
+        val json = JSONObject().apply {
+            put("model", "gpt-4o-mini-tts")
+            put("input", text)
+            // می‌توانی اگر GAPGPT از voice پشتیبانی می‌کند، اضافه کنی:
+            // put("voice", "alloy")
+        }
+
+        val mediaType = "application/json".toMediaType()
+        val body = RequestBody.create(mediaType, json.toString())
+
+        val request = Request.Builder()
+            .url(GAPGPT_TTS_URL)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Accept", "audio/mpeg")
+            .post(body)
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            if (response.isSuccessful) {
+                return response.body?.bytes()
+            } else {
+                Log.w(
+                    TAG,
+                    "GAPGPT TTS HTTP error: code=${response.code}, msg=${response.message}"
+                )
+            }
+        }
+        return null
+    }
+
+    private fun String?.isNullOrNullOrEmpty(): Boolean = this == null || this.isEmpty()
 
     private fun hasValidTokens(context: Context): Boolean {
         return try {
