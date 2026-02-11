@@ -113,7 +113,7 @@ object IviraProcessingHelper {
             if (!gapgptKey.isNullOrNullOrEmpty()) {
                 try {
                     val audioBytes = requestGapgptTts(
-                        apiKey = gapgptKey,
+                        apiKey = gapgptKey!!,
                         text = text
                     )
                     if (audioBytes != null && audioBytes.isNotEmpty()) {
