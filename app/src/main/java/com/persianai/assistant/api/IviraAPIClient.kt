@@ -89,20 +89,34 @@ class IviraAPIClient(private val context: Context) {
                     httpClient.newCall(request).execute().use { response ->
                         val responseBody = response.body?.string()
                         if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
-                            val json = JSONObject(responseBody)
-                            val content = json.getJSONArray("choices")
-                                .getJSONObject(0)
-                                .getJSONObject("message")
-                                .getString("content")
-                            
-                            Log.d(TAG, "✅ Got response from $currentModel")
-                            withContext(Dispatchers.Main) {
-                                onResponse(content)
+                            // بررسی اینکه آیا پاسخ JSON است یا HTML
+                            if (responseBody.trim().startsWith("<")) {
+                                Log.w(TAG, "Ivira returned HTML instead of JSON for $currentModel")
+                                lastError = "Ivira returned HTML response (possibly 404 page)"
+                                return@use null
                             }
-                            return@withContext
+                            
+                            try {
+                                val json = JSONObject(responseBody)
+                                val content = json.getJSONArray("choices")
+                                    .getJSONObject(0)
+                                    .getJSONObject("message")
+                                    .getString("content")
+                                
+                                Log.d(TAG, "✅ Got response from $currentModel")
+                                withContext(Dispatchers.Main) {
+                                    onResponse(content)
+                                }
+                                return@withContext
+                            } catch (e: JSONException) {
+                                Log.w(TAG, "Failed to parse JSON from Ivira for $currentModel: ${e.message}")
+                                Log.w(TAG, "Response body: ${responseBody.take(200)}...")
+                                lastError = "Invalid JSON response from $currentModel"
+                                return@use null
+                            }
                         } else {
-                            lastError = "خطا: پاسخ خالی از $currentModel"
-                            Log.w(TAG, "Empty response from $currentModel")
+                            lastError = "خطا: پاسخ خالی از $currentModel (HTTP ${response.code})"
+                            Log.w(TAG, "Empty response from $currentModel (HTTP ${response.code})")
                         }
                     }
                 } catch (e: Exception) {
