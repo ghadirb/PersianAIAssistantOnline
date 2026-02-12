@@ -14,10 +14,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ConnectionPool
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
-import java.security.cert.X509Certificate
 
 /**
  * کلاینت اصلی برای ارتباط با APIهای هوش مصنوعی
@@ -55,16 +51,6 @@ class AIClient(private val apiKeys: List<APIKey>) {
             }
             response ?: throw exception ?: Exception("Unknown error")
         }
-        // SSL certificate trust (development میں)
-        .sslSocketFactory(
-            createSSLSocketFactory(),
-            object : X509TrustManager {
-                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-            }
-        )
-        .hostnameVerifier { _, _ -> true }
         .build()
 
     private val gson = Gson()
@@ -563,13 +549,4 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
     }
 
-    private fun createSSLSocketFactory(): javax.net.ssl.SSLSocketFactory {
-        try {
-            val sslContext = SSLContext.getInstance("TLS")
-            sslContext.init(null, null, null)
-            return sslContext.socketFactory
-        } catch (e: Exception) {
-            throw RuntimeException("Failed to create SSL socket factory", e)
-        }
-    }
 }
