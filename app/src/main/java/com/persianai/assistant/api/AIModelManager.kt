@@ -346,24 +346,23 @@ class AIModelManager(private val context: Context) {
 
                     client.newCall(request).execute().use { response ->
                         val responseBody = response.body?.string()
-                        if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
-                            val json = JSONObject(responseBody)
-                            val primaryText = json.optString("text")
-                            val fallbackText = json.optString("generated_text")
-                            var text = primaryText
-                            if (text.isBlank()) {
-                                text = fallbackText
-                            }
-                            if (text.isNotBlank()) {
-                                withContext(Dispatchers.Main) {
-                                    Log.d(TAG, "✅ STT via ${k.provider} whisper")
-                                    onSuccess(text)
-                                }
-                                return@withContext
-                            }
-                        } else {
+                        if (!response.isSuccessful || responseBody.isNullOrEmpty()) {
                             Log.w(TAG, "${k.provider} STT failed: url=$url code=${response.code} msg=${response.message}")
+                            return@use
                         }
+
+                        val json = JSONObject(responseBody)
+                        val primaryText = json.optString("text")
+                        val fallbackText = json.optString("generated_text")
+                        var text = primaryText
+                        if (text.isBlank()) text = fallbackText
+                        if (text.isBlank()) return@use
+
+                        withContext(Dispatchers.Main) {
+                            Log.d(TAG, "✅ STT via ${k.provider} whisper")
+                            onSuccess(text)
+                        }
+                        return@withContext
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "${k.provider} STT exception: ${e.message}", e)
