@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ConnectionPool
@@ -29,6 +30,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
         .readTimeout(120, TimeUnit.SECONDS)     // 60 سے 120
         .writeTimeout(120, TimeUnit.SECONDS)    // 60 سے 120
         .retryOnConnectionFailure(true)
+        .protocols(listOf(Protocol.HTTP_1_1, Protocol.HTTP_2))
         .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
         .addInterceptor { chain ->
             var request = chain.request()
