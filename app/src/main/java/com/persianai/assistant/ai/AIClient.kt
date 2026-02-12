@@ -342,39 +342,69 @@ class AIClient(private val apiKeys: List<APIKey>) {
 
     /**
      * تبدیل صوت به متن با Whisper API
-     * ✅ فقط OpenAI (سریع‌تر/سازگارتر). اگر نبود یا خالی بود، استثناء برمی‌گرداند.
+     * ✅ تلاش با کلیدهای فعال به ترتیب GAPGPT → LIARA → OPENAI
      */
     suspend fun transcribeAudio(audioFilePath: String): String = withContext(Dispatchers.IO) {
-        val openAiKey = apiKeys.firstOrNull { it.provider == AIProvider.OPENAI && it.isActive }
-
         // فایل
         val file = java.io.File(audioFilePath)
         if (!file.exists()) return@withContext ""
 
-        if (openAiKey == null) {
-            android.util.Log.w("AIClient", "No OpenAI key for STT")
+        val keysOrdered = apiKeys
+            .filter { it.isActive && it.key.isNotBlank() }
+            .sortedBy { k ->
+                when (k.provider) {
+                    AIProvider.GAPGPT -> 0
+                    AIProvider.LIARA -> 1
+                    AIProvider.OPENAI -> 2
+                    else -> 3
+                }
+            }
+            .filter { it.provider == AIProvider.GAPGPT || it.provider == AIProvider.LIARA || it.provider == AIProvider.OPENAI }
+
+        if (keysOrdered.isEmpty()) {
+            android.util.Log.w("AIClient", "No GAPGPT/LIARA/OPENAI key for STT")
             return@withContext ""
         }
 
-        // بدنه استاندارد (OpenAI Whisper)
-        val mediaTypeAudio = "audio/wav".toMediaType()
-        val standardBody = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart("file", file.name, okhttp3.RequestBody.create(mediaTypeAudio, file))
-            .addFormDataPart("model", "whisper-1")
-            .addFormDataPart("language", "fa")
-            .build()
-
-        return@withContext try {
-            withTimeout(20000) {
-                val baseUrl = openAiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
-                val url = "$baseUrl/audio/transcriptions"
-                android.util.Log.d("AIClient", "transcribeAudio using OpenAI at $url")
-                callWhisperLike(url, openAiKey.key, standardBody)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AIClient", "OpenAI STT failed: ${e.message}")
-            ""
+        val mediaTypeStr = when (file.extension.lowercase()) {
+            "m4a", "mp4" -> "audio/mp4"
+            "wav" -> "audio/wav"
+            "ogg" -> "audio/ogg"
+            "webm" -> "audio/webm"
+            "mp3" -> "audio/mpeg"
+            else -> "application/octet-stream"
         }
+        val mediaTypeAudio = mediaTypeStr.toMediaType()
+
+        fun buildBody(): okhttp3.MultipartBody {
+            return okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("file", file.name, okhttp3.RequestBody.create(mediaTypeAudio, file))
+                .addFormDataPart("model", "whisper-1")
+                .addFormDataPart("language", "fa")
+                .build()
+        }
+
+        for (k in keysOrdered) {
+            try {
+                val baseUrl = when (k.provider) {
+                    AIProvider.GAPGPT -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.gapgpt.app/v1"
+                    AIProvider.LIARA -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
+                    AIProvider.OPENAI -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                    else -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                }
+                val url = "$baseUrl/audio/transcriptions"
+                val body = buildBody()
+                val text = withTimeout(20000) {
+                    android.util.Log.d("AIClient", "transcribeAudio using ${k.provider.name} at $url")
+                    callWhisperLike(url, k.key, body)
+                }.trim()
+                if (text.isNotBlank()) return@withContext text
+            } catch (e: Exception) {
+                android.util.Log.w("AIClient", "${k.provider.name} STT failed: ${e.message}")
+            }
+        }
+
+        return@withContext ""
     }
 
     /**
