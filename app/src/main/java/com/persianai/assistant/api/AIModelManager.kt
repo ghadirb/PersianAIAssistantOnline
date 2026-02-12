@@ -348,9 +348,8 @@ class AIModelManager(private val context: Context) {
                         val responseBody = response.body?.string()
                         if (response.isSuccessful && !responseBody.isNullOrEmpty()) {
                             val json = JSONObject(responseBody)
-                            val text = json.optString("text").ifBlank {
-                                json.optString("generated_text")
-                            }
+                            val primaryText = json.optString("text")
+                            val text = if (primaryText.isNotBlank()) primaryText else json.optString("generated_text")
                             if (text.isNotBlank()) {
                                 withContext(Dispatchers.Main) {
                                     Log.d(TAG, "✅ STT via ${k.provider} whisper")
