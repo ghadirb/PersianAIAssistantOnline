@@ -21,6 +21,18 @@ import java.util.concurrent.TimeUnit
  */
 class AIClient(private val apiKeys: List<APIKey>) {
 
+    private fun formatExceptionForLog(e: Exception): String {
+        val name = e::class.java.simpleName
+        val msg = e.message ?: ""
+        val causeName = e.cause?.javaClass?.simpleName
+        val causeMsg = e.cause?.message
+        return if (causeName != null) {
+            "$name: $msg (cause=$causeName: $causeMsg)"
+        } else {
+            "$name: $msg"
+        }
+    }
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)  // 60 سے 120
         .readTimeout(120, TimeUnit.SECONDS)     // 60 سے 120
@@ -113,7 +125,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
                 }
             } catch (e: Exception) {
                 lastError = e
-                android.util.Log.w("AIClient", "⚠️ Key failed: ${e.message}")
+                android.util.Log.w("AIClient", "⚠️ Key failed: ${formatExceptionForLog(e)}")
                 val errorMsg = e.message ?: ""
                 val shouldPermanentlyFail =
                     errorMsg.contains("401") ||
@@ -196,6 +208,7 @@ class AIClient(private val apiKeys: List<APIKey>) {
             .url(apiUrl)
             .addHeader("Authorization", "Bearer ${apiKey.key}")
             .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "application/json")
         if (apiKey.provider == AIProvider.OPENROUTER) {
             // OpenRouter نیاز به Referer و X-Title دارد
             requestBuilder.addHeader("HTTP-Referer", "https://openrouter.ai/")
