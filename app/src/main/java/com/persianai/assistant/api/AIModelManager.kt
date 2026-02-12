@@ -350,7 +350,10 @@ class AIModelManager(private val context: Context) {
                             val json = JSONObject(responseBody)
                             val primaryText = json.optString("text")
                             val fallbackText = json.optString("generated_text")
-                            val text = if (primaryText.isNotBlank()) primaryText else fallbackText
+                            var text = primaryText
+                            if (text.isBlank()) {
+                                text = fallbackText
+                            }
                             if (text.isNotBlank()) {
                                 withContext(Dispatchers.Main) {
                                     Log.d(TAG, "✅ STT via ${k.provider} whisper")
