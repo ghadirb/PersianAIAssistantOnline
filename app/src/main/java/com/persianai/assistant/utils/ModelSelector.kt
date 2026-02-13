@@ -1,5 +1,7 @@
 package com.persianai.assistant.utils
 
+import android.content.Context
+import com.persianai.assistant.config.RemoteAIConfigManager
 import com.persianai.assistant.models.AIModel
 import com.persianai.assistant.models.AIProvider
 import com.persianai.assistant.models.APIKey
@@ -13,6 +15,7 @@ object ModelSelector {
      * انتخاب بهترین مدل بر اساس کلیدهای موجود و اولویت‌ها (از remote config یا fallback)
      */
     fun selectBestModel(
+        context: Context?,
         apiKeys: List<APIKey>,
         preferLightweight: Boolean = true
     ): AIModel {
@@ -28,7 +31,12 @@ object ModelSelector {
         }
         
         // دریافت لیست اولویت از RemoteAIConfigManager (با fallback به لیست پیش‌فرض)
-        val priorityList = RemoteAIConfigManager.getInstance(null).getModelPriority()
+        val priorityList = try {
+            context?.let { RemoteAIConfigManager.getInstance(it).getModelPriority() }
+                ?: listOf(AIModel.LIARA_GPT_5_NANO, AIModel.GAPGPT_DEEPSEEK_V3, AIModel.LIARA_GPT_4O_MINI)
+        } catch (e: Exception) {
+            listOf(AIModel.LIARA_GPT_5_NANO, AIModel.GAPGPT_DEEPSEEK_V3, AIModel.LIARA_GPT_4O_MINI)
+        }
         
         // پیدا کردن اولین مدل که provider آن فعال است
         return priorityList.firstOrNull { model ->
@@ -39,13 +47,19 @@ object ModelSelector {
     /**
      * دریافت لیست مدل‌های قابل استفاده بر اساس کلیدهای فعال (از remote config)
      */
-    fun getAvailableModels(apiKeys: List<APIKey>): List<AIModel> {
+    fun getAvailableModels(context: Context?, apiKeys: List<APIKey>): List<AIModel> {
         val activeProviders = apiKeys
             .filter { it.isActive }
             .map { it.provider }
             .toSet()
         
-        val priorityList = RemoteAIConfigManager.getInstance(null).getModelPriority()
+        val priorityList = try {
+            context?.let { RemoteAIConfigManager.getInstance(it).getModelPriority() }
+                ?: listOf(AIModel.LIARA_GPT_5_NANO, AIModel.GAPGPT_DEEPSEEK_V3, AIModel.LIARA_GPT_4O_MINI)
+        } catch (e: Exception) {
+            listOf(AIModel.LIARA_GPT_5_NANO, AIModel.GAPGPT_DEEPSEEK_V3, AIModel.LIARA_GPT_4O_MINI)
+        }
+        
         return priorityList.filter { model ->
             activeProviders.contains(model.provider)
         }
@@ -62,11 +76,12 @@ object ModelSelector {
      * انتخاب fallback model در صورت خطا در مدل فعلی
      */
     fun selectFallbackModel(
+        context: Context?,
         currentModel: AIModel,
         apiKeys: List<APIKey>
     ): AIModel? {
         
-        val availableModels = getAvailableModels(apiKeys)
+        val availableModels = getAvailableModels(context, apiKeys)
         
         // حذف مدل فعلی از لیست
         val fallbackOptions = availableModels.filter { it != currentModel }

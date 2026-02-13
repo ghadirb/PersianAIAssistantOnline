@@ -99,34 +99,31 @@ class AIChatActivity : BaseChatActivity() {
             }
         }
     }
-        
-        // ✅ Setup voice button with unified listener
-        setupVoiceButton()
-
-        // دسترسی سریع به بخش‌های داشبورد
-        chatBinding.btnCalendar.setOnClickListener {
-            startActivity(Intent(this, CalendarActivity::class.java))
+    
+    private fun setupNavigationButtons() {
+        chatBinding.btnCalendar.setOnClickListener { 
+            startActivity(Intent(this, CalendarActivity::class.java)) 
         }
-        chatBinding.btnAccountingAdvanced.setOnClickListener {
-            startActivity(Intent(this, AccountingAdvancedActivity::class.java))
+        chatBinding.btnAccountingAdvanced.setOnClickListener { 
+            startActivity(Intent(this, AccountingAdvancedActivity::class.java)) 
         }
-        chatBinding.btnRemindersAdvanced.setOnClickListener {
-            startActivity(Intent(this, AdvancedRemindersActivity::class.java))
+        chatBinding.btnRemindersAdvanced.setOnClickListener { 
+            startActivity(Intent(this, AdvancedRemindersActivity::class.java)) 
         }
-        chatBinding.btnVoiceNav.setOnClickListener {
-            startActivity(Intent(this, VoiceNavigationAssistantActivity::class.java))
+        chatBinding.btnVoiceNav.setOnClickListener { 
+            startActivity(Intent(this, VoiceNavigationAssistantActivity::class.java)) 
         }
-        chatBinding.btnPsychology.setOnClickListener {
-            startActivity(Intent(this, PsychologyChatActivity::class.java))
+        chatBinding.btnPsychology.setOnClickListener { 
+            startActivity(Intent(this, PsychologyChatActivity::class.java)) 
         }
-        chatBinding.btnCareer.setOnClickListener {
-            startActivity(Intent(this, CareerChatActivity::class.java))
+        chatBinding.btnCareer.setOnClickListener { 
+            startActivity(Intent(this, CareerChatActivity::class.java)) 
         }
-        chatBinding.btnCultural.setOnClickListener {
-            startActivity(Intent(this, CulturalChatActivity::class.java))
+        chatBinding.btnCultural.setOnClickListener { 
+            startActivity(Intent(this, CulturalChatActivity::class.java)) 
         }
-        chatBinding.btnSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+        chatBinding.btnSettings.setOnClickListener { 
+            startActivity(Intent(this, SettingsActivity::class.java)) 
         }
     }
     
@@ -158,10 +155,10 @@ class AIChatActivity : BaseChatActivity() {
                     chatBinding.voiceButton.alpha = 0.5f
                 }
                 
-                override fun onRecordingFinished(audioPath: String) {
-                    android.util.Log.d("AIChatActivity", "🎙️ Recording finished: $audioPath")
+                override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
+                    android.util.Log.d("AIChatActivity", "🎙️ Recording completed: ${audioFile.path}, duration: ${durationMs}ms")
                     chatBinding.voiceButton.alpha = 1.0f
-                    handleTranscript(audioPath)
+                    handleTranscript(audioFile.path)
                 }
                 
                 override fun onRecordingError(error: String) {
