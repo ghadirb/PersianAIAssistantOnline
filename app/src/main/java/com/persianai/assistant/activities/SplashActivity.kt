@@ -86,7 +86,7 @@ class SplashActivity : AppCompatActivity() {
 
                 // ✅ مرحله 3: بارگذاری ai_config.json از لینک (مدل‌ها/پیام‌ها)
                 try {
-                    val rc = RemoteAIConfigManager(this@SplashActivity)
+                    val rc = RemoteAIConfigManager.getInstance(this@SplashActivity)
                     if (prefsManager.getRemoteAIConfigUrl().isNullOrBlank()) {
                         prefsManager.saveRemoteAIConfigUrl(rc.getEffectiveConfigUrl())
                     }

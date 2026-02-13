@@ -64,7 +64,7 @@ class AIChatActivity : BaseChatActivity() {
     private fun showRemoteConfigMessagesPopupIfAny() {
         lifecycleScope.launch {
             try {
-                val rc = RemoteAIConfigManager(this@AIChatActivity)
+                val rc = RemoteAIConfigManager.getInstance(this@AIChatActivity)
                 val cached = rc.loadCached()
                 val msg = buildString {
                     val m = cached?.messages
@@ -157,27 +157,17 @@ class AIChatActivity : BaseChatActivity() {
                     android.util.Log.d("AIChatActivity", "🎙️ Recording started")
                     chatBinding.voiceButton.alpha = 0.5f
                 }
-
-                override fun onRecordingCompleted(audioFile: File, durationMs: Long) {
-                    android.util.Log.d("AIChatActivity", "🛑 Recording completed: ${audioFile.absolutePath}")
+                
+                override fun onRecordingFinished(audioPath: String) {
+                    android.util.Log.d("AIChatActivity", "🎙️ Recording finished: $audioPath")
                     chatBinding.voiceButton.alpha = 1.0f
-                    // تبدیل صوت به متن توسط VoiceActionButton انجام می‌شود
+                    handleTranscript(audioPath)
                 }
-
-                override fun onTranscript(text: String) {
-                    android.util.Log.d("AIChatActivity", "✅ Transcript received: $text")
-                    chatBinding.voiceButton.alpha = 1.0f
-                    handleTranscript(text)
-                }
-
+                
                 override fun onRecordingError(error: String) {
-                    android.util.Log.e("AIChatActivity", "❌ Recording error: $error")
+                    android.util.Log.e("AIChatActivity", "🎙️ Recording error: $error")
                     chatBinding.voiceButton.alpha = 1.0f
-                    Toast.makeText(
-                        this@AIChatActivity,
-                        "❌ خطا: $error",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    android.widget.Toast.makeText(this@AIChatActivity, "خطا در ضبط صدا: $error", android.widget.Toast.LENGTH_SHORT).show()
                 }
             })
             android.util.Log.d("AIChatActivity", "✅ Voice button listener configured")
@@ -185,9 +175,6 @@ class AIChatActivity : BaseChatActivity() {
             android.util.Log.e("AIChatActivity", "❌ Error setting up voice button", e)
         }
     }
-
-    override fun getRecyclerView(): RecyclerView = chatBinding.chatRecyclerView
-    override fun getMessageInput(): TextInputEditText = chatBinding.messageInput
     override fun getSendButton(): View = chatBinding.sendButton
     override fun getVoiceButton(): View = chatBinding.voiceButton
     
