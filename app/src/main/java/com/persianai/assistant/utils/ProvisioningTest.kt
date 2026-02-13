@@ -58,13 +58,13 @@ object ProvisioningTest {
                 // مرحله 3: انتخاب مدل
                 Log.d(TAG, "\n🤖 انتخاب بهترین مدل...")
                 
-                val selectedModel = ModelSelector.selectBestModel(keys, preferLightweight = true)
+                val selectedModel = ModelSelector.selectBestModel(context, keys, preferLightweight = true)
                 Log.d(TAG, "  مدل انتخابی: ${selectedModel.displayName}")
                 Log.d(TAG, "  Provider: ${selectedModel.provider.name}")
                 Log.d(TAG, "  توضیحات: ${selectedModel.description}")
                 
                 // مرحله 4: لیست مدل‌های قابل استفاده
-                val availableModels = ModelSelector.getAvailableModels(keys)
+                val availableModels = ModelSelector.getAvailableModels(context, keys)
                 Log.d(TAG, "\n📦 مدل‌های قابل استفاده (${availableModels.size}):")
                 
                 availableModels.forEachIndexed { index, model ->

@@ -161,6 +161,11 @@ class AIChatActivity : BaseChatActivity() {
                     handleTranscript(audioFile.path)
                 }
                 
+                override fun onTranscript(text: String) {
+                    android.util.Log.d("AIChatActivity", "🎙️ Transcript received: $text")
+                    // Handle transcript text here if needed
+                }
+                
                 override fun onRecordingError(error: String) {
                     android.util.Log.e("AIChatActivity", "🎙️ Recording error: $error")
                     chatBinding.voiceButton.alpha = 1.0f
@@ -172,8 +177,18 @@ class AIChatActivity : BaseChatActivity() {
             android.util.Log.e("AIChatActivity", "❌ Error setting up voice button", e)
         }
     }
-    override fun getSendButton(): View = chatBinding.sendButton
-    override fun getVoiceButton(): View = chatBinding.voiceButton
+    
+    private fun handleTranscript(audioPath: String) {
+        // Handle transcript logic here
+        android.util.Log.d("AIChatActivity", "Handling transcript: $audioPath")
+    }
+    
+    override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView {
+        return chatBinding.recyclerView
+    }
+    
+    override fun getSendButton(): android.view.View = chatBinding.sendButton
+    override fun getVoiceButton(): android.view.View = chatBinding.voiceButton
     
     override fun getSystemPrompt(): String = "دستیار هوشمند فارسی"
 

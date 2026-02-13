@@ -327,7 +327,7 @@ class MainActivity : AppCompatActivity() {
                 preferred
             } else {
                 // انتخاب بهترین مدل سبک
-                ModelSelector.selectBestModel(apiKeys, preferLightweight = true)
+                ModelSelector.selectBestModel(this@MainActivity, apiKeys, preferLightweight = true)
             }
             
             prefsManager.saveSelectedModel(currentModel)
@@ -348,7 +348,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         // استفاده از ModelSelector جدید
-        return ModelSelector.selectBestModel(apiKeys, preferLightweight = true)
+        return ModelSelector.selectBestModel(this@MainActivity, apiKeys, preferLightweight = true)
     }
 
 
