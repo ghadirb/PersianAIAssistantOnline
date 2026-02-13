@@ -92,31 +92,38 @@ class AIClient(private val apiKeys: List<APIKey>) {
         for (apiKey in availableKeys) {
             try {
                 android.util.Log.d("AIClient", "🔄 تلاش برای ارسال پیام با ${model.provider.name} key: ${apiKey.key.take(8)}...")
-                return@withContext when (model.provider) {
+                val result = when (model.provider) {
                     AIProvider.AIML, AIProvider.GLADIA -> sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.OPENAI, AIProvider.OPENROUTER, AIProvider.LIARA, AIProvider.AVALAI, AIProvider.GAPGPT ->
                         sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
-                    AIProvider.IVIRA -> throw IllegalStateException("IVIRA باید در QueryRouter/IviraAPIClient مدیریت شود")
+                    else -> throw IllegalStateException("Provider پشتیبانی نشده: ${model.provider}")
                 }
+                // Remove from failed keys on success
+                failedKeys.remove(apiKey.key)
+                return@withContext result
             } catch (e: Exception) {
                 lastError = e
-                android.util.Log.w("AIClient", "⚠️ Key failed: ${formatExceptionForLog(e)}")
                 val errorMsg = e.message ?: ""
-                val shouldPermanentlyFail =
-                    errorMsg.contains("401") ||
-                        errorMsg.contains("402") ||
-                        errorMsg.contains("403") ||
-                        errorMsg.contains("invalid_api_key", ignoreCase = true) ||
-                        errorMsg.contains("incorrect api key", ignoreCase = true) ||
-                        errorMsg.contains("api key", ignoreCase = true) && errorMsg.contains("invalid", ignoreCase = true)
-
-                if (shouldPermanentlyFail) {
-                    failedKeys.add(apiKey.key)
-                    android.util.Log.d("AIClient", "🚫 Key marked as permanently failed: ${apiKey.key.take(8)}...")
+                android.util.Log.w("AIClient", "❌ Key failed for ${model.provider.name}: ${formatExceptionForLog(e)}")
+                
+                // For GAPGPT, try alternative model names on specific errors
+                if (model.provider == AIProvider.GAPGPT && (errorMsg.contains("model", ignoreCase = true) || errorMsg.contains("404"))) {
+                    try {
+                        android.util.Log.d("AIClient", "🔄 Trying fallback model for GAPGPT")
+                        // Use GPT_4O_MINI as fallback with GAPGPT provider by creating a temporary APIKey
+                        val fallbackApiKey = APIKey(AIProvider.GAPGPT, apiKey.key, apiKey.baseUrl, apiKey.isActive)
+                        val result = sendToOpenAI(AIModel.GPT_4O_MINI, messages, systemPrompt, fallbackApiKey)
+                        failedKeys.remove(apiKey.key)
+                        return@withContext result
+                    } catch (fallbackError: Exception) {
+                        android.util.Log.w("AIClient", "❌ GAPGPT fallback also failed: ${formatExceptionForLog(fallbackError)}")
+                    }
                 }
-                continue
+                
+                // Disable problematic key temporarily
+                failedKeys.add(apiKey.key)
             }
         }
 
@@ -193,22 +200,37 @@ class AIClient(private val apiKeys: List<APIKey>) {
         }
         val request = requestBuilder.post(body).build()
 
+        // Log request details for debugging
+        val requestId = "req_${System.currentTimeMillis()}"
+        android.util.Log.d("AIClient", "[$requestId] Sending to ${model.provider.name}: url=$apiUrl, model=${model.modelId}")
+
         client.newCall(request).execute().use { response ->
             val responseBody = response.body?.string()
+            val responseSnippet = responseBody?.take(200) ?: "(empty)"
+            
+            android.util.Log.d("AIClient", "[$requestId] Response: code=${response.code}, success=${response.isSuccessful}, body=$responseSnippet")
             
             if (!response.isSuccessful) {
-                throw Exception("خطای API: ${response.code} - $responseBody")
+                val errorDetail = "خطای API: ${response.code} - $responseSnippet"
+                android.util.Log.e("AIClient", "[$requestId] API Error: $errorDetail")
+                throw Exception(errorDetail)
             }
 
-            val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
-            val content = chatResponse.choices.firstOrNull()?.message?.content
-                ?: throw Exception("پاسخ خالی از API")
+            try {
+                val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
+                val content = chatResponse.choices.firstOrNull()?.message?.content
+                    ?: throw Exception("پاسخ خالی از API")
 
-            ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = content,
-                timestamp = System.currentTimeMillis()
-            )
+                android.util.Log.d("AIClient", "[$requestId] Success: content length=${content.length}")
+                ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = content,
+                    timestamp = System.currentTimeMillis()
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("AIClient", "[$requestId] Parse error: ${e.message}, response was: $responseSnippet")
+                throw Exception("خطا در پردازش پاسخ API: ${e.message}")
+            }
         }
     }
 

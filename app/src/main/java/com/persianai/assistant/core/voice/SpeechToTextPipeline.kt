@@ -7,6 +7,7 @@ import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.core.voice.WhisperSttEngine
 import com.persianai.assistant.api.IviraAPIClient
 import com.persianai.assistant.api.AIModelManager
+import com.persianai.assistant.config.RemoteAIConfigManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,6 +20,7 @@ class SpeechToTextPipeline(private val context: Context) {
     private val whisper = WhisperSttEngine(context)
     private val iviraClient = IviraAPIClient(context)
     private val aiModelManager = AIModelManager(context)
+    private val remoteConfigManager = RemoteAIConfigManager.getInstance(context)
 
     suspend fun transcribe(audioFile: File): Result<String> = withContext(Dispatchers.IO) {
         try {
@@ -32,7 +34,9 @@ class SpeechToTextPipeline(private val context: Context) {
             // 1) موقتاً Ivira STT غیرفعال شده تا خطاهای 404/HTML مزاحم نباشد
             //    اکنون ابتدا فقط STT ابری (GAPGPT/Liara/OpenAI) استفاده می‌شود.
 
-            // 2) تلاش برای GAPGPT/Liara/OpenAI Whisper (remote) در صورت وجود کلیدها
+            // 2) تلاش برای STT ابری با اولویت از remote config
+            val sttPriority = remoteConfigManager.getSTTPriority()
+            Log.d(TAG, "STT priority from remote config: $sttPriority")
             runCatching {
                 val deferred = CompletableDeferred<String>()
                 aiModelManager.transcribeAudio(
@@ -42,11 +46,11 @@ class SpeechToTextPipeline(private val context: Context) {
                 )
                 val cloudText = deferred.await().trim()
                 if (cloudText.isNotBlank()) {
-                    Log.d(TAG, "✅ STT via Cloud (GAPGPT/Liara/OpenAI)")
+                    Log.d(TAG, "✅ STT via Cloud (priority: ${sttPriority.joinToString(",")})")
                     return@withContext Result.success(cloudText)
                 }
             }.onFailure { e ->
-                Log.w(TAG, "Cloud STT (GAPGPT/Liara/OpenAI) failed: ${e.message}")
+                Log.w(TAG, "Cloud STT failed: ${e.message}")
             }
 
             // 3) تلاش برای Whisper (اگر کتابخانه و مدل موجود باشد) سپس بازگشت به Vosk

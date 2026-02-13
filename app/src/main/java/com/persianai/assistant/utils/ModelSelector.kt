@@ -10,35 +10,7 @@ import com.persianai.assistant.models.APIKey
 object ModelSelector {
     
     /**
-     * اولویت مدل‌ها برای موبایل‌های ضعیف (از ارزان/سبک به گران/سنگین)
-     * Ivira (token-based) در لایه‌ی بالاتر (QueryRouter) قبل از این لیست امتحان می‌شود.
-     */
-    private val LIGHTWEIGHT_MODELS_PRIORITY = listOf(
-        // --- اولویت اصلی: مدل‌های ارزان/کارآمد برای چت روزمره ---
-        AIModel.IVIRA_GPT5_NANO,        // ارزان‌ترین Ivira برای چت
-        AIModel.GPT_4O_MINI,            // OpenAI GPT‑4o Mini
-        AIModel.LIARA_GPT_4O_MINI,      // Liara GPT‑4o Mini
-        AIModel.IVIRA_GPT5_MINI,        // Ivira GPT‑5 Mini
-        AIModel.GAPGPT_DEEPSEEK_V3,     // DeepSeek V3 از gapgpt.app
-
-        // --- مدل‌های تحلیلی/قوی‌تر (OpenRouter و سایرین) ---
-        AIModel.QWEN_2_5_1B5,
-        AIModel.LLAMA_3_2_1B,
-        AIModel.LLAMA_3_2_3B,
-        AIModel.MIXTRAL_8X7B,
-        AIModel.LLAMA_3_3_70B,
-        AIModel.DEEPSEEK_R1T2,
-        AIModel.LLAMA_2_70B,
-
-        // --- سایر مدل‌های عمومی ---
-        AIModel.GPT_4O,
-        AIModel.CLAUDE_HAIKU,
-        AIModel.CLAUDE_SONNET,
-        AIModel.AIML_GPT_35
-    )
-    
-    /**
-     * انتخاب بهترین مدل بر اساس کلیدهای موجود و اولویت‌ها
+     * انتخاب بهترین مدل بر اساس کلیدهای موجود و اولویت‌ها (از remote config یا fallback)
      */
     fun selectBestModel(
         apiKeys: List<APIKey>,
@@ -55,12 +27,8 @@ object ModelSelector {
             return AIModel.getDefaultModel()
         }
         
-        // انتخاب از لیست اولویت
-        val priorityList = if (preferLightweight) {
-            LIGHTWEIGHT_MODELS_PRIORITY
-        } else {
-            LIGHTWEIGHT_MODELS_PRIORITY.reversed()
-        }
+        // دریافت لیست اولویت از RemoteAIConfigManager (با fallback به لیست پیش‌فرض)
+        val priorityList = RemoteAIConfigManager.getInstance(null).getModelPriority()
         
         // پیدا کردن اولین مدل که provider آن فعال است
         return priorityList.firstOrNull { model ->
@@ -69,7 +37,7 @@ object ModelSelector {
     }
     
     /**
-     * دریافت لیست مدل‌های قابل استفاده بر اساس کلیدهای فعال
+     * دریافت لیست مدل‌های قابل استفاده بر اساس کلیدهای فعال (از remote config)
      */
     fun getAvailableModels(apiKeys: List<APIKey>): List<AIModel> {
         val activeProviders = apiKeys
@@ -77,7 +45,8 @@ object ModelSelector {
             .map { it.provider }
             .toSet()
         
-        return LIGHTWEIGHT_MODELS_PRIORITY.filter { model ->
+        val priorityList = RemoteAIConfigManager.getInstance(null).getModelPriority()
+        return priorityList.filter { model ->
             activeProviders.contains(model.provider)
         }
     }

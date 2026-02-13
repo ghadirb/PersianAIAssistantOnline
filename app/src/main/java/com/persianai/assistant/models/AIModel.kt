@@ -68,7 +68,7 @@ enum class AIModel(
         8000
     ),
     GAPGPT_DEEPSEEK_V3(
-        "deepseek/deepseek-chat-v3.1",
+        "gapgpt-deepseek-v3",  // Fixed: Match remote config model name
         "DeepSeek V3 (gapgpt.app)",
         AIProvider.GAPGPT,
         "مدل DeepSeek V3 از gapgpt.app (اولویت بعد از مدل‌های ارزان‌تر لیارا)",
@@ -138,6 +138,13 @@ enum class AIModel(
         AIProvider.LIARA,
         "مدل سازگار با OpenAI از سرویس لیارا برای مکالمه",
         128000
+    ),
+    LIARA_GPT_5_NANO(
+        "gpt-5-nano",
+        "GPT-5 Nano (Liara)",
+        AIProvider.LIARA,
+        "مدل GPT-5 Nano از سرویس لیارا",
+        32000
     ),
     AVALAI_GEMINI_FLASH(
         "gemini-2.5-flash",

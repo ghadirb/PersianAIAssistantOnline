@@ -6,15 +6,20 @@ import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import java.util.*
 import com.persianai.assistant.services.HaaniyeManager
+import com.persianai.assistant.config.RemoteAIConfigManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * کمک‌کننده برای تبدیل متن به گفتار فارسی
+ * Online-first: tries online TTS providers first, then offline Haaniye, then Android TTS as final fallback
  */
 class TTSHelper(private val context: Context) {
 
     private var tts: TextToSpeech? = null
     private var isInitialized = false
     private val prefsManager = PreferencesManager(context)
+    private val remoteConfigManager = RemoteAIConfigManager.getInstance(context)
 
     companion object {
         private const val TAG = "TTSHelper"
@@ -69,7 +74,58 @@ class TTSHelper(private val context: Context) {
     }
 
     /**
-     * اعلام متن به صورت صوتی
+     * Online-first TTS: tries online providers based on remote config priority, then offline Haaniye, then Android TTS
+     */
+    suspend fun speakOnlineFirst(text: String, queueMode: Int = TextToSpeech.QUEUE_FLUSH) = withContext(Dispatchers.IO) {
+        if (!prefsManager.isTTSEnabled()) {
+            Log.d(TAG, "TTS is disabled")
+            return@withContext
+        }
+
+        val cleanText = cleanTextForTTS(text)
+        if (cleanText.isBlank()) {
+            Log.d(TAG, "Empty text after cleaning")
+            return@withContext
+        }
+
+        val ttsPriority = remoteConfigManager.getTTSPriority()
+        Log.d(TAG, "TTS priority from remote config: $ttsPriority")
+
+        // Try online TTS providers based on remote config priority
+        for (provider in ttsPriority) {
+            when (provider.lowercase()) {
+                "openai", "liara", "gapgpt" -> {
+                    // TODO: Implement online TTS calls for these providers
+                    Log.d(TAG, "Online TTS provider $provider not yet implemented, skipping")
+                }
+                // Skip "haaniye" and "android" here; they will be tried as fallbacks
+            }
+        }
+
+        // Fallback 1: Haaniye (offline)
+        try {
+            val handled = HaaniyeManager.speak(context, cleanText)
+            if (handled) {
+                Log.d(TAG, "TTS via Haaniye (offline)")
+                return@withContext
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Haaniye TTS failed: ${e.message}")
+        }
+
+        // Fallback 2: Android TTS (if initialized)
+        if (isInitialized && tts != null) {
+            Log.d(TAG, "TTS via Android TTS (final fallback)")
+            runOnUiThread {
+                tts?.speak(cleanText, queueMode, null, "tts_${System.currentTimeMillis()}")
+            }
+        } else {
+            Log.w(TAG, "No TTS provider available")
+        }
+    }
+
+    /**
+     * Legacy speak method (maintains compatibility)
      */
     fun speak(text: String, queueMode: Int = TextToSpeech.QUEUE_FLUSH) {
         if (!prefsManager.isTTSEnabled()) {
@@ -82,15 +138,14 @@ class TTSHelper(private val context: Context) {
             return
         }
 
-        // پاکسازی متن از emoji و کاراکترهای خاص
         val cleanText = cleanTextForTTS(text)
-
         if (cleanText.isBlank()) {
             Log.d(TAG, "Empty text after cleaning")
             return
         }
 
-        // تلاش برای TTS آفلاین حانیه (اگر موفق نشد، اندروید)
+        // Previously: offline-first Haaniye -> Android TTS
+        // Now: try Haaniye first for compatibility, then Android TTS
         try {
             val handled = HaaniyeManager.speak(context, cleanText)
             if (handled) return
@@ -100,6 +155,13 @@ class TTSHelper(private val context: Context) {
 
         Log.d(TAG, "Speaking (Android TTS): $cleanText")
         tts?.speak(cleanText, queueMode, null, "tts_${System.currentTimeMillis()}")
+    }
+
+    private fun runOnUiThread(action: () -> Unit) {
+        (context as? android.app.Activity)?.runOnUiThread(action) ?: run {
+            // If context is not an Activity, use Handler with main looper
+            android.os.Handler(android.os.Looper.getMainLooper()).post(action)
+        }
     }
 
     /**

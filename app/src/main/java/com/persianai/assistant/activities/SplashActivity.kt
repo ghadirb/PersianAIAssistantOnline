@@ -458,8 +458,8 @@ class SplashActivity : AppCompatActivity() {
         val prefs = PreferencesManager(this)
         val dest = prefs.getStartDestination()
         val target = when (dest) {
-            PreferencesManager.StartDestination.DASHBOARD -> HomeActivity::class.java
-            PreferencesManager.StartDestination.ASSISTANT -> AIChatActivity::class.java
+            PreferencesManager.StartDestination.DASHBOARD -> DashboardActivity::class.java
+            PreferencesManager.StartDestination.ASSISTANT -> DashboardActivity::class.java
         }
         val i = Intent(this, target)
         startActivity(i)

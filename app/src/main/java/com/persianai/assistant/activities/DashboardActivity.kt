@@ -33,6 +33,7 @@ import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.NotificationHelper
 import com.persianai.assistant.utils.AutoProvisioningManager
 import com.persianai.assistant.utils.PersianDateConverter
+import com.persianai.assistant.config.RemoteAIConfigManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.SharedDataManager
 import com.persianai.assistant.workers.ReminderWorker
@@ -86,6 +87,34 @@ class DashboardActivity : AppCompatActivity() {
 
         // درخواست مجوز اعلان برای heads-up/full-screen روی Android 13+
         requestNotificationPermissionIfNeeded()
+        
+        // Load/refresh remote AI config after key provisioning
+        lifecycleScope.launch {
+            try {
+                val remoteConfigManager = RemoteAIConfigManager.getInstance(this@DashboardActivity)
+                val config = remoteConfigManager.refreshAndCache()
+                if (config != null) {
+                    android.util.Log.i("DashboardActivity", "Remote AI config refreshed: ${config.models?.size ?: 0} models")
+                    // Show welcome/global announcement messages once per app start
+                    config.messages?.let { msgs ->
+                        val message = listOfNotNull(msgs.welcome, msgs.global_announcement).joinToString("\n\n")
+                        if (message.isNotBlank()) {
+                            runOnUiThread {
+                                androidx.appcompat.app.AlertDialog.Builder(this@DashboardActivity)
+                                    .setTitle("📢 اطلاعیه")
+                                    .setMessage(message)
+                                    .setPositiveButton("باشه", null)
+                                    .show()
+                            }
+                        }
+                    }
+                } else {
+                    android.util.Log.w("DashboardActivity", "Failed to refresh remote AI config, using cached if available")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardActivity", "Error refreshing remote AI config", e)
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -96,8 +125,7 @@ class DashboardActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_ai_chat -> {
-                startActivity(Intent(this, AIChatActivity::class.java))
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                showDisabledMessage("مکالمه با مدل")
                 true
             }
             R.id.action_refresh_keys -> {
@@ -173,14 +201,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.voiceNavigationAssistantCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                try {
-                    val intent = Intent(this, VoiceNavigationAssistantActivity::class.java)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                } catch (e: Exception) {
-                    android.util.Log.e("DashboardActivity", "Error opening voice navigation assistant", e)
-                    Toast.makeText(this, "خطا در باز کردن دستیار مسیریابی صوتی", Toast.LENGTH_SHORT).show()
-                }
+                showDisabledMessage("دستیار مسیریابی صوتی")
             }, 150)
         }
         
@@ -231,37 +252,21 @@ class DashboardActivity : AppCompatActivity() {
         binding.aiChatCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, AIChatActivity::class.java)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                showDisabledMessage("مکالمه با مدل")
             }, 150)
         }
         
         binding.psychologyCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showCounselingDisclaimer(
-                    "مشاور آرامش",
-                    "این بخش تنها نقش همراه و شنونده دارد و جایگزین درمانگر یا روان‌شناس نیست. در شرایط اضطرار با متخصص تماس بگیرید."
-                ) {
-                    val intent = Intent(this, PsychologyChatActivity::class.java)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                }
+                showDisabledMessage("مشاور آرامش")
             }, 120)
         }
         
         binding.careerCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                showCounselingDisclaimer(
-                    "مشاور مسیر",
-                    "این راهنما پیشنهادهای کلی می‌دهد و مسئولیت تصمیم‌های شغلی یا تحصیلی با خود شماست. برای تصمیم نهایی با یک مشاور انسانی مشورت کنید."
-                ) {
-                    val intent = Intent(this, CareerChatActivity::class.java)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                }
+                showDisabledMessage("مشاور مسیر")
             }, 120)
         }
         
@@ -286,9 +291,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.cultureCard?.setOnClickListener {
             AnimationHelper.clickAnimation(it)
             it.postDelayed({
-                val intent = Intent(this, CulturalChatActivity::class.java)
-                startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                showDisabledMessage("فرهنگ")
             }, 120)
         }
         
@@ -569,6 +572,28 @@ class DashboardActivity : AppCompatActivity() {
             (card.parent as? android.view.ViewGroup)?.removeView(card)
         }
         binding.docsCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
+
+        // Reduce token usage: disable assistant-heavy modules for now
+        binding.aiChatCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
+        binding.voiceNavigationAssistantCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
+        binding.psychologyCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
+        binding.careerCard?.let { card ->
+            card.visibility = View.GONE
+            (card.parent as? android.view.ViewGroup)?.removeView(card)
+        }
+        binding.cultureCard?.let { card ->
             card.visibility = View.GONE
             (card.parent as? android.view.ViewGroup)?.removeView(card)
         }
