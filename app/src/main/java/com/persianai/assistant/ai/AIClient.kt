@@ -40,29 +40,6 @@ class AIClient(private val apiKeys: List<APIKey>) {
         .retryOnConnectionFailure(true)
         .protocols(listOf(Protocol.HTTP_1_1, Protocol.HTTP_2))
         .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
-        .addInterceptor { chain ->
-            var request = chain.request()
-            var attempt = 0
-            var response: okhttp3.Response? = null
-            var exception: Exception? = null
-            
-            while (attempt < 3) {
-                try {
-                    response = chain.proceed(request)
-                    if (response.isSuccessful) return@addInterceptor response
-                    if (response.code !in listOf(500, 502, 503, 504)) break
-                    attempt++
-                    response.close()
-                } catch (e: Exception) {
-                    exception = e
-                    if (attempt < 2) {
-                        Thread.sleep(1000L * (attempt + 1))
-                    }
-                    attempt++
-                }
-            }
-            response ?: throw exception ?: Exception("Unknown error")
-        }
         .build()
 
     private val gson = Gson()
