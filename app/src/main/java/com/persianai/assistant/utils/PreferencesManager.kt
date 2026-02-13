@@ -44,6 +44,10 @@ class PreferencesManager(context: Context) {
         private const val KEY_CUSTOM_VOSK_DIR = "custom_vosk_dir"
         private const val KEY_CUSTOM_COQUI_DIR = "custom_coqui_dir"
         private const val KEY_CUSTOM_LLM_DIR = "custom_llm_dir"
+
+        private const val KEY_REMOTE_AI_CONFIG_URL = "remote_ai_config_url"
+        private const val KEY_REMOTE_AI_CONFIG_JSON = "remote_ai_config_json"
+        private const val KEY_REMOTE_AI_CONFIG_TS = "remote_ai_config_ts"
         
         const val DEFAULT_SYSTEM_PROMPT = """OUTPUT ONLY JSON. NO TEXT.
 
@@ -273,6 +277,34 @@ JSON ONLY."""
     }
 
     fun getCustomLlmDir(): String? = prefs.getString(KEY_CUSTOM_LLM_DIR, null)
+
+    fun saveRemoteAIConfigUrl(url: String?) {
+        if (url.isNullOrBlank()) {
+            prefs.edit().remove(KEY_REMOTE_AI_CONFIG_URL).apply()
+        } else {
+            prefs.edit().putString(KEY_REMOTE_AI_CONFIG_URL, url.trim()).apply()
+        }
+    }
+
+    fun getRemoteAIConfigUrl(): String? = prefs.getString(KEY_REMOTE_AI_CONFIG_URL, null)
+
+    fun saveRemoteAIConfigJson(json: String?, fetchedAtMs: Long = System.currentTimeMillis()) {
+        if (json.isNullOrBlank()) {
+            prefs.edit()
+                .remove(KEY_REMOTE_AI_CONFIG_JSON)
+                .remove(KEY_REMOTE_AI_CONFIG_TS)
+                .apply()
+        } else {
+            prefs.edit()
+                .putString(KEY_REMOTE_AI_CONFIG_JSON, json)
+                .putLong(KEY_REMOTE_AI_CONFIG_TS, fetchedAtMs)
+                .apply()
+        }
+    }
+
+    fun getRemoteAIConfigJson(): String? = prefs.getString(KEY_REMOTE_AI_CONFIG_JSON, null)
+
+    fun getRemoteAIConfigFetchedAtMs(): Long = prefs.getLong(KEY_REMOTE_AI_CONFIG_TS, 0L)
 
     fun setWelcomeCompleted(completed: Boolean) {
         prefs.edit().putBoolean(KEY_WELCOME_COMPLETED, completed).apply()

@@ -126,8 +126,6 @@ abstract class BaseChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         prefsManager = PreferencesManager(this)
         modelDownloadManager = ModelDownloadManager(this)
-        // اجبار موقت به حالت آفلاین برای پایداری STT/چت
-        prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
         ttsHelper = TTSHelper(this)
         ttsHelper.initialize()
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
@@ -338,11 +336,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
             val resolved = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)
-            // حالت کاربر را دست‌نخورده نگه می‌داریم (برای اجبار آفلاین)
             Log.d("BaseChatActivity", "✅ API Key یافت شد؛ حالت فعلی: ${prefsManager.getWorkingMode().name}")
         } else {
-            Toast.makeText(this, "⚠️ کلید API یافت نشد - حالت آفلاین فعال است", Toast.LENGTH_LONG).show()
-            prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
+            Toast.makeText(this, "⚠️ کلید API یافت نشد", Toast.LENGTH_LONG).show()
         }
     }
 

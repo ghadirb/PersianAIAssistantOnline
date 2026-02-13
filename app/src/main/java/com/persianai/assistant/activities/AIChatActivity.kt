@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
 import com.persianai.assistant.databinding.ActivityAichatBinding
+import com.persianai.assistant.config.RemoteAIConfigManager
 import com.persianai.assistant.models.ChatMessage
 import com.persianai.assistant.models.MessageRole
 import kotlinx.coroutines.launch
@@ -38,11 +39,52 @@ class AIChatActivity : BaseChatActivity() {
         
         addMessage(ChatMessage(role = MessageRole.ASSISTANT, content = "سلام! چطور کمکتون کنم؟"))
 
+        showRemoteConfigMessagesPopupIfAny()
+
         val preset = intent.getStringExtra("presetMessage")?.takeIf { it.isNotBlank() }
         if (preset != null) {
             chatBinding.messageInput.setText(preset)
             sendMessage()
         }
+
+    private fun showRemoteConfigMessagesPopupIfAny() {
+        lifecycleScope.launch {
+            try {
+                val rc = RemoteAIConfigManager(this@AIChatActivity)
+                val cached = rc.loadCached()
+                val msg = buildString {
+                    val m = cached?.messages
+                    val welcome = m?.welcome?.trim().orEmpty()
+                    val ann = m?.global_announcement?.trim().orEmpty()
+                    val offline = m?.offline_message?.trim().orEmpty()
+
+                    if (welcome.isNotBlank()) append(welcome)
+                    if (ann.isNotBlank()) {
+                        if (isNotEmpty()) append("\n\n")
+                        append(ann)
+                    }
+                    if (offline.isNotBlank()) {
+                        if (isNotEmpty()) append("\n\n")
+                        append("پیام آفلاین: ")
+                        append(offline)
+                    }
+                }.trim()
+
+                if (msg.isNotBlank()) {
+                    androidx.appcompat.app.AlertDialog.Builder(this@AIChatActivity)
+                        .setTitle("پیام")
+                        .setMessage(msg)
+                        .setPositiveButton("باشه", null)
+                        .show()
+                }
+
+                // refresh in background (non-blocking UI) for next launch
+                try { rc.refreshAndCache() } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("AIChatActivity", "Remote message popup failed: ${e.message}")
+            }
+        }
+    }
         
         // ✅ Setup voice button with unified listener
         setupVoiceButton()

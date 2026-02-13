@@ -36,8 +36,6 @@ class HomeActivity : AppCompatActivity() {
 
         controller = AIIntentController(this)
         prefsManager = PreferencesManager(this)
-        // اجبار موقت به حالت آفلاین برای پایداری در صفحه خانه
-        prefsManager.setWorkingMode(PreferencesManager.WorkingMode.OFFLINE)
 
         lifecycleScope.launch {
             try {

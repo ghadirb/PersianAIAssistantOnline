@@ -21,6 +21,7 @@ import com.persianai.assistant.utils.EncryptionHelper
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.integration.IviraIntegrationManager
+import com.persianai.assistant.config.RemoteAIConfigManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -82,6 +83,22 @@ class SplashActivity : AppCompatActivity() {
                 // همگام‌سازی با SharedPreferences
                 syncApiPrefs(prefsManager)
                 android.util.Log.i("SplashActivity", "Keys applied (${prefsManager.getAPIKeys().size})")
+
+                // ✅ مرحله 3: بارگذاری ai_config.json از لینک (مدل‌ها/پیام‌ها)
+                try {
+                    val rc = RemoteAIConfigManager(this@SplashActivity)
+                    if (prefsManager.getRemoteAIConfigUrl().isNullOrBlank()) {
+                        prefsManager.saveRemoteAIConfigUrl(rc.getEffectiveConfigUrl())
+                    }
+                    val remote = rc.refreshAndCache()
+                    if (remote != null) {
+                        android.util.Log.i("SplashActivity", "✅ Remote ai_config loaded")
+                    } else {
+                        android.util.Log.w("SplashActivity", "⚠️ Remote ai_config not loaded; using cached if available")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("SplashActivity", "Remote ai_config init failed: ${e.message}")
+                }
             } catch (e: Exception) {
                 android.util.Log.e("SplashActivity", "Error initializing keys", e)
             } finally {
