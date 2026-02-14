@@ -180,7 +180,7 @@ class AIChatActivity : BaseChatActivity() {
     
     
     override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView {
-        return chatBinding.recyclerView
+        return chatBinding.chatRecyclerView
     }
     
     override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = chatBinding.messageInput
