@@ -13,6 +13,7 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
+import com.persianai.assistant.activities.DashboardActivity
 import com.persianai.assistant.utils.SmartReminderManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

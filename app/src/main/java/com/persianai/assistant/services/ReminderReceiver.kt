@@ -16,7 +16,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.persianai.assistant.activities.FullScreenAlarmActivity
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.HomeActivity
+import com.persianai.assistant.activities.DashboardActivity
 import com.persianai.assistant.utils.SmartReminderManager
 
 /**

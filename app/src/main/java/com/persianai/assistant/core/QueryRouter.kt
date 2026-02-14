@@ -15,6 +15,7 @@ import com.persianai.assistant.offline.LocalLlamaRunner
 import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.utils.PreferencesManager
 import com.persianai.assistant.utils.ModelSelector
+import com.persianai.assistant.utils.IviraTokenManager
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers

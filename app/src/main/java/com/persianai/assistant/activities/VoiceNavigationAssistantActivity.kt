@@ -128,14 +128,6 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
                 startActivity(Intent(this, com.persianai.assistant.activities.AIChatActivity::class.java))
                 true
             }
-            com.persianai.assistant.R.id.action_saved_locations -> {
-                startActivity(Intent(this, com.persianai.assistant.ui.NamedLocationsActivity::class.java))
-                true
-            }
-            com.persianai.assistant.R.id.action_chat_history -> {
-                startActivity(Intent(this, com.persianai.assistant.activities.ConversationsActivity::class.java))
-                true
-            }
             com.persianai.assistant.R.id.action_settings -> {
                 startActivity(Intent(this, com.persianai.assistant.activities.SettingsActivity::class.java))
                 true
@@ -175,7 +167,7 @@ class VoiceNavigationAssistantActivity : AppCompatActivity() {
     private fun setupAiClient() {
         val keys = prefsManager.getAPIKeys()
         if (keys.isNotEmpty()) {
-            aiClient = AIClient(keys)
+            aiClient = AIClient(this, keys)
             currentModel = prefsManager.getSelectedModel()
         }
     }

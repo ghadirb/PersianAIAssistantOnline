@@ -10,7 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.HomeActivity
+import com.persianai.assistant.activities.DashboardActivity
 import com.persianai.assistant.utils.PreferencesManager
 
 /**

@@ -412,7 +412,7 @@ class NewHybridVoiceRecorder(private val context: Context) {
                 return@withContext Result.failure(IllegalStateException("No active API key"))
             }
 
-            val client = AIClient(keys)
+            val client = AIClient(context, keys)
             val text = client.transcribeAudio(audioFile.absolutePath).trim()
             if (text.isBlank()) {
                 Result.failure(IllegalStateException("Online STT returned blank"))
