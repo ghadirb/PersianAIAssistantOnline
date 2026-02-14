@@ -178,14 +178,12 @@ class AIChatActivity : BaseChatActivity() {
         }
     }
     
-    private fun handleTranscript(audioPath: String) {
-        // Handle transcript logic here
-        android.util.Log.d("AIChatActivity", "Handling transcript: $audioPath")
-    }
     
     override fun getRecyclerView(): androidx.recyclerview.widget.RecyclerView {
         return chatBinding.recyclerView
     }
+    
+    override fun getMessageInput(): com.google.android.material.textfield.TextInputEditText = chatBinding.messageInput
     
     override fun getSendButton(): android.view.View = chatBinding.sendButton
     override fun getVoiceButton(): android.view.View = chatBinding.voiceButton
