@@ -235,7 +235,7 @@ class QueryRouter(private val context: Context) {
             val maxRetries = 1
             var retryCount = 0
             
-            for (model in candidates) {
+            for (model in preferredOrder) {
                 if (retryCount >= maxRetries) {
                     Log.w(TAG, "⚠️ Max retries reached ($maxRetries), falling back to offline")
                     break
