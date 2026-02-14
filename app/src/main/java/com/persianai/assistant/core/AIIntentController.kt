@@ -116,7 +116,7 @@ import com.persianai.assistant.models.MessageRole
         keys: List<APIKey>
     ): AIIntent? = withContext(Dispatchers.IO) {
         return@withContext try {
-            val client = AIClient(this.context, keys)
+            val client = AIClient(this@AIIntentController.context, keys)
             val systemPrompt = buildOnlineIntentSystemPrompt()
             val userPrompt = buildString {
                 appendLine("متن کاربر: \"$text\"")
