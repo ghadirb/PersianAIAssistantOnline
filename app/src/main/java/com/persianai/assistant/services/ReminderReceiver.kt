@@ -209,7 +209,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     PendingIntent.FLAG_IMMUTABLE
                 } else 0
 
-            val tapIntent = Intent(context, HomeActivity::class.java).apply {
+            val tapIntent = Intent(context, DashboardActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("smart_reminder_id", reminderId)
                 putExtra("reminder_title", title)

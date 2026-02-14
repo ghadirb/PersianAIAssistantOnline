@@ -82,7 +82,7 @@ class AdvancedPersianAssistant(private val context: Context) {
         }
 
         return try {
-            val aiClient = AIClient(apiKeys)
+            val aiClient = AIClient(context, apiKeys)
             val model = AIModel.GPT_4O_MINI
 
             suspend fun callOnline(prompt: String): String {

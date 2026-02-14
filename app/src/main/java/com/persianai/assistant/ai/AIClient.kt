@@ -1,7 +1,9 @@
 package com.persianai.assistant.ai
 
+import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.persianai.assistant.utils.ModelSelector
 import com.persianai.assistant.models.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -19,7 +21,7 @@ import java.util.concurrent.TimeUnit
  * کلاینت اصلی برای ارتباط با APIهای هوش مصنوعی
  * با قابلیت خودکار تعویض کلید در صورت خطا
  */
-class AIClient(private val apiKeys: List<APIKey>) {
+class AIClient(private val context: Context, private val apiKeys: List<APIKey>) {
 
     private fun formatExceptionForLog(e: Exception): String {
         val name = e::class.java.simpleName
@@ -49,7 +51,18 @@ class AIClient(private val apiKeys: List<APIKey>) {
     private val failedKeys = mutableSetOf<String>()
 
     /**
-     * ارسال پیام به مدل هوش مصنوعی با قابلیت تعویض خودکار کلید
+     * ارسال پیام با انتخاب خودکار بهترین مدل از روی تنظیمات راه دور
+     */
+    suspend fun sendMessage(
+        messages: List<ChatMessage>,
+        systemPrompt: String? = null
+    ): ChatMessage = withContext(Dispatchers.IO) {
+        val bestModel = ModelSelector.selectBestModel(context, apiKeys)
+        sendMessage(bestModel, messages, systemPrompt)
+    }
+
+    /**
+     * ارسال پیام به مدل هوش مصنوعی مشخص با قابلیت تعویض خودکار کلید
      */
     suspend fun sendMessage(
         model: AIModel,

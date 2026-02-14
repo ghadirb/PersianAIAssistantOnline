@@ -317,7 +317,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupAIClient() {
         val apiKeys = prefsManager.getAPIKeys()
         if (apiKeys.isNotEmpty()) {
-            aiClient = AIClient(apiKeys)
+            aiClient = AIClient(this, apiKeys)
             
             // استفاده از ModelSelector برای انتخاب هوشمند مدل
             val preferred = prefsManager.getSelectedModel()

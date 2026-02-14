@@ -14,7 +14,7 @@ import com.persianai.assistant.models.MessageRole
 import com.persianai.assistant.offline.LocalLlamaRunner
 import com.persianai.assistant.utils.ModelDownloadManager
 import com.persianai.assistant.utils.PreferencesManager
-import com.persianai.assistant.utils.IviraTokenManager
+import com.persianai.assistant.utils.ModelSelector
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -213,39 +213,16 @@ class QueryRouter(private val context: Context) {
                 return null
             }
 
-            val aiClient = AIClient(activeKeys)
+            val aiClient = AIClient(context, activeKeys)
             val messages = listOf(ChatMessage(role = MessageRole.USER, content = query))
 
             val activeProviders = activeKeys.map { it.provider }.toSet()
 
-            // اولویت مدل‌های آنلاین (بدون Ivira که بالاتر مدیریت می‌شود)
-            val preferredOrder = listOf(
-                // ارزان‌ترها و سازگار با OpenAI
-                AIModel.GPT_4O_MINI,
-                AIModel.GAPGPT_DEEPSEEK_V3,
-                AIModel.LIARA_GPT_4O_MINI,
-
-                // مدل‌های تحلیلی و قوی‌تر
-                AIModel.QWEN_2_5_1B5,
-                AIModel.LLAMA_3_2_1B,
-                AIModel.LLAMA_3_2_3B,
-                AIModel.MIXTRAL_8X7B,
-                AIModel.LLAMA_3_3_70B,
-                AIModel.DEEPSEEK_R1T2,
-                AIModel.LLAMA_2_70B,
-
-                // سایر مدل‌های عمومی
-                AIModel.GPT_4O,
-                AIModel.CLAUDE_HAIKU,
-                AIModel.CLAUDE_SONNET,
-                AIModel.AIML_GPT_35
-            )
-
-            val candidates = preferredOrder
+            // Get priority list from remote config via ModelSelector
+            val preferredOrder = ModelSelector.getAvailableModels(context, activeKeys)
                 .filter { model ->
                     model.provider != AIProvider.LOCAL &&
-                        model.provider != AIProvider.IVIRA &&
-                        activeProviders.contains(model.provider)
+                        model.provider != AIProvider.IVIRA
                 }
                 .ifEmpty {
                     AIModel.values()

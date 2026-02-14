@@ -80,7 +80,7 @@ class AIAssistantService : Service() {
         val prefs = PreferencesManager(this)
         val status = statusTextOverride?.takeIf { it.isNotBlank() } ?: defaultStatusText(prefs)
 
-        val openAppIntent = Intent(this, HomeActivity::class.java).apply {
+        val openAppIntent = Intent(this, DashboardActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val openAppPendingIntent = PendingIntent.getActivity(

@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.HomeActivity
+import com.persianai.assistant.activities.DashboardActivity
 
 /**
  * کلاس کمکی برای مدیریت نوتیفیکیشن‌ها
@@ -70,7 +70,7 @@ object NotificationHelper {
         message: String,
         notificationId: Int = System.currentTimeMillis().toInt()
     ) {
-        val intent = Intent(context, HomeActivity::class.java).apply {
+        val intent = Intent(context, DashboardActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         
@@ -105,7 +105,7 @@ object NotificationHelper {
         description: String,
         icon: String
     ) {
-        val intent = Intent(context, HomeActivity::class.java)
+        val intent = Intent(context, DashboardActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,
@@ -135,7 +135,7 @@ object NotificationHelper {
         message: String,
         notificationId: Int = 3000
     ) {
-        val intent = Intent(context, HomeActivity::class.java)
+        val intent = Intent(context, DashboardActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,

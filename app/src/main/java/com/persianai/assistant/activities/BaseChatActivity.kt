@@ -332,7 +332,7 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private fun setupAIClient() {
         val apiKeys = prefsManager.getAPIKeys()
         if (apiKeys.isNotEmpty()) {
-            aiClient = AIClient(apiKeys)
+            aiClient = AIClient(this, apiKeys)
             val resolved = chooseBestModel(apiKeys, prefsManager.getProviderPreference())
             currentModel = resolved
             prefsManager.saveSelectedModel(currentModel)

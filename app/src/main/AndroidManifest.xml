@@ -505,6 +505,16 @@
                 android:resource="@xml/file_provider_paths" />
         </provider>
 
+        <receiver
+            android:name=".receivers.VoiceCommandReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.persianai.assistant.action.RUN_COMMAND" />
+                <action android:name="com.persianai.assistant.action.CANCEL_COMMAND" />
+                <action android:name="com.persianai.assistant.action.EXECUTE_CALL" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

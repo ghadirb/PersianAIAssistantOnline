@@ -132,14 +132,6 @@ class DashboardActivity : AppCompatActivity() {
                 refreshKeysFromDrive()
                 true
             }
-            R.id.action_chat_history -> {
-                startActivity(Intent(this, ConversationsActivity::class.java))
-                true
-            }
-            R.id.action_saved_locations -> {
-                startActivity(Intent(this, com.persianai.assistant.ui.NamedLocationsActivity::class.java))
-                true
-            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true

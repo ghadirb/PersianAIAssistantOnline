@@ -13,6 +13,8 @@
         android:icon="@drawable/ic_refresh"
         android:showAsAction="ifRoom" />
 
+    <!-- Temporarily disabled chat history and saved locations -->
+    <!--
     <item
         android:id="@+id/action_chat_history"
         android:title="مدیریت چت‌ها/تاریخچه"
@@ -22,6 +24,7 @@
         android:id="@+id/action_saved_locations"
         android:title="مکان‌های ذخیره‌شده"
         android:showAsAction="never" />
+    -->
     <item
         android:id="@+id/action_settings"
         android:title="تنظیمات"

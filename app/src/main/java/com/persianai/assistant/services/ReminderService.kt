@@ -218,14 +218,28 @@ class ReminderService : Service() {
             val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             
-            val intent = Intent(this, ReminderReceiver::class.java).apply {
+            // Action intent for "Mark as Done" button
+            val actionIntent = Intent(this, ReminderReceiver::class.java).apply {
                 action = "MARK_AS_DONE"
                 putExtra("smart_reminder_id", reminder.id)
             }
-            val pi = PendingIntent.getBroadcast(
+            val actionPi = PendingIntent.getBroadcast(
                 this, 
                 reminder.id.hashCode(), 
-                intent, 
+                actionIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Tap intent to open DashboardActivity
+            val tapIntent = Intent(this, DashboardActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("smart_reminder_id", reminder.id)
+                putExtra("open_screen", "reminder")
+            }
+            val tapPi = PendingIntent.getActivity(
+                this,
+                reminder.id.hashCode() + 1,
+                tapIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
@@ -239,8 +253,8 @@ class ReminderService : Service() {
                 .setSound(sound)
                 .setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setContentIntent(pi)
-                .addAction(0, "✅ انجام شد", pi)
+                .setContentIntent(tapPi)
+                .addAction(0, "✅ انجام شد", actionPi)
                 .setAutoCancel(true)
                 .build()
             

@@ -44,7 +44,7 @@ object SimplifiedSTTEngine {
             
             if (apiKeys.isNotEmpty() && apiKeys.any { it.isActive }) {
                 try {
-                    val client = AIClient(apiKeys)
+                    val client = AIClient(context, apiKeys)
                     val text = client.transcribeAudio(audioFile.absolutePath).trim()
                     
                     if (text.isNotBlank()) {

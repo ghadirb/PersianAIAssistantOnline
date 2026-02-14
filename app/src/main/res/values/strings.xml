@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">دستیار هوش مصنوعی</string>
-    <string name="app_name_english">Persian AI Assistant</string>
+    <string name="app_name">فرمانا</string>
+    <string name="app_name_english">Farmana</string>
+    <string name="app_subtitle">دستیار فرمان‌های هوشمند زندگی</string>
     
     <!-- Main Activity -->
     <string name="hint_message_input">پیام خود را بنویسید...</string>

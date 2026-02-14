@@ -12,7 +12,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 
 import com.persianai.assistant.R
-import com.persianai.assistant.activities.NotificationCommandActivity
+import com.persianai.assistant.receivers.VoiceCommandReceiver
 import com.persianai.assistant.core.AIIntentController
 import com.persianai.assistant.core.voice.SpeechToTextPipeline
 
@@ -197,13 +197,8 @@ class VoiceCommandService : Service() {
 
             Log.d(tag, "✅ STT Result: $transcribedText")
 
-            // Step 4: Launch UI for confirmation/execution
-            val launchIntent = Intent(this, NotificationCommandActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(NotificationCommandActivity.EXTRA_TRANSCRIPT, transcribedText.trim())
-                putExtra(NotificationCommandActivity.EXTRA_MODE, mode)
-            }
-            startActivity(launchIntent)
+            // Step 4: Show notification with command text and Run/Cancel actions
+            showCommandNotification(transcribedText.trim(), mode)
             
         } catch (e: Exception) {
             Log.e(tag, "runOneShotCommand failed", e)
@@ -283,6 +278,73 @@ class VoiceCommandService : Service() {
             Log.e(tag, "Error during VAD recording", e)
             try { engine.cancelRecording() } catch (_: Exception) {}
             null
+        }
+    }
+
+    /**
+     * Show notification with command text and Run/Cancel actions
+     */
+    private fun showCommandNotification(transcript: String, mode: String) {
+        try {
+            val nm = getSystemService(NotificationManager::class.java)
+            
+            // Create notification channel for command results
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    "voice_command_results",
+                    "Voice Command Results",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Results of voice commands with Run/Cancel actions"
+                    enableVibration(true)
+                    setShowBadge(true)
+                }
+                nm.createNotificationChannel(channel)
+            }
+            
+            // Run action intent
+            val runIntent = Intent(this, VoiceCommandReceiver::class.java).apply {
+                action = VoiceCommandReceiver.ACTION_RUN_COMMAND
+                putExtra(VoiceCommandReceiver.EXTRA_TRANSCRIPT, transcript)
+                putExtra(VoiceCommandReceiver.EXTRA_MODE, mode)
+                putExtra(VoiceCommandReceiver.EXTRA_NOTIFICATION_ID, NOTIFICATION_ID + 1)
+            }
+            val runPending = PendingIntent.getBroadcast(
+                this,
+                NOTIFICATION_ID + 2,
+                runIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Cancel action intent
+            val cancelIntent = Intent(this, VoiceCommandReceiver::class.java).apply {
+                action = VoiceCommandReceiver.ACTION_CANCEL_COMMAND
+                putExtra(VoiceCommandReceiver.EXTRA_NOTIFICATION_ID, NOTIFICATION_ID + 1)
+            }
+            val cancelPending = PendingIntent.getBroadcast(
+                this,
+                NOTIFICATION_ID + 3,
+                cancelIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val notification = NotificationCompat.Builder(this, "voice_command_results")
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle("🎤 فرمان صوتی تشخیص داده شد")
+                .setContentText("برای اجرا روی «اجرا» کلیک کنید")
+                .setStyle(NotificationCompat.BigTextStyle().bigText("فرمان: $transcript\n\nبرای اجرا روی «اجرا» کلیک کنید"))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(false)
+                .setOngoing(false)
+                .addAction(android.R.drawable.ic_media_play, "اجرا", runPending)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "لغو", cancelPending)
+                .build()
+            
+            nm.notify(NOTIFICATION_ID + 1, notification)
+            Log.d(tag, "✅ Command notification shown: $transcript")
+            
+        } catch (e: Exception) {
+            Log.e(tag, "Error showing command notification", e)
         }
     }
 
