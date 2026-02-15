@@ -80,6 +80,8 @@ class DashboardActivity : AppCompatActivity() {
         loadWeather()
         loadWeatherButtons()
         loadSharedData()
+        loadDailySummary()
+        loadFinancialSummary()
         animateCards()
         
         // نمایش سریع وضعیت کلیدها پس از ورود به داشبورد
@@ -886,6 +888,139 @@ class DashboardActivity : AppCompatActivity() {
                     Toast.makeText(this, "مجوز ضبط صدا رد شد", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+    }
+
+    /**
+     * بارگذاری خلاصه وضعیت امروز
+     */
+    private fun loadDailySummary() {
+        try {
+            // دریافت تاریخ امروز
+            val today = java.time.LocalDate.now()
+            val todayStr = today.toString()
+            
+            // شمارش یادآوری‌های امروز (شبیه‌سازی - در عمل از دیتابیس بخوانید)
+            val remindersCount = getTodayRemindersCount()
+            findViewById<TextView>(R.id.todayRemindersCount).text = remindersCount.toString()
+            
+            // شمارش اقساط امروز
+            val installmentsCount = getTodayInstallmentsCount()
+            findViewById<TextView>(R.id.todayInstallmentsCount).text = installmentsCount.toString()
+            
+            // شمارش چک‌های امروز
+            val checksCount = getTodayChecksCount()
+            findViewById<TextView>(R.id.todayChecksCount).text = checksCount.toString()
+            
+            // شمارش رویدادهای امروز
+            val eventsCount = getTodayEventsCount()
+            findViewById<TextView>(R.id.todayEventsCount).text = eventsCount.toString()
+            
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error loading daily summary", e)
+        }
+    }
+    
+    /**
+     * بارگذاری خلاصه مالی ماه
+     */
+    private fun loadFinancialSummary() {
+        try {
+            // دریافت ماه جاری
+            val currentMonth = java.time.LocalDate.now().monthValue
+            val currentYear = java.time.LocalDate.now().year
+            
+            // محاسبه درآمد ماه (شبیه‌سازی)
+            val monthlyIncome = getMonthlyIncome(currentYear, currentMonth)
+            findViewById<TextView>(R.id.monthlyIncomeText).text = formatCurrency(monthlyIncome)
+            
+            // محاسبه هزینه ماه (شبیه‌سازی)
+            val monthlyExpense = getMonthlyExpense(currentYear, currentMonth)
+            findViewById<TextView>(R.id.monthlyExpenseText).text = formatCurrency(monthlyExpense)
+            
+            // محاسبه مانده خالص
+            val balance = monthlyIncome - monthlyExpense
+            val balanceText = findViewById<TextView>(R.id.monthlyBalanceText)
+            balanceText.text = formatCurrency(balance)
+            balanceText.setTextColor(if (balance >= 0) getColor(R.color.success_green) else getColor(R.color.error_red))
+            
+            // شمارش اقساط باقی‌مانده
+            val remainingInstallments = getRemainingInstallmentsCount()
+            findViewById<TextView>(R.id.remainingInstallmentsText).text = "اقساط باقی‌مانده: $remainingInstallments"
+            
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error loading financial summary", e)
+        }
+    }
+    
+    /**
+     * دریافت تعداد یادآوری‌های امروز (شبیه‌سازی)
+     */
+    private fun getTodayRemindersCount(): Int {
+        // در عمل این داده را از دیتابیس بخوانید
+        // فعلاً شبیه‌سازی می‌کنیم
+        return (1..3).random() // بین 1 تا 3 یادآوری تصادفی
+    }
+    
+    /**
+     * دریافت تعداد اقساط امروز (شبیه‌سازی)
+     */
+    private fun getTodayInstallmentsCount(): Int {
+        // در عمل این داده را از دیتابیس بخوانید
+        return (0..2).random() // بین 0 تا 2 قسط تصادفی
+    }
+    
+    /**
+     * دریافت تعداد چک‌های امروز (شبیه‌سازی)
+     */
+    private fun getTodayChecksCount(): Int {
+        // در عمل این داده را از دیتابیس بخوانید
+        return (0..1).random() // 0 یا 1 چک تصادفی
+    }
+    
+    /**
+     * دریافت تعداد رویدادهای امروز (شبیه‌سازی)
+     */
+    private fun getTodayEventsCount(): Int {
+        // در عمل این داده را از دیتابیس بخوانید
+        return (0..2).random() // بین 0 تا 2 رویداد تصادفی
+    }
+    
+    /**
+     * دریافت مجموع درآمد ماه (شبیه‌سازی)
+     */
+    private fun getMonthlyIncome(year: Int, month: Int): Long {
+        // در عمل این داده را از دیتابیس بخوانید
+        // فعلاً مقادیر تصادفی واقعی برمی‌گردانیم
+        return (5_000_000L..15_000_000L).random() // 5 تا 15 میلیون تومان
+    }
+    
+    /**
+     * دریافت مجموع هزینه ماه (شبیه‌سازی)
+     */
+    private fun getMonthlyExpense(year: Int, month: Int): Long {
+        // در عمل این داده را از دیتابیس بخوانید
+        return (3_000_000L..12_000_000L).random() // 3 تا 12 میلیون تومان
+    }
+    
+    /**
+     * دریافت تعداد اقساط باقی‌مانده (شبیه‌سازی)
+     */
+    private fun getRemainingInstallmentsCount(): Int {
+        // در عمل این داده را از دیتابیس بخوانید
+        return (5..15).random() // بین 5 تا 15 قسط باقی‌مانده
+    }
+    
+    /**
+     * فرمت کردن مبلغ پول
+     */
+    private fun formatCurrency(amount: Long): String {
+        return if (amount >= 1_000_000) {
+            "${amount / 1_000_000} میلیون تومان"
+        } else if (amount >= 1_000) {
+            "${amount / 1_000} هزار تومان"
+        } else {
+            "$amount تومان"
         }
     }
 

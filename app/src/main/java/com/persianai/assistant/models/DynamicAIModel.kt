@@ -97,8 +97,8 @@ object ModelManager {
      * دریافت تمام مدل‌های موجود (استاتیک + داینامیک)
      */
     fun getAllModels(context: Context?): List<ModelWrapper> {
-        val staticModels = AIModel.values().map { ModelWrapper(it) }
-        val dynamicModels = DynamicAIModel.getDynamicModels(context).map { ModelWrapper(it) }
+        val staticModels = AIModel.values().map { ModelWrapper.from(it) }
+        val dynamicModels = DynamicAIModel.getDynamicModels(context).map { ModelWrapper.from(it) }
         
         return (staticModels + dynamicModels).sortedBy { it.priority }
     }
@@ -109,11 +109,11 @@ object ModelManager {
     fun findModel(modelId: String, context: Context?): ModelWrapper? {
         // اول در مدل‌های استاتیک بگرد
         AIModel.values().find { it.modelId.equals(modelId, ignoreCase = true) }
-            ?.let { return ModelWrapper(it) }
+            ?.let { return ModelWrapper.from(it) }
         
         // بعد در مدل‌های داینامیک بگرد
         DynamicAIModel.findByModelId(modelId, context)
-            ?.let { return ModelWrapper(it) }
+            ?.let { return ModelWrapper.from(it) }
         
         return null
     }
@@ -125,7 +125,7 @@ object ModelManager {
         val dynamicModels = DynamicAIModel.getDynamicModels(context)
         
         if (dynamicModels.isNotEmpty()) {
-            return dynamicModels.map { ModelWrapper(it) }
+            return dynamicModels.map { ModelWrapper.from(it) }
         }
         
         // fallback به مدل‌های استاتیک
@@ -133,7 +133,7 @@ object ModelManager {
             AIModel.LIARA_GPT_4O_MINI,
             AIModel.GPT_4O_MINI,
             AIModel.TINY_LLAMA_OFFLINE
-        ).map { ModelWrapper(it) }
+        ).map { ModelWrapper.from(it) }
     }
 }
 
