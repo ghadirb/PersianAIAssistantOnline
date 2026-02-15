@@ -1,9 +1,12 @@
 package com.persianai.assistant.core.modules
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.persianai.assistant.core.AIIntentRequest
 import com.persianai.assistant.core.AIIntentResult
@@ -85,6 +88,12 @@ class CallModule(context: Context) : BaseModule(context) {
     }
 
     private fun findContactNumbers(contactName: String): List<String> {
+        // Check READ_CONTACTS permission
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "READ_CONTACTS permission not granted")
+            return emptyList()
+        }
+        
         return try {
             val projection = arrayOf(
                 android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER

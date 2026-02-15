@@ -77,6 +77,10 @@ abstract class BaseChatActivity : AppCompatActivity() {
     private var conversationLoaded: Boolean = false
     private var voiceConversationDialog: AlertDialog? = null
     private var voiceConversationJob: Job? = null
+    
+    companion object {
+        protected const val CHAT_DISABLED = true
+    }
     private val httpClient = OkHttpClient()
     private val sttEngine by lazy { UnifiedVoiceEngine(this) }
     private val sttPipeline by lazy { SpeechToTextPipeline(this) }
@@ -124,6 +128,12 @@ abstract class BaseChatActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        if (CHAT_DISABLED) {
+            showChatDisabledMessage()
+            return
+        }
+        
         prefsManager = PreferencesManager(this)
         modelDownloadManager = ModelDownloadManager(this)
         ttsHelper = TTSHelper(this)
@@ -1018,5 +1028,18 @@ abstract class BaseChatActivity : AppCompatActivity() {
     
     protected fun cancelVoiceRecording() {
         voiceHelper.cancelRecording()
+    }
+    
+    private fun showChatDisabledMessage() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🚫 قابلیت چت موقتاً غیرفعال است")
+            .setMessage("در حال حاضر بخش مکالمه هوش مصنوعی برای بهبود و توسعه غیرفعال شده است. لطفاً از سایر قابلیت‌های برنامه استفاده کنید.")
+            .setPositiveButton("فهمیدم") { _, _ ->
+                // Navigate to dashboard
+                startActivity(Intent(this, DashboardActivity::class.java))
+                finish()
+            }
+            .setCancelable(false)
+            .show()
     }
 }

@@ -88,6 +88,9 @@ class DashboardActivity : AppCompatActivity() {
         // درخواست مجوز اعلان برای heads-up/full-screen روی Android 13+
         requestNotificationPermissionIfNeeded()
         
+        // Check for permission requests from notifications
+        checkForPermissionRequests()
+        
         // Load/refresh remote AI config after key provisioning
         lifecycleScope.launch {
             try {
@@ -98,12 +101,14 @@ class DashboardActivity : AppCompatActivity() {
                     // Show welcome/global announcement messages once per app start
                     config.messages?.let { msgs ->
                         val message = listOfNotNull(msgs.welcome, msgs.global_announcement).joinToString("\n\n")
-                        if (message.isNotBlank()) {
+                        if (message.isNotBlank() && !prefs.hasCompletedWelcome()) {
                             runOnUiThread {
                                 androidx.appcompat.app.AlertDialog.Builder(this@DashboardActivity)
                                     .setTitle("📢 اطلاعیه")
                                     .setMessage(message)
-                                    .setPositiveButton("باشه", null)
+                                    .setPositiveButton("باشه") { _, _ ->
+                                        prefs.setWelcomeCompleted(true)
+                                    }
                                     .show()
                             }
                         }
@@ -791,8 +796,102 @@ class DashboardActivity : AppCompatActivity() {
             e.printStackTrace()
         }
     }
+    
+    private fun checkForPermissionRequests() {
+        val permission = intent.getStringExtra("request_permission")
+        val pendingCall = intent.getStringExtra("pending_call")
+        
+        if (!permission.isNullOrBlank()) {
+            when (permission) {
+                "CALL_PHONE" -> {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle("📞 درخواست مجوز تماس")
+                        .setMessage("برای برقراری تماس از طریق نوتیفیکیشن، نیاز به مجوز تماس داریم.")
+                        .setPositiveButton("اجازه دادن") { _, _ ->
+                            ActivityCompat.requestPermissions(
+                                this,
+                                arrayOf(Manifest.permission.CALL_PHONE),
+                                CALL_PHONE_PERMISSION_REQUEST
+                            )
+                        }
+                        .setNegativeButton("انصراف", null)
+                        .show()
+                }
+                "RECORD_AUDIO" -> {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle("🎤 درخواست مجوز ضبط صدا")
+                        .setMessage("برای دستورات صوتی، نیاز به مجوز ضبط صدا داریم.")
+                        .setPositiveButton("اجازه دادن") { _, _ ->
+                            ActivityCompat.requestPermissions(
+                                this,
+                                arrayOf(Manifest.permission.RECORD_AUDIO),
+                                RECORD_AUDIO_PERMISSION_REQUEST
+                            )
+                        }
+                        .setNegativeButton("انصراف", null)
+                        .show()
+                }
+            }
+            
+            // Clear the permission request from intent
+            intent.removeExtra("request_permission")
+        }
+        
+        // Handle pending call after permission is granted
+        if (!pendingCall.isNullOrBlank()) {
+            this.pendingCall = pendingCall
+        }
+    }
+    
+    private var pendingCall: String? = null
+    
+    companion object {
+        private const val CALL_PHONE_PERMISSION_REQUEST = 1001
+        private const val RECORD_AUDIO_PERMISSION_REQUEST = 1002
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        when (requestCode) {
+            CALL_PHONE_PERMISSION_REQUEST -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "مجوز تماس داده شد", Toast.LENGTH_SHORT).show()
+                    
+                    // Execute pending call if exists
+                    pendingCall?.let { phoneNumber ->
+                        try {
+                            val callIntent = Intent(Intent.ACTION_CALL).apply {
+                                data = android.net.Uri.parse("tel:$phoneNumber")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(callIntent)
+                            pendingCall = null
+                        } catch (e: Exception) {
+                            Toast.makeText(this, "خطا در برقراری تماس: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(this, "مجوز تماس رد شد", Toast.LENGTH_SHORT).show()
+                }
+            }
+            RECORD_AUDIO_PERMISSION_REQUEST -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "مجوز ضبط صدا داده شد", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "مجوز ضبط صدا رد شد", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     companion object {
+        private const val CALL_PHONE_PERMISSION_REQUEST = 1001
+        private const val RECORD_AUDIO_PERMISSION_REQUEST = 1002
         private const val MUSIC_DISABLED = true
         private const val NAVIGATION_DISABLED = true
         private const val WEATHER_DISABLED = true

@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
         private const val NOTIFICATION_PERMISSION_CODE = 1002
+        private const val CHAT_DISABLED = true
     }
 
     
@@ -137,6 +138,11 @@ class MainActivity : AppCompatActivity() {
             }
             
             android.util.Log.d("MainActivity", "Managers initialized")
+            
+            if (CHAT_DISABLED) {
+                showChatDisabledMessage()
+                return@launch
+            }
             
             setupChatUI()
             
@@ -1602,6 +1608,25 @@ class MainActivity : AppCompatActivity() {
                 android.util.Log.e("MainActivity", "Error processing audio", e)
             }
         }
+    }
+    
+    private fun showChatDisabledMessage() {
+        binding.recyclerView.visibility = View.GONE
+        binding.messageInput.visibility = View.GONE
+        binding.sendButton.visibility = View.GONE
+        binding.voiceButton.visibility = View.GONE
+        binding.attachButton.visibility = View.GONE
+        
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🚫 قابلیت چت موقتاً غیرفعال است")
+            .setMessage("در حال حاضر بخش مکالمه هوش مصنوعی برای بهبود و توسعه غیرفعال شده است. لطفاً از سایر قابلیت‌های برنامه استفاده کنید.")
+            .setPositiveButton("فهمیدم") { _, _ ->
+                // Navigate to dashboard
+                startActivity(Intent(this, DashboardActivity::class.java))
+                finish()
+            }
+            .setCancelable(false)
+            .show()
     }
     
     override fun onDestroy() {

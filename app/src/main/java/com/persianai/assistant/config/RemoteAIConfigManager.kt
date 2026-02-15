@@ -56,12 +56,14 @@ class RemoteAIConfigManager private constructor(private val context: Context) {
 
     data class RemoteAIConfig(
         val messages: Messages? = null,
-        val models: List<ModelConfig>? = null,
-        val stt_priority: List<String>? = null,
-        val tts_priority: List<String>? = null
+        val ai_text_models: List<ModelConfig>? = null,
+        val speech_to_text_models: List<ModelConfig>? = null,
+        val text_to_speech_models: List<ModelConfig>? = null,
+        val special_messages: SpecialMessages? = null
     )
     data class Messages(val welcome: String? = null, val global_announcement: String? = null, val offline_message: String? = null)
-    data class ModelConfig(val model_id: String, val provider: String, val enabled: Boolean = true)
+    data class SpecialMessages(val enabled: Boolean? = null, val dates: Map<String, String>? = null, val default: String? = null)
+    data class ModelConfig(val name: String, val provider: String, val base_url: String? = null, val priority: Int? = null, val enabled: Boolean = true)
 
     fun getEffectiveConfigUrl(): String = prefs.getRemoteAIConfigUrl()?.takeIf { it.isNotBlank() } ?: DEFAULT_CONFIG_URL
 
@@ -92,21 +94,25 @@ class RemoteAIConfigManager private constructor(private val context: Context) {
     // Get effective model priority list from remote config or fallback to hardcoded
     fun getModelPriority(): List<AIModel> {
         val config = loadCached()
-        val remoteIds = config?.models?.filter { it.enabled }?.map { it.model_id.lowercase() } ?: emptyList()
-        if (remoteIds.isEmpty()) return FALLBACK_MODEL_PRIORITY
-        // Map remote model_id to AIModel enum, fallback to default list if not found
-        return remoteIds.mapNotNull { id ->
-            AIModel.values().find { it.modelId.equals(id, ignoreCase = true) }
+        val remoteModels = config?.ai_text_models?.filter { it.enabled }?.sortedBy { it.priority ?: 999 } ?: emptyList()
+        if (remoteModels.isEmpty()) return FALLBACK_MODEL_PRIORITY
+        // Map remote model name to AIModel enum, fallback to default list if not found
+        return remoteModels.mapNotNull { model ->
+            AIModel.values().find { it.modelId.equals(model.name, ignoreCase = true) }
         }.ifEmpty { FALLBACK_MODEL_PRIORITY }
     }
 
     fun getSTTPriority(): List<String> {
         val config = loadCached()
-        return config?.stt_priority?.takeIf { it.isNotEmpty() } ?: FALLBACK_STT_PRIORITY
+        val remoteSTT = config?.speech_to_text_models?.filter { it.enabled }?.sortedBy { it.priority ?: 999 }
+        if (remoteSTT.isNullOrEmpty()) return FALLBACK_STT_PRIORITY
+        return remoteSTT.map { it.provider.lowercase() }.distinct()
     }
 
     fun getTTSPriority(): List<String> {
         val config = loadCached()
-        return config?.tts_priority?.takeIf { it.isNotEmpty() } ?: FALLBACK_TTS_PRIORITY
+        val remoteTTS = config?.text_to_speech_models?.filter { it.enabled }?.sortedBy { it.priority ?: 999 }
+        if (remoteTTS.isNullOrEmpty()) return FALLBACK_TTS_PRIORITY
+        return remoteTTS.map { it.provider.lowercase() }.distinct()
     }
 }

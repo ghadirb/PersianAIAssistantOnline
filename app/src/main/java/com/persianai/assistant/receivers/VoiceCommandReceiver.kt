@@ -49,6 +49,19 @@ class VoiceCommandReceiver : BroadcastReceiver() {
             return
         }
         
+        // Check RECORD_AUDIO permission for future voice commands
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // Open app to request permission
+            val appIntent = Intent(context, com.persianai.assistant.activities.DashboardActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("request_permission", "RECORD_AUDIO")
+            }
+            context.startActivity(appIntent)
+            
+            showErrorNotification(context, "برای دستورات صوتی، مجوز ضبط صدا را در برنامه فعال کنید", notificationId)
+            return
+        }
+        
         // Show processing notification
         showProcessingNotification(context, transcript, notificationId)
         
@@ -104,7 +117,15 @@ class VoiceCommandReceiver : BroadcastReceiver() {
         
         // Check CALL_PHONE permission
         if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            showErrorNotification(context, "مجوز تماس وجود ندارد", notificationId)
+            // Open app to request permission
+            val appIntent = Intent(context, com.persianai.assistant.activities.DashboardActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("request_permission", "CALL_PHONE")
+                putExtra("pending_call", phoneNumber)
+            }
+            context.startActivity(appIntent)
+            
+            showErrorNotification(context, "برای تماس، مجوز تماس را در برنامه فعال کنید", notificationId)
             return
         }
         

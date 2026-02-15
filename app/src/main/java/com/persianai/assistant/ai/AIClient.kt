@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * کلاینت اصلی برای ارتباط با APIهای هوش مصنوعی
- * با قابلیت خودکار تعویض کلید در صورت خطا
+ * با قابلیت خودکار تعویض کلید در صورت خطا و پشتیبانی از مدل‌های داینامیک
  */
 class AIClient(private val context: Context, private val apiKeys: List<APIKey>) {
 
@@ -571,6 +571,98 @@ class AIClient(private val context: Context, private val apiKeys: List<APIKey>) 
             } catch (_: Exception) {
                 respBody
             }
+        }
+    }
+    
+    /**
+     * ارسال پیام به مدل داینامیک با base_url سفارشی
+     */
+    suspend fun sendDynamicMessage(
+        modelId: String,
+        provider: AIProvider,
+        baseUrl: String?,
+        messages: List<ChatMessage>,
+        systemPrompt: String? = null
+    ): ChatMessage = withContext(Dispatchers.IO) {
+        
+        // پیدا کردن کلید API مناسب برای این provider
+        val apiKey = apiKeys.find { it.isActive && it.provider == provider }
+            ?: throw IllegalStateException("No active API key found for provider: $provider")
+        
+        // استفاده از baseUrl سفارشی یا baseUrl از کلید API
+        val finalBaseUrl = baseUrl ?: apiKey.baseUrl ?: getDefaultBaseUrl(provider)
+        
+        // ساخت درخواست
+        val requestMessages = mutableListOf<Map<String, String>>()
+        systemPrompt?.let {
+            requestMessages.add(mapOf("role" to "system", "content" to it))
+        }
+        requestMessages.addAll(messages.map { 
+            mapOf("role" to it.role.name.lowercase(), "content" to it.content) 
+        })
+        
+        val requestBody = ChatRequest(
+            model = modelId,
+            messages = requestMessages,
+            temperature = 0.7,
+            maxTokens = 4096,
+            stream = false
+        )
+        
+        val jsonBody = gson.toJson(requestBody)
+        android.util.Log.d("AIClient", "Sending dynamic request to $finalBaseUrl with model: $modelId")
+        
+        val request = Request.Builder()
+            .url("$finalBaseUrl/chat/completions")
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", "Bearer ${apiKey.key}")
+            .post(jsonBody.toRequestBody(mediaType))
+            .build()
+        
+        try {
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                
+                if (!response.isSuccessful || responseBody.isNullOrBlank()) {
+                    throw Exception("HTTP ${response.code}: ${response.message}")
+                }
+                
+                val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
+                val choice = chatResponse.choices.firstOrNull()
+                    ?: throw Exception("No choices in response")
+                
+                ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = choice.message.content,
+                    timestamp = System.currentTimeMillis()
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AIClient", "Dynamic model request failed", e)
+            ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = "خطا: ${e.message}",
+                timestamp = System.currentTimeMillis(),
+                isError = true
+            )
+        }
+    }
+    
+    /**
+     * دریافت baseUrl پیش‌فرض برای provider‌های مختلف
+     */
+    private fun getDefaultBaseUrl(provider: AIProvider): String {
+        return when (provider) {
+            AIProvider.OPENAI -> "https://api.openai.com/v1"
+            AIProvider.LIARA -> "https://ai.liara.ir/v1"
+            AIProvider.GAPGPT -> "https://api.gapgpt.app/v1"
+            AIProvider.AVALAI -> "https://api.avalai.ir/v1"
+            AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
+            AIProvider.ANTHROPIC -> "https://api.anthropic.com/v1"
+            AIProvider.AIML -> "https://api.aiml.io/v1"
+            AIProvider.GLADIA -> "https://api.gladia.io/v2"
+            AIProvider.CUSTOM -> "https://api.example.com/v1" // باید از remote config بیاید
+            else -> "https://api.openai.com/v1"
         }
     }
 

@@ -15,85 +15,104 @@ enum class AIModel(
     // حالت فقط آفلاین - TinyLlama
     TINY_LLAMA_OFFLINE(
         "tinyllama-1.1b-offline",
-        "TinyLlama 1.1B (آفلاین)",
-        AIProvider.LOCAL,
-        "پاسخ آفلاین بسیار سبک و سریع (بدون اینترنت)",
         2048
     ),
-
-    // OpenRouter (فقط برای تحلیل پیشرفته در مشاور مسیر/روان)
-    QWEN_2_5_1B5(
-        // FIX: Changed from invalid "qwen/qwen-2.5-1.5b-instruct" (400 error) to valid LLaMA 2 70B model
-        "meta-llama/llama-2-70b-chat",
-        "Llama 2 70B (OpenRouter)",
-        AIProvider.OPENROUTER,
-        "مدل پایدار آنلاین برای پاسخ‌های سریع و دقیق",
-        4000
+    PHI3_5_OFFLINE(
+        "phi3.5-offline", 
+        "Phi-3.5 (آفلاین)",
+        AIProvider.OFFLINE,
+        "مدل آفلاین با کیفیت بالا",
+        4096
     ),
-
-    // ===== Legacy entries kept for compatibility (غیرفعال در انتخاب) =====
-    AIML_GPT_35(
-        "gpt-3.5-turbo",
-        "AIML GPT-3.5",
-        AIProvider.AIML,
-        "سبک و اقتصادی از aimlapi.com",
-        4000
+    GEMMA_2B_OFFLINE(
+        "gemma-2b-offline",
+        "Gemma 2B (آفلاین)",
+        AIProvider.OFFLINE,
+        "مدل آفلاین گوگل",
+        4096
+    ),
+    QWEN_2_5_1B5(
+        "Qwen2.5-1.5B-Instruct",
+        "Qwen 2.5 1.5B (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "مدل سبک چینی برای کارهای عمومی",
+        8000
     ),
     LLAMA_3_2_1B(
-        "meta-llama/Llama-3.2-1B-Instruct",
-        "LLaMA 3.2 1B (OpenRouter)",
+        "meta-llama/llama-3.2-1b-instruct",
+        "Llama 3.2 1B (OpenRouter)",
         AIProvider.OPENROUTER,
-        "سبک و کم‌هزینه، پشتیبان سریع",
-        4000
+        "مدل سبک متا برای مکالمه عمومی",
+        8000
     ),
     LLAMA_3_2_3B(
-        "meta-llama/Llama-3.2-3B-Instruct",
-        "LLaMA 3.2 3B (OpenRouter)",
+        "meta-llama/llama-3.2-3b-instruct",
+        "Llama 3.2 3B (OpenRouter)",
         AIProvider.OPENROUTER,
-        "سبک با دقت بهتر، چندزبانه",
-        4000
+        "مدل متا با کیفیت بهتر",
+        8000
+    ),
+    MIXTRAL_8X7B(
+        "mistralai/mixtral-8x7b-instruct",
+        "Mixtral 8x7B (OpenRouter)",
+        AIProvider.OPENROUTER,
+        "مدل قدرتمند و چندزبانه",
+        32000
     ),
     LLAMA_3_3_70B(
         "meta-llama/llama-3.3-70b-instruct",
         "Llama 3.3 70B (OpenRouter)",
         AIProvider.OPENROUTER,
-        "مدل قدرتمند و رایگان/مقرون‌به‌صرفه برای مکالمه عمومی",
+        "مدل بسیار قدرتمند متا",
         8000
     ),
     DEEPSEEK_R1T2(
         "deepseek/deepseek-r1-t2-chimera",
         "DeepSeek R1T2 (OpenRouter)",
         AIProvider.OPENROUTER,
-        "تمرکز بر استدلال و هزینه کم برای پاسخ‌های تحلیلی",
+        "تمرکز بر استدلال و هزینه کم",
         8000
     ),
-    GAPGPT_DEEPSEEK_V3(
-        "gapgpt-deepseek-v3",  // Fixed: Match remote config model name
-        "DeepSeek V3 (gapgpt.app)",
-        AIProvider.GAPGPT,
-        "مدل DeepSeek V3 از gapgpt.app (اولویت بعد از مدل‌های ارزان‌تر لیارا)",
-        32000
+    GPT_4O_MINI(
+        "gpt-4o-mini",
+        "GPT-4o Mini (OpenAI)",
+        AIProvider.OPENAI,
+        "مدل سریع و ارزان OpenAI",
+        16000
     ),
-    MIXTRAL_8X7B(
-        "mistralai/mixtral-8x7b-instruct",
-        "Mixtral 8x7B (OpenRouter)",
-        AIProvider.OPENROUTER,
-        "سریع و سبک برای کدنویسی و پاسخ‌های کوتاه",
-        8000
+    GPT_4O(
+        "gpt-4o",
+        "GPT-4o (OpenAI)",
+        AIProvider.OPENAI,
+        "مدل قدرتمند OpenAI",
+        128000
     ),
-    LLAMA_2_70B(
-        "meta-llama/llama-2-70b-chat",
-        "Llama 2 70B (OpenRouter)",
-        AIProvider.OPENROUTER,
-        "مدل پشتیبان متن‌باز و چندزبانه",
-        4000
+    CLAUDE_HAIKU(
+        "claude-3-haiku-20240307",
+        "Claude 3 Haiku",
+        AIProvider.ANTHROPIC,
+        "مدل سریع انتروپیک",
+        200000
     ),
-    // Ivira (token-based, خارج از prefs APIKey)
-    IVIRA_VIRA(
-        "compound-vira",
-        "Vira (Ivira)",
+    CLAUDE_SONNET(
+        "claude-3-5-sonnet-20241022",
+        "Claude 3.5 Sonnet",
+        AIProvider.ANTHROPIC,
+        "مدل قوی انتروپیک",
+        200000
+    ),
+    LIARA_GPT_4O_MINI(
+        "gpt-4o-mini",
+        "GPT-4o Mini (Liara)",
+        AIProvider.LIARA,
+        "مدل GPT-4o Mini از سرویس لیارا",
+        16000
+    ),
+    IVIRA_GPT5_NANO(
+        "gpt-5-nano",
+        "GPT-5 Nano (Ivira)",
         AIProvider.IVIRA,
-        "مدل زبانی ترکیبی ویرا (اولویت اول)",
+        "مدل GPT-5 Nano از Ivira",
         32000
     ),
     IVIRA_GPT5_MINI(
@@ -103,64 +122,14 @@ enum class AIModel(
         "مدل GPT-5 Mini از Ivira",
         32000
     ),
-    IVIRA_GPT5_NANO(
-        "gpt-5-nano",
-        "GPT-5 Nano (Ivira)",
-        AIProvider.IVIRA,
-        "مدل GPT-5 Nano از Ivira",
-        32000
-    ),
-    IVIRA_GEMMA3_27B(
-        "gemma3-27b",
-        "Gemma 3 27B (Ivira)",
-        AIProvider.IVIRA,
-        "مدل Gemma 3 27B از Ivira",
-        32000
-    ),
-
-    GPT_4O(
-        "gpt-4o",
-        "GPT-4o",
-        AIProvider.OPENAI,
-        "قدرتمندترین مدل OpenAI با قابلیت درک متن و تصویر",
-        128000
-    ),
-    GPT_4O_MINI(
-        "gpt-4o-mini",
-        "GPT-4o Mini",
-        AIProvider.OPENAI,
-        "مدل سریع و سبک OpenAI برای مکالمه روزمره",
-        128000
-    ),
-    LIARA_GPT_4O_MINI(
-        "openai/gpt-4o-mini",
-        "GPT-4o Mini (Liara)",
-        AIProvider.LIARA,
-        "مدل سازگار با OpenAI از سرویس لیارا برای مکالمه",
-        128000
-    ),
-    LIARA_GPT_5_NANO(
-        "gpt-5-nano",
-        "GPT-5 Nano (Liara)",
-        AIProvider.LIARA,
-        "مدل GPT-5 Nano از سرویس لیارا",
-        32000
-    ),
     AVALAI_GEMINI_FLASH(
-        "gemini-2.5-flash",
-        "Gemini 2.5 Flash (Avalai)",
+        "gemini-2.0-flash-exp",
+        "Gemini 2.0 Flash (Avalai)",
         AIProvider.AVALAI,
-        "مدل Gemini از avalai.ir برای مکالمه فارسی/چندزبانه",
-        8192
+        "مدل سریع گوگل از Avalai",
+        8000
     ),
-    CLAUDE_SONNET(
-        "claude-3-5-sonnet-20241022",
-        "Claude 3.5 Sonnet",
-        AIProvider.ANTHROPIC,
-        "مدل پیشرفته Anthropic با توانایی استدلال بالا",
-        200000
-    ),
-    CLAUDE_HAIKU(
+    AIML_GPT_35(
         "claude-3-5-haiku-20241022",
         "Claude 3.5 Haiku",
         AIProvider.ANTHROPIC,
@@ -197,7 +166,8 @@ enum class AIProvider {
     AVALAI,
     IVIRA,
     GAPGPT,
-    LOCAL
+    LOCAL,
+    CUSTOM
 }
 
 /**
