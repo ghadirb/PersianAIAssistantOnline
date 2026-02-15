@@ -220,7 +220,7 @@ class QueryRouter(private val context: Context) {
             val activeProviders = activeKeys.map { it.provider }.toSet()
 
             // Get priority list from remote config via ModelSelector
-            val preferredOrder = ModelSelector.getAvailableModels(context, activeKeys)
+            val preferredOrder = ModelSelector.getAvailableAIModels(context, activeKeys)
                 .filter { model ->
                     model.provider != AIProvider.LOCAL &&
                         model.provider != AIProvider.IVIRA
