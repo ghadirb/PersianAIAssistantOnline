@@ -76,7 +76,7 @@ data class DynamicAIModel(
          */
         fun toStaticModelIfExists(modelId: String, context: Context?): AIModel? {
             // اول در مدل‌های استاتیک بگرد
-            AIModel.values().find { it.modelId.equals(modelId, ignoreCase = true) }
+            return AIModel.values().find { it.modelId.equals(modelId, ignoreCase = true) }
                 // اگر پیدا نشد، بررسی کن آیا مدل داینامیک با provider مشابه وجود دارد
                 ?: context?.let { ctx ->
                     val dynamicModel = findByModelId(modelId, ctx)

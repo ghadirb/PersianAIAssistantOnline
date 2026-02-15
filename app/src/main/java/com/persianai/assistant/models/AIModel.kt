@@ -15,19 +15,22 @@ enum class AIModel(
     // حالت فقط آفلاین - TinyLlama
     TINY_LLAMA_OFFLINE(
         "tinyllama-1.1b-offline",
+        "Tiny Llama (آفلاین)",
+        AIProvider.LOCAL,
+        "مدل سبک آفلاین برای پاسخ‌های سریع",
         2048
     ),
     PHI3_5_OFFLINE(
         "phi3.5-offline", 
         "Phi-3.5 (آفلاین)",
-        AIProvider.OFFLINE,
+        AIProvider.LOCAL,
         "مدل آفلاین با کیفیت بالا",
         4096
     ),
     GEMMA_2B_OFFLINE(
         "gemma-2b-offline",
         "Gemma 2B (آفلاین)",
-        AIProvider.OFFLINE,
+        AIProvider.LOCAL,
         "مدل آفلاین گوگل",
         4096
     ),
