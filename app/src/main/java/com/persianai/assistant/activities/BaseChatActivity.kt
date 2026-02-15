@@ -80,6 +80,9 @@ abstract class BaseChatActivity : AppCompatActivity() {
     
     companion object {
         protected const val CHAT_DISABLED = true
+        private const val REQUEST_RECORD_AUDIO = 1001
+        const val EXTRA_START_VOICE_CONVERSATION = "extra_start_voice_conversation"
+        private const val MENU_ID_VOICE_CONVERSATION = 99001
     }
     private val httpClient = OkHttpClient()
     private val sttEngine by lazy { UnifiedVoiceEngine(this) }
@@ -90,13 +93,6 @@ abstract class BaseChatActivity : AppCompatActivity() {
             ?.takeIf { it.isNotBlank() }
             ?: DefaultApiKeys.getHuggingFaceKey()
             ?: ""
-    }
-
-    companion object {
-        private const val REQUEST_RECORD_AUDIO = 1001
-        const val EXTRA_START_VOICE_CONVERSATION = "extra_start_voice_conversation"
-
-        private const val MENU_ID_VOICE_CONVERSATION = 99001
     }
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {

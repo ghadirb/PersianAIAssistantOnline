@@ -44,7 +44,6 @@ class RemoteAIConfigManager private constructor(private val context: Context) {
             AIModel.MIXTRAL_8X7B,
             AIModel.LLAMA_3_3_70B,
             AIModel.DEEPSEEK_R1T2,
-            AIModel.LLAMA_2_70B,
             AIModel.GPT_4O,
             AIModel.CLAUDE_HAIKU,
             AIModel.CLAUDE_SONNET,
