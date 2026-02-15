@@ -985,7 +985,7 @@ class DashboardActivity : AppCompatActivity() {
             val allInstallments = accountingDB.getAllInstallments()
             allInstallments.count { installment ->
                 val nextPaymentDate = calculateNextPaymentDate(installment)
-                nextPaymentDate in startOfDay..endOfDay
+                nextPaymentDate >= startOfDay && nextPaymentDate < endOfDay
             }
         } catch (e: Exception) {
             android.util.Log.e("DashboardActivity", "Error getting today installments", e)
@@ -1005,7 +1005,7 @@ class DashboardActivity : AppCompatActivity() {
             
             val allChecks = accountingDB.getAllChecks()
             allChecks.count { check ->
-                check.dueDate in startOfDay..endOfDay
+                check.dueDate >= startOfDay && check.dueDate < endOfDay
             }
         } catch (e: Exception) {
             android.util.Log.e("DashboardActivity", "Error getting today checks", e)
