@@ -103,13 +103,13 @@ class DashboardActivity : AppCompatActivity() {
                     // Show welcome/global announcement messages once per app start
                     config.messages?.let { msgs ->
                         val message = listOfNotNull(msgs.welcome, msgs.global_announcement).joinToString("\n\n")
-                        if (message.isNotBlank() && !prefs.getBoolean("welcome_completed", false)) {
+                        if (message.isNotBlank() && !prefsManager.hasCompletedWelcome()) {
                             runOnUiThread {
                                 androidx.appcompat.app.AlertDialog.Builder(this@DashboardActivity)
                                     .setTitle("📢 اطلاعیه")
                                     .setMessage(message)
                                     .setPositiveButton("باشه") { _, _ ->
-                                        prefs.edit().putBoolean("welcome_completed", true).apply()
+                                        prefsManager.setWelcomeCompleted(true)
                                     }
                                     .show()
                             }
@@ -717,6 +717,9 @@ class DashboardActivity : AppCompatActivity() {
                 AIProvider.GAPGPT -> {
                     // فعلاً نیازی به سینک مستقیم در SharedPreferences قدیمی نیست
                 }
+                AIProvider.CUSTOM -> {
+                    // مدل‌های سفارشی از remote config بارگذاری می‌شوند
+                }
             }
         }
 
@@ -956,61 +959,131 @@ class DashboardActivity : AppCompatActivity() {
     }
     
     /**
-     * دریافت تعداد یادآوری‌های امروز (شبیه‌سازی)
+     * دریافت تعداد یادآوری‌های امروز
      */
     private fun getTodayRemindersCount(): Int {
-        // در عمل این داده را از دیتابیس بخوانید
-        // فعلاً شبیه‌سازی می‌کنیم
-        return (1..3).random() // بین 1 تا 3 یادآوری تصادفی
+        return try {
+            val reminderManager = com.persianai.assistant.utils.SmartReminderManager(this)
+            reminderManager.getTodayReminders().size
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting today reminders", e)
+            0
+        }
     }
     
     /**
-     * دریافت تعداد اقساط امروز (شبیه‌سازی)
+     * دریافت تعداد اقساط امروز
      */
     private fun getTodayInstallmentsCount(): Int {
-        // در عمل این داده را از دیتابیس بخوانید
-        return (0..2).random() // بین 0 تا 2 قسط تصادفی
+        return try {
+            val accountingDB = com.persianai.assistant.data.AccountingDB(this)
+            val today = java.time.LocalDate.now()
+            val startOfDay = today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endOfDay = today.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            
+            // Check if any installment payment is due today (simplified logic)
+            val allInstallments = accountingDB.getAllInstallments()
+            allInstallments.count { installment ->
+                val nextPaymentDate = calculateNextPaymentDate(installment)
+                nextPaymentDate in startOfDay..endOfDay
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting today installments", e)
+            0
+        }
     }
     
     /**
-     * دریافت تعداد چک‌های امروز (شبیه‌سازی)
+     * دریافت تعداد چک‌های امروز
      */
     private fun getTodayChecksCount(): Int {
-        // در عمل این داده را از دیتابیس بخوانید
-        return (0..1).random() // 0 یا 1 چک تصادفی
+        return try {
+            val accountingDB = com.persianai.assistant.data.AccountingDB(this)
+            val today = java.time.LocalDate.now()
+            val startOfDay = today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endOfDay = today.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            
+            val allChecks = accountingDB.getAllChecks()
+            allChecks.count { check ->
+                check.dueDate in startOfDay..endOfDay
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting today checks", e)
+            0
+        }
     }
     
     /**
-     * دریافت تعداد رویدادهای امروز (شبیه‌سازی)
+     * دریافت تعداد رویدادهای امروز (یادآوری‌های ویژه)
      */
     private fun getTodayEventsCount(): Int {
-        // در عمل این داده را از دیتابیس بخوانید
-        return (0..2).random() // بین 0 تا 2 رویداد تصادفی
+        return try {
+            val reminderManager = com.persianai.assistant.utils.SmartReminderManager(this)
+            val todayReminders = reminderManager.getTodayReminders()
+            // Count special events like birthdays, appointments, etc.
+            todayReminders.count { reminder ->
+                reminder.type.toString() in listOf("BIRTHDAY", "APPOINTMENT", "EVENT")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting today events", e)
+            0
+        }
     }
     
     /**
-     * دریافت مجموع درآمد ماه (شبیه‌سازی)
+     * محاسبه تاریخ پرداخت بعدی قسط
+     */
+    private fun calculateNextPaymentDate(installment: com.persianai.assistant.models.Installment): Long {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = installment.startDate
+        
+        // Add paidMonths to start date to get next payment date
+        calendar.add(java.util.Calendar.MONTH, installment.paidMonths)
+        return calendar.timeInMillis
+    }
+    
+    /**
+     * دریافت مجموع درآمد ماه
      */
     private fun getMonthlyIncome(year: Int, month: Int): Long {
-        // در عمل این داده را از دیتابیس بخوانید
-        // فعلاً مقادیر تصادفی واقعی برمی‌گردانیم
-        return (5_000_000L..15_000_000L).random() // 5 تا 15 میلیون تومان
+        return try {
+            val financeManager = com.persianai.assistant.finance.FinanceManager(this)
+            val (income, _) = financeManager.getMonthlyReport(year, month)
+            income.toLong()
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting monthly income", e)
+            0L
+        }
     }
     
     /**
-     * دریافت مجموع هزینه ماه (شبیه‌سازی)
+     * دریافت مجموع هزینه ماه
      */
     private fun getMonthlyExpense(year: Int, month: Int): Long {
-        // در عمل این داده را از دیتابیس بخوانید
-        return (3_000_000L..12_000_000L).random() // 3 تا 12 میلیون تومان
+        return try {
+            val financeManager = com.persianai.assistant.finance.FinanceManager(this)
+            val (_, expense) = financeManager.getMonthlyReport(year, month)
+            expense.toLong()
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting monthly expense", e)
+            0L
+        }
     }
     
     /**
-     * دریافت تعداد اقساط باقی‌مانده (شبیه‌سازی)
+     * دریافت تعداد اقساط باقی‌مانده
      */
     private fun getRemainingInstallmentsCount(): Int {
-        // در عمل این داده را از دیتابیس بخوانید
-        return (5..15).random() // بین 5 تا 15 قسط باقی‌مانده
+        return try {
+            val accountingDB = com.persianai.assistant.data.AccountingDB(this)
+            val allInstallments = accountingDB.getAllInstallments()
+            allInstallments.count { installment ->
+                installment.status != com.persianai.assistant.models.InstallmentStatus.COMPLETED
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardActivity", "Error getting remaining installments", e)
+            0
+        }
     }
     
     /**
@@ -1029,7 +1102,6 @@ class DashboardActivity : AppCompatActivity() {
     companion object {
         private const val CALL_PHONE_PERMISSION_REQUEST = 1001
         private const val RECORD_AUDIO_PERMISSION_REQUEST = 1002
-        private const val MUSIC_DISABLED = true
         private const val NAVIGATION_DISABLED = true
         private const val WEATHER_DISABLED = true
     }

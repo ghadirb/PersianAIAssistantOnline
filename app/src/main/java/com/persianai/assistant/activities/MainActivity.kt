@@ -333,7 +333,7 @@ class MainActivity : AppCompatActivity() {
                 preferred
             } else {
                 // انتخاب بهترین مدل سبک
-                ModelSelector.selectBestModel(this@MainActivity, apiKeys, preferLightweight = true)
+                ModelSelector.selectBestModel(this@MainActivity, apiKeys)
             }
             
             prefsManager.saveSelectedModel(currentModel)
@@ -354,7 +354,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun chooseBestModel(apiKeys: List<APIKey>, pref: ProviderPreference): AIModel {
         // استفاده از ModelSelector جدید
-        return ModelSelector.selectBestModel(this@MainActivity, apiKeys, preferLightweight = true)
+        return ModelSelector.selectBestModel(this@MainActivity, apiKeys)
     }
 
 
@@ -1458,6 +1458,8 @@ class MainActivity : AppCompatActivity() {
             com.persianai.assistant.models.AIProvider.OPENROUTER -> "مسیر هوشمند"
             com.persianai.assistant.models.AIProvider.OPENAI -> "OpenAI"
             com.persianai.assistant.models.AIProvider.ANTHROPIC -> "Claude"
+            com.persianai.assistant.models.AIProvider.LOCAL -> "آفلاین"
+            com.persianai.assistant.models.AIProvider.CUSTOM -> "سفارشی"
             else -> currentModel.provider.name
         }
         binding.modelIndicator.text = "مدل: ${currentModel.displayName} • $providerLabel"

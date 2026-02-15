@@ -87,6 +87,11 @@ object ModelSelector {
      * بررسی اینکه آیا مدل مشخص قابل استفاده است
      */
     fun isModelAvailable(model: AIModel, apiKeys: List<APIKey>): Boolean {
+        // مدل‌های آفلاین همیشه در دسترس هستند
+        if (model.provider == AIProvider.LOCAL) {
+            return true
+        }
+        // مدل‌های دیگر نیاز به کلید فعال دارند
         return apiKeys.any { it.isActive && it.provider == model.provider }
     }
     

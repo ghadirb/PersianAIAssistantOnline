@@ -111,6 +111,10 @@ class AIClient(private val context: Context, private val apiKeys: List<APIKey>) 
                         sendToOpenAI(model, messages, systemPrompt, apiKey)
                     AIProvider.ANTHROPIC -> sendToClaude(model, messages, systemPrompt, apiKey)
                     AIProvider.LOCAL -> throw IllegalStateException("مدل آفلاین نیاز به AIClient ندارد")
+                    AIProvider.CUSTOM -> {
+                        // برای مدل‌های سفارشی، baseUrl از مدل استفاده می‌شود
+                        sendToOpenAI(model, messages, systemPrompt, apiKey)
+                    }
                     else -> throw IllegalStateException("Provider پشتیبانی نشده: ${model.provider}")
                 }
                 // Remove from failed keys on success
@@ -170,6 +174,8 @@ class AIClient(private val context: Context, private val apiKeys: List<APIKey>) 
                 ?: "https://api.gladia.io/v1/chat/completions"
             AIProvider.GAPGPT -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.gapgpt.app/v1/chat/completions"
+            AIProvider.CUSTOM -> baseUrl?.let { "$it/chat/completions" }
+                ?: "https://api.example.com/v1/chat/completions"
             else -> baseUrl?.let { "$it/chat/completions" }
                 ?: "https://api.openai.com/v1/chat/completions"
         }
@@ -369,7 +375,8 @@ class AIClient(private val context: Context, private val apiKeys: List<APIKey>) 
                     AIProvider.GAPGPT -> 0
                     AIProvider.LIARA -> 1
                     AIProvider.OPENAI -> 2
-                    else -> 3
+                    AIProvider.CUSTOM -> 3
+                    else -> 4
                 }
             }
             .filter { it.provider == AIProvider.GAPGPT || it.provider == AIProvider.LIARA || it.provider == AIProvider.OPENAI }
@@ -403,6 +410,7 @@ class AIClient(private val context: Context, private val apiKeys: List<APIKey>) 
                     AIProvider.GAPGPT -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.gapgpt.app/v1"
                     AIProvider.LIARA -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://ai.liara.ir/api/69467b6ba99a2016cac892e1/v1"
                     AIProvider.OPENAI -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
+                    AIProvider.CUSTOM -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.example.com/v1"
                     else -> k.baseUrl?.trim()?.trimEnd('/') ?: "https://api.openai.com/v1"
                 }
                 val url = "$baseUrl/audio/transcriptions"
@@ -662,6 +670,7 @@ class AIClient(private val context: Context, private val apiKeys: List<APIKey>) 
             AIProvider.AIML -> "https://api.aiml.io/v1"
             AIProvider.GLADIA -> "https://api.gladia.io/v2"
             AIProvider.CUSTOM -> "https://api.example.com/v1" // باید از remote config بیاید
+            AIProvider.LOCAL -> "http://localhost:8080" // مدل‌های محلی
             else -> "https://api.openai.com/v1"
         }
     }

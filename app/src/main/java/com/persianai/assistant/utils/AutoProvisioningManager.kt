@@ -306,6 +306,14 @@ object AutoProvisioningManager {
                         .addHeader("x-api-key", apiKey.key)
                         .build()
                 }
+                AIProvider.CUSTOM -> {
+                    // برای مدل‌های سفارشی، baseUrl از apiKey استفاده می‌شود
+                    val baseUrl = apiKey.baseUrl?.trim()?.trimEnd('/') ?: "https://api.example.com/v1"
+                    okhttp3.Request.Builder()
+                        .url("$baseUrl/models")
+                        .addHeader("Authorization", "Bearer ${apiKey.key}")
+                        .build()
+                }
                 else -> return@withContext true
             }
             
