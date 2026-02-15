@@ -127,13 +127,6 @@ object ModelSelector {
     }
     
     /**
-     * چک کردن اینکه آیا یک مدل با کلیدهای موجود قابل استفاده است
-     */
-    fun isModelAvailable(model: AIModel, apiKeys: List<APIKey>): Boolean {
-        return apiKeys.any { it.provider == model.provider && it.isActive }
-    }
-    
-    /**
      * انتخاب fallback model در صورت خطا در مدل فعلی
      */
     fun selectFallbackModel(
