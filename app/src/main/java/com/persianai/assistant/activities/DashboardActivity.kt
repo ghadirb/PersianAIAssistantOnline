@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -850,13 +851,6 @@ class DashboardActivity : AppCompatActivity() {
     
     private var pendingCall: String? = null
     
-    companion object {
-        private const val CALL_PHONE_PERMISSION_REQUEST = 1001
-        private const val RECORD_AUDIO_PERMISSION_REQUEST = 1002
-        private const val NAVIGATION_DISABLED = true
-        private const val WEATHER_DISABLED = true
-    }
-    
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -977,15 +971,10 @@ class DashboardActivity : AppCompatActivity() {
     private fun getTodayInstallmentsCount(): Int {
         return try {
             val accountingDB = com.persianai.assistant.data.AccountingDB(this)
-            val today = java.time.LocalDate.now()
-            val startOfDay = today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endOfDay = today.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-            
-            // Check if any installment payment is due today (simplified logic)
             val allInstallments = accountingDB.getAllInstallments()
+            // اقساطی که هنوز کامل نشده‌اند را بعنوان "در جریان امروز" در نظر می‌گیریم
             allInstallments.count { installment ->
-                val nextPaymentDate = calculateNextPaymentDate(installment)
-                nextPaymentDate >= startOfDay && nextPaymentDate < endOfDay
+                installment.status != com.persianai.assistant.models.InstallmentStatus.COMPLETED
             }
         } catch (e: Exception) {
             android.util.Log.e("DashboardActivity", "Error getting today installments", e)
@@ -1005,7 +994,8 @@ class DashboardActivity : AppCompatActivity() {
             
             val allChecks = accountingDB.getAllChecks()
             allChecks.count { check ->
-                check.dueDate >= startOfDay && check.dueDate < endOfDay
+                val dueTime = check.dueDate?.time ?: 0L
+                dueTime >= startOfDay && dueTime < endOfDay
             }
         } catch (e: Exception) {
             android.util.Log.e("DashboardActivity", "Error getting today checks", e)
@@ -1028,18 +1018,6 @@ class DashboardActivity : AppCompatActivity() {
             android.util.Log.e("DashboardActivity", "Error getting today events", e)
             0
         }
-    }
-    
-    /**
-     * محاسبه تاریخ پرداخت بعدی قسط
-     */
-    private fun calculateNextPaymentDate(installment: com.persianai.assistant.models.Installment): Long {
-        val calendar = java.util.Calendar.getInstance()
-        calendar.timeInMillis = installment.startDate
-        
-        // Add paidMonths to start date to get next payment date
-        calendar.add(java.util.Calendar.MONTH, installment.paidMonths)
-        return calendar.timeInMillis
     }
     
     /**
@@ -1102,6 +1080,7 @@ class DashboardActivity : AppCompatActivity() {
     companion object {
         private const val CALL_PHONE_PERMISSION_REQUEST = 1001
         private const val RECORD_AUDIO_PERMISSION_REQUEST = 1002
+        private const val MUSIC_DISABLED = true
         private const val NAVIGATION_DISABLED = true
         private const val WEATHER_DISABLED = true
     }
