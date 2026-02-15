@@ -559,7 +559,7 @@ class MainActivity : AppCompatActivity() {
                         "خطا در دانلود: ${e.message}\nلطفاً اتصال اینترنت را بررسی کنید.",
                         Toast.LENGTH_LONG
                     ).show()
-                    return
+                    return@launch
                 }
                 
                 Toast.makeText(this@MainActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
@@ -1293,11 +1293,11 @@ class MainActivity : AppCompatActivity() {
                 if (mode == PreferencesManager.WorkingMode.OFFLINE) {
                     Toast.makeText(
                         this@MainActivity,
-                        "🎙️ در حالت آفلاین، تبدیل صوت به متن آنلاین غیرفعال است.\nاز تشخیص صوت داخلی استفاده می...",
+                        "🎙️ در حالت آفلاین، تبدیل صوت به متن آنلاین غیرفعال است.\nاز تشخیص صوت داخلی استفاده می...",
                         Toast.LENGTH_LONG
                     ).show()
                     checkAudioPermissionAndStartSpeechRecognition()
-                    return
+                    return@launch
                 }
 
                 // تبدیل صوت به متن با Whisper
@@ -1305,11 +1305,11 @@ class MainActivity : AppCompatActivity() {
 
                 if (transcribedText.isNullOrEmpty()) {
                     Toast.makeText(this@MainActivity, "⚠️ متنی شناسایی نشد", Toast.LENGTH_SHORT).show()
-                    return
+                    return@launch
                 }
 
                 android.util.Log.d("MainActivity", "Whisper transcribed: $transcribedText")
-                handleTranscript(transcribedText)
+                handleTranscript(transcribedText ?: "")
 
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Transcription error", e)
