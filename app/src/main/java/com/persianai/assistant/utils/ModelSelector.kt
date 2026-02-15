@@ -142,7 +142,7 @@ object ModelSelector {
         apiKeys: List<APIKey>
     ): AIModel? {
         
-        val availableModels = getAvailableModels(context, apiKeys)
+        val availableModels = getAvailableAIModels(context, apiKeys)
         
         // حذف مدل فعلی از لیست
         val fallbackOptions = availableModels.filter { it != currentModel }
