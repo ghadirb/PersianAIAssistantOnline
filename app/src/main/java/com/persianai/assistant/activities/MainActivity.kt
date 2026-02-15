@@ -141,7 +141,7 @@ class MainActivity : AppCompatActivity() {
             
             if (CHAT_DISABLED) {
                 showChatDisabledMessage()
-                return@launch
+                return
             }
             
             setupChatUI()
@@ -559,7 +559,7 @@ class MainActivity : AppCompatActivity() {
                         "خطا در دانلود: ${e.message}\nلطفاً اتصال اینترنت را بررسی کنید.",
                         Toast.LENGTH_LONG
                     ).show()
-                    return@launch
+                    return
                 }
                 
                 Toast.makeText(this@MainActivity, "در حال رمزگشایی...", Toast.LENGTH_SHORT).show()
@@ -1297,7 +1297,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.LENGTH_LONG
                     ).show()
                     checkAudioPermissionAndStartSpeechRecognition()
-                    return@launch
+                    return
                 }
 
                 // تبدیل صوت به متن با Whisper
@@ -1305,7 +1305,7 @@ class MainActivity : AppCompatActivity() {
 
                 if (transcribedText.isNullOrEmpty()) {
                     Toast.makeText(this@MainActivity, "⚠️ متنی شناسایی نشد", Toast.LENGTH_SHORT).show()
-                    return@launch
+                    return
                 }
 
                 android.util.Log.d("MainActivity", "Whisper transcribed: $transcribedText")
