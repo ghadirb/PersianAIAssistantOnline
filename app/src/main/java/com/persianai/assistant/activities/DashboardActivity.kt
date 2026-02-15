@@ -99,17 +99,17 @@ class DashboardActivity : AppCompatActivity() {
                 val remoteConfigManager = RemoteAIConfigManager.getInstance(this@DashboardActivity)
                 val config = remoteConfigManager.refreshAndCache()
                 if (config != null) {
-                    android.util.Log.i("DashboardActivity", "Remote AI config refreshed: ${config.models?.size ?: 0} models")
+                    android.util.Log.i("DashboardActivity", "Remote AI config refreshed: ${config.ai_text_models?.size ?: 0} models")
                     // Show welcome/global announcement messages once per app start
                     config.messages?.let { msgs ->
                         val message = listOfNotNull(msgs.welcome, msgs.global_announcement).joinToString("\n\n")
-                        if (message.isNotBlank() && !prefs.hasCompletedWelcome()) {
+                        if (message.isNotBlank() && !prefs.getBoolean("welcome_completed", false)) {
                             runOnUiThread {
                                 androidx.appcompat.app.AlertDialog.Builder(this@DashboardActivity)
                                     .setTitle("📢 اطلاعیه")
                                     .setMessage(message)
                                     .setPositiveButton("باشه") { _, _ ->
-                                        prefs.setWelcomeCompleted(true)
+                                        prefs.edit().putBoolean("welcome_completed", true).apply()
                                     }
                                     .show()
                             }
@@ -850,6 +850,8 @@ class DashboardActivity : AppCompatActivity() {
     companion object {
         private const val CALL_PHONE_PERMISSION_REQUEST = 1001
         private const val RECORD_AUDIO_PERMISSION_REQUEST = 1002
+        private const val NAVIGATION_DISABLED = true
+        private const val WEATHER_DISABLED = true
     }
     
     override fun onRequestPermissionsResult(

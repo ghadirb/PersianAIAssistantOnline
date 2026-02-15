@@ -37,7 +37,6 @@ class RemoteAIConfigManager private constructor(private val context: Context) {
             AIModel.GPT_4O_MINI,
             AIModel.LIARA_GPT_4O_MINI,
             AIModel.IVIRA_GPT5_MINI,
-            AIModel.GAPGPT_DEEPSEEK_V3,
             AIModel.QWEN_2_5_1B5,
             AIModel.LLAMA_3_2_1B,
             AIModel.LLAMA_3_2_3B,

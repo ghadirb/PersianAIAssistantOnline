@@ -372,6 +372,9 @@ class SplashActivity : AppCompatActivity() {
                 AIProvider.GAPGPT -> {
                     // فعلاً نیازی به سینک مستقیم در SharedPreferences قدیمی نیست
                 }
+                AIProvider.CUSTOM -> {
+                    // مدل‌های سفارشی از remote config بارگذاری می‌شوند
+                }
             }
         }
 
